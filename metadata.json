@@ -1,0 +1,6 @@
+{
+  "name": "VIBEZ",
+  "description": "Full-featured VIBEZ messaging application with Chats, Status updates, Calls, Contacts, Voice Notes, Media Sharing, and Search.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
