@@ -34,6 +34,8 @@ model User {
   callsMade        Call[]    @relation("Caller")
   callsReceived    Call[]    @relation("Receiver")
   settings         UserSettings?
+  reportsSubmitted Report[]  @relation("Reporter")
+  reportsReceived  Report[]  @relation("ReportedUser")
 }
 
 model Chat {
