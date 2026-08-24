@@ -74,6 +74,7 @@ import com.example.ui.screens.MediaViewerScreen
 import com.example.ui.screens.MyStatusListScreen
 import com.example.ui.screens.NewContactScreen
 import com.example.ui.screens.NewGroupScreen
+import com.example.ui.screens.PermissionsOnboardingScreen
 import com.example.ui.screens.PhoneIdentitySetupScreen
 import com.example.ui.screens.QrScannerScreen
 import com.example.ui.screens.SelectContactScreen
@@ -234,14 +235,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             AuthScreen(
                 onAuthSuccess = { phone, name, about ->
                     viewModel.loginWithGoogle("user@vibez.app", name, null, phone) { success, _ ->
-                        navController.navigate("main") {
+                        navController.navigate("permissions_onboarding") {
                             popUpTo("auth") { inclusive = true }
                         }
                     }
                 },
                 onGoogleAuthSuccess = { email, name, avatarUrl, phone ->
                     viewModel.loginWithGoogle(email, name, avatarUrl, phone) { success, _ ->
-                        navController.navigate("main") {
+                        navController.navigate("permissions_onboarding") {
                             popUpTo("auth") { inclusive = true }
                         }
                     }
@@ -281,9 +282,20 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onCompleteSetup = { phone, updatedName, about, chosenAvatar ->
                     viewModel.loginWithGoogle(email, updatedName, chosenAvatar, phone) { success, _ ->
-                        navController.navigate("main") {
+                        navController.navigate("permissions_onboarding") {
                             popUpTo("auth") { inclusive = true }
                         }
+                    }
+                }
+            )
+        }
+
+        // 0c. Permissions Onboarding Step
+        composable("permissions_onboarding") {
+            PermissionsOnboardingScreen(
+                onAllPermissionsProcessed = {
+                    navController.navigate("main") {
+                        popUpTo("permissions_onboarding") { inclusive = true }
                     }
                 }
             )

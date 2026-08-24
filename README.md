@@ -1,4 +1,4 @@
-# WhatsApp Clone - Android
+# VIBEZ - Android
 
 A high-fidelity communication application built with modern Android development practices, focusing on a polished user interface, real-time media experiences, and robust local persistence.
 
