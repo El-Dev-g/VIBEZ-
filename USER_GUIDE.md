@@ -46,6 +46,7 @@ High-quality voice and video calling.
 VIBEZ is designed to be "Always Synced."
 
 *   **Manual Sync**: If you feel your messages are out of date, go to **Settings > Backend & Cloud Sync** and tap **Match & Sync Everything Now**.
+*   **Integrated Backend**: The VIBEZ mobile app and Admin Portal are now fully connected to a high-performance Node.js backend with Socket.IO support for instant communication.
 *   **Real-time Stream**: VIBEZ uses WebSocket technology to ensure your messages arrive instantly.
 
 ---

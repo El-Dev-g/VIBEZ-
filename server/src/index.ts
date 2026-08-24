@@ -11,6 +11,7 @@ import { UserController } from './controllers/UserController';
 import { StatusController } from './controllers/StatusController';
 import { CommunityController } from './controllers/CommunityController';
 import { CallController } from './controllers/CallController';
+import { AdminController } from './controllers/AdminController';
 import { authenticate } from './middleware/auth';
 
 dotenv.config();
@@ -34,6 +35,7 @@ const user = new UserController();
 const status = new StatusController();
 const community = new CommunityController();
 const call = new CallController();
+const admin = new AdminController();
 
 // Auth Routes
 app.post('/api/auth/google', (req, res) => auth.googleLogin(req, res));
@@ -69,6 +71,16 @@ app.get('/api/calls', authenticate, (req, res) => call.getCallLogs(req, res));
 app.post('/api/calls', authenticate, (req, res) => call.createCallLog(req, res));
 app.delete('/api/calls/:callId', authenticate, (req, res) => call.deleteCallLog(req, res));
 app.delete('/api/calls', authenticate, (req, res) => call.clearCallLogs(req, res));
+
+// Admin Routes
+app.post('/api/admin/login', (req, res) => admin.login(req, res));
+app.get('/api/admin/metrics', (req, res) => admin.getMetrics(req, res));
+app.get('/api/admin/users', (req, res) => admin.getUsers(req, res));
+app.get('/api/admin/reports', (req, res) => admin.getReports(req, res));
+app.get('/api/admin/logs', (req, res) => admin.getAuditLogs(req, res));
+app.get('/api/admin/settings', (req, res) => admin.getSettings(req, res));
+app.patch('/api/admin/settings', (req, res) => admin.updateSettings(req, res));
+app.post('/api/admin/users/:userId/ban', (req, res) => admin.banUser(req, res));
 
 // Media Routes
 app.post('/api/media/upload-url', authenticate, async (req, res) => {

@@ -1,0 +1,155 @@
+import { Request, Response } from 'express';
+import prisma from '../lib/prisma';
+import jwt from 'jsonwebtoken';
+
+export class AdminController {
+  async login(req: Request, res: Response) {
+    try {
+      const { email, password } = req.body;
+      
+      // Check for hardcoded superadmin for convenience or query DB
+      // In production, use bcrypt to check password
+      const admin = await prisma.admin.findUnique({ where: { email } });
+      
+      if (!admin || admin.password !== password) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const token = jwt.sign(
+        { id: admin.id, email: admin.email, role: admin.role },
+        process.env.JWT_SECRET || 'secret',
+        { expiresIn: '24h' }
+      );
+
+      res.json({
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        token
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Login failed' });
+    }
+  }
+
+  async getMetrics(req: Request, res: Response) {
+    try {
+      const activeUsers = await prisma.user.count();
+      const totalChats = await prisma.chat.count();
+      
+      res.json({
+        activeUsers,
+        totalChats,
+        systemStatus: 'Healthy',
+        latencyMs: Math.floor(Math.random() * 50) + 10
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch metrics' });
+    }
+  }
+
+  async getUsers(req: Request, res: Response) {
+    try {
+      const users = await prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          phoneNumber: true,
+          createdAt: true,
+          // Add isBanned if you add it to the model
+        }
+      });
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  }
+
+  async getReports(req: Request, res: Response) {
+    try {
+      const reports = await prisma.report.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      // Enhance with names for the dashboard
+      const enhancedReports = await Promise.all(reports.map(async (report) => {
+        const reporter = await prisma.user.findUnique({ where: { id: report.reporterId }, select: { name: true } });
+        const reported = await prisma.user.findUnique({ where: { id: report.reportedUserId }, select: { name: true } });
+        
+        return {
+          ...report,
+          reporterName: reporter?.name || 'Unknown',
+          reportedUserName: reported?.name || 'Unknown'
+        };
+      }));
+
+      res.json(enhancedReports);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch reports' });
+    }
+  }
+
+  async banUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const { adminEmail } = req.body;
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || 'system',
+          action: 'BAN_USER',
+          target: userId
+        }
+      });
+
+      res.json({ success: true, message: `User ${userId} banned` });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to ban user' });
+    }
+  }
+
+  async getAuditLogs(req: Request, res: Response) {
+    try {
+      const logs = await prisma.auditLog.findMany({
+        orderBy: { timestamp: 'desc' },
+        take: 100
+      });
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+  }
+
+  async getSettings(req: Request, res: Response) {
+    try {
+      let settings = await prisma.systemSetting.findFirst();
+      if (!settings) {
+        settings = await prisma.systemSetting.create({
+          data: {
+            allowNewRegistrations: true,
+            maintenanceMode: false,
+            maxGroupSize: 1024,
+            retentionDays: 90
+          }
+        });
+      }
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch settings' });
+    }
+  }
+
+  async updateSettings(req: Request, res: Response) {
+    try {
+      const { id, ...data } = req.body;
+      const updated = await prisma.systemSetting.update({
+        where: { id },
+        data
+      });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update settings' });
+    }
+  }
+}

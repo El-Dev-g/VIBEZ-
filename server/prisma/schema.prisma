@@ -159,3 +159,36 @@ model UserSettings {
   excludedStatusUserIds String[]
   includedStatusUserIds String[]
 }
+
+model Admin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      String   @default("MODERATOR") // SUPERADMIN, MODERATOR, SUPPORT
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id              String   @id @default(uuid())
+  reporterId      String
+  reportedUserId  String
+  reason          String
+  status          String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  createdAt       DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  adminEmail  String
+  action      String
+  target      String
+  timestamp   DateTime @default(now())
+}
+
+model SystemSetting {
+  id                    String  @id @default(uuid())
+  allowNewRegistrations Boolean @default(true)
+  maintenanceMode       Boolean @default(false)
+  maxGroupSize          Int     @default(1024)
+  retentionDays         Int     @default(90)
+}

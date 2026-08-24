@@ -36,6 +36,8 @@ A high-fidelity communication application built with modern Android development 
 
 ## 📂 Project Structure
 
+- `admin/`: Next.js Admin Portal. See the [Deployment Guide](DEPLOYMENT.md) for hosting instructions.
+- `server/`: Node.js Backend API. See the [Deployment Guide](DEPLOYMENT.md) for hosting instructions.
 - `app/src/main/java/com/example/ui`: UI layer containing Composables and ViewModels.
 - `app/src/main/java/com/example/data`: Data layer containing local persistence and API Services.
 - `app/src/main/java/com/example/ui/theme`: Centralized Material 3 theme configuration.
