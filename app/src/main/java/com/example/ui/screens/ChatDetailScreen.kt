@@ -86,7 +86,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -134,20 +137,27 @@ fun ChatDetailScreen(
     onWallpaperClick: () -> Unit = {},
     onVoiceCallClick: () -> Unit,
     onVideoCallClick: () -> Unit,
-    onSendMessage: (content: String, type: String, mediaUrl: String, duration: Int, replyToMessageId: Long?) -> Unit,
+    onSendMessage: (content: String, type: String, mediaUrl: String, duration: Int, replyToMessageId: String?) -> Unit,
     onToggleStarMessage: (MessageEntity) -> Unit,
-    onDeleteMessage: (Long) -> Unit,
+    onDeleteMessage: (String) -> Unit,
     onForwardMessage: (MessageEntity) -> Unit = {},
     onMediaClick: (MessageEntity) -> Unit = {},
     onCameraClick: () -> Unit = {},
-    onToggleMuteChat: (Long) -> Unit = {},
-    onClearChat: () -> Unit
+    onToggleMuteChat: (String) -> Unit = {},
+    onClearChat: () -> Unit,
+    onChatRead: () -> Unit = {}
 ) {
     if (chat == null) return
 
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(chat.id, chat.unreadCount) {
+        if (chat.unreadCount > 0) {
+            onChatRead()
+        }
+    }
 
     var showLocalSearch by remember { mutableStateOf(false) }
     var localSearchQuery by remember { mutableStateOf("") }
@@ -156,6 +166,9 @@ fun ChatDetailScreen(
     var inputText by remember { mutableStateOf("") }
     var isRecordingVoice by remember { mutableStateOf(false) }
     var voiceRecordDuration by remember { mutableIntStateOf(0) }
+    var isRecordingHoldActive by remember { mutableStateOf(false) }
+    var isRecordingLocked by remember { mutableStateOf(false) }
+    var recordingDragOffset by remember { mutableStateOf(0f) }
     var showRecordingCancelledToast by remember { mutableStateOf(false) }
     var showAttachmentMenu by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }
@@ -297,7 +310,9 @@ fun ChatDetailScreen(
             voiceRecordDuration = 0
             while (isRecordingVoice) {
                 delay(1000)
-                voiceRecordDuration++
+                if (isRecordingVoice) {
+                    voiceRecordDuration++
+                }
             }
         }
     }
@@ -933,7 +948,7 @@ fun ChatDetailScreen(
                 ) {
                     val replyMsg = replyingToMessage
                     if (replyMsg != null) {
-                        val replyIsMe = replyMsg.senderId == 0L
+                        val replyIsMe = replyMsg.senderId == "ME"
                         val replySenderName = if (replyIsMe) "You" else chat.contactName
 
                         Card(
@@ -1047,33 +1062,29 @@ fun ChatDetailScreen(
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.GraphicEq,
-                                        contentDescription = null,
-                                        tint = WhatsAppMinimalPrimary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.weight(1f))
+                                    Spacer(modifier = Modifier.width(16.dp))
 
-                                    // Cancel Voice Recording button
-                                    TextButton(
-                                        onClick = {
-                                            audioRecorder.cancelRecording()
-                                            recordedAudioFile = null
-                                            isRecordingVoice = false
-                                            voiceRecordDuration = 0
-                                            showRecordingCancelledToast = true
+                                    // Animated "Slide to cancel"
+                                    Text(
+                                        text = if (isRecordingLocked) "Recording..." else "< Slide to cancel",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (isRecordingLocked) {
+                                        TextButton(
+                                            onClick = {
+                                                audioRecorder.cancelRecording()
+                                                recordedAudioFile = null
+                                                isRecordingVoice = false
+                                                isRecordingLocked = false
+                                                voiceRecordDuration = 0
+                                                showRecordingCancelledToast = true
+                                            }
+                                        ) {
+                                            Text("Discard", color = Color.Red)
                                         }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Cancel recording",
-                                            tint = Color.Red,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Cancel", color = Color.Red, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             } else {
@@ -1126,16 +1137,79 @@ fun ChatDetailScreen(
                     // Floating Send / Record button
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(if (isRecordingVoice && !isRecordingLocked) 64.dp else 48.dp)
                             .clip(CircleShape)
                             .background(if (isRecordingVoice) WhatsAppMinimalPrimary else WhatsAppMinimalAccent)
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragStart = { _ ->
+                                        if (!isRecordingVoice && inputText.isBlank()) {
+                                            val hasMicPermission = ContextCompat.checkSelfPermission(
+                                                context,
+                                                Manifest.permission.RECORD_AUDIO
+                                            ) == PackageManager.PERMISSION_GRANTED
+
+                                            if (hasMicPermission) {
+                                                val file = audioRecorder.startRecording()
+                                                recordedAudioFile = file
+                                                isRecordingVoice = true
+                                                isRecordingHoldActive = true
+                                            } else {
+                                                recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                            }
+                                        }
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        if (isRecordingHoldActive && !isRecordingLocked) {
+                                            recordingDragOffset += dragAmount.x
+                                            // If slid left enough, cancel
+                                            if (recordingDragOffset < -250f) {
+                                                audioRecorder.cancelRecording()
+                                                recordedAudioFile = null
+                                                isRecordingVoice = false
+                                                isRecordingHoldActive = false
+                                                voiceRecordDuration = 0
+                                                showRecordingCancelledToast = true
+                                                recordingDragOffset = 0f
+                                            }
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        if (isRecordingHoldActive && !isRecordingLocked) {
+                                            // Complete and send
+                                            val stoppedFile = audioRecorder.stopRecording() ?: recordedAudioFile
+                                            val finalPath = stoppedFile?.absolutePath ?: ""
+                                            val duration = voiceRecordDuration.coerceAtLeast(1)
+                                            isRecordingVoice = false
+                                            isRecordingHoldActive = false
+                                            recordedAudioFile = null
+                                            voiceRecordDuration = 0
+                                            onSendMessage("Voice note", "VOICE", finalPath, duration, replyingToMessage?.id)
+                                            replyingToMessage = null
+                                            recordingDragOffset = 0f
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        if (isRecordingHoldActive && !isRecordingLocked) {
+                                            audioRecorder.cancelRecording()
+                                            recordedAudioFile = null
+                                            isRecordingVoice = false
+                                            isRecordingHoldActive = false
+                                            voiceRecordDuration = 0
+                                            recordingDragOffset = 0f
+                                        }
+                                    }
+                                )
+                            }
                             .clickable {
-                                if (isRecordingVoice) {
-                                    // Complete and send real voice note
+                                if (isRecordingLocked) {
+                                    // Send locked recording
                                     val stoppedFile = audioRecorder.stopRecording() ?: recordedAudioFile
                                     val finalPath = stoppedFile?.absolutePath ?: ""
                                     val duration = voiceRecordDuration.coerceAtLeast(1)
                                     isRecordingVoice = false
+                                    isRecordingLocked = false
                                     recordedAudioFile = null
                                     voiceRecordDuration = 0
                                     onSendMessage("Voice note", "VOICE", finalPath, duration, replyingToMessage?.id)
@@ -1144,20 +1218,6 @@ fun ChatDetailScreen(
                                     onSendMessage(inputText.trim(), "TEXT", "", 0, replyingToMessage?.id)
                                     inputText = ""
                                     replyingToMessage = null
-                                } else {
-                                    // Start microphone voice recording with permission check
-                                    val hasMicPermission = ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.RECORD_AUDIO
-                                    ) == PackageManager.PERMISSION_GRANTED
-
-                                    if (hasMicPermission) {
-                                        val file = audioRecorder.startRecording()
-                                        recordedAudioFile = file
-                                        isRecordingVoice = true
-                                    } else {
-                                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                    }
                                 }
                             }
                             .testTag("send_record_button"),

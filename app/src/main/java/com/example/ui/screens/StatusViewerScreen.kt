@@ -86,8 +86,8 @@ fun StatusViewerScreen(
     initialStatus: StatusEntity?,
     onCloseClick: () -> Unit,
     onReplyToStatus: (targetStatus: StatusEntity, replyText: String) -> Unit,
-    onStatusViewed: (statusId: Long) -> Unit = {},
-    onViewersClick: (statusId: Long) -> Unit = {}
+    onStatusViewed: (statusId: String) -> Unit = {},
+    onViewersClick: (statusId: String) -> Unit = {}
 ) {
     if (statuses.isEmpty()) {
         onCloseClick()

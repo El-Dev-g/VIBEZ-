@@ -76,8 +76,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.ContactEntity
 import com.example.ui.components.AvatarView
+import com.example.ui.viewmodels.VideoCallViewModel
 import com.example.ui.theme.WhatsAppDarkHeader
 import com.example.ui.theme.WhatsAppMinimalAccent
 import com.example.ui.theme.WhatsAppMinimalPrimary
@@ -88,13 +91,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import org.webrtc.*
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CallScreen(
     contact: ContactEntity?,
     isVideoCall: Boolean,
-    onEndCallClick: () -> Unit
+    onEndCallClick: () -> Unit,
+    viewModel: VideoCallViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
@@ -119,14 +124,51 @@ fun CallScreen(
     var isSpeakerOn by remember { mutableStateOf(isVideoCall) }
     var isVideoEnabled by remember { mutableStateOf(isVideoCall) }
     var isFrontCamera by remember { mutableStateOf(true) }
-    var isCallPickedUp by remember { mutableStateOf(false) }
+    val isCallPickedUp by viewModel.isCallPickedUp.collectAsStateWithLifecycle()
     var durationSeconds by remember { mutableIntStateOf(0) }
     var actionToast by remember { mutableStateOf<String?>(null) }
 
-    // Simulate call pickup after ringing
-    LaunchedEffect(Unit) {
-        delay(3200)
-        isCallPickedUp = true
+    val remoteTrack by viewModel.remoteTrack.collectAsStateWithLifecycle()
+
+    // WebRTC Observer
+    val observer = remember {
+        object : PeerConnection.Observer {
+            override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
+            override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
+                if (state == PeerConnection.IceConnectionState.CONNECTED) {
+                    viewModel.setCallPickedUp(true)
+                }
+            }
+            override fun onIceConnectionReceivingChange(p0: Boolean) {}
+            override fun onIceGatheringChange(p0: PeerConnection.IceGatheringState?) {}
+            override fun onIceCandidate(candidate: IceCandidate?) {
+                candidate?.let { 
+                    // signalingClient.sendIceCandidate(it) 
+                }
+            }
+            override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {}
+            override fun onAddStream(stream: MediaStream?) {
+                stream?.videoTracks?.get(0)?.let {
+                    viewModel.setRemoteTrack(it)
+                }
+            }
+            override fun onRemoveStream(p0: MediaStream?) {}
+            override fun onDataChannel(p0: DataChannel?) {}
+            override fun onRenegotiationNeeded() {}
+            override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {}
+        }
+    }
+
+    LaunchedEffect(hasCameraPermission, hasAudioPermission) {
+        if (hasCameraPermission && hasAudioPermission) {
+            viewModel.initWebRTC(observer)
+            // If we are the caller, create offer
+            viewModel.createOffer()
+            
+            // Simulation: auto-pickup for now since we don't have a backend
+            delay(5000)
+            viewModel.setCallPickedUp(true)
+        }
     }
 
     // Call Timer - ONLY increments after call is picked up
@@ -198,12 +240,25 @@ fun CallScreen(
             // --- LIVE CAMERA VIDEO CALL VIEW ---
             Box(modifier = Modifier.fillMaxSize()) {
                 if (hasCameraPermission) {
-                    // Fullscreen Real Camera Preview
-                    CameraPreviewView(
-                        isFrontCamera = isFrontCamera,
-                        isPaused = !isVideoEnabled,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    // Fullscreen Remote Video (if picked up) or Local Preview
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (isCallPickedUp && remoteTrack != null) {
+                            WebRTCSurfaceView(
+                                videoTrack = remoteTrack,
+                                isLocal = false,
+                                modifier = Modifier.fillMaxSize(),
+                                onSurfaceReady = { /* Remote doesn't need startLocalVideo */ }
+                            )
+                        } else {
+                            // Waiting screen / Local Preview fullscreen while ringing
+                            WebRTCSurfaceView(
+                                videoTrack = null,
+                                isLocal = true,
+                                modifier = Modifier.fillMaxSize(),
+                                onSurfaceReady = { viewModel.startLocalVideo(it) }
+                            )
+                        }
+                    }
                 } else {
                     // Permission Banner fallback
                     Box(
@@ -244,6 +299,23 @@ fun CallScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "End-to-end encrypted",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
@@ -252,7 +324,7 @@ fun CallScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "VIBEZ Live HD Video",
+                                text = "VIBEZ Video Call",
                                 color = Color.White.copy(alpha = 0.9f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
@@ -275,34 +347,24 @@ fun CallScreen(
                     }
                 }
 
-                // Floating Remote Contact PIP Card overlay
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 130.dp, end = 16.dp)
-                        .width(100.dp)
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .border(2.dp, WhatsAppMinimalPrimary, RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                // Floating PIP Card overlay (Switch to Local Preview if picked up)
+                if (isCallPickedUp) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 130.dp, end = 16.dp)
+                            .width(100.dp)
+                            .height(140.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .border(2.dp, WhatsAppMinimalPrimary, RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        AvatarView(
-                            name = contact?.name ?: "Contact",
-                            avatarUrl = contact?.avatarUrl ?: "",
-                            size = 50.dp
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = contact?.name?.take(10) ?: "Contact",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                        WebRTCSurfaceView(
+                            videoTrack = null,
+                            isLocal = true,
+                            modifier = Modifier.fillMaxSize(),
+                            onSurfaceReady = { viewModel.startLocalVideo(it) }
                         )
                     }
                 }
@@ -460,6 +522,7 @@ fun CallScreen(
                                 permissionsState.launchMultiplePermissionRequest()
                             } else {
                                 isMuted = !isMuted
+                                viewModel.toggleAudio(!isMuted)
                                 actionToast = if (isMuted) "Microphone Muted" else "Microphone Active"
                             }
                         },
@@ -485,6 +548,7 @@ fun CallScreen(
                                     permissionsState.launchMultiplePermissionRequest()
                                 } else {
                                     isVideoEnabled = !isVideoEnabled
+                                    viewModel.toggleVideo(isVideoEnabled)
                                     actionToast = if (isVideoEnabled) "Video Enabled" else "Video Paused"
                                 }
                             },
@@ -506,6 +570,7 @@ fun CallScreen(
                             .background(Color.White.copy(alpha = 0.2f))
                             .clickable {
                                 isFrontCamera = !isFrontCamera
+                                viewModel.switchCamera()
                                 actionToast = if (isFrontCamera) "Switched to Front Camera" else "Switched to Rear Camera"
                             },
                         contentAlignment = Alignment.Center
@@ -525,7 +590,10 @@ fun CallScreen(
                         .size(60.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFDC2626))
-                        .clickable(onClick = onEndCallClick),
+                        .clickable {
+                            viewModel.endCall()
+                            onEndCallClick()
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -538,6 +606,43 @@ fun CallScreen(
             }
         }
     }
+}
+
+@Composable
+fun WebRTCSurfaceView(
+    videoTrack: VideoTrack?,
+    isLocal: Boolean,
+    modifier: Modifier = Modifier,
+    onSurfaceReady: (SurfaceViewRenderer) -> Unit,
+    viewModel: VideoCallViewModel = viewModel()
+) {
+    val eglContext by remember { mutableStateOf(viewModel.eglContext) }
+    
+    AndroidView(
+        factory = { ctx ->
+            SurfaceViewRenderer(ctx).apply {
+                eglContext?.let { init(it, null) }
+                setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+                setEnableHardwareScaler(true)
+                onSurfaceReady(this)
+                videoTrack?.addSink(this)
+            }
+        },
+        update = { view ->
+            // If eglContext was null during factory but is now available
+            if (viewModel.eglContext != null && eglContext == null) {
+                // This is a bit tricky since we can't easily re-init without releasing
+                // But in our flow, initWebRTC is called in LaunchedEffect(Unit)
+                // so it should be available very quickly.
+            }
+            videoTrack?.addSink(view)
+        },
+        onRelease = { view ->
+            videoTrack?.removeSink(view)
+            view.release()
+        },
+        modifier = modifier
+    )
 }
 
 // --- CAMERAX PREVIEW COMPOSABLE ---

@@ -62,19 +62,7 @@ object MusicSearchService {
             }
         } catch (e: Exception) {
             Log.e("MusicSearchService", "Error searching music: ", e)
-            // Fallback list of popular mock songs if network is unavailable
-            listOf(
-                MusicTrack("Blinding Lights", "The Weeknd"),
-                MusicTrack("Shape of You", "Ed Sheeran"),
-                MusicTrack("As It Was", "Harry Styles"),
-                MusicTrack("Bad Habits", "Ed Sheeran"),
-                MusicTrack("Levitating", "Dua Lipa"),
-                MusicTrack("Save Your Tears", "The Weeknd"),
-                MusicTrack("Perfect", "Ed Sheeran"),
-                MusicTrack("Stay", "The Kid LAROI & Justin Bieber"),
-                MusicTrack("Flowers", "Miley Cyrus"),
-                MusicTrack("Cold Heart", "Elton John & Dua Lipa")
-            ).filter { it.title.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true) }
+            emptyList()
         }
     }
 }

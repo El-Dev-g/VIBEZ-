@@ -65,7 +65,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Security
 
 data class GroupedStatus(
-    val contactId: Long,
+    val contactId: String,
     val contactName: String,
     val contactAvatar: String,
     val statuses: List<StatusEntity>
@@ -539,7 +539,31 @@ fun StatusListScreen(
                 }
             }
 
-
+            // End-to-End Encryption Banner at the bottom
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Your status updates are end-to-end encrypted",
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
         }
     }
 }

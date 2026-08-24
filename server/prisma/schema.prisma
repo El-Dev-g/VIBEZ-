@@ -1,0 +1,161 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  phoneNumber   String    @unique
+  googleEmail   String?   @unique
+  authProvider  String    @default("PHONE") // PHONE, GOOGLE
+  name          String?
+  avatarUrl     String?
+  about         String?   @default("Hey there! I am using Vibez.")
+  lastSeen      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  
+  chats            ChatMember[]
+  
+  statuses         Status[]
+  statusViews      StatusView[]
+  communities      CommunityMember[]
+  callsMade        Call[]    @relation("Caller")
+  callsReceived    Call[]    @relation("Receiver")
+  settings         UserSettings?
+}
+
+model Chat {
+  id          String   @id @default(uuid())
+  isGroup     Boolean  @default(false)
+  name        String?  // For groups
+  avatarUrl   String?  // For groups
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    Message[]
+  members     ChatMember[]
+  
+  communityId String?
+  community   Community? @relation(fields: [communityId], references: [id])
+}
+
+model ChatMember {
+  id        String   @id @default(uuid())
+  userId    String
+  chatId    String
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  chat      Chat     @relation(fields: [chatId], references: [id])
+
+  @@unique([userId, chatId])
+}
+
+model Message {
+  id          String      @id @default(uuid())
+  content     String
+  type        String      @default("TEXT") // TEXT, IMAGE, VIDEO, AUDIO, LOCATION, CONTACT
+  status      String      @default("SENT") // SENT, DELIVERED, READ
+  mediaUrl    String?
+  duration    Int?        // For audio/video
+  
+  senderId    String
+  chatId      String
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  sender      User        @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId  String?     // Nullable for group messages
+  receiver    User?       @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  chat        Chat        @relation(fields: [chatId], references: [id])
+}
+
+model Status {
+  id              String   @id @default(uuid())
+  userId          String
+  mediaUrl        String?
+  content         String?
+  type            String   @default("IMAGE") // TEXT, IMAGE, VIDEO
+  backgroundColor String?
+  textStyle       String?
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+  
+  user            User     @relation(fields: [userId], references: [id])
+  views           StatusView[]
+}
+
+model StatusView {
+  id        String   @id @default(uuid())
+  statusId  String
+  userId    String
+  viewedAt  DateTime @default(now())
+
+  status    Status   @relation(fields: [statusId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, statusId])
+}
+
+model Community {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  
+  members     CommunityMember[]
+  channels    Chat[] // Communities have multiple group chats
+}
+
+model CommunityMember {
+  id          String   @id @default(uuid())
+  communityId String
+  userId      String
+  role        String   @default("MEMBER") // ADMIN, MEMBER
+  
+  community   Community @relation(fields: [communityId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model Call {
+  id          String   @id @default(uuid())
+  callerId    String
+  receiverId  String
+  type        String   @default("VOICE") // VOICE, VIDEO
+  status      String   @default("COMPLETED") // MISSED, COMPLETED, REJECTED
+  duration    Int?
+  createdAt   DateTime @default(now())
+  
+  caller      User     @relation("Caller", fields: [callerId], references: [id])
+  receiver    User     @relation("Receiver", fields: [receiverId], references: [id])
+}
+
+model UserSettings {
+  id                  String  @id @default(uuid())
+  userId              String  @unique
+  statusPrivacyMode   String  @default("MY_CONTACTS") // MY_CONTACTS, EXCEPT, ONLY_SHARE
+  lastSeenPrivacy     String  @default("EVERYONE")
+  profilePhotoPrivacy String  @default("EVERYONE")
+  aboutPrivacy        String  @default("EVERYONE")
+  readReceipts        Boolean @default(true)
+  notificationsEnabled Boolean @default(true)
+  
+  user                User    @relation(fields: [userId], references: [id])
+  
+  excludedStatusUserIds String[]
+  includedStatusUserIds String[]
+}

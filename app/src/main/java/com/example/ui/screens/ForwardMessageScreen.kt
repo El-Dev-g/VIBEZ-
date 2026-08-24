@@ -76,13 +76,13 @@ fun ForwardMessageScreen(
     messageToForward: MessageEntity?,
     chats: List<ChatEntity>,
     onBackClick: () -> Unit,
-    onForwardToChats: (targetChatIds: List<Long>) -> Unit
+    onForwardToChats: (targetChatIds: List<String>) -> Unit
 ) {
     if (messageToForward == null) return
 
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
-    var selectedChatIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var selectedChatIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     val filteredChats = remember(chats, searchQuery) {
         if (searchQuery.isBlank()) chats

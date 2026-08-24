@@ -69,8 +69,8 @@ fun StatusViewersScreen(
     status: StatusEntity?,
     viewers: List<StatusViewer>,
     onBackClick: () -> Unit,
-    onViewerClick: (contactId: Long) -> Unit,
-    onDeleteStatus: (statusId: Long) -> Unit
+    onViewerClick: (contactId: String) -> Unit,
+    onDeleteStatus: (statusId: String) -> Unit
 ) {
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 

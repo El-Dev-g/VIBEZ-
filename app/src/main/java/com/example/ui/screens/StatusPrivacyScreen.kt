@@ -77,10 +77,10 @@ import com.example.ui.theme.WhatsAppMinimalPrimary
 fun StatusPrivacyScreen(
     contacts: List<ContactEntity>,
     currentMode: String,
-    initialExcludedIds: Set<Long>,
-    initialIncludedIds: Set<Long>,
+    initialExcludedIds: Set<String>,
+    initialIncludedIds: Set<String>,
     onBackClick: () -> Unit,
-    onSavePrivacy: (mode: String, excludedIds: Set<Long>, includedIds: Set<Long>) -> Unit
+    onSavePrivacy: (mode: String, excludedIds: Set<String>, includedIds: Set<String>) -> Unit
 ) {
     val context = LocalContext.current
     var selectedMode by remember { mutableStateOf(currentMode) }

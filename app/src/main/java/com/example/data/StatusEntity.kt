@@ -3,10 +3,9 @@ package com.example.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "statuses")
 data class StatusEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val contactId: Long,
+    val id: String = "",
+    val contactId: String,
     val contactName: String,
     val contactAvatar: String = "",
     val mediaType: String = "IMAGE", // IMAGE, TEXT
@@ -16,6 +15,7 @@ data class StatusEntity(
     val timestamp: Long = System.currentTimeMillis(),
     val isViewed: Boolean = false,
     val isMyStatus: Boolean = false,
+    val viewCount: Int = 0,
     val songTitle: String? = null,
     val songArtist: String? = null,
     val songPreviewUrl: String? = null,

@@ -77,8 +77,9 @@ fun ContactInfoScreen(
     onVoiceCallClick: () -> Unit,
     onVideoCallClick: () -> Unit,
     onStarredMessagesClick: () -> Unit,
-    onMediaClick: (MessageEntity) -> Unit = {},
-    onToggleMuteChat: (Long) -> Unit = {},
+    onMediaItemClick: (MessageEntity) -> Unit = {},
+    onAllMediaClick: () -> Unit = {},
+    onToggleMuteChat: (String) -> Unit = {},
     onClearChatClick: () -> Unit,
     onDeleteChatClick: () -> Unit
 ) {
@@ -186,9 +187,7 @@ fun ContactInfoScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                if (mediaMessages.isNotEmpty()) {
-                                    onMediaClick(mediaMessages.first())
-                                }
+                                onAllMediaClick()
                             }
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -234,7 +233,7 @@ fun ContactInfoScreen(
                                 Card(
                                     modifier = Modifier
                                         .size(72.dp)
-                                        .clickable { onMediaClick(msg) },
+                                        .clickable { onMediaItemClick(msg) },
                                     shape = RoundedCornerShape(8.dp),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                                 ) {

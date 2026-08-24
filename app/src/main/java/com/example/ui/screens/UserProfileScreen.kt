@@ -1,5 +1,11 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import com.example.util.QrCodeGenerator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
@@ -86,7 +93,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun UserProfileScreen(
-    contactId: Long = 0L,
+    contactId: String = "ME",
     contactName: String,
     contactPhone: String,
     contactAvatar: String = "",
@@ -94,11 +101,13 @@ fun UserProfileScreen(
     isCurrentUser: Boolean = false,
     isGroup: Boolean = false,
     onBackClick: () -> Unit,
-    onUpdateProfile: ((name: String, phone: String, status: String) -> Unit)? = null,
-    onUpdateContact: ((contactId: Long, name: String, phone: String, about: String) -> Unit)? = null,
+    onUpdateProfile: ((name: String, phone: String, status: String, avatarUrl: String?) -> Unit)? = null,
+    onUpdateContact: ((contactId: String, name: String, phone: String, about: String) -> Unit)? = null,
     onMessageClick: (() -> Unit)? = null,
     onVoiceCallClick: (() -> Unit)? = null,
-    onVideoCallClick: (() -> Unit)? = null
+    onVideoCallClick: (() -> Unit)? = null,
+    onQrScanClick: (() -> Unit)? = null,
+    onMediaClick: (() -> Unit)? = null
 ) {
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -108,6 +117,20 @@ fun UserProfileScreen(
     var currentName by remember(contactName) { mutableStateOf(contactName) }
     var currentPhone by remember(contactPhone) { mutableStateOf(contactPhone) }
     var currentStatus by remember(contactStatus) { mutableStateOf(contactStatus) }
+    var currentAvatar by remember(contactAvatar) { mutableStateOf(contactAvatar) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val uriStr = uri.toString()
+            currentAvatar = uriStr
+            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus, uriStr)
+            scope.launch {
+                snackbarHostState.showSnackbar("Profile photo updated & synced with backend")
+            }
+        }
+    }
 
     // Dialog state
     var showEditNameDialog by remember { mutableStateOf(false) }
@@ -226,7 +249,7 @@ fun UserProfileScreen(
                             ) {
                                 AvatarView(
                                     name = currentName,
-                                    avatarUrl = contactAvatar,
+                                    avatarUrl = currentAvatar,
                                     isGroup = isGroup,
                                     size = 110.dp
                                 )
@@ -240,9 +263,7 @@ fun UserProfileScreen(
                                     modifier = Modifier
                                         .size(34.dp)
                                         .clickable {
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Profile photo updated")
-                                            }
+                                            imagePickerLauncher.launch("image/*")
                                         }
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -494,7 +515,7 @@ fun UserProfileScreen(
                                         border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                         modifier = Modifier.clickable {
                                             currentStatus = vibe
-                                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus)
+                                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus, currentAvatar)
                                             scope.launch {
                                                 snackbarHostState.showSnackbar("Status updated to: $vibe")
                                             }
@@ -518,7 +539,9 @@ fun UserProfileScreen(
             // 3. MEDIA, DOCUMENTS & LINKS
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = onMediaClick != null) { onMediaClick?.invoke() },
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
@@ -553,12 +576,19 @@ fun UserProfileScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (isCurrentUser) "All shared items in cloud storage" else "12 photos, 3 videos shared",
+                                    text = if (isCurrentUser) "All shared items in cloud storage" else "Photos, videos, and links shared",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
+                        
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "View media",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -694,7 +724,7 @@ fun UserProfileScreen(
                     onClick = {
                         if (editNameInput.isNotBlank()) {
                             currentName = editNameInput.trim()
-                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus)
+                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus, currentAvatar)
                             scope.launch {
                                 snackbarHostState.showSnackbar("Display name saved")
                             }
@@ -745,7 +775,7 @@ fun UserProfileScreen(
                     onClick = {
                         if (editPhoneInput.isNotBlank()) {
                             currentPhone = editPhoneInput.trim()
-                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus)
+                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus, currentAvatar)
                             scope.launch {
                                 snackbarHostState.showSnackbar("Phone number updated")
                             }
@@ -822,7 +852,7 @@ fun UserProfileScreen(
                     onClick = {
                         if (editStatusInput.isNotBlank()) {
                             currentStatus = editStatusInput.trim()
-                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus)
+                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus, currentAvatar)
                             scope.launch {
                                 snackbarHostState.showSnackbar("Status updated")
                             }
@@ -918,6 +948,10 @@ fun UserProfileScreen(
 
     // 5. QR Code Dialog
     if (showQrDialog) {
+        val qrBitmap = remember(currentPhone) {
+            QrCodeGenerator.generateQrCode(currentPhone, 512)
+        }
+
         AlertDialog(
             onDismissRequest = { showQrDialog = false },
             title = { Text("Your VIBEZ Profile QR", fontWeight = FontWeight.Bold) },
@@ -934,18 +968,26 @@ fun UserProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Box(
                         modifier = Modifier
-                            .size(180.dp)
+                            .size(200.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.White)
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCode,
-                            contentDescription = "QR Code",
-                            tint = Color.Black,
-                            modifier = Modifier.size(150.dp)
-                        )
+                        if (qrBitmap != null) {
+                            Image(
+                                bitmap = qrBitmap.asImageBitmap(),
+                                contentDescription = "QR Code",
+                                modifier = Modifier.size(180.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.QrCode,
+                                contentDescription = "QR Code Placeholder",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(150.dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -954,6 +996,22 @@ fun UserProfileScreen(
                         fontSize = 15.sp,
                         color = WhatsAppMinimalPrimary
                     )
+                    
+                    if (onQrScanClick != null) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedButton(
+                            onClick = {
+                                showQrDialog = false
+                                onQrScanClick()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = WhatsAppMinimalPrimary)
+                        ) {
+                            Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Scan QR Code")
+                        }
+                    }
                 }
             },
             confirmButton = {

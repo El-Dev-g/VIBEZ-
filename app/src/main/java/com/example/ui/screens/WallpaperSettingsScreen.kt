@@ -93,13 +93,13 @@ data class WallpaperPreset(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WallpaperSettingsScreen(
-    chatId: Long?,
+    chatId: String?,
     contactName: String,
     initialWallpaper: String,
     initialDimming: Float,
     isDarkMode: Boolean,
     onBackClick: () -> Unit,
-    onSaveWallpaper: (chatId: Long?, wallpaperValue: String, dimming: Float) -> Unit
+    onSaveWallpaper: (chatId: String?, wallpaperValue: String, dimming: Float) -> Unit
 ) {
     val context = LocalContext.current
     var selectedWallpaper by remember { mutableStateOf(if (initialWallpaper.isBlank()) "DEFAULT" else initialWallpaper) }
@@ -153,7 +153,7 @@ fun WallpaperSettingsScreen(
                             fontSize = 18.sp
                         )
                         Text(
-                            text = if (chatId == null || chatId == 0L) "Default for all chats" else "For chat: $contactName",
+                            text = if (chatId == null || chatId.isEmpty()) "Default for all chats" else "For chat: $contactName",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -198,7 +198,7 @@ fun WallpaperSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        if (chatId != null && chatId != 0L) {
+                        if (chatId != null && chatId.isNotEmpty()) {
                             OutlinedButton(
                                 onClick = {
                                     onSaveWallpaper(null, selectedWallpaper, wallpaperDimming)

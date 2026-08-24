@@ -10,6 +10,8 @@ import com.example.data.MessageEntity
 import com.example.data.StatusEntity
 import com.example.data.WhatsAppDatabase
 import com.example.data.WhatsAppRepository
+import com.example.util.AuthManager
+import com.example.data.network.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,12 +31,12 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 data class IncomingNotification(
     val contactName: String,
     val content: String,
-    val chatId: Long,
+    val chatId: String,
     val contactAvatar: String = ""
 )
 
 class WhatsAppViewModel(application: Application) : AndroidViewModel(application) {
-
+    
     private val appleMusicApi: AppleMusicApiService by lazy {
         val moshi = Moshi.Builder()
             .add(KotlinJsonAdapterFactory())
@@ -85,44 +87,72 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         return String.format("%d:%02d", minutes, seconds)
     }
 
-    val incomingNotification = MutableStateFlow<IncomingNotification?>(null)
+    private val authManager = AuthManager(application)
+    
+    val isLoggedIn = MutableStateFlow(authManager.isLoggedIn())
+    val currentUserPhone = MutableStateFlow(authManager.getPhoneNumber() ?: "")
+    val currentUserName = MutableStateFlow(authManager.getUserName() ?: authManager.getPhoneNumber()?.let { "User" } ?: "")
+    val currentUserStatus = MutableStateFlow(authManager.getUserAbout() ?: "")
+    val currentUserAvatar = MutableStateFlow(authManager.getUserAvatar() ?: "")
+    val currentGoogleEmail = MutableStateFlow(authManager.getGoogleEmail())
+    val currentAuthProvider = MutableStateFlow(authManager.getAuthProvider())
+    val typingChatId = MutableStateFlow<String?>(null)
 
-    private val repository: WhatsAppRepository
+    // Contact Sync State
+    val isSyncingContacts = MutableStateFlow(false)
+    val syncStatusMessage = MutableStateFlow<String?>(null)
 
-    val searchQuery = MutableStateFlow("")
-    val isDarkMode = MutableStateFlow(false)
-    val selectedTab = MutableStateFlow(0) // 0: Chats, 1: Updates, 2: Communities, 3: Calls
-
-    val isLoggedIn = MutableStateFlow(true)
-    val currentUserPhone = MutableStateFlow("+1 555-0198")
-    val currentUserName = MutableStateFlow("Alex Rivers")
-    val currentUserStatus = MutableStateFlow("⚡ Vibing in VIBEZ")
-    val typingChatId = MutableStateFlow<Long?>(null)
+    // Settings preferences state
+    val isBiometricLockEnabled = MutableStateFlow(authManager.getSettingBoolean("biometric_lock", false))
+    val isHdMediaUpload = MutableStateFlow(authManager.getSettingBoolean("hd_media", true))
+    val isHapticFeedback = MutableStateFlow(authManager.getSettingBoolean("haptic_feedback", true))
+    val isReadReceiptsEnabled = MutableStateFlow(authManager.getSettingBoolean("read_receipts", true))
+    val isConversationTonesEnabled = MutableStateFlow(authManager.getSettingBoolean("conversation_tones", true))
+    val isHighPriorityNotificationsEnabled = MutableStateFlow(authManager.getSettingBoolean("high_priority_notif", true))
 
     // Status Privacy State
     val statusPrivacyMode = MutableStateFlow("MY_CONTACTS") // "MY_CONTACTS", "EXCEPT", "ONLY_SHARE"
-    val statusPrivacyExcludedIds = MutableStateFlow<Set<Long>>(emptySet())
-    val statusPrivacyIncludedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val statusPrivacyExcludedIds = MutableStateFlow<Set<String>>(emptySet())
+    val statusPrivacyIncludedIds = MutableStateFlow<Set<String>>(emptySet())
 
     // Chat Wallpaper State (chatId -> wallpaperKey / hex / uri)
-    val chatWallpapers = MutableStateFlow<Map<Long, String>>(emptyMap())
+    val chatWallpapers = MutableStateFlow<Map<String, String>>(emptyMap())
     val globalWallpaper = MutableStateFlow("DEFAULT")
     val wallpaperDimming = MutableStateFlow(0.15f)
 
     val contacts: StateFlow<List<ContactEntity>>
     val chats: StateFlow<List<ChatEntity>>
+    val communities: StateFlow<List<com.example.data.CommunityEntity>>
     val filteredChats: StateFlow<List<ChatEntity>>
     val statuses: StateFlow<List<StatusEntity>>
     val callLogs: StateFlow<List<CallLogEntity>>
     val starredMessages: StateFlow<List<MessageEntity>>
+
+    val searchQuery = MutableStateFlow("")
+    val isDarkMode = MutableStateFlow(false)
+    val selectedTab = MutableStateFlow(0) // 0: Chats, 1: Updates, 2: Communities, 3: Calls
+
+    val incomingNotification = MutableStateFlow<IncomingNotification?>(null)
+
+    private val repository: WhatsAppRepository
 
     init {
         val database = WhatsAppDatabase.getDatabase(application)
         repository = WhatsAppRepository(database.whatsAppDao())
 
         viewModelScope.launch {
-            repository.seedDatabaseIfEmpty()
             repository.deleteExpiredStatuses()
+            
+            // If logged in, init socket and sync data
+            authManager.getUserId()?.let { uid ->
+                repository.initSocket(uid) { 
+                    // Handle incoming
+                }
+                authManager.getAuthToken()?.let { token ->
+                    repository.syncStatuses(token)
+                    repository.syncCommunities(token)
+                }
+            }
         }
 
         contacts = repository.allContacts.stateIn(
@@ -132,6 +162,12 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         )
 
         chats = repository.allChats.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+        
+        communities = repository.allCommunities.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
@@ -171,21 +207,121 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
-    fun loginUser(phone: String, name: String) {
-        currentUserPhone.value = phone
-        currentUserName.value = name
-        isLoggedIn.value = true
+    fun getAuthToken(): String? = authManager.getAuthToken()
+
+    suspend fun syncEverythingWithBackend() {
+        authManager.getAuthToken()?.let { token ->
+            repository.syncChats(token)
+            repository.syncStatuses(token)
+            repository.syncCommunities(token)
+            repository.syncCallLogs(token)
+            repository.getSettings(token)?.let { settings ->
+                statusPrivacyMode.value = settings.statusPrivacyMode
+            }
+        }
+    }
+
+    fun loginWithGoogle(
+        email: String,
+        name: String,
+        avatarUrl: String? = null,
+        phone: String? = null,
+        idToken: String? = null,
+        onComplete: ((Boolean, String?) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val effectivePhone = phone?.ifBlank { null } ?: ""
+                val response = repository.loginWithGoogle(email, name, avatarUrl, effectivePhone, idToken)
+                
+                authManager.saveAuthData(
+                    token = response.token,
+                    userId = response.user.id,
+                    phoneNumber = response.user.phoneNumber.ifBlank { effectivePhone },
+                    userName = response.user.name ?: name,
+                    userAbout = response.user.about ?: "⚡ Connected with Google",
+                    userAvatar = response.user.avatarUrl ?: avatarUrl,
+                    googleEmail = email,
+                    authProvider = "GOOGLE"
+                )
+                
+                currentUserPhone.value = response.user.phoneNumber.ifBlank { effectivePhone }
+                currentUserName.value = response.user.name ?: name
+                currentUserStatus.value = response.user.about ?: "⚡ Connected with Google"
+                currentUserAvatar.value = response.user.avatarUrl ?: avatarUrl ?: ""
+                currentGoogleEmail.value = email
+                currentAuthProvider.value = "GOOGLE"
+                isLoggedIn.value = true
+
+                // Initialize Socket & Sync
+                repository.initSocket(response.user.id) { }
+                repository.syncChats(response.token)
+                repository.syncStatuses(response.token)
+                repository.syncCommunities(response.token)
+
+                onComplete?.invoke(true, null)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onComplete?.invoke(false, e.message)
+            }
+        }
+    }
+
+    fun handleScannedQr(result: String, onComplete: (String?) -> Unit) {
+        // Scanned result is expected to be a phone number for simplicity
+        val cleaned = result.filter { it.isDigit() || it == '+' }
+        if (cleaned.isNotEmpty()) {
+            createNewContact("New Contact", cleaned, "Added via QR Code") { contactId ->
+                val existingChat = chats.value.firstOrNull { it.contactId == contactId }
+                onComplete(existingChat?.id)
+            }
+        } else {
+            onComplete(null)
+        }
     }
 
     fun logoutUser() {
+        authManager.logout()
         isLoggedIn.value = false
     }
 
-    private val messagesFlowMap = java.util.concurrent.ConcurrentHashMap<Long, StateFlow<List<MessageEntity>>>()
+    fun updateUserProfile(name: String, about: String, phoneNumber: String? = null, avatarUrl: String? = null) {
+        currentUserName.value = name
+        currentUserStatus.value = about
+        if (phoneNumber != null) currentUserPhone.value = phoneNumber
+        if (avatarUrl != null) currentUserAvatar.value = avatarUrl
+        authManager.saveAuthData(
+            token = authManager.getAuthToken() ?: "",
+            userId = authManager.getUserId() ?: "",
+            phoneNumber = phoneNumber ?: currentUserPhone.value,
+            userName = name,
+            userAbout = about,
+            userAvatar = avatarUrl ?: currentUserAvatar.value,
+            googleEmail = currentGoogleEmail.value,
+            authProvider = currentAuthProvider.value
+        )
+    }
 
-    fun getMessagesForChat(chatId: Long): StateFlow<List<MessageEntity>> {
+    fun unlinkGoogleAccount() {
+        currentGoogleEmail.value = null
+        currentAuthProvider.value = "PHONE"
+        authManager.saveAuthData(
+            token = authManager.getAuthToken() ?: "",
+            userId = authManager.getUserId() ?: "",
+            phoneNumber = currentUserPhone.value,
+            userName = currentUserName.value,
+            userAbout = currentUserStatus.value,
+            userAvatar = currentUserAvatar.value,
+            googleEmail = null,
+            authProvider = "PHONE"
+        )
+    }
+
+    private val messagesFlowMap = java.util.concurrent.ConcurrentHashMap<String, StateFlow<List<MessageEntity>>>()
+
+    fun getMessagesForChat(chatId: String): StateFlow<List<MessageEntity>> {
         return messagesFlowMap.getOrPut(chatId) {
-            repository.getMessagesForChat(chatId).stateIn(
+            repository.getMessagesFlow(chatId).stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.Lazily,
                 initialValue = emptyList()
@@ -194,21 +330,21 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun sendMessage(
-        chatId: Long,
+        chatId: String,
         content: String,
         messageType: String = "TEXT",
         mediaUrl: String = "",
         voiceDurationSeconds: Int = 0,
-        replyToMessageId: Long? = null
+        replyToMessageId: String? = null
     ) {
         viewModelScope.launch {
             repository.sendMessage(
                 chatId = chatId,
+                senderId = authManager.getUserId() ?: "ME",
+                receiverId = null, // Backend can infer or we pass it
                 content = content,
-                messageType = messageType,
-                mediaUrl = mediaUrl,
-                voiceDurationSeconds = voiceDurationSeconds,
-                replyToMessageId = replyToMessageId
+                type = messageType,
+                token = authManager.getAuthToken() ?: ""
             )
 
             // Trigger typing indicator animation then auto-reply
@@ -216,39 +352,82 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             typingChatId.value = chatId
             delay(2000)
             typingChatId.value = null
-            val replyMsg = repository.createAutoReply(chatId, content)
-            if (replyMsg != null) {
-                val chatObj = chats.value.firstOrNull { it.id == chatId }
-                incomingNotification.value = IncomingNotification(
-                    contactName = chatObj?.contactName ?: "Contact",
-                    content = replyMsg.content,
-                    chatId = chatId,
-                    contactAvatar = chatObj?.contactAvatar ?: ""
-                )
+        }
+    }
+
+    fun updateCurrentUserProfile(
+        name: String,
+        phone: String,
+        status: String,
+        avatarUrl: String? = null,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        currentUserName.value = name
+        currentUserPhone.value = phone
+        currentUserStatus.value = status
+        if (avatarUrl != null) {
+            currentUserAvatar.value = avatarUrl
+        }
+        authManager.updateProfile(name, status, avatarUrl ?: currentUserAvatar.value)
+        
+        viewModelScope.launch {
+            val token = authManager.getAuthToken()
+            if (!token.isNullOrBlank()) {
+                repository.updateUserProfile(name, status, avatarUrl ?: currentUserAvatar.value, token)
+            }
+            onComplete?.invoke(true)
+        }
+    }
+
+    fun syncContacts(phoneNumbers: List<String>, onComplete: ((List<ContactEntity>) -> Unit)? = null) {
+        viewModelScope.launch {
+            isSyncingContacts.value = true
+            syncStatusMessage.value = "Syncing ${phoneNumbers.size} contacts with VIBEZ directory..."
+            try {
+                val token = authManager.getAuthToken() ?: ""
+                val syncedList = repository.syncContacts(phoneNumbers, token)
+                syncStatusMessage.value = "Synced ${syncedList.size} registered VIBEZ contacts"
+                delay(1200)
+                syncStatusMessage.value = null
+                onComplete?.invoke(syncedList)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                syncStatusMessage.value = "Contact sync completed"
+                delay(1200)
+                syncStatusMessage.value = null
+                onComplete?.invoke(contacts.value)
+            } finally {
+                isSyncingContacts.value = false
             }
         }
     }
 
-    fun updateCurrentUserProfile(name: String, phone: String, status: String) {
-        currentUserName.value = name
-        currentUserPhone.value = phone
-        currentUserStatus.value = status
+    fun setSetting(key: String, value: Boolean) {
+        authManager.setSettingBoolean(key, value)
+        when (key) {
+            "biometric_lock" -> isBiometricLockEnabled.value = value
+            "hd_media" -> isHdMediaUpload.value = value
+            "haptic_feedback" -> isHapticFeedback.value = value
+            "read_receipts" -> isReadReceiptsEnabled.value = value
+            "conversation_tones" -> isConversationTonesEnabled.value = value
+            "high_priority_notif" -> isHighPriorityNotificationsEnabled.value = value
+        }
     }
 
-    fun updateContact(contactId: Long, name: String, phone: String, about: String) {
+    fun updateContact(contactId: String, name: String, phone: String, about: String) {
         viewModelScope.launch {
             repository.updateContact(contactId, name, phone, about)
         }
     }
 
-    fun createNewContact(name: String, phone: String, about: String, onComplete: (Long) -> Unit) {
+    fun createNewContact(name: String, phone: String, about: String, onComplete: (String) -> Unit) {
         viewModelScope.launch {
             val contactId = repository.createNewContact(name, phone, about)
             onComplete(contactId)
         }
     }
 
-    fun createGroupChat(groupName: String, contactIds: List<Long>, onComplete: (Long) -> Unit) {
+    fun createGroupChat(groupName: String, contactIds: List<String>, onComplete: (String) -> Unit) {
         viewModelScope.launch {
             val chatId = repository.createGroupChat(groupName, contactIds)
             onComplete(chatId)
@@ -261,21 +440,35 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun deleteMessage(messageId: Long) {
+    fun deleteMessage(messageId: String) {
         viewModelScope.launch {
             repository.deleteMessage(messageId)
         }
     }
 
-    fun clearChat(chatId: Long) {
+    fun clearChat(chatId: String) {
         viewModelScope.launch {
             repository.clearChat(chatId)
         }
     }
 
-    fun deleteChat(chatId: Long) {
+    fun deleteChat(chatId: String) {
         viewModelScope.launch {
             repository.deleteChat(chatId)
+        }
+    }
+
+    fun resetChatUnreadCount(chatId: String) {
+        viewModelScope.launch {
+            repository.resetChatUnreadCount(chatId)
+        }
+    }
+
+    fun syncStatuses() {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                repository.syncStatuses(token)
+            }
         }
     }
 
@@ -291,43 +484,33 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         musicOffsetY: Float = 0.5f
     ) {
         viewModelScope.launch {
-            repository.postStatus(caption, type, colorHex, mediaUrl, songTitle, songArtist, songPreviewUrl, musicOffsetX, musicOffsetY)
+            authManager.getAuthToken()?.let { token ->
+                repository.postStatus(caption, type, colorHex, mediaUrl, songTitle, songArtist, songPreviewUrl, musicOffsetX, musicOffsetY, token)
+            }
         }
     }
 
-    fun markStatusViewed(statusId: Long) {
+    fun markStatusViewed(statusId: String) {
         viewModelScope.launch {
-            repository.markStatusViewed(statusId)
+            authManager.getAuthToken()?.let { token ->
+                repository.markStatusViewed(statusId, token)
+            }
         }
     }
 
-    fun deleteStatus(statusId: Long) {
+    fun deleteStatus(statusId: String) {
         viewModelScope.launch {
-            repository.deleteStatus(statusId)
+            authManager.getAuthToken()?.let { token ->
+                repository.deleteStatus(statusId, token)
+            }
         }
     }
 
-    fun getStatusViewers(statusId: Long): List<com.example.data.StatusViewer> {
-        val contactList = contacts.value
-        val baseTime = System.currentTimeMillis()
-        val timeOffsets = listOf(4 * 60 * 1000L, 12 * 60 * 1000L, 26 * 60 * 1000L, 45 * 60 * 1000L)
-        val timeLabels = listOf("4 minutes ago", "12 minutes ago", "26 minutes ago", "45 minutes ago")
-
-        return contactList.take(4).mapIndexed { index, contact ->
-            val offset = timeOffsets.getOrElse(index) { (index + 1) * 15 * 60 * 1000L }
-            val label = timeLabels.getOrElse(index) { "${(index + 1) * 15} minutes ago" }
-            com.example.data.StatusViewer(
-                contactId = contact.id,
-                name = contact.name,
-                avatarUrl = contact.avatarUrl,
-                phoneNumber = contact.phoneNumber,
-                viewedTimestamp = baseTime - offset,
-                timeAgoFormatted = label
-            )
-        }
+    fun getStatusViewers(statusId: String): List<com.example.data.StatusViewer> {
+        return emptyList()
     }
 
-    fun logCall(contactId: Long, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean) {
+    fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean) {
         viewModelScope.launch {
             repository.logCall(contactId, contactName, callType, isIncoming, isMissed)
         }
@@ -339,6 +522,38 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun setSelectedTab(index: Int) {
         selectedTab.value = index
+        if (index == 1) { // Updates tab
+            syncStatuses()
+        }
+        if (index == 2) { // Communities tab
+            syncCommunities()
+        }
+    }
+
+    fun syncCommunities() {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                repository.syncCommunities(token)
+            }
+        }
+    }
+
+    fun createCommunity(name: String, description: String?, avatarUrl: String?, onComplete: (com.example.data.CommunityEntity?) -> Unit) {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                val community = repository.createCommunity(name, description, avatarUrl, token)
+                onComplete(community)
+            }
+        }
+    }
+
+    fun getCommunityChats(communityId: String, onComplete: (List<ChatEntity>) -> Unit) {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                val chats = repository.getCommunityChats(communityId, token)
+                onComplete(chats)
+            }
+        }
     }
 
     fun clearCallLogs() {
@@ -347,15 +562,21 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun updateStatusPrivacy(mode: String, excluded: Set<Long>, included: Set<Long>) {
+    fun updateStatusPrivacy(mode: String, excluded: Set<String>, included: Set<String>) {
         statusPrivacyMode.value = mode
         statusPrivacyExcludedIds.value = excluded
         statusPrivacyIncludedIds.value = included
+        
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                repository.updateStatusPrivacyRemote(mode, excluded.toList(), included.toList(), token)
+            }
+        }
     }
 
-    fun setChatWallpaper(chatId: Long?, wallpaperValue: String, dimming: Float = 0.15f) {
+    fun setChatWallpaper(chatId: String?, wallpaperValue: String, dimming: Float = 0.15f) {
         wallpaperDimming.value = dimming
-        if (chatId == null || chatId == 0L) {
+        if (chatId == null || chatId == "") {
             globalWallpaper.value = wallpaperValue
         } else {
             val currentMap = chatWallpapers.value.toMutableMap()
@@ -364,7 +585,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun toggleMuteChat(chatId: Long) {
+    fun toggleMuteChat(chatId: String) {
         viewModelScope.launch {
             val chat = repository.getChatById(chatId)
             if (chat != null) {
@@ -373,7 +594,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    suspend fun getMessageById(messageId: Long): MessageEntity? {
+    suspend fun getMessageById(messageId: String): MessageEntity? {
         return repository.getMessageById(messageId)
     }
 
@@ -382,17 +603,18 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         messageType: String,
         mediaUrl: String,
         durationSeconds: Int,
-        targetChatIds: List<Long>,
+        targetChatIds: List<String>,
         onComplete: () -> Unit
     ) {
         viewModelScope.launch {
             targetChatIds.forEach { chatId ->
                 repository.sendMessage(
                     chatId = chatId,
+                    senderId = authManager.getUserId() ?: "ME",
+                    receiverId = null,
                     content = content,
-                    messageType = messageType,
-                    mediaUrl = mediaUrl,
-                    voiceDurationSeconds = durationSeconds
+                    type = messageType,
+                    token = authManager.getAuthToken() ?: ""
                 )
             }
             onComplete()

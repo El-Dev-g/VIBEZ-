@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import com.example.util.QrCodeGenerator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,9 +26,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CleanHands
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Edit
@@ -36,7 +41,9 @@ import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PermIdentity
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
@@ -90,11 +97,15 @@ fun SettingsScreen(
     isDarkMode: Boolean,
     userName: String = "Alex Rivers",
     userPhone: String = "+1 555-0198",
+    googleEmail: String? = null,
     onBackClick: () -> Unit,
     onToggleDarkMode: () -> Unit,
     onLogoutClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
-    onWallpaperClick: () -> Unit = {}
+    onWallpaperClick: () -> Unit = {},
+    onGoogleAuthClick: () -> Unit = {},
+    onBackendSyncClick: () -> Unit = {},
+    onQrScanClick: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -407,6 +418,22 @@ fun SettingsScreen(
                             }
                         )
 
+                        // Google Authentication & Cloud Services
+                        VibesSettingClickRow(
+                            icon = Icons.Default.AccountCircle,
+                            title = "Google Account & Cloud Auth",
+                            subtitle = googleEmail?.let { "Connected as $it" } ?: "Link Google Account & Drive Backup",
+                            onClick = onGoogleAuthClick
+                        )
+
+                        // Backend & Cloud Synchronization Hub
+                        VibesSettingClickRow(
+                            icon = Icons.Default.CloudSync,
+                            title = "Backend & Cloud Synchronization",
+                            subtitle = "Verify API live sync, WebSocket, and cloud storage",
+                            onClick = onBackendSyncClick
+                        )
+
                         // Security Shield
                         VibesSettingClickRow(
                             icon = Icons.Default.Security,
@@ -498,6 +525,10 @@ fun SettingsScreen(
 
     // --- QR CODE MODAL DIALOG ---
     if (showQrModal) {
+        val qrBitmap = remember(userPhone) {
+            QrCodeGenerator.generateQrCode(userPhone, 512)
+        }
+
         AlertDialog(
             onDismissRequest = { showQrModal = false },
             title = {
@@ -514,18 +545,26 @@ fun SettingsScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(200.dp)
+                            .size(220.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.White)
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCode2,
-                            contentDescription = "QR Code",
-                            tint = Color.Black,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (qrBitmap != null) {
+                            Image(
+                                bitmap = qrBitmap.asImageBitmap(),
+                                contentDescription = "QR Code",
+                                modifier = Modifier.size(200.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.QrCode2,
+                                contentDescription = "QR Code Placeholder",
+                                tint = Color.Gray,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -533,6 +572,20 @@ fun SettingsScreen(
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = {
+                            showQrModal = false
+                            onQrScanClick()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = WhatsAppMinimalPrimary)
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Scan QR Code")
+                    }
                 }
             },
             confirmButton = {

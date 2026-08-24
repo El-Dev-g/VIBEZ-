@@ -1,0 +1,165 @@
+package com.example.data.network
+
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+
+@JsonClass(generateAdapter = true)
+data class UserDto(
+    val id: String,
+    val phoneNumber: String,
+    val name: String?,
+    val avatarUrl: String?,
+    val about: String?,
+    val lastSeen: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ChatDto(
+    val id: String,
+    val isGroup: Boolean,
+    val name: String?,
+    val avatarUrl: String?,
+    val members: List<ChatMemberDto>,
+    val messages: List<MessageDto>
+)
+
+@JsonClass(generateAdapter = true)
+data class ChatMemberDto(
+    val id: String,
+    val userId: String,
+    val user: UserDto
+)
+
+@JsonClass(generateAdapter = true)
+data class MessageDto(
+    val id: String,
+    val content: String,
+    val type: String,
+    val status: String,
+    val mediaUrl: String?,
+    val duration: Int?,
+    val senderId: String,
+    val receiverId: String?,
+    val chatId: String,
+    val createdAt: String,
+    val sender: UserDto?
+)
+
+@JsonClass(generateAdapter = true)
+data class GoogleAuthRequest(
+    val idToken: String? = null,
+    val email: String? = null,
+    val name: String? = null,
+    val avatarUrl: String? = null,
+    val phoneNumber: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SyncContactsRequest(
+    val phoneNumbers: List<String>
+)
+
+@JsonClass(generateAdapter = true)
+data class LoginResponse(
+    val user: UserDto,
+    val token: String
+)
+
+@JsonClass(generateAdapter = true)
+data class UploadUrlResponse(
+    val uploadUrl: String,
+    val fileKey: String,
+    val publicUrl: String
+)
+
+@JsonClass(generateAdapter = true)
+data class PrivateChatRequest(
+    val targetUserId: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CommunityDto(
+    val id: String,
+    val name: String,
+    val description: String?,
+    val avatarUrl: String?,
+    val membersCount: Int,
+    val createdAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateCommunityRequest(
+    val name: String,
+    val description: String? = null,
+    val avatarUrl: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class StatusDto(
+    val id: String,
+    val userId: String,
+    val content: String?,
+    val type: String, // "TEXT" or "IMAGE"
+    val mediaUrl: String?,
+    val backgroundColor: String?,
+    val textStyle: String?,
+    val createdAt: String,
+    val user: UserDto?,
+    val viewers: List<StatusViewerDto> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class StatusViewerDto(
+    val id: String,
+    val userId: String,
+    val statusId: String,
+    val viewedAt: String,
+    val user: UserDto?
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateStatusRequest(
+    val content: String? = null,
+    val type: String,
+    val mediaUrl: String? = null,
+    val backgroundColor: String? = null,
+    val textStyle: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CallDto(
+    val id: String,
+    val callerId: String,
+    val receiverId: String,
+    val type: String, // "VOICE", "VIDEO"
+    val status: String, // "MISSED", "COMPLETED", "REJECTED"
+    val duration: Int?,
+    val createdAt: String,
+    val caller: UserDto?,
+    val receiver: UserDto?
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateCallRequest(
+    val receiverId: String,
+    val type: String,
+    val status: String,
+    val duration: Int? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class StatusPrivacyRequest(
+    val mode: String, // "MY_CONTACTS", "EXCEPT", "ONLY_SHARE"
+    val excludedUserIds: List<String> = emptyList(),
+    val includedUserIds: List<String> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class UserSettingsDto(
+    val statusPrivacyMode: String,
+    val lastSeenPrivacy: String, // "EVERYONE", "MY_CONTACTS", "NOBODY"
+    val profilePhotoPrivacy: String,
+    val aboutPrivacy: String,
+    val readReceipts: Boolean,
+    val notificationsEnabled: Boolean
+)

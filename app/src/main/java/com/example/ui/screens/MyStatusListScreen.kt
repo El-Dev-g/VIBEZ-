@@ -74,7 +74,7 @@ fun MyStatusListScreen(
     onBackClick: () -> Unit,
     onStatusClick: (StatusEntity) -> Unit,
     onViewersClick: (StatusEntity) -> Unit,
-    onDeleteStatus: (Long) -> Unit,
+    onDeleteStatus: (String) -> Unit,
     onCreateStatusClick: () -> Unit
 ) {
     val myStatuses = remember(statuses) {
@@ -338,7 +338,7 @@ fun MyStatusListScreen(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "4", // Hardcoded 4 views as mock, consistent with the app seeding
+                                        text = status.viewCount.toString(),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = WhatsAppEmerald

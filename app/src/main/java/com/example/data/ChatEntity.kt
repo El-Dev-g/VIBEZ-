@@ -3,10 +3,10 @@ package com.example.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "chats")
 data class ChatEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val contactId: Long,
+    val id: String = "",
+    val remoteId: String? = null,
+    val contactId: String,
     val contactName: String,
     val contactAvatar: String = "",
     val lastMessage: String = "",

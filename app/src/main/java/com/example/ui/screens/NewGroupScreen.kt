@@ -48,10 +48,10 @@ import com.example.ui.theme.WhatsAppEmerald
 fun NewGroupScreen(
     contacts: List<ContactEntity>,
     onBackClick: () -> Unit,
-    onCreateGroup: (groupName: String, selectedContactIds: List<Long>) -> Unit
+    onCreateGroup: (groupName: String, selectedContactIds: List<String>) -> Unit
 ) {
     var groupName by remember { mutableStateOf("") }
-    val selectedIds = remember { mutableStateListOf<Long>() }
+    val selectedIds = remember { mutableStateListOf<String>() }
 
     Scaffold(
         topBar = {

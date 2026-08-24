@@ -62,9 +62,9 @@ import java.util.Locale
 @Composable
 fun CallsListScreen(
     callLogs: List<CallLogEntity>,
-    onStartCallClick: (ContactId: Long, isVideo: Boolean) -> Unit,
+    onStartCallClick: (ContactId: String, isVideo: Boolean) -> Unit,
     onNewCallFabClick: () -> Unit,
-    onAvatarClick: (Long) -> Unit = {},
+    onAvatarClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current

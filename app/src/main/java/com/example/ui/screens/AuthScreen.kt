@@ -1,7 +1,11 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,404 +18,354 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.WhatsAppMinimalAccent
-import com.example.ui.theme.WhatsAppMinimalNavPill
-import com.example.ui.theme.WhatsAppMinimalPrimary
-import kotlinx.coroutines.delay
-
-enum class AuthStep {
-    PHONE_ENTRY,
-    OTP_VERIFICATION,
-    PROFILE_SETUP
-}
+import com.example.R
+import com.example.ui.theme.WhatsAppEmerald
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
-    onAuthSuccess: (phone: String, name: String) -> Unit
+    onAuthSuccess: (phone: String, name: String, about: String) -> Unit,
+    onGoogleAuthSuccess: ((email: String, name: String, avatarUrl: String?, phone: String?) -> Unit)? = null,
+    onNavigateToPhoneIdentity: ((email: String, name: String, avatarUrl: String?) -> Unit)? = null
 ) {
-    var step by remember { mutableStateOf(AuthStep.PHONE_ENTRY) }
-    var selectedCountryCode by remember { mutableStateOf("+1 (US)") }
-    var phoneNumber by remember { mutableStateOf("555-0198") }
-    var otpCode by remember { mutableStateOf("") }
-    var userName by remember { mutableStateOf("Alex Rivers") }
-    var userAbout by remember { mutableStateOf("Hey there! I am using VIBEZ.") }
-    var countryDropdownExpanded by remember { mutableStateOf(false) }
-
-    val mockOtp = "123456"
-    var otpTimer by remember { mutableIntStateOf(60) }
-    var isTimerRunning by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(isTimerRunning) {
-        if (isTimerRunning) {
-            otpTimer = 60
-            while (otpTimer > 0) {
-                delay(1000)
-                otpTimer--
-            }
-            isTimerRunning = false
-        }
-    }
-
-    val countryCodes = listOf("+1 (US)", "+44 (UK)", "+91 (India)", "+49 (Germany)", "+81 (Japan)")
+    var showAccountPicker by remember { mutableStateOf(false) }
+    var isSigningIn by remember { mutableStateOf(false) }
+    var customEmail by remember { mutableStateOf("") }
+    var showCustomEmailField by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = when (step) {
-                            AuthStep.PHONE_ENTRY -> "Enter phone number"
-                            AuthStep.OTP_VERIFICATION -> "Verify phone number"
-                            AuthStep.PROFILE_SETUP -> "Profile info"
-                        },
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WhatsAppMinimalPrimary
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-            )
-        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 28.dp),
+            contentAlignment = Alignment.Center
         ) {
             Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+                verticalArrangement = Arrangement.Center
             ) {
-                when (step) {
-                    AuthStep.PHONE_ENTRY -> {
-                        Text(
-                            text = "VIBEZ will send an SMS message to verify your phone number. Enter your country code and phone number.",
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 24.dp)
-                        )
-
-                        // Country selector
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(
-                                value = selectedCountryCode,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Country / Region") },
-                                trailingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = "Select country",
-                                        modifier = Modifier.clickable { countryDropdownExpanded = true }
-                                    )
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { countryDropdownExpanded = true },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = WhatsAppMinimalPrimary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                )
-                            )
-                            DropdownMenu(
-                                expanded = countryDropdownExpanded,
-                                onDismissRequest = { countryDropdownExpanded = false }
-                            ) {
-                                countryCodes.forEach { code ->
-                                    DropdownMenuItem(
-                                        text = { Text(code) },
-                                        onClick = {
-                                            selectedCountryCode = code
-                                            countryDropdownExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Phone Number Input
-                        OutlinedTextField(
-                            value = phoneNumber,
-                            onValueChange = { phoneNumber = it },
-                            label = { Text("Phone Number") },
-                            leadingIcon = { Icon(imageVector = Icons.Default.Phone, contentDescription = "Phone") },
-                            placeholder = { Text("555-0198") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = WhatsAppMinimalPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Security",
-                                tint = WhatsAppMinimalPrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Carrier SMS charges may apply",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    AuthStep.OTP_VERIFICATION -> {
-                        Text(
-                            text = "Waiting to automatically detect an SMS sent to $selectedCountryCode $phoneNumber.",
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Simulation Toast Banner for Easy Verification
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = WhatsAppMinimalNavPill),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Shield,
-                                    contentDescription = "Verification",
-                                    tint = WhatsAppMinimalPrimary
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Verification Code Sent!",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = WhatsAppMinimalPrimary
-                                    )
-                                    Text(
-                                        text = "Your VIBEZ code is: $mockOtp",
-                                        fontSize = 13.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                                TextButton(onClick = { otpCode = mockOtp }) {
-                                    Text("Auto-fill", color = WhatsAppMinimalPrimary, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // OTP Code Input
-                        OutlinedTextField(
-                            value = otpCode,
-                            onValueChange = { if (it.length <= 6) otpCode = it },
-                            label = { Text("6-Digit OTP Code") },
-                            placeholder = { Text("123456") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = WhatsAppMinimalPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                            )
-                        )
-
-                        if (errorMessage != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = errorMessage!!, color = Color.Red, fontSize = 13.sp)
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (isTimerRunning) "Resend code in ${otpTimer}s" else "Didn't receive code?",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (!isTimerRunning) {
-                                TextButton(onClick = { isTimerRunning = true }) {
-                                    Text("Resend SMS", color = WhatsAppMinimalPrimary, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-
-                    AuthStep.PROFILE_SETUP -> {
-                        Text(
-                            text = "Please provide your name and an optional profile picture.",
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 24.dp)
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .size(90.dp)
-                                .clip(CircleShape)
-                                .background(WhatsAppMinimalNavPill),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Profile Photo",
-                                tint = WhatsAppMinimalPrimary,
-                                modifier = Modifier.size(50.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        OutlinedTextField(
-                            value = userName,
-                            onValueChange = { userName = it },
-                            label = { Text("Type your name here") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = WhatsAppMinimalPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        OutlinedTextField(
-                            value = userAbout,
-                            onValueChange = { userAbout = it },
-                            label = { Text("About Status") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = WhatsAppMinimalPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                            )
+                // Centered Google Brand Icon Circle
+                Surface(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .shadow(elevation = 6.dp, shape = CircleShape, ambientColor = Color.Black.copy(alpha = 0.1f))
+                        .clip(CircleShape)
+                        .border(1.dp, Color(0xFFE8EAED), CircleShape),
+                    color = Color.White
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_google_logo),
+                            contentDescription = "Google",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(48.dp)
                         )
                     }
                 }
-            }
 
-            // Bottom Next / Verify Action Button
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = {
-                        when (step) {
-                            AuthStep.PHONE_ENTRY -> {
-                                if (phoneNumber.isNotBlank()) {
-                                    step = AuthStep.OTP_VERIFICATION
-                                    isTimerRunning = true
-                                }
-                            }
-                            AuthStep.OTP_VERIFICATION -> {
-                                if (otpCode == mockOtp || otpCode.length == 6) {
-                                    errorMessage = null
-                                    step = AuthStep.PROFILE_SETUP
-                                } else {
-                                    errorMessage = "Invalid verification code. Please enter $mockOtp."
-                                }
-                            }
-                            AuthStep.PROFILE_SETUP -> {
-                                if (userName.isNotBlank()) {
-                                    onAuthSuccess("$selectedCountryCode $phoneNumber", userName.trim())
-                                }
-                            }
-                        }
-                    },
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // App Name
+                Text(
+                    text = "VIBEZ",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    letterSpacing = 1.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Clean Subtitle
+                Text(
+                    text = "Sign in with Google to continue",
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(36.dp))
+
+                // Centered Google Sign-In Button
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(26.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalAccent)
+                        .height(54.dp)
+                        .shadow(elevation = 3.dp, shape = RoundedCornerShape(27.dp))
+                        .clip(RoundedCornerShape(27.dp))
+                        .border(
+                            BorderStroke(1.dp, Color(0xFFDADCE0)),
+                            RoundedCornerShape(27.dp)
+                        )
+                        .clickable(enabled = !isSigningIn) {
+                            showAccountPicker = true
+                        }
+                        .testTag("google_auth_btn"),
+                    color = Color.White
                 ) {
-                    Text(
-                        text = when (step) {
-                            AuthStep.PHONE_ENTRY -> "Next"
-                            AuthStep.OTP_VERIFICATION -> "Verify & Continue"
-                            AuthStep.PROFILE_SETUP -> "Finish Setup"
-                        },
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (isSigningIn) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color(0xFF4285F4),
+                                strokeWidth = 2.5.dp
+                            )
+                        } else {
+                            // Centered Google G icon
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_google_logo),
+                                contentDescription = "Google",
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(24.dp)
+                            )
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Text(
+                                text = "Sign in with Google",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF3C4043)
+                            )
+                        }
+                    }
                 }
 
-                if (step == AuthStep.OTP_VERIFICATION) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(
-                        onClick = { step = AuthStep.PHONE_ENTRY },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Wrong phone number?", color = WhatsAppMinimalPrimary)
-                    }
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Subtle Privacy & Security Note
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Encrypted",
+                        tint = WhatsAppEmerald,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "End-to-end encrypted messaging",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
+    }
+
+    // Google Account Picker Dialog
+    if (showAccountPicker) {
+        val defaultAccounts = listOf(
+            "prigidcollection@gmail.com" to "Alex Rivera",
+            "alex.tech@gmail.com" to "Alex R.",
+            "vibez.user@gmail.com" to "VIBEZ Member"
+        )
+
+        AlertDialog(
+            onDismissRequest = {
+                showAccountPicker = false
+                showCustomEmailField = false
+            },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_google_logo),
+                        contentDescription = "Google",
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Choose an account",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "to continue to VIBEZ",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    defaultAccounts.forEach { (email, name) ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    showAccountPicker = false
+                                    isSigningIn = true
+                                    if (onNavigateToPhoneIdentity != null) {
+                                        onNavigateToPhoneIdentity(email, name, null)
+                                    } else if (onGoogleAuthSuccess != null) {
+                                        onGoogleAuthSuccess(email, name, null, null)
+                                    } else {
+                                        onAuthSuccess("", name, "Hey there! I am using VIBEZ.")
+                                    }
+                                },
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(WhatsAppEmerald),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = name.take(1),
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = name,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = email,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (!showCustomEmailField) {
+                        TextButton(
+                            onClick = { showCustomEmailField = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Use another account",
+                                color = Color(0xFF1A73E8),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    } else {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = customEmail,
+                                onValueChange = { customEmail = it },
+                                label = { Text("Email address") },
+                                placeholder = { Text("name@gmail.com") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Button(
+                                onClick = {
+                                    val trimmed = customEmail.trim()
+                                    if (trimmed.contains("@")) {
+                                        showAccountPicker = false
+                                        isSigningIn = true
+                                        val customName = trimmed.substringBefore("@")
+                                            .replace(".", " ")
+                                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                                        if (onNavigateToPhoneIdentity != null) {
+                                            onNavigateToPhoneIdentity(trimmed, customName, null)
+                                        } else if (onGoogleAuthSuccess != null) {
+                                            onGoogleAuthSuccess(trimmed, customName, null, null)
+                                        } else {
+                                            onAuthSuccess("", customName, "Hey there! I am using VIBEZ.")
+                                        }
+                                    }
+                                },
+                                enabled = customEmail.contains("@"),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Continue", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showAccountPicker = false
+                    showCustomEmailField = false
+                }) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     }
 }

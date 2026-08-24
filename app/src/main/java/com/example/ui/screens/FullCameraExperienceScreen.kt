@@ -24,6 +24,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -43,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -78,6 +80,59 @@ fun FullCameraExperienceScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // Permissions State
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var hasAudioPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasCameraPermission = permissions[android.Manifest.permission.CAMERA] ?: hasCameraPermission
+        hasAudioPermission = permissions[android.Manifest.permission.RECORD_AUDIO] ?: hasAudioPermission
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission || !hasAudioPermission) {
+            permissionLauncher.launch(
+                arrayOf(
+                    android.Manifest.permission.CAMERA,
+                    android.Manifest.permission.RECORD_AUDIO
+                )
+            )
+        }
+    }
+
+    if (!hasCameraPermission) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Camera permission is required", color = Color.White)
+                Button(
+                    onClick = {
+                        permissionLauncher.launch(
+                            arrayOf(
+                                android.Manifest.permission.CAMERA,
+                                android.Manifest.permission.RECORD_AUDIO
+                            )
+                        )
+                    },
+                    modifier = Modifier.padding(top = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald)
+                ) {
+                    Text("Grant Permission")
+                }
+            }
+        }
+        return
+    }
+
     // Camera State
     var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
     var flashMode by remember { mutableIntStateOf(androidx.camera.core.ImageCapture.FLASH_MODE_OFF) }
@@ -85,6 +140,25 @@ fun FullCameraExperienceScreen(
     var recordingDuration by remember { mutableLongStateOf(0L) }
     var capturedMediaUri by remember { mutableStateOf<Uri?>(null) }
     var capturedMediaType by remember { mutableStateOf("VIDEO") } // "IMAGE" or "VIDEO"
+
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            repeatMode = Player.REPEAT_MODE_ONE
+        }
+    }
+
+    // Unbind camera on dispose
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                val cameraProvider = ProcessCameraProvider.getInstance(context).get()
+                cameraProvider.unbindAll()
+            } catch (e: Exception) {
+                Log.e("CameraExperience", "Error unbinding on dispose", e)
+            }
+            exoPlayer.release()
+        }
+    }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -109,18 +183,6 @@ fun FullCameraExperienceScreen(
     var captionText by remember { mutableStateOf("") }
     var showFilters by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf("None") }
-
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            repeatMode = Player.REPEAT_MODE_ONE
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            exoPlayer.release()
-        }
-    }
 
     // Timer for recording
     LaunchedEffect(isRecording) {
@@ -161,6 +223,7 @@ fun FullCameraExperienceScreen(
                 flashMode = flashMode,
                 isRecording = isRecording,
                 shutterTrigger = shutterTrigger,
+                hasAudioPermission = hasAudioPermission,
                 onShutterConsumed = { shutterTrigger = false },
                 onRecordingStarted = { isRecording = true },
                 onRecordingStopped = { uri -> 
@@ -205,20 +268,19 @@ fun FullCameraExperienceScreen(
             }
 
             // Bottom Shutter & Controls
-            if (!isRecording) {
-                Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
-                    CameraBottomControls(
-                        onRecordStart = { isRecording = true },
-                        onRecordEnd = { isRecording = false },
-                        onTakePhoto = { shutterTrigger = true },
-                        onFlipCamera = {
-                            lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) 
-                                CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
-                        },
-                        onGalleryClick = { galleryLauncher.launch("*/*") },
-                        onFiltersClick = { showFilters = !showFilters }
-                    )
-                }
+            Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
+                CameraBottomControls(
+                    onRecordStart = { isRecording = true },
+                    onRecordEnd = { isRecording = false },
+                    onTakePhoto = { shutterTrigger = true },
+                    onFlipCamera = {
+                        lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) 
+                            CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+                    },
+                    onGalleryClick = { galleryLauncher.launch("*/*") },
+                    onFiltersClick = { showFilters = !showFilters },
+                    isRecording = isRecording
+                )
             }
         } else {
             // Video/Photo Preview & Edit Mode
@@ -303,7 +365,7 @@ fun AdvancedMusicSelectorOverlay(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                placeholder = { Text("Search Apple Music...") },
+                placeholder = { Text("Search for music...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (isSearching) {
@@ -435,6 +497,7 @@ fun CameraPreview(
     flashMode: Int,
     isRecording: Boolean,
     shutterTrigger: Boolean,
+    hasAudioPermission: Boolean,
     onShutterConsumed: () -> Unit,
     onRecordingStarted: () -> Unit,
     onRecordingStopped: (Uri) -> Unit,
@@ -458,8 +521,8 @@ fun CameraPreview(
             }
 
             val qualitySelector = QualitySelector.fromOrderedList(
-                listOf(Quality.FHD, Quality.HD, Quality.SD),
-                FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
+                listOf(Quality.HD, Quality.SD, Quality.LOWEST),
+                FallbackStrategy.lowerQualityOrHigherThan(Quality.LOWEST)
             )
             
             val videoCapture = try {
@@ -468,13 +531,22 @@ fun CameraPreview(
                     .build()
                 VideoCapture.withOutput(recorder)
             } catch (e: Exception) {
-                Log.e("CameraExperience", "Failed to initialize VideoCapture", e)
-                null
+                Log.e("CameraExperience", "Failed to initialize VideoCapture, falling back to lower quality", e)
+                try {
+                    val fallbackRecorder = Recorder.Builder()
+                        .setQualitySelector(QualitySelector.from(Quality.LOWEST))
+                        .build()
+                    VideoCapture.withOutput(fallbackRecorder)
+                } catch (e2: Exception) {
+                    Log.e("CameraExperience", "Completely failed to initialize VideoCapture", e2)
+                    null
+                }
             }
             videoCaptureState.value = videoCapture
 
             val imageCapture = ImageCapture.Builder()
                 .setFlashMode(flashMode)
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 .build()
             imageCaptureState.value = imageCapture
 
@@ -482,27 +554,34 @@ fun CameraPreview(
                 .requireLensFacing(lensFacing)
                 .build()
 
+            if (!cameraProvider.hasCamera(cameraSelector)) {
+                Log.e("CameraExperience", "Camera not found for lensFacing: $lensFacing")
+                return@addListener
+            }
+
             try {
                 cameraProvider.unbindAll()
-                if (videoCapture != null) {
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        cameraSelector,
-                        preview,
-                        videoCapture,
-                        imageCapture
-                    )
-                } else {
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        cameraSelector,
-                        preview,
-                        imageCapture
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e("CameraExperience", "Primary binding failed, retrying without VideoCapture", e)
+                // On some devices/emulators, binding 3 use cases fails. 
+                // We attempt 3, then 2 (Preview + Image), then just Preview if needed.
                 try {
+                    if (videoCapture != null) {
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            cameraSelector,
+                            preview,
+                            videoCapture,
+                            imageCapture
+                        )
+                    } else {
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            cameraSelector,
+                            preview,
+                            imageCapture
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.w("CameraExperience", "Binding 3 use cases failed, falling back to 2", e)
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
@@ -511,9 +590,9 @@ fun CameraPreview(
                         imageCapture
                     )
                     videoCaptureState.value = null
-                } catch (e2: Exception) {
-                    Log.e("CameraExperience", "Camera binding completely failed", e2)
                 }
+            } catch (e: Exception) {
+                Log.e("CameraExperience", "Camera binding completely failed", e)
             }
         }, ContextCompat.getMainExecutor(context))
     }
@@ -557,9 +636,14 @@ fun CameraPreview(
 
             onRecordingStarted()
             
-            recordingState.value = videoCapture.output
+            val recordingBuilder = videoCapture.output
                 .prepareRecording(context, outputOptions)
-                .withAudioEnabled()
+            
+            if (hasAudioPermission) {
+                recordingBuilder.withAudioEnabled()
+            }
+            
+            recordingState.value = recordingBuilder
                 .start(ContextCompat.getMainExecutor(context)) { event ->
                     if (event is VideoRecordEvent.Finalize) {
                         if (!event.hasError()) {
@@ -685,39 +769,82 @@ fun CameraBottomControls(
     onTakePhoto: () -> Unit,
     onFlipCamera: () -> Unit,
     onFiltersClick: () -> Unit,
-    onGalleryClick: () -> Unit
+    onGalleryClick: () -> Unit,
+    isRecording: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 24.dp, start = 32.dp, end = 32.dp).padding(horizontal = 32.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onGalleryClick) {
-            Icon(Icons.Default.PhotoLibrary, contentDescription = "Gallery", tint = Color.White, modifier = Modifier.size(32.dp))
+        if (!isRecording) {
+            IconButton(onClick = onGalleryClick) {
+                Icon(Icons.Default.PhotoLibrary, contentDescription = "Gallery", tint = Color.White, modifier = Modifier.size(32.dp))
+            }
+        } else {
+            Spacer(modifier = Modifier.size(48.dp))
         }
 
         // Shutter Button
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(if (isRecording) 100.dp else 80.dp)
                 .clip(CircleShape)
                 .border(4.dp, Color.White, CircleShape)
                 .padding(6.dp)
                 .clip(CircleShape)
-                .background(Color.White)
+                .background(if (isRecording) Color.Red.copy(0.3f) else Color.White)
                 .pointerInput(Unit) {
-                    detectTapGestures(
-                        onLongPress = { onRecordStart() },
-                        onTap = { onTakePhoto() }
-                    )
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitFirstDown()
+                            val startTime = System.currentTimeMillis()
+                            var isLongPress = false
+                            
+                            // Track the press
+                            while (true) {
+                                val nextEvent = withTimeoutOrNull(500) {
+                                    awaitPointerEvent()
+                                }
+                                
+                                if (nextEvent == null) {
+                                    // Timeout reached, this is a long press
+                                    if (!isLongPress) {
+                                        isLongPress = true
+                                        onRecordStart()
+                                    }
+                                } else {
+                                    val change = nextEvent.changes.first()
+                                    if (!change.pressed) {
+                                        // Released
+                                        if (isLongPress) {
+                                            onRecordEnd()
+                                        } else {
+                                            onTakePhoto()
+                                        }
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {
-            Box(modifier = Modifier.size(60.dp).clip(CircleShape).background(Color.Red))
+            Box(
+                modifier = Modifier
+                    .size(if (isRecording) 40.dp else 60.dp)
+                    .clip(if (isRecording) RoundedCornerShape(8.dp) else CircleShape)
+                    .background(Color.Red)
+            )
         }
 
-        IconButton(onClick = onFlipCamera) {
-            Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Flip", tint = Color.White, modifier = Modifier.size(32.dp))
+        if (!isRecording) {
+            IconButton(onClick = onFlipCamera) {
+                Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Flip", tint = Color.White, modifier = Modifier.size(32.dp))
+            }
+        } else {
+            Spacer(modifier = Modifier.size(48.dp))
         }
     }
 }
@@ -760,9 +887,6 @@ fun VideoPreviewScreen(
 
         // Top Controls
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            IconButton(onClick = onRetake) {
-                Icon(Icons.Default.Close, contentDescription = "Retake", tint = Color.White)
-            }
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = { showStickers = true }) {
                 Icon(Icons.Default.EmojiEmotions, contentDescription = "Stickers", tint = Color.White)

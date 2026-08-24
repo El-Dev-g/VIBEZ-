@@ -46,6 +46,7 @@ import androidx.core.app.NotificationCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.ui.components.AvatarView
+import com.example.ui.components.IncomingCallOverlay
 import com.example.ui.IncomingNotification
 import com.example.ui.theme.WhatsAppTheme
 import androidx.navigation.NavType
@@ -57,19 +58,27 @@ import androidx.navigation.navArgument
 import com.example.data.MessageEntity
 import com.example.data.StatusEntity
 import com.example.ui.WhatsAppViewModel
+import com.example.ui.viewmodels.VideoCallViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.screens.AuthScreen
+import com.example.ui.screens.BackendSyncScreen
 import com.example.ui.screens.CallScreen
 import com.example.ui.screens.ChatDetailScreen
 import com.example.ui.screens.ContactInfoScreen
+import com.example.ui.screens.CreateCommunityScreen
 import com.example.ui.screens.CreateStatusScreen
 import com.example.ui.screens.FullCameraExperienceScreen
+import com.example.ui.screens.GoogleServiceAuthScreen
 import com.example.ui.screens.MainTabScreen
 import com.example.ui.screens.MediaViewerScreen
 import com.example.ui.screens.MyStatusListScreen
 import com.example.ui.screens.NewContactScreen
 import com.example.ui.screens.NewGroupScreen
+import com.example.ui.screens.PhoneIdentitySetupScreen
+import com.example.ui.screens.QrScannerScreen
 import com.example.ui.screens.SelectContactScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.SharedMediaScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.StarredMessagesScreen
 import com.example.ui.screens.StatusPrivacyScreen
@@ -98,7 +107,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("MissingPermission")
-    internal fun showSystemNotification(context: Context, title: String, content: String, chatId: Long) {
+    internal fun showSystemNotification(context: Context, title: String, content: String, chatId: String) {
         val channelId = "chat_messages_channel"
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
 
@@ -119,7 +128,7 @@ class MainActivity : ComponentActivity() {
         }
         val pendingIntent = android.app.PendingIntent.getActivity(
             context,
-            chatId.toInt(),
+            chatId.hashCode(),
             intent,
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
@@ -133,7 +142,7 @@ class MainActivity : ComponentActivity() {
             .setContentIntent(pendingIntent)
             .build()
 
-        notificationManager.notify(chatId.toInt(), notification)
+        notificationManager.notify(chatId.hashCode(), notification)
     }
 }
 
@@ -141,11 +150,13 @@ class MainActivity : ComponentActivity() {
 fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val videoCallViewModel: VideoCallViewModel = viewModel()
 
     val chats by viewModel.filteredChats.collectAsState()
     val allChatsList by viewModel.chats.collectAsState()
     val contacts by viewModel.contacts.collectAsState()
     val statuses by viewModel.statuses.collectAsState()
+    val communities by viewModel.communities.collectAsState()
     val callLogs by viewModel.callLogs.collectAsState()
     val starredMessages by viewModel.starredMessages.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -155,11 +166,17 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     val currentUserPhone by viewModel.currentUserPhone.collectAsState()
     val currentUserName by viewModel.currentUserName.collectAsState()
     val currentUserStatus by viewModel.currentUserStatus.collectAsState()
+    val currentGoogleEmail by viewModel.currentGoogleEmail.collectAsState()
+    val currentAuthProvider by viewModel.currentAuthProvider.collectAsState()
     val typingChatId by viewModel.typingChatId.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
+    val isSyncingContacts by viewModel.isSyncingContacts.collectAsState()
+    val syncStatusMessage by viewModel.syncStatusMessage.collectAsState()
 
     var activeStatusForViewer by remember { mutableStateOf<StatusEntity?>(null) }
     var activeNotification by remember { mutableStateOf<IncomingNotification?>(null) }
+
+    val incomingCallOffer by videoCallViewModel.incomingCallOffer.collectAsState()
 
     // Request notification permissions automatically on start
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -212,13 +229,61 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             )
         }
 
-        // 0. User Authentication Screen
+        // 0. User Authentication Screen (Google Sign-In Primary)
         composable("auth") {
             AuthScreen(
-                onAuthSuccess = { phone, name ->
-                    viewModel.loginUser(phone, name)
-                    navController.navigate("main") {
-                        popUpTo("auth") { inclusive = true }
+                onAuthSuccess = { phone, name, about ->
+                    viewModel.loginWithGoogle("user@vibez.app", name, null, phone) { success, _ ->
+                        navController.navigate("main") {
+                            popUpTo("auth") { inclusive = true }
+                        }
+                    }
+                },
+                onGoogleAuthSuccess = { email, name, avatarUrl, phone ->
+                    viewModel.loginWithGoogle(email, name, avatarUrl, phone) { success, _ ->
+                        navController.navigate("main") {
+                            popUpTo("auth") { inclusive = true }
+                        }
+                    }
+                },
+                onNavigateToPhoneIdentity = { email, name, avatarUrl ->
+                    val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
+                    val encodedName = java.net.URLEncoder.encode(name, "UTF-8")
+                    val encodedAvatar = if (avatarUrl != null) java.net.URLEncoder.encode(avatarUrl, "UTF-8") else ""
+                    navController.navigate("phone_identity_setup?email=$encodedEmail&name=$encodedName&avatar=$encodedAvatar")
+                }
+            )
+        }
+
+        // 0b. Phone Number Identity Setup for Google-Authenticated Users (No SMS OTP Required)
+        composable(
+            route = "phone_identity_setup?email={email}&name={name}&avatar={avatar}",
+            arguments = listOf(
+                navArgument("email") { defaultValue = "user@gmail.com" },
+                navArgument("name") { defaultValue = "VIBEZ User" },
+                navArgument("avatar") { defaultValue = "" }
+            )
+        ) { backStackEntry ->
+            val rawEmail = backStackEntry.arguments?.getString("email") ?: "user@gmail.com"
+            val rawName = backStackEntry.arguments?.getString("name") ?: "VIBEZ User"
+            val rawAvatar = backStackEntry.arguments?.getString("avatar") ?: ""
+
+            val email = java.net.URLDecoder.decode(rawEmail, "UTF-8")
+            val name = java.net.URLDecoder.decode(rawName, "UTF-8")
+            val avatar = if (rawAvatar.isNotEmpty()) java.net.URLDecoder.decode(rawAvatar, "UTF-8") else null
+
+            PhoneIdentitySetupScreen(
+                googleEmail = email,
+                initialName = name,
+                initialAvatarUrl = avatar,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onCompleteSetup = { phone, updatedName, about, chosenAvatar ->
+                    viewModel.loginWithGoogle(email, updatedName, chosenAvatar, phone) { success, _ ->
+                        navController.navigate("main") {
+                            popUpTo("auth") { inclusive = true }
+                        }
                     }
                 }
             )
@@ -231,6 +296,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 contacts = contacts,
                 typingChatId = typingChatId,
                 statuses = statuses,
+                communities = communities,
                 callLogs = callLogs,
                 searchQuery = searchQuery,
                 selectedTab = selectedTab,
@@ -241,6 +307,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onNewChatClick = {
                     navController.navigate("select_contact")
+                },
+                onCreateCommunityClick = {
+                    navController.navigate("create_community")
                 },
                 onStatusClick = { status ->
                     viewModel.markStatusViewed(status.id)
@@ -312,9 +381,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         // 2. Chat Detail Screen
         composable(
             route = "chat/{chatId}",
-            arguments = listOf(navArgument("chatId") { type = NavType.LongType })
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getLong("chatId") ?: 0L
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
             val chat = allChatsList.firstOrNull { it.id == chatId }
             val messagesFlow = remember(chatId) { viewModel.getMessagesForChat(chatId) }
             val messages by messagesFlow.collectAsState()
@@ -377,6 +446,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onClearChat = {
                     viewModel.clearChat(chatId)
+                },
+                onChatRead = {
+                    viewModel.resetChatUnreadCount(chatId)
                 }
             )
         }
@@ -388,7 +460,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 initialStatus = activeStatusForViewer,
                 onCloseClick = { navController.popBackStack() },
                 onReplyToStatus = { targetStatus, replyText ->
-                    if (targetStatus.contactId > 0) {
+                    if (targetStatus.contactId.isNotEmpty()) {
                         val targetChat = allChatsList.firstOrNull { it.contactId == targetStatus.contactId }
                         if (targetChat != null) {
                             viewModel.sendMessage(targetChat.id, "Replied to status: \"$replyText\"", "TEXT", "", 0)
@@ -407,9 +479,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         // 3.1 Status Viewers List Screen
         composable(
             route = "status_viewers/{statusId}",
-            arguments = listOf(navArgument("statusId") { type = NavType.LongType })
+            arguments = listOf(navArgument("statusId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val statusId = backStackEntry.arguments?.getLong("statusId") ?: 0L
+            val statusId = backStackEntry.arguments?.getString("statusId") ?: ""
             val targetStatus = statuses.firstOrNull { it.id == statusId } ?: statuses.firstOrNull { it.isMyStatus }
             val viewers = viewModel.getStatusViewers(statusId)
 
@@ -483,11 +555,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         composable(
             route = "full_camera?chatId={chatId}&isStatus={isStatus}",
             arguments = listOf(
-                navArgument("chatId") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("chatId") { type = NavType.StringType; defaultValue = "" },
                 navArgument("isStatus") { type = NavType.BoolType; defaultValue = true }
             )
         ) { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getLong("chatId") ?: -1L
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
             val isStatus = backStackEntry.arguments?.getBoolean("isStatus") ?: true
 
             FullCameraExperienceScreen(
@@ -505,7 +577,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                             offsetX,
                             offsetY
                         )
-                    } else if (chatId != -1L) {
+                    } else if (chatId != "") {
                         viewModel.sendMessage(
                             chatId,
                             caption ?: "",
@@ -524,9 +596,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         composable("select_contact") {
             SelectContactScreen(
                 contacts = contacts,
+                isSyncing = isSyncingContacts,
+                syncStatusMessage = syncStatusMessage,
                 onBackClick = { navController.popBackStack() },
                 onContactSelect = { contact ->
-                    val existingChat = allChatsList.firstOrNull { it.contactId == contact.id }
+                    val existingChat = allChatsList.firstOrNull { it.contactId == contact.id || it.contactName == contact.name }
                     if (existingChat != null) {
                         navController.navigate("chat/${existingChat.id}") {
                             popUpTo("main")
@@ -545,7 +619,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     }
                 },
                 onNewGroupClick = { navController.navigate("new_group") },
-                onNewContactClick = { navController.navigate("new_contact") }
+                onNewContactClick = { navController.navigate("new_contact") },
+                onQrScanClick = { navController.navigate("qr_scanner") },
+                onSyncPhoneNumbers = { numbers ->
+                    viewModel.syncContacts(numbers)
+                }
             )
         }
 
@@ -576,12 +654,24 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             )
         }
 
+        // 7.1 Create Community Screen
+        composable("create_community") {
+            CreateCommunityScreen(
+                onBackClick = { navController.popBackStack() },
+                onCreateCommunity = { name, description, avatarUrl ->
+                    viewModel.createCommunity(name, description, avatarUrl) { _ ->
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
+
         // 8. Contact Info Screen
         composable(
             route = "contact_info/{chatId}",
-            arguments = listOf(navArgument("chatId") { type = NavType.LongType })
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getLong("chatId") ?: 0L
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
             val chat = allChatsList.firstOrNull { it.id == chatId }
             val contact = contacts.firstOrNull { it.id == chat?.contactId }
             val chatMessagesFlow = remember(chatId) { viewModel.getMessagesForChat(chatId) }
@@ -605,8 +695,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     }
                 },
                 onStarredMessagesClick = { navController.navigate("starred_messages") },
-                onMediaClick = { clickedMsg ->
+                onMediaItemClick = { clickedMsg ->
                     navController.navigate("media_viewer/${clickedMsg.id}/${chat?.contactName ?: contact?.name ?: "Contact"}")
+                },
+                onAllMediaClick = {
+                    navController.navigate("shared_media/$chatId")
                 },
                 onToggleMuteChat = { cId ->
                     viewModel.toggleMuteChat(cId)
@@ -618,12 +711,32 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 }
             )
         }
+        
+        // 8c. Shared Media, Links & Docs Screen
+        composable(
+            route = "shared_media/{chatId}",
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            val chat = allChatsList.firstOrNull { it.id == chatId }
+            val messagesFlow = remember(chatId) { viewModel.getMessagesForChat(chatId) }
+            val messages by messagesFlow.collectAsState(initial = emptyList())
+            
+            SharedMediaScreen(
+                contactName = chat?.contactName ?: "Shared Media",
+                messages = messages,
+                onBackClick = { navController.popBackStack() },
+                onMediaItemClick = { message ->
+                    navController.navigate("media_viewer/${message.id}/${chat?.contactName ?: "Contact"}")
+                }
+            )
+        }
 
         // 8b. Media Viewer Overlay Modal
         dialog(
             route = "media_viewer/{messageId}/{contactName}",
             arguments = listOf(
-                navArgument("messageId") { type = NavType.LongType },
+                navArgument("messageId") { type = NavType.StringType },
                 navArgument("contactName") { type = NavType.StringType }
             ),
             dialogProperties = androidx.compose.ui.window.DialogProperties(
@@ -631,7 +744,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 decorFitsSystemWindows = false
             )
         ) { backStackEntry ->
-            val messageId = backStackEntry.arguments?.getLong("messageId") ?: 0L
+            val messageId = backStackEntry.arguments?.getString("messageId") ?: ""
             val contactName = backStackEntry.arguments?.getString("contactName") ?: "Contact"
             var message by remember { mutableStateOf<MessageEntity?>(null) }
             LaunchedEffect(messageId) {
@@ -666,11 +779,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         composable(
             route = "call/{contactId}/{isVideo}",
             arguments = listOf(
-                navArgument("contactId") { type = NavType.LongType },
+                navArgument("contactId") { type = NavType.StringType },
                 navArgument("isVideo") { type = NavType.BoolType }
             )
         ) { backStackEntry ->
-            val contactId = backStackEntry.arguments?.getLong("contactId") ?: 0L
+            val contactId = backStackEntry.arguments?.getString("contactId") ?: ""
             val isVideo = backStackEntry.arguments?.getBoolean("isVideo") ?: false
             val contact = contacts.firstOrNull { it.id == contactId }
 
@@ -687,6 +800,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 isDarkMode = isDarkMode,
                 userName = currentUserName,
                 userPhone = currentUserPhone,
+                googleEmail = currentGoogleEmail,
                 onBackClick = { navController.popBackStack() },
                 onToggleDarkMode = { viewModel.toggleDarkMode() },
                 onLogoutClick = {
@@ -696,10 +810,56 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     }
                 },
                 onProfileClick = {
-                    navController.navigate("user_profile/0")
+                    navController.navigate("user_profile/ME")
                 },
                 onWallpaperClick = {
-                    navController.navigate("wallpaper_settings?chatId=0")
+                    navController.navigate("wallpaper_settings?chatId=GLOBAL")
+                },
+                onGoogleAuthClick = {
+                    navController.navigate("google_auth")
+                },
+                onBackendSyncClick = {
+                    navController.navigate("backend_sync")
+                },
+                onQrScanClick = {
+                    navController.navigate("qr_scanner")
+                }
+            )
+        }
+
+        // 11c. Backend & Cloud Synchronization Screen
+        composable("backend_sync") {
+            BackendSyncScreen(
+                currentPhone = currentUserPhone,
+                currentName = currentUserName,
+                currentEmail = currentGoogleEmail,
+                authProvider = currentAuthProvider,
+                authToken = viewModel.getAuthToken(),
+                isDarkMode = isDarkMode,
+                onBackClick = { navController.popBackStack() },
+                onManualSyncAll = {
+                    viewModel.syncEverythingWithBackend()
+                }
+            )
+        }
+
+        // 11b. Google Authentication & Cloud Services Screen
+        composable("google_auth") {
+            GoogleServiceAuthScreen(
+                currentGoogleEmail = currentGoogleEmail,
+                currentUserPhone = currentUserPhone,
+                currentUserName = currentUserName,
+                authProvider = currentAuthProvider,
+                onBackClick = { navController.popBackStack() },
+                onLinkGoogleAccount = { email, name ->
+                    viewModel.loginWithGoogle(email, name, null, currentUserPhone)
+                },
+                onUnlinkGoogleAccount = {
+                    viewModel.updateUserProfile(
+                        name = currentUserName,
+                        about = currentUserStatus,
+                        phoneNumber = currentUserPhone
+                    )
                 }
             )
         }
@@ -726,40 +886,58 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         composable(
             route = "wallpaper_settings?chatId={chatId}",
             arguments = listOf(navArgument("chatId") { 
-                type = NavType.LongType
-                defaultValue = 0L 
+                type = NavType.StringType
+                defaultValue = "GLOBAL" 
             })
         ) { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getLong("chatId") ?: 0L
-            val chat = if (chatId != 0L) allChatsList.firstOrNull { it.id == chatId } else null
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: "GLOBAL"
+            val chat = if (chatId != "GLOBAL") allChatsList.firstOrNull { it.id == chatId } else null
             
             val chatWallpapersMap by viewModel.chatWallpapers.collectAsState()
             val globalWall by viewModel.globalWallpaper.collectAsState()
             val initialDimming by viewModel.wallpaperDimming.collectAsState()
             
-            val initialWallpaper = if (chatId != 0L) (chatWallpapersMap[chatId] ?: globalWall) else globalWall
+            val initialWallpaper = if (chatId != "GLOBAL") (chatWallpapersMap[chatId] ?: globalWall) else globalWall
 
             WallpaperSettingsScreen(
-                chatId = if (chatId == 0L) null else chatId,
+                chatId = if (chatId == "GLOBAL") null else chatId,
                 contactName = chat?.contactName ?: "Global (All Chats)",
                 initialWallpaper = initialWallpaper,
                 initialDimming = initialDimming,
                 isDarkMode = isDarkMode,
                 onBackClick = { navController.popBackStack() },
-                onSaveWallpaper = { targetId, wallpaperVal, dimVal ->
-                    viewModel.setChatWallpaper(targetId, wallpaperVal, dimVal)
+                onSaveWallpaper = { chatIdVal, wallpaperVal, dimVal ->
+                    viewModel.setChatWallpaper(chatIdVal, wallpaperVal, dimVal)
                 }
+            )
+        }
+
+        // 12. QR Code Scanner Screen
+        composable("qr_scanner") {
+            QrScannerScreen(
+                onQrScanned = { result ->
+                    viewModel.handleScannedQr(result) { chatId ->
+                        if (chatId != null) {
+                            navController.navigate("chat/$chatId") {
+                                popUpTo("main")
+                            }
+                        } else {
+                            navController.popBackStack()
+                        }
+                    }
+                },
+                onBack = { navController.popBackStack() }
             )
         }
 
         // 12. User Profile Screen (Read & Write)
         composable(
             route = "user_profile/{contactId}",
-            arguments = listOf(navArgument("contactId") { type = NavType.LongType })
+            arguments = listOf(navArgument("contactId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val contactId = backStackEntry.arguments?.getLong("contactId") ?: 0L
+            val contactId = backStackEntry.arguments?.getString("contactId") ?: "ME"
             val contact = contacts.firstOrNull { it.id == contactId }
-            val isCurrentUser = (contactId == 0L || contact == null)
+            val isCurrentUser = (contactId == "ME" || contact == null)
             val effectiveContactName = if (isCurrentUser) currentUserName else (contact?.name ?: "Contact")
             val effectivePhone = if (isCurrentUser) currentUserPhone else (contact?.phoneNumber ?: "+1 555-0100")
             val effectiveAvatar = if (isCurrentUser) "" else (contact?.avatarUrl ?: "")
@@ -773,8 +951,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 contactStatus = effectiveStatus,
                 isCurrentUser = isCurrentUser,
                 onBackClick = { navController.popBackStack() },
-                onUpdateProfile = { newName, newPhone, newStatus ->
-                    viewModel.updateCurrentUserProfile(newName, newPhone, newStatus)
+                onUpdateProfile = { newName, newPhone, newStatus, newAvatar ->
+                    viewModel.updateCurrentUserProfile(newName, newPhone, newStatus, newAvatar)
                 },
                 onUpdateContact = { cId, newName, newPhone, newAbout ->
                     viewModel.updateContact(cId, newName, newPhone, newAbout)
@@ -801,6 +979,19 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onVideoCallClick = {
                     viewModel.logCall(contactId, effectiveContactName, "VIDEO", false, false)
                     navController.navigate("call/$contactId/true")
+                },
+                onQrScanClick = {
+                    navController.navigate("qr_scanner")
+                },
+                onMediaClick = {
+                    val chatId = allChatsList.firstOrNull { it.contactId == contactId }?.id
+                    if (chatId != null) {
+                        navController.navigate("shared_media/$chatId")
+                    } else {
+                        // If no chat exists yet, maybe just show empty media or do nothing
+                        // For simplicity, navigate with a special ID or handle in screen
+                        navController.navigate("shared_media/NONE")
+                    }
                 }
             )
         }
@@ -861,6 +1052,24 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 }
             }
         }
+    }
+
+    // Incoming Call Overlay
+    incomingCallOffer?.let { offerPair ->
+        IncomingCallOverlay(
+            callerName = offerPair.first,
+            isVideo = true, // Default to video for now or parse from offer
+            onAccept = {
+                // Navigate to Call Screen with the offer
+                val contact = contacts.firstOrNull { it.name == offerPair.first }
+                val contactId = contact?.id ?: ""
+                videoCallViewModel.clearIncomingCall()
+                navController.navigate("call/$contactId/true")
+            },
+            onReject = {
+                videoCallViewModel.clearIncomingCall()
+            }
+        )
     }
 }
 }

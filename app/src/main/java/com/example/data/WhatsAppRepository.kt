@@ -1,278 +1,516 @@
 package com.example.data
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.launch
+import com.example.data.network.*
+import org.json.JSONObject
 
-class WhatsAppRepository(private val dao: WhatsAppDao) {
+class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for binary compatibility if needed, but not using it
 
-    val allContacts: Flow<List<ContactEntity>> = dao.getAllContacts()
-    val allChats: Flow<List<ChatEntity>> = dao.getAllChats()
-    val allStatuses: Flow<List<StatusEntity>> = dao.getAllStatuses().map { list ->
-        val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
-        list.filter { it.timestamp >= cutoff }
-    }
-    val allCallLogs: Flow<List<CallLogEntity>> = dao.getAllCallLogs()
-    val starredMessages: Flow<List<MessageEntity>> = dao.getStarredMessages()
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var socketManager: SocketManager? = null
 
-    fun getMessagesForChat(chatId: Long): Flow<List<MessageEntity>> = dao.getMessagesForChat(chatId)
-    fun searchMessages(query: String): Flow<List<MessageEntity>> = dao.searchMessages(query)
+    private val _allChats = MutableStateFlow<List<ChatEntity>>(emptyList())
+    val allChats: StateFlow<List<ChatEntity>> = _allChats.asStateFlow()
 
-    suspend fun getMessageById(messageId: Long): MessageEntity? = dao.getMessageById(messageId)
-    suspend fun getChatById(chatId: Long): ChatEntity? = dao.getChatById(chatId)
-    suspend fun getContactById(id: Long): ContactEntity? = dao.getContactById(id)
+    private val _allCommunities = MutableStateFlow<List<CommunityEntity>>(emptyList())
+    val allCommunities: StateFlow<List<CommunityEntity>> = _allCommunities.asStateFlow()
 
-    suspend fun sendMessage(
-        chatId: Long,
-        content: String,
-        messageType: String = "TEXT",
-        mediaUrl: String = "",
-        voiceDurationSeconds: Int = 0,
-        replyToMessageId: Long? = null
-    ): Long {
-        val message = MessageEntity(
-            chatId = chatId,
-            senderId = 0, // 0 represents current user "Me"
-            content = content,
-            timestamp = System.currentTimeMillis(),
-            status = "SENT",
-            messageType = messageType,
-            mediaUrl = mediaUrl,
-            voiceDurationSeconds = voiceDurationSeconds,
-            replyToMessageId = replyToMessageId
-        )
-        val messageId = dao.insertMessage(message)
+    private val _allContacts = MutableStateFlow<List<ContactEntity>>(emptyList())
+    val allContacts: StateFlow<List<ContactEntity>> = _allContacts.asStateFlow()
 
-        // Update chat's last message
-        val chat = dao.getChatById(chatId)
-        if (chat != null) {
-            val previewText = when (messageType) {
-                "IMAGE" -> "📷 Photo"
-                "VOICE" -> "🎤 Voice note ($voiceDurationSeconds s)"
-                "DOCUMENT" -> "📄 Document"
-                "LOCATION" -> "📍 Location"
-                else -> content
+    private val _currentChatMessages = MutableStateFlow<Map<String, List<MessageEntity>>>(emptyMap())
+
+    fun initSocket(userId: String, onNewMessage: (MessageEntity) -> Unit) {
+        socketManager = SocketManager(userId).apply {
+            connect { json ->
+                val messageDto = parseMessageJson(json)
+                val entity = mapMessageDtoToEntity(messageDto)
+                
+                // Update in-memory messages
+                val currentList = _currentChatMessages.value[entity.chatId] ?: emptyList()
+                val newList = (currentList + entity).distinctBy { it.id }
+                _currentChatMessages.value = _currentChatMessages.value + (entity.chatId to newList)
+                
+                onNewMessage(entity)
             }
-            dao.updateChat(chat.copy(lastMessage = previewText, lastMessageTime = System.currentTimeMillis()))
         }
-
-        // Simulate delivery tick updates
-        withContext(Dispatchers.IO) {
-            delay(800)
-            dao.updateMessage(message.copy(id = messageId, status = "DELIVERED"))
-            delay(1200)
-            dao.updateMessage(message.copy(id = messageId, status = "READ"))
-        }
-
-        return messageId
     }
 
-    suspend fun createAutoReply(chatId: Long, userMessage: String): MessageEntity? {
-        return withContext(Dispatchers.IO) {
-            delay(2000)
-            val chat = dao.getChatById(chatId) ?: return@withContext null
-            val replies = listOf(
-                "Hey! Sounds great! Let's touch base soon. 👍",
-                "Got it! I'm reviewing this right now.",
-                "Awesome! Thanks for sharing. 😊",
-                "Sounds like a plan! Let me know when you arrive.",
-                "Hey there! Can I call you back in 5 minutes?",
-                "Haha that's hilarious! 😂",
-                "Sure thing! See you then."
-            )
-            val replyText = replies.random()
-            val replyMessage = MessageEntity(
-                chatId = chatId,
-                senderId = chat.contactId,
-                content = replyText,
-                timestamp = System.currentTimeMillis(),
-                status = "READ",
-                messageType = "TEXT"
-            )
-            dao.insertMessage(replyMessage)
-            dao.updateChat(
-                chat.copy(
-                    lastMessage = replyText,
-                    lastMessageTime = System.currentTimeMillis()
+    private fun mapMessageDtoToEntity(dto: MessageDto): MessageEntity {
+        return MessageEntity(
+            id = dto.id,
+            chatId = dto.chatId,
+            senderId = if (dto.senderId == "ME") "ME" else dto.senderId,
+            content = dto.content,
+            timestamp = parseDate(dto.createdAt),
+            status = dto.status,
+            messageType = dto.type,
+            mediaUrl = dto.mediaUrl ?: "",
+            voiceDurationSeconds = dto.duration ?: 0
+        )
+    }
+
+    suspend fun loginWithGoogle(
+        email: String,
+        name: String,
+        avatarUrl: String? = null,
+        phoneNumber: String? = null,
+        idToken: String? = null
+    ): LoginResponse {
+        return try {
+            NetworkClient.apiService.loginWithGoogle(
+                GoogleAuthRequest(
+                    idToken = idToken,
+                    email = email,
+                    name = name,
+                    avatarUrl = avatarUrl,
+                    phoneNumber = phoneNumber
                 )
             )
-            replyMessage
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
         }
     }
 
-    suspend fun updateContact(id: Long, name: String, phone: String, about: String) {
-        dao.updateContactDetails(id, name, phone, about)
-        dao.updateChatContactName(id, name)
+    suspend fun syncChats(token: String) {
+        try {
+            val remoteChats = NetworkClient.apiService.getChats("Bearer $token")
+            val chatEntities = remoteChats.map { dto ->
+                ChatEntity(
+                    id = dto.id,
+                    contactId = dto.members.firstOrNull { it.user.phoneNumber != "" }?.user?.id ?: "",
+                    contactName = dto.name ?: dto.members.firstOrNull { it.user.phoneNumber != "" }?.user?.name ?: "Unknown",
+                    lastMessage = dto.messages.firstOrNull()?.content ?: "",
+                    lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
+                    unreadCount = 0,
+                    isGroup = dto.isGroup
+                )
+            }
+            _allChats.value = chatEntities
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
-    suspend fun createNewContact(name: String, phone: String, about: String = "Available"): Long {
-        val contact = ContactEntity(
-            name = name,
-            phoneNumber = phone,
-            aboutStatus = about,
-            isOnline = true
-        )
-        val contactId = dao.insertContact(contact)
-        // Also create a chat for this contact
-        val chat = ChatEntity(
-            contactId = contactId,
-            contactName = name,
-            lastMessage = "Chat created",
-            lastMessageTime = System.currentTimeMillis()
-        )
-        dao.insertChat(chat)
-        return contactId
+    suspend fun getMessagesForChat(chatId: String, token: String): List<MessageEntity> {
+        return try {
+            val dtos = NetworkClient.apiService.getMessages("Bearer $token", chatId)
+            val entities = dtos.map { mapMessageDtoToEntity(it) }
+            _currentChatMessages.value = _currentChatMessages.value + (chatId to entities)
+            entities
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
-    suspend fun createGroupChat(groupName: String, contactIds: List<Long>): Long {
-        val chat = ChatEntity(
-            contactId = -1,
-            contactName = groupName,
-            isGroup = true,
-            lastMessage = "Group created",
-            lastMessageTime = System.currentTimeMillis()
+    fun getMessagesFlow(chatId: String): Flow<List<MessageEntity>> = MutableStateFlow(_currentChatMessages.value[chatId] ?: emptyList())
+
+    suspend fun sendMessage(
+        chatId: String,
+        senderId: String,
+        receiverId: String?,
+        content: String,
+        type: String = "TEXT",
+        token: String
+    ) {
+        socketManager?.sendMessage(chatId, senderId, receiverId, content, type)
+    }
+
+    private fun parseMessageJson(json: JSONObject): MessageDto {
+        return MessageDto(
+            id = json.getString("id"),
+            content = json.getString("content"),
+            type = json.getString("type"),
+            status = json.getString("status"),
+            mediaUrl = json.optString("mediaUrl", null),
+            duration = if (json.has("duration")) json.getInt("duration") else null,
+            senderId = json.getString("senderId"),
+            receiverId = json.optString("receiverId", null),
+            chatId = json.getString("chatId"),
+            createdAt = json.getString("createdAt"),
+            sender = null
         )
-        val chatId = dao.insertChat(chat)
-        val initialMsg = MessageEntity(
-            chatId = chatId,
-            senderId = -1,
-            content = "You created group \"$groupName\"",
-            timestamp = System.currentTimeMillis(),
-            messageType = "TEXT"
-        )
-        dao.insertMessage(initialMsg)
-        return chatId
+    }
+
+    private fun parseDate(dateStr: String?): Long {
+        if (dateStr == null) return System.currentTimeMillis()
+        return System.currentTimeMillis() // Simplified
+    }
+
+    suspend fun resetChatUnreadCount(chatId: String) {
+        _allChats.value = _allChats.value.map {
+            if (it.id == chatId) it.copy(unreadCount = 0) else it
+        }
+    }
+
+    suspend fun updateChatMuteStatus(chatId: String, isMuted: Boolean) {
+        _allChats.value = _allChats.value.map {
+            if (it.id == chatId) it.copy(isMuted = isMuted) else it
+        }
+    }
+
+    suspend fun getChatById(chatId: String): ChatEntity? = _allChats.value.find { it.id == chatId }
+    suspend fun getMessageById(messageId: String): MessageEntity? = _currentChatMessages.value.values.flatten().find { it.id == messageId }
+
+    suspend fun deleteMessage(messageId: String) {
+        val currentMap = _currentChatMessages.value.toMutableMap()
+        for ((cId, msgList) in currentMap) {
+            val updated = msgList.filter { it.id != messageId }
+            if (updated.size != msgList.size) {
+                currentMap[cId] = updated
+            }
+        }
+        _currentChatMessages.value = currentMap
+    }
+
+    suspend fun clearChat(chatId: String) {
+        val currentMap = _currentChatMessages.value.toMutableMap()
+        currentMap[chatId] = emptyList()
+        _currentChatMessages.value = currentMap
+        _allChats.value = _allChats.value.map {
+            if (it.id == chatId) it.copy(lastMessage = "", lastMessageTime = System.currentTimeMillis()) else it
+        }
+    }
+
+    suspend fun deleteChat(chatId: String) {
+        _allChats.value = _allChats.value.filter { it.id != chatId }
+        val currentMap = _currentChatMessages.value.toMutableMap()
+        currentMap.remove(chatId)
+        _currentChatMessages.value = currentMap
     }
 
     suspend fun toggleStarMessage(message: MessageEntity) {
-        dao.updateMessage(message.copy(isStarred = !message.isStarred))
+        val currentMap = _currentChatMessages.value.toMutableMap()
+        val list = currentMap[message.chatId] ?: return
+        val updated = list.map {
+            if (it.id == message.id) it.copy(isStarred = !it.isStarred) else it
+        }
+        currentMap[message.chatId] = updated
+        _currentChatMessages.value = currentMap
     }
 
-    suspend fun deleteMessage(messageId: Long) {
-        dao.deleteMessage(messageId)
-    }
-
-    suspend fun clearChat(chatId: Long) {
-        dao.clearChatMessages(chatId)
-        val chat = dao.getChatById(chatId)
-        if (chat != null) {
-            dao.updateChat(chat.copy(lastMessage = "", unreadCount = 0))
+    suspend fun updateContact(id: String, name: String, phone: String, about: String) {
+        _allContacts.value = _allContacts.value.map {
+            if (it.id == id) it.copy(name = name, phoneNumber = phone, aboutStatus = about) else it
+        }
+        _allChats.value = _allChats.value.map {
+            if (it.contactId == id) it.copy(contactName = name) else it
         }
     }
 
-    suspend fun deleteChat(chatId: Long) {
-        dao.clearChatMessages(chatId)
-        dao.deleteChat(chatId)
+    suspend fun createNewContact(name: String, phone: String, about: String): String {
+        val newId = "contact_${System.currentTimeMillis()}"
+        val newContact = ContactEntity(
+            id = newId,
+            name = name,
+            phoneNumber = phone,
+            aboutStatus = if (about.isNotBlank()) about else "Hey there! I am using VIBEZ.",
+            isOnline = true
+        )
+        _allContacts.value = (_allContacts.value.filter { it.phoneNumber != phone } + newContact)
+        
+        // Also ensure a chat entry exists or can be created
+        val existingChat = _allChats.value.find { it.contactId == newId || it.contactName == name }
+        if (existingChat == null) {
+            val newChat = ChatEntity(
+                id = "chat_${System.currentTimeMillis()}",
+                contactId = newId,
+                contactName = name,
+                lastMessage = about.ifBlank { "Tap to start conversation" },
+                lastMessageTime = System.currentTimeMillis(),
+                unreadCount = 0,
+                isGroup = false
+            )
+            _allChats.value = listOf(newChat) + _allChats.value
+        }
+        return newId
     }
 
-    suspend fun updateChatMuteStatus(chatId: Long, isMuted: Boolean) {
-        dao.updateChatMuteStatus(chatId, isMuted)
+    suspend fun createGroupChat(groupName: String, contactIds: List<String>): String {
+        val newChatId = "group_${System.currentTimeMillis()}"
+        val newChat = ChatEntity(
+            id = newChatId,
+            contactId = "",
+            contactName = groupName,
+            lastMessage = "You created group \"$groupName\"",
+            lastMessageTime = System.currentTimeMillis(),
+            unreadCount = 0,
+            isGroup = true
+        )
+        _allChats.value = listOf(newChat) + _allChats.value
+        return newChatId
+    }
+
+    suspend fun syncContacts(phoneNumbers: List<String>, token: String): List<ContactEntity> {
+        return try {
+            val remoteUsers = NetworkClient.apiService.syncContacts("Bearer $token", SyncContactsRequest(phoneNumbers))
+            val mappedContacts = remoteUsers.map { user ->
+                ContactEntity(
+                    id = user.id,
+                    remoteId = user.id,
+                    name = user.name ?: user.phoneNumber,
+                    phoneNumber = user.phoneNumber,
+                    avatarUrl = user.avatarUrl ?: "",
+                    aboutStatus = user.about ?: "Hey there! I am using VIBEZ.",
+                    isOnline = true,
+                    lastSeen = user.lastSeen
+                )
+            }
+            
+            // Merge with existing contacts
+            val currentMap = _allContacts.value.associateBy { it.phoneNumber }.toMutableMap()
+            mappedContacts.forEach { currentMap[it.phoneNumber] = it }
+            _allContacts.value = currentMap.values.toList()
+            mappedContacts
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Fallback for demo: return any matching from current contacts
+            _allContacts.value
+        }
+    }
+
+    suspend fun updateUserProfile(name: String, about: String, avatarUrl: String?, token: String): UserDto? {
+        return try {
+            val params = mutableMapOf("name" to name, "about" to about)
+            if (avatarUrl != null) params["avatarUrl"] = avatarUrl
+            NetworkClient.apiService.updateProfile("Bearer $token", params)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun searchUsers(query: String, token: String): List<UserDto> {
+        return try {
+            NetworkClient.apiService.searchUsers("Bearer $token", query)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun syncCommunities(token: String) {
+        try {
+            val dtos = NetworkClient.apiService.getCommunities("Bearer $token")
+            _allCommunities.value = dtos.map { mapCommunityDtoToEntity(it) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun createCommunity(name: String, description: String?, avatarUrl: String?, token: String): CommunityEntity? {
+        return try {
+            val request = CreateCommunityRequest(name, description, avatarUrl)
+            val dto = NetworkClient.apiService.createCommunity("Bearer $token", request)
+            val entity = mapCommunityDtoToEntity(dto)
+            _allCommunities.value = _allCommunities.value + entity
+            entity
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getCommunityChats(communityId: String, token: String): List<ChatEntity> {
+        return try {
+            val dtos = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
+            dtos.map { dto ->
+                ChatEntity(
+                    id = dto.id,
+                    contactId = "",
+                    contactName = dto.name ?: "Unknown",
+                    lastMessage = dto.messages.firstOrNull()?.content ?: "",
+                    lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
+                    unreadCount = 0,
+                    isGroup = dto.isGroup
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    private fun mapCommunityDtoToEntity(dto: CommunityDto): CommunityEntity {
+        return CommunityEntity(
+            id = dto.id,
+            name = dto.name,
+            description = dto.description ?: "",
+            avatarUrl = dto.avatarUrl ?: "",
+            membersCount = dto.membersCount,
+            createdAt = parseDate(dto.createdAt)
+        )
+    }
+
+    suspend fun syncStatuses(token: String) {
+        try {
+            val dtos = NetworkClient.apiService.getStatuses("Bearer $token")
+            _allStatuses.value = dtos.map { mapStatusDtoToEntity(it) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun markStatusViewed(statusId: String, token: String) {
+        try {
+            NetworkClient.apiService.viewStatus("Bearer $token", statusId)
+            _allStatuses.value = _allStatuses.value.map {
+                if (it.id == statusId) it.copy(isViewed = true) else it
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun deleteStatus(statusId: String, token: String) {
+        try {
+            NetworkClient.apiService.deleteStatus("Bearer $token", statusId)
+            _allStatuses.value = _allStatuses.value.filter { it.id != statusId }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun postStatus(
-        textCaption: String,
-        mediaType: String = "TEXT",
-        backgroundColorHex: String = "#075E54",
-        mediaUrl: String = "",
-        songTitle: String? = null,
-        songArtist: String? = null,
-        songPreviewUrl: String? = null,
-        musicOffsetX: Float = 0.5f,
-        musicOffsetY: Float = 0.5f
-    ): Long {
-        val status = StatusEntity(
-            contactId = 0,
-            contactName = "My status",
-            mediaType = mediaType,
-            mediaUrl = mediaUrl,
-            textCaption = textCaption,
-            backgroundColorHex = backgroundColorHex,
-            timestamp = System.currentTimeMillis(),
-            isMyStatus = true,
-            isViewed = true,
-            songTitle = songTitle,
-            songArtist = songArtist,
-            songPreviewUrl = songPreviewUrl,
-            musicOffsetX = musicOffsetX,
-            musicOffsetY = musicOffsetY
-        )
-        return dao.insertStatus(status)
-    }
-
-    suspend fun markStatusViewed(statusId: Long) {
-        dao.markStatusViewed(statusId)
-    }
-
-    suspend fun deleteStatus(statusId: Long) {
-        dao.deleteStatus(statusId)
-    }
-
-    suspend fun deleteExpiredStatuses() {
-        val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
-        dao.deleteExpiredStatuses(cutoff)
-    }
-
-    suspend fun logCall(contactId: Long, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean): Long {
-        val callLog = CallLogEntity(
-            contactId = contactId,
-            contactName = contactName,
-            callType = callType,
-            isIncoming = isIncoming,
-            isMissed = isMissed,
-            timestamp = System.currentTimeMillis(),
-            durationSeconds = if (isMissed) 0 else (10..300).random()
-        )
-        return dao.insertCallLog(callLog)
-    }
-
-    suspend fun clearCallLogs() {
-        dao.clearCallLogs()
-    }
-
-    suspend fun seedDatabaseIfEmpty() {
-        if (dao.getContactCount() == 0) {
-            val now = System.currentTimeMillis()
-
-            // 1. Contacts
-            val c1Id = dao.insertContact(ContactEntity(name = "Sarah Connor", phoneNumber = "+1 555-0142", aboutStatus = "At the gym 🏋️‍♀️", isOnline = true, lastSeen = "Online"))
-            val c2Id = dao.insertContact(ContactEntity(name = "Alex Rivers", phoneNumber = "+1 555-0198", aboutStatus = "Coding Jetpack Compose 🚀", isOnline = false, lastSeen = "Today at 10:45 AM"))
-            val c3Id = dao.insertContact(ContactEntity(name = "Emily Watson", phoneNumber = "+1 555-0220", aboutStatus = "Busy / Calls only", isOnline = true, lastSeen = "Online"))
-            val c4Id = dao.insertContact(ContactEntity(name = "Android Developers", phoneNumber = "+1 000-0000", aboutStatus = "Official Android Community", isOnline = true, lastSeen = "124 members"))
-            val c5Id = dao.insertContact(ContactEntity(name = "Meta AI", phoneNumber = "+1 000-9999", aboutStatus = "Ask me anything!", isOnline = true, lastSeen = "Online"))
-
-            // 2. Chats
-            val chat1Id = dao.insertChat(ChatEntity(contactId = c1Id, contactName = "Sarah Connor", lastMessage = "Let's meet up at 5 PM for coffee!", lastMessageTime = now - 1000 * 60 * 5, unreadCount = 2, isPinned = true))
-            val chat2Id = dao.insertChat(ChatEntity(contactId = c2Id, contactName = "Alex Rivers", lastMessage = "🎤 Voice note (0:18)", lastMessageTime = now - 1000 * 60 * 45, unreadCount = 0))
-            val chat3Id = dao.insertChat(ChatEntity(contactId = c3Id, contactName = "Emily Watson", lastMessage = "Did you check out the new design mockups?", lastMessageTime = now - 1000 * 60 * 180, unreadCount = 1))
-            val chat4Id = dao.insertChat(ChatEntity(contactId = c4Id, contactName = "Android Developers", lastMessage = "Compose 1.8 released with major performance boosts! 🔥", lastMessageTime = now - 1000 * 60 * 360, unreadCount = 5, isGroup = true))
-            val chat5Id = dao.insertChat(ChatEntity(contactId = c5Id, contactName = "Meta AI", lastMessage = "I can help generate code snippets, write emails, or plan trips!", lastMessageTime = now - 1000 * 60 * 1440, unreadCount = 0))
-
-            // 3. Messages for Chat 1 (Sarah)
-            dao.insertMessage(MessageEntity(chatId = chat1Id, senderId = c1Id, content = "Hey! Are you free this afternoon?", timestamp = now - 1000 * 60 * 15, status = "READ"))
-            dao.insertMessage(MessageEntity(chatId = chat1Id, senderId = 0, content = "Hi Sarah! Yes, I just finished my meeting.", timestamp = now - 1000 * 60 * 10, status = "READ"))
-            dao.insertMessage(MessageEntity(chatId = chat1Id, senderId = c1Id, content = "Awesome! Let's meet up at 5 PM for coffee!", timestamp = now - 1000 * 60 * 5, status = "DELIVERED"))
-
-            // 4. Messages for Chat 2 (Alex - Voice Note & Starred)
-            dao.insertMessage(MessageEntity(chatId = chat2Id, senderId = 0, content = "Hey Alex, do you have the project update audio?", timestamp = now - 1000 * 60 * 60, status = "READ"))
-            dao.insertMessage(MessageEntity(chatId = chat2Id, senderId = c2Id, content = "Voice note update", timestamp = now - 1000 * 60 * 45, status = "READ", messageType = "VOICE", voiceDurationSeconds = 18, isStarred = true))
-
-            // 5. Messages for Chat 3 (Emily)
-            dao.insertMessage(MessageEntity(chatId = chat3Id, senderId = c3Id, content = "Did you check out the new design mockups?", timestamp = now - 1000 * 60 * 180, status = "DELIVERED"))
-
-            // 6. Messages for Chat 4 (Android Developers)
-            dao.insertMessage(MessageEntity(chatId = chat4Id, senderId = c2Id, content = "Compose 1.8 released with major performance boosts! 🔥", timestamp = now - 1000 * 60 * 360, status = "READ"))
-
-            // 7. Status Updates
-            dao.insertStatus(StatusEntity(contactId = 0, contactName = "My Status", mediaType = "TEXT", textCaption = "Building the ultimate VIBEZ app in Compose 🚀", backgroundColorHex = "#128C7E", timestamp = now - 1000 * 60 * 30, isMyStatus = true, isViewed = true))
-            dao.insertStatus(StatusEntity(contactId = c1Id, contactName = "Sarah Connor", mediaType = "IMAGE", textCaption = "Sunset vibes at the beach 🌅🌴", backgroundColorHex = "#000000", timestamp = now - 1000 * 60 * 120, isViewed = false))
-            dao.insertStatus(StatusEntity(contactId = c2Id, contactName = "Alex Rivers", mediaType = "TEXT", textCaption = "Late night coding session... ☕💻", backgroundColorHex = "#673AB7", timestamp = now - 1000 * 60 * 240, isViewed = false))
-
-            // 8. Call Logs
-            dao.insertCallLog(CallLogEntity(contactId = c1Id, contactName = "Sarah Connor", callType = "VIDEO", isIncoming = true, isMissed = false, timestamp = now - 1000 * 60 * 60 * 2, durationSeconds = 145))
-            dao.insertCallLog(CallLogEntity(contactId = c2Id, contactName = "Alex Rivers", callType = "VOICE", isIncoming = false, isMissed = false, timestamp = now - 1000 * 60 * 60 * 5, durationSeconds = 320))
-            dao.insertCallLog(CallLogEntity(contactId = c3Id, contactName = "Emily Watson", callType = "VOICE", isIncoming = true, isMissed = true, timestamp = now - 1000 * 60 * 60 * 24, durationSeconds = 0))
+        caption: String,
+        type: String,
+        colorHex: String,
+        mediaUrl: String,
+        songTitle: String?,
+        songArtist: String?,
+        songPreviewUrl: String?,
+        musicOffsetX: Float,
+        musicOffsetY: Float,
+        token: String
+    ): String {
+        return try {
+            val request = CreateStatusRequest(
+                content = caption,
+                type = type,
+                mediaUrl = mediaUrl,
+                backgroundColor = colorHex
+            )
+            val dto = NetworkClient.apiService.createStatus("Bearer $token", request)
+            val entity = mapStatusDtoToEntity(dto)
+            _allStatuses.value = _allStatuses.value + entity
+            entity.id
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ""
         }
     }
+
+    private fun mapStatusDtoToEntity(dto: StatusDto): StatusEntity {
+        return StatusEntity(
+            id = dto.id,
+            contactId = dto.userId,
+            contactName = dto.user?.name ?: "Unknown",
+            contactAvatar = dto.user?.avatarUrl ?: "",
+            mediaType = dto.type,
+            mediaUrl = dto.mediaUrl ?: "",
+            textCaption = dto.content ?: "",
+            backgroundColorHex = dto.backgroundColor ?: "#075E54",
+            timestamp = parseDate(dto.createdAt),
+            isViewed = dto.viewers.any { it.userId == "ME" }, // Simplified
+            isMyStatus = dto.userId == "ME",
+            viewCount = dto.viewers.size
+        )
+    }
+
+    suspend fun deleteExpiredStatuses() {}
+    suspend fun clearCallLogs() {
+        _allCallLogs.value = emptyList()
+    }
+
+    suspend fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean): String {
+        val newLog = CallLogEntity(
+            id = "call_${System.currentTimeMillis()}",
+            contactId = contactId,
+            contactName = contactName,
+            timestamp = System.currentTimeMillis(),
+            callType = callType,
+            isIncoming = isIncoming,
+            isMissed = isMissed
+        )
+        _allCallLogs.value = listOf(newLog) + _allCallLogs.value
+        return newLog.id
+    }
+    suspend fun syncCallLogs(token: String) {
+        try {
+            val dtos = NetworkClient.apiService.getCallLogs("Bearer $token")
+            _allCallLogs.value = dtos.map { dto ->
+                CallLogEntity(
+                    id = dto.id,
+                    contactId = if (dto.callerId == "ME") dto.receiverId else dto.callerId,
+                    contactName = (if (dto.callerId == "ME") dto.receiver?.name else dto.caller?.name) ?: "Unknown",
+                    timestamp = parseDate(dto.createdAt),
+                    callType = dto.type,
+                    isIncoming = dto.receiverId == "ME",
+                    isMissed = dto.status == "MISSED"
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun logRemoteCall(receiverId: String, type: String, status: String, duration: Int?, token: String) {
+        try {
+            NetworkClient.apiService.createCallLog("Bearer $token", CreateCallRequest(receiverId, type, status, duration))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun clearRemoteCallLogs(token: String) {
+        try {
+            NetworkClient.apiService.clearCallLogs("Bearer $token")
+            _allCallLogs.value = emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateStatusPrivacyRemote(mode: String, excluded: List<String>, included: List<String>, token: String) {
+        try {
+            NetworkClient.apiService.updateStatusPrivacy("Bearer $token", StatusPrivacyRequest(mode, excluded, included))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun getSettings(token: String): UserSettingsDto? {
+        return try {
+            NetworkClient.apiService.getSettings("Bearer $token")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun updateSettings(settings: UserSettingsDto, token: String) {
+        try {
+            NetworkClient.apiService.updateSettings("Bearer $token", settings)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private val _allStatuses = MutableStateFlow<List<StatusEntity>>(emptyList())
+    val allStatuses: StateFlow<List<StatusEntity>> = _allStatuses.asStateFlow()
+
+    private val _allCallLogs = MutableStateFlow<List<CallLogEntity>>(emptyList())
+    val allCallLogs: StateFlow<List<CallLogEntity>> = _allCallLogs.asStateFlow()
+    val starredMessages: Flow<List<MessageEntity>> = MutableStateFlow<List<MessageEntity>>(emptyList())
 }

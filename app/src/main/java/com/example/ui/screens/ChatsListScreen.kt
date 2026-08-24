@@ -27,14 +27,18 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -64,12 +68,12 @@ import com.example.ui.theme.WhatsAppMinimalPrimary
 fun ChatsListScreen(
     chats: List<ChatEntity>,
     contacts: List<ContactEntity> = emptyList(),
-    typingChatId: Long? = null,
+    typingChatId: String? = null,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
-    onChatClick: (Long) -> Unit,
+    onChatClick: (String) -> Unit,
     onNewChatClick: () -> Unit,
-    onAvatarClick: (Long) -> Unit = {},
+    onAvatarClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
@@ -115,6 +119,52 @@ fun ChatsListScreen(
                 .padding(innerPadding),
             contentPadding = PaddingValues(bottom = 20.dp)
         ) {
+            // 0. Search Bar (Integrated)
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        placeholder = { Text("Search name or message...", fontSize = 14.sp) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        trailingIcon = if (searchQuery.isNotEmpty()) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clickable { onSearchQueryChange("") },
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else null,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        )
+                    )
+                }
+            }
+
             // 1. Category Filter Pills
             item {
                 Row(
@@ -187,7 +237,7 @@ fun ChatsListScreen(
 fun VibezChatItemCard(
     chat: ChatEntity,
     contacts: List<ContactEntity> = emptyList(),
-    typingChatId: Long? = null,
+    typingChatId: String? = null,
     onClick: () -> Unit,
     onAvatarClick: () -> Unit = {}
 ) {

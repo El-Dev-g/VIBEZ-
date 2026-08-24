@@ -145,7 +145,7 @@ fun MediaViewerScreen(
                     title = {
                         Column {
                             Text(
-                                text = if (message.senderId == 0L) "You" else contactName,
+                                text = if (message.senderId == "ME") "You" else contactName,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp

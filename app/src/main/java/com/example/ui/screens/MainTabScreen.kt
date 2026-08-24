@@ -75,28 +75,31 @@ import com.example.ui.theme.WhatsAppUnreadBadge
 fun MainTabScreen(
     chats: List<ChatEntity>,
     contacts: List<ContactEntity> = emptyList(),
-    typingChatId: Long? = null,
+    typingChatId: String? = null,
     statuses: List<StatusEntity>,
+    communities: List<com.example.data.CommunityEntity> = emptyList(),
     callLogs: List<CallLogEntity>,
     searchQuery: String,
     selectedTab: Int = 0,
     onTabSelected: (Int) -> Unit = {},
     onSearchQueryChange: (String) -> Unit,
-    onChatClick: (Long) -> Unit,
+    onChatClick: (String) -> Unit,
     onNewChatClick: () -> Unit,
     onStatusClick: (StatusEntity) -> Unit,
     onCreateTextStatusClick: () -> Unit = {},
     onCreatePhotoStatusClick: () -> Unit = {},
     onCreateStatusClick: () -> Unit = onCreateTextStatusClick,
     onViewersClick: (StatusEntity) -> Unit = {},
-    onStartCallClick: (Long, Boolean) -> Unit,
+    onCreateCommunityClick: () -> Unit = {},
+    onStartCallClick: (String, Boolean) -> Unit,
     onSettingsClick: () -> Unit,
     onStarredMessagesClick: () -> Unit,
     onNewGroupClick: () -> Unit,
-    onAvatarClick: (Long) -> Unit = {},
+    onAvatarClick: (String) -> Unit = {},
     onStatusPrivacyClick: () -> Unit = {},
     onMyStatusListClick: () -> Unit = {},
-    onClearCallLogs: () -> Unit = {}
+    onClearCallLogs: () -> Unit = {},
+    onIncomingCallSimulate: () -> Unit = {}
 ) {
     var isSearchActive by remember { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }
@@ -168,18 +171,20 @@ fun MainTabScreen(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            IconButton(
-                                onClick = { isSearchActive = true },
-                                modifier = Modifier.testTag("search_icon_in_nav")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Search",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            if (selectedTab != 0) {
+                                IconButton(
+                                    onClick = { isSearchActive = true },
+                                    modifier = Modifier.testTag("search_icon_in_nav")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                             IconButton(
-                                onClick = { onAvatarClick(0L) },
+                                onClick = { onAvatarClick("ME") },
                                 modifier = Modifier.testTag("profile_icon_in_nav")
                             ) {
                                 Icon(
@@ -245,7 +250,7 @@ fun MainTabScreen(
                                                 text = { Text("New community") },
                                                 onClick = {
                                                     isMenuExpanded = false
-                                                    onNewGroupClick()
+                                                    onCreateCommunityClick()
                                                 }
                                             )
                                             DropdownMenuItem(
@@ -257,6 +262,13 @@ fun MainTabScreen(
                                             )
                                         }
                                         3 -> { // Calls
+                                            DropdownMenuItem(
+                                                text = { Text("Network Test") },
+                                                onClick = {
+                                                    isMenuExpanded = false
+                                                    onIncomingCallSimulate()
+                                                }
+                                            )
                                             DropdownMenuItem(
                                                 text = { Text("Clear call log") },
                                                 onClick = {
@@ -417,7 +429,8 @@ fun MainTabScreen(
                     onMyStatusListClick = onMyStatusListClick
                 )
                 2 -> CommunitiesScreen(
-                    onCreateCommunityClick = onNewGroupClick,
+                    communities = communities,
+                    onCreateCommunityClick = onCreateCommunityClick,
                     onCommunityChatClick = onChatClick
                 )
                 3 -> CallsListScreen(
