@@ -6,10 +6,10 @@ This guide provides instructions for deploying the **VIBEZ** ecosystem, includin
 
 ## 🛠️ General Prerequisites
 
--   **Google Cloud Project**: Required for hosting on Cloud Run and using Firebase/Google Cloud services.
--   **PostgreSQL Database**: Recommended for production (e.g., Google Cloud SQL).
+-   **Cloud Provider Account**: Google Cloud, Railway, Render, or similar.
+-   **PostgreSQL Database**: Required for production (e.g., Cloud SQL, Railway Postgres, or Render Database).
 -   **Node.js 20+**: Required for both server and admin builds.
--   **Docker**: Required for containerized deployments.
+-   **Docker**: Required for containerized deployments (optional but recommended).
 
 ---
 
@@ -35,12 +35,28 @@ npx prisma generate
 npx prisma migrate deploy
 ```
 
-### **Step 3: Deploy to Google Cloud Run**
+### **Step 3: Deploy Options**
+
+#### **Option A: Google Cloud Run**
 Build and push the Docker image:
 ```bash
 gcloud builds submit --tag gcr.io/[PROJECT_ID]/vibez-server .
 gcloud run deploy vibez-server --image gcr.io/[PROJECT_ID]/vibez-server --platform managed
 ```
+
+#### **Option B: Railway (Highly Recommended for Node/Next)**
+1.  Connect your GitHub repository to [Railway](https://railway.app).
+2.  Add a new service from the `/server` directory.
+3.  Add your Environment Variables in the Railway Dashboard.
+4.  Railway will automatically detect the `Dockerfile` and deploy.
+
+#### **Option C: Render**
+1.  Create a new **Web Service** on [Render](https://render.com).
+2.  Connect your repository and set the **Root Directory** to `server`.
+3.  Set the **Environment** to `Node`.
+4.  Set the **Build Command** to `npm install && npx prisma generate && npm run build`.
+5.  Set the **Start Command** to `npm start`.
+6.  Add your Environment Variables in the **Environment** tab.
 
 ---
 
@@ -51,15 +67,14 @@ The VIBEZ Admin Portal is a Next.js application.
 ### **Step 1: Environment Variables**
 Create a `.env.production` file in the `/admin` directory:
 ```env
-NEXT_PUBLIC_API_URL="https://your-server-url.a.run.app/api"
+NEXT_PUBLIC_API_URL="https://your-server-url.com/api"
 ```
 
-### **Step 2: Build & Deploy**
-You can deploy the admin portal to Vercel or Google Cloud Run.
+### **Step 2: Deploy Options**
 
-#### **Option A: Vercel (Recommended)**
-1.  Connect your repository to Vercel.
-2.  Set the Root Directory to `admin`.
+#### **Option A: Vercel (Native Next.js Support)**
+1.  Connect your repository to [Vercel](https://vercel.com).
+2.  Set the **Root Directory** to `admin`.
 3.  Add the `NEXT_PUBLIC_API_URL` environment variable.
 4.  Deploy.
 
@@ -70,6 +85,20 @@ cd admin
 gcloud builds submit --tag gcr.io/[PROJECT_ID]/vibez-admin .
 gcloud run deploy vibez-admin --image gcr.io/[PROJECT_ID]/vibez-admin --platform managed
 ```
+
+#### **Option C: Railway**
+1.  Connect your repository to Railway.
+2.  Add a new service from the `/admin` directory.
+3.  Add `NEXT_PUBLIC_API_URL` to the variables.
+4.  Deploy.
+
+#### **Option D: Render**
+1.  Create a new **Web Service** on Render.
+2.  Connect your repository and set the **Root Directory** to `admin`.
+3.  Set the **Environment** to `Node`.
+4.  Set the **Build Command** to `npm install && npm run build`.
+5.  Set the **Start Command** to `npm start`.
+6.  Add your Environment Variables.
 
 ---
 
