@@ -240,48 +240,53 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                         }
                     }
                 },
-                onGoogleAuthSuccess = { email, name, avatarUrl, phone ->
-                    viewModel.loginWithGoogle(email, name, avatarUrl, phone) { success, _ ->
+                onGoogleAuthSuccess = { email, name, avatarUrl, phone, idToken ->
+                    viewModel.loginWithGoogle(email, name, avatarUrl, phone, idToken) { success, _ ->
                         navController.navigate("permissions_onboarding") {
                             popUpTo("auth") { inclusive = true }
                         }
                     }
                 },
-                onNavigateToPhoneIdentity = { email, name, avatarUrl ->
+                onNavigateToPhoneIdentity = { email, name, avatarUrl, idToken ->
                     val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
                     val encodedName = java.net.URLEncoder.encode(name, "UTF-8")
                     val encodedAvatar = if (avatarUrl != null) java.net.URLEncoder.encode(avatarUrl, "UTF-8") else ""
-                    navController.navigate("phone_identity_setup?email=$encodedEmail&name=$encodedName&avatar=$encodedAvatar")
+                    val encodedToken = if (idToken != null) java.net.URLEncoder.encode(idToken, "UTF-8") else ""
+                    navController.navigate("phone_identity_setup?email=$encodedEmail&name=$encodedName&avatar=$encodedAvatar&idToken=$encodedToken")
                 }
             )
         }
 
         // 0b. Phone Number Identity Setup for Google-Authenticated Users (No SMS OTP Required)
         composable(
-            route = "phone_identity_setup?email={email}&name={name}&avatar={avatar}",
+            route = "phone_identity_setup?email={email}&name={name}&avatar={avatar}&idToken={idToken}",
             arguments = listOf(
                 navArgument("email") { defaultValue = "user@gmail.com" },
                 navArgument("name") { defaultValue = "VIBEZ User" },
-                navArgument("avatar") { defaultValue = "" }
+                navArgument("avatar") { defaultValue = "" },
+                navArgument("idToken") { defaultValue = "" }
             )
         ) { backStackEntry ->
             val rawEmail = backStackEntry.arguments?.getString("email") ?: "user@gmail.com"
             val rawName = backStackEntry.arguments?.getString("name") ?: "VIBEZ User"
             val rawAvatar = backStackEntry.arguments?.getString("avatar") ?: ""
+            val rawToken = backStackEntry.arguments?.getString("idToken") ?: ""
 
             val email = java.net.URLDecoder.decode(rawEmail, "UTF-8")
             val name = java.net.URLDecoder.decode(rawName, "UTF-8")
             val avatar = if (rawAvatar.isNotEmpty()) java.net.URLDecoder.decode(rawAvatar, "UTF-8") else null
+            val idToken = if (rawToken.isNotEmpty()) java.net.URLDecoder.decode(rawToken, "UTF-8") else null
 
             PhoneIdentitySetupScreen(
                 googleEmail = email,
                 initialName = name,
                 initialAvatarUrl = avatar,
+                idToken = idToken,
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onCompleteSetup = { phone, updatedName, about, chosenAvatar ->
-                    viewModel.loginWithGoogle(email, updatedName, chosenAvatar, phone) { success, _ ->
+                onCompleteSetup = { phone, updatedName, about, chosenAvatar, token ->
+                    viewModel.loginWithGoogle(email, updatedName, chosenAvatar, phone, token) { success, _ ->
                         navController.navigate("permissions_onboarding") {
                             popUpTo("auth") { inclusive = true }
                         }

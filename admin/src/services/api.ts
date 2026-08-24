@@ -59,6 +59,8 @@ export const fetchAuditLogs = async (): Promise<AuditLog[]> => {
 export interface SystemMetrics {
   activeUsers: number;
   totalChats: number;
+  totalMessages: number;
+  pendingReports: number;
   systemStatus: 'Healthy' | 'Warning' | 'Down';
   latencyMs: number;
 }
@@ -73,6 +75,8 @@ export const fetchSystemMetrics = async (): Promise<SystemMetrics> => {
     return {
       activeUsers: 0,
       totalChats: 0,
+      totalMessages: 0,
+      pendingReports: 0,
       systemStatus: 'Down',
       latencyMs: 0
     };
@@ -120,8 +124,8 @@ export const fetchReports = async (): Promise<Report[]> => {
     const data = await res.json();
     return data.map((r: any) => ({
       id: r.id,
-      reporterName: 'Unknown', // In real app, join with User
-      reportedUserName: 'Unknown',
+      reporterName: r.reporterName || 'Unknown',
+      reportedUserName: r.reportedUserName || 'Unknown',
       reason: r.reason,
       status: r.status.charAt(0) + r.status.slice(1).toLowerCase(),
       timestamp: new Date(r.createdAt).toLocaleString()

@@ -2,24 +2,50 @@ import { Response } from 'express';
 import prisma from '../lib/prisma';
 import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/auth';
+import { OAuth2Client } from 'google-auth-library';
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export class AuthController {
   async googleLogin(req: AuthRequest, res: Response) {
     try {
       const { email, name, avatarUrl, phoneNumber, idToken } = req.body;
 
-      if (!email) {
+      let verifiedEmail = email;
+      let verifiedName = name;
+      let verifiedAvatar = avatarUrl;
+
+      // Verify the idToken if provided
+      if (idToken) {
+        try {
+          const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+          });
+          const payload = ticket.getPayload();
+          if (payload) {
+            verifiedEmail = payload.email || email;
+            verifiedName = payload.name || name;
+            verifiedAvatar = payload.picture || avatarUrl;
+          }
+        } catch (verificationError) {
+          console.error('ID Token verification failed:', verificationError);
+          return res.status(401).json({ error: 'Invalid Google ID Token' });
+        }
+      } else if (process.env.NODE_ENV === 'production') {
+        // In production, force ID Token verification
+        return res.status(400).json({ error: 'ID Token is required in production' });
+      }
+
+      if (!verifiedEmail) {
         return res.status(400).json({ error: 'Email is required' });
       }
 
-      // In a real app, we would verify the idToken with Google
-      // For this implementation, we trust the client (simplified)
-      
       let user = await prisma.user.findFirst({
         where: { 
           OR: [
-            { googleEmail: email },
-            { phoneNumber: phoneNumber }
+            { googleEmail: verifiedEmail },
+            { phoneNumber: phoneNumber || '' }
           ]
         }
       });
@@ -27,21 +53,21 @@ export class AuthController {
       if (!user) {
         user = await prisma.user.create({
           data: {
-            googleEmail: email,
-            name: name || 'New User',
-            avatarUrl,
+            googleEmail: verifiedEmail,
+            name: verifiedName || 'New User',
+            avatarUrl: verifiedAvatar,
             phoneNumber: phoneNumber || '',
             authProvider: 'GOOGLE'
           }
         });
       } else {
-        // Update user if they were previously a phone user but now linked Google
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            googleEmail: email,
+            googleEmail: verifiedEmail,
             authProvider: 'GOOGLE',
-            avatarUrl: avatarUrl || user.avatarUrl
+            avatarUrl: verifiedAvatar || user.avatarUrl,
+            name: verifiedName || user.name
           }
         });
       }

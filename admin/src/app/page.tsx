@@ -13,7 +13,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
         <MetricCard 
           title="Active Users" 
           value={metrics.activeUsers.toLocaleString()} 
@@ -27,6 +27,11 @@ export default async function DashboardPage() {
           change="+5.4%" 
           trend="up" 
           icon="💬"
+        />
+        <MetricCard 
+          title="Total Messages" 
+          value={metrics.totalMessages.toLocaleString()} 
+          icon="✉️"
         />
         <MetricCard 
           title="System Status" 

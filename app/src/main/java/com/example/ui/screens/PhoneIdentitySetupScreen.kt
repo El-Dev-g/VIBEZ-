@@ -136,8 +136,9 @@ fun PhoneIdentitySetupScreen(
     googleEmail: String,
     initialName: String,
     initialAvatarUrl: String? = null,
+    idToken: String? = null,
     onBackClick: () -> Unit,
-    onCompleteSetup: (phone: String, name: String, about: String, avatarUrl: String?) -> Unit
+    onCompleteSetup: (phone: String, name: String, about: String, avatarUrl: String?, idToken: String?) -> Unit
 ) {
     var currentPage by remember { mutableStateOf(IdentitySetupPage.PAGE_PHONE_NUMBER) }
 
@@ -240,7 +241,8 @@ fun PhoneIdentitySetupScreen(
                                     fullE164Phone,
                                     userName.trim().ifEmpty { initialName },
                                     userAbout.trim(),
-                                    finalAvatar
+                                    finalAvatar,
+                                    idToken
                                 )
                             },
                             modifier = Modifier.testTag("phone_identity_complete_btn")
@@ -995,7 +997,8 @@ fun PhoneIdentitySetupScreen(
                                             fullE164Phone,
                                             userName.trim().ifEmpty { initialName },
                                             userAbout.trim(),
-                                            finalAvatar
+                                            finalAvatar,
+                                            idToken
                                         )
                                     },
                                     enabled = !isSubmitting,

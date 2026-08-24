@@ -54,20 +54,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.example.BuildConfig
 import com.example.R
 import com.example.ui.theme.WhatsAppEmerald
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
     onAuthSuccess: (phone: String, name: String, about: String) -> Unit,
-    onGoogleAuthSuccess: ((email: String, name: String, avatarUrl: String?, phone: String?) -> Unit)? = null,
-    onNavigateToPhoneIdentity: ((email: String, name: String, avatarUrl: String?) -> Unit)? = null
+    onGoogleAuthSuccess: ((email: String, name: String, avatarUrl: String?, phone: String?, idToken: String?) -> Unit)? = null,
+    onNavigateToPhoneIdentity: ((email: String, name: String, avatarUrl: String?, idToken: String?) -> Unit)? = null
 ) {
-    var showAccountPicker by remember { mutableStateOf(false) }
     var isSigningIn by remember { mutableStateOf(false) }
-    var customEmail by remember { mutableStateOf("") }
-    var showCustomEmailField by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val credentialManager = CredentialManager.create(context)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -143,7 +150,46 @@ fun AuthScreen(
                             RoundedCornerShape(27.dp)
                         )
                         .clickable(enabled = !isSigningIn) {
-                            showAccountPicker = true
+                            scope.launch {
+                                isSigningIn = true
+                                try {
+                                    val googleIdOption = GetGoogleIdOption.Builder()
+                                        .setFilterByAuthorizedAccounts(false)
+                                        .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                                        .setAutoSelectEnabled(true)
+                                        .build()
+
+                                    val request = GetCredentialRequest.Builder()
+                                        .addCredentialOption(googleIdOption)
+                                        .build()
+
+                                    val result = credentialManager.getCredential(
+                                        context = context,
+                                        request = request
+                                    )
+
+                                    val credential = result.credential
+                                    if (credential is com.google.android.libraries.identity.googleid.GoogleIdTokenCredential) {
+                                        val googleIdTokenCredential = credential
+                                        val email = googleIdTokenCredential.id
+                                        val name = googleIdTokenCredential.displayName ?: email.substringBefore("@")
+                                        val avatar = googleIdTokenCredential.profilePictureUri?.toString()
+                                        val idToken = googleIdTokenCredential.idToken
+
+                                        if (onNavigateToPhoneIdentity != null) {
+                                            onNavigateToPhoneIdentity(email, name, avatar, idToken)
+                                        } else if (onGoogleAuthSuccess != null) {
+                                            onGoogleAuthSuccess(email, name, avatar, null, idToken)
+                                        }
+                                    }
+                                } catch (e: GetCredentialException) {
+                                    e.printStackTrace()
+                                    isSigningIn = false
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    isSigningIn = false
+                                }
+                            }
                         }
                         .testTag("google_auth_btn"),
                     color = Color.White
@@ -204,168 +250,5 @@ fun AuthScreen(
                 }
             }
         }
-    }
-
-    // Google Account Picker Dialog
-    if (showAccountPicker) {
-        val defaultAccounts = listOf(
-            "prigidcollection@gmail.com" to "Alex Rivera",
-            "alex.tech@gmail.com" to "Alex R.",
-            "vibez.user@gmail.com" to "VIBEZ Member"
-        )
-
-        AlertDialog(
-            onDismissRequest = {
-                showAccountPicker = false
-                showCustomEmailField = false
-            },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_google_logo),
-                        contentDescription = "Google",
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(26.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Choose an account",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "to continue to VIBEZ",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    defaultAccounts.forEach { (email, name) ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    showAccountPicker = false
-                                    isSigningIn = true
-                                    if (onNavigateToPhoneIdentity != null) {
-                                        onNavigateToPhoneIdentity(email, name, null)
-                                    } else if (onGoogleAuthSuccess != null) {
-                                        onGoogleAuthSuccess(email, name, null, null)
-                                    } else {
-                                        onAuthSuccess("", name, "Hey there! I am using VIBEZ.")
-                                    }
-                                },
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(WhatsAppEmerald),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = name.take(1),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = name,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = email,
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    if (!showCustomEmailField) {
-                        TextButton(
-                            onClick = { showCustomEmailField = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Use another account",
-                                color = Color(0xFF1A73E8),
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
-                        }
-                    } else {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(
-                                value = customEmail,
-                                onValueChange = { customEmail = it },
-                                label = { Text("Email address") },
-                                placeholder = { Text("name@gmail.com") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Button(
-                                onClick = {
-                                    val trimmed = customEmail.trim()
-                                    if (trimmed.contains("@")) {
-                                        showAccountPicker = false
-                                        isSigningIn = true
-                                        val customName = trimmed.substringBefore("@")
-                                            .replace(".", " ")
-                                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                                        if (onNavigateToPhoneIdentity != null) {
-                                            onNavigateToPhoneIdentity(trimmed, customName, null)
-                                        } else if (onGoogleAuthSuccess != null) {
-                                            onGoogleAuthSuccess(trimmed, customName, null, null)
-                                        } else {
-                                            onAuthSuccess("", customName, "Hey there! I am using VIBEZ.")
-                                        }
-                                    }
-                                },
-                                enabled = customEmail.contains("@"),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Continue", color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showAccountPicker = false
-                    showCustomEmailField = false
-                }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = MaterialTheme.colorScheme.surface
-        )
     }
 }

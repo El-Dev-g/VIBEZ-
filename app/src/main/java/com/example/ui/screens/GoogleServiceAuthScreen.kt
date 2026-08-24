@@ -97,18 +97,12 @@ fun GoogleServiceAuthScreen(
         mutableStateOf(currentGoogleEmail != null || authProvider == "GOOGLE")
     }
     var activeEmail by remember {
-        mutableStateOf(currentGoogleEmail ?: "prigidcollection@gmail.com")
+        mutableStateOf(currentGoogleEmail ?: "")
     }
     var isVerifyingToken by remember { mutableStateOf(false) }
     var isAutoBackupEnabled by remember { mutableStateOf(true) }
     var isContactsSyncEnabled by remember { mutableStateOf(true) }
     var showAccountChooserDialog by remember { mutableStateOf(false) }
-
-    val sampleAccounts = listOf(
-        "prigidcollection@gmail.com" to "Alex Rivers",
-        "alex.vibez.dev@gmail.com" to "Alex Developer",
-        "work.workspace@company.com" to "Alex R. (Work)"
-    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -622,7 +616,7 @@ fun GoogleServiceAuthScreen(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Choose an account",
+                        text = "Sign in",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -631,65 +625,50 @@ fun GoogleServiceAuthScreen(
             text = {
                 Column {
                     Text(
-                        text = "to continue to VIBEZ with Google Authentication Service",
+                        text = "Connect your Google account to enable VIBEZ cloud features.",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    sampleAccounts.forEach { (email, name) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    activeEmail = email
-                                    isGoogleConnected = true
-                                    showAccountChooserDialog = false
-                                    onLinkGoogleAccount(email, name)
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Switched to Google account: $email")
-                                    }
+                    var emailInput by remember { mutableStateOf("") }
+                    androidx.compose.material3.OutlinedTextField(
+                        value = emailInput,
+                        onValueChange = { emailInput = it },
+                        label = { Text("Email address") },
+                        placeholder = { Text("name@gmail.com") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Button(
+                        onClick = {
+                            if (emailInput.contains("@")) {
+                                activeEmail = emailInput
+                                isGoogleConnected = true
+                                showAccountChooserDialog = false
+                                onLinkGoogleAccount(emailInput, emailInput.substringBefore("@"))
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Google account linked: $emailInput")
                                 }
-                                .padding(vertical = 10.dp, horizontal = 8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(WhatsAppMinimalPrimary),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = name.take(1).uppercase(),
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = name,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = email,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        },
+                        enabled = emailInput.contains("@"),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald)
+                    ) {
+                        Text("Connect")
                     }
                 }
             },
-            confirmButton = {
-                Button(
-                    onClick = { showAccountChooserDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald)
-                ) {
-                    Text("Close", color = Color.White)
+            confirmButton = {},
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showAccountChooserDialog = false }) {
+                    Text("Cancel")
                 }
             },
             shape = RoundedCornerShape(20.dp)

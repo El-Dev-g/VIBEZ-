@@ -36,12 +36,16 @@ export class AdminController {
     try {
       const activeUsers = await prisma.user.count();
       const totalChats = await prisma.chat.count();
+      const totalMessages = await prisma.message.count();
+      const totalReports = await prisma.report.count({ where: { status: 'PENDING' } });
       
       res.json({
         activeUsers,
         totalChats,
+        totalMessages,
+        pendingReports: totalReports,
         systemStatus: 'Healthy',
-        latencyMs: Math.floor(Math.random() * 50) + 10
+        latencyMs: 12 // Real measurement would go here
       });
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch metrics' });
@@ -56,8 +60,8 @@ export class AdminController {
           id: true,
           name: true,
           phoneNumber: true,
+          isBanned: true,
           createdAt: true,
-          // Add isBanned if you add it to the model
         }
       });
       res.json(users);
@@ -95,6 +99,13 @@ export class AdminController {
       const { userId } = req.params;
       const { adminEmail } = req.body;
 
+      // Update user in DB
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isBanned: true }
+      });
+
+      // Log the action
       await prisma.auditLog.create({
         data: {
           adminEmail: adminEmail || 'system',

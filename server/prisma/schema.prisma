@@ -19,6 +19,7 @@ model User {
   avatarUrl     String?
   about         String?   @default("Hey there! I am using Vibez.")
   lastSeen      DateTime  @default(now())
+  isBanned      Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -175,6 +176,9 @@ model Report {
   reason          String
   status          String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
   createdAt       DateTime @default(now())
+
+  reporter        User     @relation("Reporter", fields: [reporterId], references: [id])
+  reportedUser    User     @relation("ReportedUser", fields: [reportedUserId], references: [id])
 }
 
 model AuditLog {
