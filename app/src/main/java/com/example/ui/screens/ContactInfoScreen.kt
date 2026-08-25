@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -122,12 +123,32 @@ fun ContactInfoScreen(
                         size = 110.dp
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = chat?.contactName ?: contact?.name ?: "Contact",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = chat?.contactName ?: contact?.name ?: "Contact",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (chat?.isOfficial == true || chat?.isVerified == true || contact?.isVerified == true) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Verified",
+                                tint = WhatsAppEmerald,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    if (chat?.isOfficial == true) {
+                        Text(
+                            text = "Official System Community",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = WhatsAppEmerald,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = contact?.phoneNumber ?: "+1 555-0100",
@@ -366,29 +387,50 @@ fun ContactInfoScreen(
             }
 
             // Destructive Actions
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onDeleteChatClick)
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(text = "Delete chat", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
-                }
+            if (chat?.isOfficial != true) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onDeleteChatClick)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(text = if (chat?.isGroup == true) "Exit group" else "Delete chat", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                    }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(imageVector = Icons.Default.Block, contentDescription = "Block", tint = Color.Red)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(text = "Block contact", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                    if (chat?.isGroup != true) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.Block, contentDescription = "Block", tint = Color.Red)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(text = "Block contact", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "This is a mandatory system community. You cannot leave or block official system protocols.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }

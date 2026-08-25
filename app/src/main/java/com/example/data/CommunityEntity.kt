@@ -6,5 +6,8 @@ data class CommunityEntity(
     val description: String = "",
     val avatarUrl: String = "",
     val membersCount: Int = 0,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val isOfficial: Boolean = false,
+    val allowComments: Boolean = true,
+    val allowReactions: Boolean = true
 )

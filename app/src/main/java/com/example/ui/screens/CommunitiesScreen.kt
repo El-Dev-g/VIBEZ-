@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
@@ -212,8 +214,10 @@ fun CommunitiesScreen(
             }
 
             items(communities, key = { it.id }) { community ->
+                val isOfficial = community.isOfficial
                 CommunityItem(
                     community = community,
+                    isOfficial = isOfficial,
                     onCommunityClick = { onCommunityChatClick(community.id) }
                 )
                 HorizontalDivider(
@@ -228,12 +232,13 @@ fun CommunitiesScreen(
 @Composable
 private fun CommunityItem(
     community: CommunityEntity,
+    isOfficial: Boolean = false,
     onCommunityClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(if (isOfficial) Color(0xFFF1F8E9) else MaterialTheme.colorScheme.surface)
     ) {
         // Community Header
         Row(
@@ -247,7 +252,7 @@ private fun CommunityItem(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF00897B)),
+                    .background(if (isOfficial) WhatsAppEmerald else Color(0xFF00897B)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -261,14 +266,41 @@ private fun CommunityItem(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = community.name,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = community.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (isOfficial) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(WhatsAppEmerald),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Verified",
+                                tint = Color.White,
+                                modifier = Modifier.size(10.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "OFFICIAL",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = WhatsAppEmerald,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
                 if (community.description.isNotBlank()) {
                     Text(
                         text = community.description,

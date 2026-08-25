@@ -20,18 +20,13 @@ export default function AnalyticsPage() {
   }, []);
 
   const metrics = [
-    { label: 'Registered Citizens', value: analytics?.totalUsers ?? '1,420', change: analytics?.userGrowth ?? '+18.4%', icon: '👥' },
-    { label: 'Data Transmitted', value: analytics?.totalMessages ?? '84,200', change: 'Encrypted traffic', icon: '📡' },
-    { label: 'Active Channels', value: analytics?.totalCalls ?? '320', change: 'Real-time WebRTC', icon: '📞' },
-    { label: 'Communities', value: analytics?.totalCommunities ?? '12', change: 'Public Groups', icon: '🌐' },
+    { label: 'Registered Citizens', value: analytics?.totalUsers ?? '0', change: analytics?.userGrowth ?? '0%', icon: '👥' },
+    { label: 'Data Transmitted', value: analytics?.totalMessages ?? '0', change: 'Encrypted traffic', icon: '📡' },
+    { label: 'Active Channels', value: analytics?.totalCalls ?? '0', change: 'Real-time WebRTC', icon: '📞' },
+    { label: 'Communities', value: analytics?.totalCommunities ?? '0', change: 'Public Groups', icon: '🌐' },
   ];
 
-  const recentCalls = [
-    { id: 'call_101', type: 'Voice Call', duration: '04:12', caller: 'John Doe', receiver: 'Sarah Miller', status: 'Completed', latency: '32ms' },
-    { id: 'call_102', type: 'Video Call', duration: '12:45', caller: 'Alex Rivera', receiver: 'Tech Hub', status: 'Completed', latency: '48ms' },
-    { id: 'call_103', type: 'Video Call', duration: '08:10', caller: 'David Chen', receiver: 'Elena Rostova', status: 'Ongoing', latency: '28ms' },
-    { id: 'call_104', type: 'Voice Call', duration: '00:45', caller: 'Maria Garcia', receiver: 'Carlos Ruiz', status: 'Completed', latency: '35ms' },
-  ];
+  const recentCalls = analytics?.recentCalls ?? [];
 
   return (
     <div className="space-y-10 animate-fadeIn">
@@ -58,9 +53,9 @@ export default function AnalyticsPage() {
 
       {/* Infrastructure Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <HealthCard title="Relay Servers" status="Operational" latency="12ms" loss="0.01%" />
-        <HealthCard title="Signaling Node" status="Connected" traffic={`${analytics?.activeDailyUsers ?? 1420} units`} />
-        <HealthCard title="Media Protocol" status="HD Ready" codec="Opus / VP8" />
+        <HealthCard title="Relay Servers" status="Operational" latency={analytics?.latency ?? '0ms'} loss={analytics?.packetLoss ?? '0%'} />
+        <HealthCard title="Signaling Node" status="Connected" traffic={`${analytics?.activeDailyUsers ?? 0} units`} />
+        <HealthCard title="Media Protocol" status="HD Ready" codec={analytics?.codec ?? 'Opus / VP8'} />
       </div>
 
       {/* Recent Transmissions Log */}
@@ -85,30 +80,38 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {recentCalls.map((call) => (
-                  <tr key={call.id} className="group hover:bg-slate-50/50 transition-all duration-200">
-                    <td className="whitespace-nowrap px-8 py-6 font-mono text-[10px] font-bold text-slate-400 uppercase">{call.id}</td>
-                    <td className="whitespace-nowrap px-8 py-6">
-                      <span className="text-sm font-black text-slate-900">{call.type}</span>
-                    </td>
-                    <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-600">{call.caller}</td>
-                    <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-600">{call.receiver}</td>
-                    <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{call.duration}</td>
-                    <td className="whitespace-nowrap px-8 py-6">
-                      <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        <span className="text-sm font-black text-emerald-600">{call.latency}</span>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-8 py-6 text-right">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        call.status === 'Ongoing' ? 'bg-blue-50 text-blue-700 border border-blue-100 animate-pulse' : 'bg-slate-50 text-slate-600 border border-slate-100'
-                      }`}>
-                        {call.status}
-                      </span>
+                {recentCalls.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-8 py-20 text-center">
+                      <p className="text-slate-400 font-black uppercase tracking-widest text-xs">No active signal transmissions detected.</p>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentCalls.map((call: any) => (
+                    <tr key={call.id} className="group hover:bg-slate-50/50 transition-all duration-200">
+                      <td className="whitespace-nowrap px-8 py-6 font-mono text-[10px] font-bold text-slate-400 uppercase">{call.id}</td>
+                      <td className="whitespace-nowrap px-8 py-6">
+                        <span className="text-sm font-black text-slate-900">{call.type}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-600">{call.caller}</td>
+                      <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-600">{call.receiver}</td>
+                      <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{call.duration}</td>
+                      <td className="whitespace-nowrap px-8 py-6">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                          <span className="text-sm font-black text-emerald-600">{call.latency}</span>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-8 py-6 text-right">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          call.status === 'Ongoing' ? 'bg-blue-50 text-blue-700 border border-blue-100 animate-pulse' : 'bg-slate-50 text-slate-600 border border-slate-100'
+                        }`}>
+                          {call.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

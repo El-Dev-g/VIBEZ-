@@ -1021,224 +1021,244 @@ fun ChatDetailScreen(
                 }
 
                 // Chat Input Bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                if (chat.isOfficial && !chat.allowComments) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .padding(vertical = 14.dp, horizontal = 20.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                        Text(
+                            text = "Only system administrators can send messages to this community.",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
-                            IconButton(
-                                onClick = {
-                                    showEmojiPicker = !showEmojiPicker
-                                    if (showEmojiPicker) showAttachmentMenu = false
-                                },
-                                modifier = Modifier.testTag("emoji_picker_toggle_button")
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.EmojiEmotions,
-                                    contentDescription = "Emojis",
-                                    tint = if (showEmojiPicker) WhatsAppMinimalPrimary else Color.Gray
-                                )
-                            }
-
-                            if (isRecordingVoice) {
-                                Row(
-                                    modifier = Modifier.weight(1f),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Mic,
-                                        contentDescription = "Recording",
-                                        tint = Color.Red,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = String.format("%02d:%02d", voiceRecordDuration / 60, voiceRecordDuration % 60),
-                                        color = Color.Red,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.width(16.dp))
-
-                                    // Animated "Slide to cancel"
-                                    Text(
-                                        text = if (isRecordingLocked) "Recording..." else "< Slide to cancel",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 14.sp,
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    if (isRecordingLocked) {
-                                        TextButton(
-                                            onClick = {
-                                                audioRecorder.cancelRecording()
-                                                recordedAudioFile = null
-                                                isRecordingVoice = false
-                                                isRecordingLocked = false
-                                                voiceRecordDuration = 0
-                                                showRecordingCancelledToast = true
-                                            }
-                                        ) {
-                                            Text("Discard", color = Color.Red)
-                                        }
-                                    }
-                                }
-                            } else {
-                                OutlinedTextField(
-                                    value = inputText,
-                                    onValueChange = { inputText = it },
-                                    placeholder = { Text("Message") },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Color.Transparent,
-                                        unfocusedBorderColor = Color.Transparent
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .testTag("chat_input_field")
-                                )
-                            }
-
-                            if (!isRecordingVoice) {
                                 IconButton(
-                                    onClick = { showAttachmentMenu = !showAttachmentMenu },
-                                    modifier = Modifier.testTag("attachment_button")
+                                    onClick = {
+                                        showEmojiPicker = !showEmojiPicker
+                                        if (showEmojiPicker) showAttachmentMenu = false
+                                    },
+                                    modifier = Modifier.testTag("emoji_picker_toggle_button")
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.AttachFile,
-                                        contentDescription = "Attach file",
-                                        tint = Color.Gray
+                                        imageVector = Icons.Default.EmojiEmotions,
+                                        contentDescription = "Emojis",
+                                        tint = if (showEmojiPicker) WhatsAppMinimalPrimary else Color.Gray
                                     )
                                 }
 
-                                if (inputText.isBlank()) {
-                                    IconButton(
-                                        onClick = {
-                                            onCameraClick()
-                                        },
-                                        modifier = Modifier.testTag("camera_icon_button")
+                                if (isRecordingVoice) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.CameraAlt,
-                                            contentDescription = "Camera",
+                                            imageVector = Icons.Default.Mic,
+                                            contentDescription = "Recording",
+                                            tint = Color.Red,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = String.format("%02d:%02d", voiceRecordDuration / 60, voiceRecordDuration % 60),
+                                            color = Color.Red,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        // Animated "Slide to cancel"
+                                        Text(
+                                            text = if (isRecordingLocked) "Recording..." else "< Slide to cancel",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 14.sp,
+                                            modifier = Modifier.weight(1f)
+                                        )
+
+                                        if (isRecordingLocked) {
+                                            TextButton(
+                                                onClick = {
+                                                    audioRecorder.cancelRecording()
+                                                    recordedAudioFile = null
+                                                    isRecordingVoice = false
+                                                    isRecordingLocked = false
+                                                    voiceRecordDuration = 0
+                                                    showRecordingCancelledToast = true
+                                                }
+                                            ) {
+                                                Text("Discard", color = Color.Red)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    OutlinedTextField(
+                                        value = inputText,
+                                        onValueChange = { inputText = it },
+                                        placeholder = { Text("Message") },
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Color.Transparent,
+                                            unfocusedBorderColor = Color.Transparent
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("chat_input_field")
+                                    )
+                                }
+
+                                if (!isRecordingVoice) {
+                                    IconButton(
+                                        onClick = { showAttachmentMenu = !showAttachmentMenu },
+                                        modifier = Modifier.testTag("attachment_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AttachFile,
+                                            contentDescription = "Attach file",
                                             tint = Color.Gray
                                         )
+                                    }
+
+                                    if (inputText.isBlank()) {
+                                        IconButton(
+                                            onClick = {
+                                                onCameraClick()
+                                            },
+                                            modifier = Modifier.testTag("camera_icon_button")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CameraAlt,
+                                                contentDescription = "Camera",
+                                                tint = Color.Gray
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
 
-                    // Floating Send / Record button
-                    Box(
-                        modifier = Modifier
-                            .size(if (isRecordingVoice && !isRecordingLocked) 64.dp else 48.dp)
-                            .clip(CircleShape)
-                            .background(if (isRecordingVoice) WhatsAppMinimalPrimary else WhatsAppMinimalAccent)
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = { _ ->
-                                        if (!isRecordingVoice && inputText.isBlank()) {
-                                            val hasMicPermission = ContextCompat.checkSelfPermission(
-                                                context,
-                                                Manifest.permission.RECORD_AUDIO
-                                            ) == PackageManager.PERMISSION_GRANTED
+                        // Floating Send / Record button
+                        Box(
+                            modifier = Modifier
+                                .size(if (isRecordingVoice && !isRecordingLocked) 64.dp else 48.dp)
+                                .clip(CircleShape)
+                                .background(if (isRecordingVoice) WhatsAppMinimalPrimary else WhatsAppMinimalAccent)
+                                .pointerInput(Unit) {
+                                    detectDragGestures(
+                                        onDragStart = { _ ->
+                                            if (!isRecordingVoice && inputText.isBlank()) {
+                                                val hasMicPermission = ContextCompat.checkSelfPermission(
+                                                    context,
+                                                    Manifest.permission.RECORD_AUDIO
+                                                ) == PackageManager.PERMISSION_GRANTED
 
-                                            if (hasMicPermission) {
-                                                val file = audioRecorder.startRecording()
-                                                recordedAudioFile = file
-                                                isRecordingVoice = true
-                                                isRecordingHoldActive = true
-                                            } else {
-                                                recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                                if (hasMicPermission) {
+                                                    val file = audioRecorder.startRecording()
+                                                    recordedAudioFile = file
+                                                    isRecordingVoice = true
+                                                    isRecordingHoldActive = true
+                                                } else {
+                                                    recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                                }
                                             }
-                                        }
-                                    },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        if (isRecordingHoldActive && !isRecordingLocked) {
-                                            recordingDragOffset += dragAmount.x
-                                            // If slid left enough, cancel
-                                            if (recordingDragOffset < -250f) {
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            if (isRecordingHoldActive && !isRecordingLocked) {
+                                                recordingDragOffset += dragAmount.x
+                                                // If slid left enough, cancel
+                                                if (recordingDragOffset < -250f) {
+                                                    audioRecorder.cancelRecording()
+                                                    recordedAudioFile = null
+                                                    isRecordingVoice = false
+                                                    isRecordingHoldActive = false
+                                                    voiceRecordDuration = 0
+                                                    showRecordingCancelledToast = true
+                                                    recordingDragOffset = 0f
+                                                }
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            if (isRecordingHoldActive && !isRecordingLocked) {
+                                                // Complete and send
+                                                val stoppedFile = audioRecorder.stopRecording() ?: recordedAudioFile
+                                                val finalPath = stoppedFile?.absolutePath ?: ""
+                                                val duration = voiceRecordDuration.coerceAtLeast(1)
+                                                isRecordingVoice = false
+                                                isRecordingHoldActive = false
+                                                recordedAudioFile = null
+                                                voiceRecordDuration = 0
+                                                onSendMessage("Voice note", "VOICE", finalPath, duration, replyingToMessage?.id)
+                                                replyingToMessage = null
+                                                recordingDragOffset = 0f
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            if (isRecordingHoldActive && !isRecordingLocked) {
                                                 audioRecorder.cancelRecording()
                                                 recordedAudioFile = null
                                                 isRecordingVoice = false
                                                 isRecordingHoldActive = false
                                                 voiceRecordDuration = 0
-                                                showRecordingCancelledToast = true
                                                 recordingDragOffset = 0f
                                             }
                                         }
-                                    },
-                                    onDragEnd = {
-                                        if (isRecordingHoldActive && !isRecordingLocked) {
-                                            // Complete and send
-                                            val stoppedFile = audioRecorder.stopRecording() ?: recordedAudioFile
-                                            val finalPath = stoppedFile?.absolutePath ?: ""
-                                            val duration = voiceRecordDuration.coerceAtLeast(1)
-                                            isRecordingVoice = false
-                                            isRecordingHoldActive = false
-                                            recordedAudioFile = null
-                                            voiceRecordDuration = 0
-                                            onSendMessage("Voice note", "VOICE", finalPath, duration, replyingToMessage?.id)
-                                            replyingToMessage = null
-                                            recordingDragOffset = 0f
-                                        }
-                                    },
-                                    onDragCancel = {
-                                        if (isRecordingHoldActive && !isRecordingLocked) {
-                                            audioRecorder.cancelRecording()
-                                            recordedAudioFile = null
-                                            isRecordingVoice = false
-                                            isRecordingHoldActive = false
-                                            voiceRecordDuration = 0
-                                            recordingDragOffset = 0f
-                                        }
-                                    }
-                                )
-                            }
-                            .clickable {
-                                if (isRecordingLocked) {
-                                    // Send locked recording
-                                    val stoppedFile = audioRecorder.stopRecording() ?: recordedAudioFile
-                                    val finalPath = stoppedFile?.absolutePath ?: ""
-                                    val duration = voiceRecordDuration.coerceAtLeast(1)
-                                    isRecordingVoice = false
-                                    isRecordingLocked = false
-                                    recordedAudioFile = null
-                                    voiceRecordDuration = 0
-                                    onSendMessage("Voice note", "VOICE", finalPath, duration, replyingToMessage?.id)
-                                    replyingToMessage = null
-                                } else if (inputText.isNotBlank()) {
-                                    onSendMessage(inputText.trim(), "TEXT", "", 0, replyingToMessage?.id)
-                                    inputText = ""
-                                    replyingToMessage = null
+                                    )
                                 }
-                            }
-                            .testTag("send_record_button"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = when {
-                                isRecordingVoice -> Icons.AutoMirrored.Filled.Send
-                                inputText.isNotBlank() -> Icons.AutoMirrored.Filled.Send
-                                else -> Icons.Default.Mic
-                            },
-                            contentDescription = "Send or Record",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
+                                .clickable {
+                                    if (isRecordingLocked) {
+                                        // Send locked recording
+                                        val stoppedFile = audioRecorder.stopRecording() ?: recordedAudioFile
+                                        val finalPath = stoppedFile?.absolutePath ?: ""
+                                        val duration = voiceRecordDuration.coerceAtLeast(1)
+                                        isRecordingVoice = false
+                                        isRecordingLocked = false
+                                        recordedAudioFile = null
+                                        voiceRecordDuration = 0
+                                        onSendMessage("Voice note", "VOICE", finalPath, duration, replyingToMessage?.id)
+                                        replyingToMessage = null
+                                    } else if (inputText.isNotBlank()) {
+                                        onSendMessage(inputText.trim(), "TEXT", "", 0, replyingToMessage?.id)
+                                        inputText = ""
+                                        replyingToMessage = null
+                                    }
+                                }
+                                .testTag("send_record_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = when {
+                                    isRecordingVoice -> Icons.AutoMirrored.Filled.Send
+                                    inputText.isNotBlank() -> Icons.AutoMirrored.Filled.Send
+                                    else -> Icons.Default.Mic
+                                },
+                                contentDescription = "Send or Record",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
 

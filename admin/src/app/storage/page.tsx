@@ -43,14 +43,12 @@ export default function StoragePage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const defaultBreakdown = [
-    { title: 'Global Storage', value: stats?.totalStorageGb || '42.8 GB', limit: stats?.storageLimitGb ? `Limit: ${stats.storageLimitGb}` : 'Limit: 250.0 GB', percentage: 17.1, color: 'bg-slate-900', icon: '🗄️' },
-    { title: 'Media Assets', value: stats?.mediaSizeMb ? `${stats.mediaSizeMb} MB` : '28.4 GB', limit: 'Photos & Voice Notes', percentage: 66, color: 'bg-blue-500', icon: '🖼️' },
-    { title: 'Ephemeral Stories', value: stats?.totalStatuses ? `${stats.totalStatuses} units` : '8.2 GB', limit: '24h Auto-Purge', percentage: 19, color: 'bg-emerald-500', icon: '✨' },
-    { title: 'Audit Backups', value: stats?.totalMessages ? `${stats.totalMessages} logs` : '6.2 GB', limit: 'System snapshots', percentage: 15, color: 'bg-purple-500', icon: '🛡️' },
+  const storageStats = stats?.breakdown || [
+    { title: 'Global Storage', value: stats?.totalStorageGb || '0 GB', limit: stats?.storageLimitGb ? `Limit: ${stats.storageLimitGb}` : 'Limit: 0 GB', percentage: stats?.totalStoragePercentage || 0, color: 'bg-slate-900', icon: '🗄️' },
+    { title: 'Media Assets', value: stats?.mediaSizeGb ? `${stats.mediaSizeGb} GB` : '0 GB', limit: 'Photos & Voice Notes', percentage: stats?.mediaPercentage || 0, color: 'bg-blue-500', icon: '🖼️' },
+    { title: 'Ephemeral Stories', value: stats?.totalStatuses ? `${stats.totalStatuses} units` : '0 GB', limit: '24h Auto-Purge', percentage: stats?.statusPercentage || 0, color: 'bg-emerald-500', icon: '✨' },
+    { title: 'Audit Backups', value: stats?.totalMessages ? `${stats.totalMessages} logs` : '0 GB', limit: 'System snapshots', percentage: stats?.logsPercentage || 0, color: 'bg-purple-500', icon: '🛡️' },
   ];
-
-  const storageStats = stats?.breakdown || defaultBreakdown;
 
   return (
     <div className="space-y-10 animate-fadeIn">
@@ -97,7 +95,7 @@ export default function StoragePage() {
                 <p className="text-3xl font-black text-slate-900 tracking-tight">{item.value}</p>
               </div>
               <div className="text-right">
-                <span className="text-sm font-black text-slate-900">{item.percentage}%</span>
+                <span className="text-sm font-black text-slate-900">{item.percentage || 0}%</span>
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Utilization</p>
               </div>
             </div>
@@ -105,7 +103,7 @@ export default function StoragePage() {
             <div className="relative w-full h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
               <div 
                 className={`h-full ${item.color} transition-all duration-1000 ease-out rounded-full group-hover:brightness-110`} 
-                style={{ width: `${item.percentage}%` }}
+                style={{ width: `${item.percentage || 0}%` }}
               />
             </div>
             <p className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.limit}</p>

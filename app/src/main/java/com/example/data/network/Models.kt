@@ -86,7 +86,10 @@ data class CommunityDto(
     val description: String?,
     val avatarUrl: String?,
     val membersCount: Int,
-    val createdAt: String
+    val createdAt: String,
+    val isOfficial: Boolean = false,
+    val allowComments: Boolean = true,
+    val allowReactions: Boolean = true
 )
 
 @JsonClass(generateAdapter = true)

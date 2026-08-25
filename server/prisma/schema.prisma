@@ -40,6 +40,8 @@ model User {
   reportsSubmitted Report[]  @relation("Reporter")
   reportsReceived  Report[]  @relation("ReportedUser")
   badgePayments    BadgePayment[]
+  officialPostReactions PostReaction[]
+  officialPostComments  PostComment[]
 }
 
 model Chat {
@@ -117,15 +119,58 @@ model StatusView {
 }
 
 model Community {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  avatarUrl   String?
-  ownerId     String
-  createdAt   DateTime @default(now())
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  avatarUrl     String?
+  ownerId       String
+  createdAt     DateTime @default(now())
   
-  members     CommunityMember[]
-  channels    Chat[] // Communities have multiple group chats
+  isOfficial    Boolean  @default(false)
+  allowComments Boolean  @default(true)
+  allowReactions Boolean @default(true)
+
+  members       CommunityMember[]
+  channels      Chat[] // Communities have multiple group chats
+  posts         OfficialPost[]
+}
+
+model OfficialPost {
+  id            String   @id @default(uuid())
+  communityId   String
+  content       String
+  type          String   @default("TEXT") // TEXT, IMAGE, VIDEO
+  mediaUrl      String?
+  createdAt     DateTime @default(now())
+  
+  community     Community @relation(fields: [communityId], references: [id])
+  
+  reactions     PostReaction[]
+  comments      PostComment[]
+}
+
+model PostReaction {
+  id            String   @id @default(uuid())
+  postId        String
+  userId        String
+  emoji         String   @default("👍")
+  createdAt     DateTime @default(now())
+
+  post          OfficialPost @relation(fields: [postId], references: [id])
+  user          User         @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId, emoji])
+}
+
+model PostComment {
+  id            String   @id @default(uuid())
+  postId        String
+  userId        String
+  content       String
+  createdAt     DateTime @default(now())
+
+  post          OfficialPost @relation(fields: [postId], references: [id])
+  user          User         @relation(fields: [userId], references: [id])
 }
 
 model CommunityMember {

@@ -333,7 +333,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     lastMessage = dto.messages.firstOrNull()?.content ?: "",
                     lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
                     unreadCount = 0,
-                    isGroup = dto.isGroup
+                    isGroup = dto.isGroup,
+                    isOfficial = dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
                 )
             }
         } catch (e: Exception) {
@@ -349,7 +350,10 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             description = dto.description ?: "",
             avatarUrl = dto.avatarUrl ?: "",
             membersCount = dto.membersCount,
-            createdAt = parseDate(dto.createdAt)
+            createdAt = parseDate(dto.createdAt),
+            isOfficial = dto.isOfficial,
+            allowComments = dto.allowComments,
+            allowReactions = dto.allowReactions
         )
     }
 
