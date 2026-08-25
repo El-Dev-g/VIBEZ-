@@ -21,6 +21,8 @@ model User {
   about         String?   @default("Hey there! I am using Vibez.")
   lastSeen      DateTime  @default(now())
   isBanned      Boolean   @default(false)
+  isVerified    Boolean   @default(false)
+  verifiedAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -37,6 +39,7 @@ model User {
   settings         UserSettings?
   reportsSubmitted Report[]  @relation("Reporter")
   reportsReceived  Report[]  @relation("ReportedUser")
+  badgePayments    BadgePayment[]
 }
 
 model Chat {
@@ -199,3 +202,18 @@ model SystemSetting {
   maxGroupSize          Int     @default(1024)
   retentionDays         Int     @default(90)
 }
+
+model BadgePayment {
+  id              String   @id @default(uuid())
+  userId          String
+  amount          Float    @default(3.00)
+  currency        String   @default("USD")
+  status          String   @default("COMPLETED")
+  paymentProvider String   @default("IN_APP_PAYMENT")
+  transactionId   String   @unique
+  rawReceipt      String?
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+

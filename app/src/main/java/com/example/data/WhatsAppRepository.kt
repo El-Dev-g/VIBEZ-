@@ -507,6 +507,27 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
+    suspend fun getBadgeStatus(token: String): BadgeStatusResponse? {
+        return try {
+            NetworkClient.apiService.getBadgeStatus("Bearer $token")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun processVerificationPayment(provider: String, token: String): BadgePaymentResponse? {
+        return try {
+            NetworkClient.apiService.processVerificationPayment(
+                "Bearer $token",
+                ProcessBadgePaymentRequest(paymentProvider = provider)
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     private val _allStatuses = MutableStateFlow<List<StatusEntity>>(emptyList())
     val allStatuses: StateFlow<List<StatusEntity>> = _allStatuses.asStateFlow()
 

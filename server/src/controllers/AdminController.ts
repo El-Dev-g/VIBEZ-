@@ -68,6 +68,8 @@ export class AdminController {
           name: true,
           phoneNumber: true,
           isBanned: true,
+          isVerified: true,
+          verifiedAt: true,
           createdAt: true,
         }
       });
@@ -113,6 +115,8 @@ export class AdminController {
           bio: true,
           avatarUrl: true,
           isBanned: true,
+          isVerified: true,
+          verifiedAt: true,
           createdAt: true,
           lastSeen: true,
           _count: {

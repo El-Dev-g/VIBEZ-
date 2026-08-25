@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.ChatEntity
 import com.example.data.ContactEntity
 import com.example.ui.components.AvatarView
+import com.example.ui.components.VerifiedBadge
 import com.example.ui.theme.WhatsAppEmerald
 import com.example.ui.theme.WhatsAppMinimalAccent
 import com.example.ui.theme.WhatsAppMinimalPrimary
@@ -283,15 +284,22 @@ fun VibezChatItemCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = chat.contactName,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = chat.contactName,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (chat.isVerified || contact?.isVerified == true) {
+                            VerifiedBadge(size = 18.dp)
+                        }
+                    }
 
                     val timeFormat = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
                     val formattedTime = timeFormat.format(java.util.Date(chat.lastMessageTime))

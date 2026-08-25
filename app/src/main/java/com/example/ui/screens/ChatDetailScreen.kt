@@ -103,6 +103,7 @@ import com.example.data.ChatEntity
 import com.example.data.MessageEntity
 import com.example.ui.components.AvatarView
 import com.example.ui.components.MessageBubble
+import com.example.ui.components.VerifiedBadge
 import com.example.ui.theme.WhatsAppBackgroundLight
 import com.example.ui.theme.WhatsAppEmerald
 import com.example.ui.theme.WhatsAppMinimalAccent
@@ -584,12 +585,17 @@ fun ChatDetailScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
-                                Text(
-                                    text = chat.contactName,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = chat.contactName,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (chat.isVerified || contact?.isVerified == true) {
+                                        VerifiedBadge(size = 18.dp)
+                                    }
+                                }
                                 Text(
                                     text = when {
                                         isTyping -> "typing..."

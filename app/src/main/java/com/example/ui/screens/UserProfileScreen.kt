@@ -85,6 +85,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.AvatarView
+import com.example.ui.components.VerifiedBadge
 import com.example.ui.theme.WhatsAppMinimalAccent
 import com.example.ui.theme.WhatsAppMinimalNavPill
 import com.example.ui.theme.WhatsAppMinimalPrimary
@@ -100,6 +101,7 @@ fun UserProfileScreen(
     contactStatus: String = "⚡ Vibing in VIBEZ",
     isCurrentUser: Boolean = false,
     isGroup: Boolean = false,
+    isVerified: Boolean = false,
     onBackClick: () -> Unit,
     onUpdateProfile: ((name: String, phone: String, status: String, avatarUrl: String?) -> Unit)? = null,
     onUpdateContact: ((contactId: String, name: String, phone: String, about: String) -> Unit)? = null,
@@ -107,7 +109,9 @@ fun UserProfileScreen(
     onVoiceCallClick: (() -> Unit)? = null,
     onVideoCallClick: (() -> Unit)? = null,
     onQrScanClick: (() -> Unit)? = null,
-    onMediaClick: (() -> Unit)? = null
+    onMediaClick: (() -> Unit)? = null,
+    onGetBadgeClick: () -> Unit = {},
+    onViewBadgeReceiptClick: () -> Unit = {}
 ) {
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -310,6 +314,9 @@ fun UserProfileScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                            if (isVerified) {
+                                VerifiedBadge(size = 22.dp)
+                            }
                             if (isCurrentUser) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(

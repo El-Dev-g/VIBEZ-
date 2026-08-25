@@ -86,6 +86,8 @@ import com.example.ui.screens.StatusPrivacyScreen
 import com.example.ui.screens.StatusViewerScreen
 import com.example.ui.screens.StatusViewersScreen
 import com.example.ui.screens.UserProfileScreen
+import com.example.ui.screens.VerificationCheckoutScreen
+import com.example.ui.screens.BadgesReceiptScreen
 import com.example.ui.screens.WallpaperSettingsScreen
 
 class MainActivity : ComponentActivity() {
@@ -173,6 +175,15 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     val selectedTab by viewModel.selectedTab.collectAsState()
     val isSyncingContacts by viewModel.isSyncingContacts.collectAsState()
     val syncStatusMessage by viewModel.syncStatusMessage.collectAsState()
+
+    val isVerified by viewModel.isVerified.collectAsState()
+    val badgeStatus by viewModel.badgeStatus.collectAsState()
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            viewModel.refreshBadgeStatus()
+        }
+    }
 
     var activeStatusForViewer by remember { mutableStateOf<StatusEntity?>(null) }
     var activeNotification by remember { mutableStateOf<IncomingNotification?>(null) }
@@ -818,6 +829,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 userName = currentUserName,
                 userPhone = currentUserPhone,
                 googleEmail = currentGoogleEmail,
+                isVerified = isVerified,
                 onBackClick = { navController.popBackStack() },
                 onToggleDarkMode = { viewModel.toggleDarkMode() },
                 onLogoutClick = {
@@ -840,6 +852,39 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onQrScanClick = {
                     navController.navigate("qr_scanner")
+                },
+                onGetBadgeClick = {
+                    navController.navigate("verification_checkout")
+                },
+                onViewBadgeReceiptClick = {
+                    navController.navigate("badges_receipt")
+                }
+            )
+        }
+
+        // Green Verification Badge Checkout ($3.00)
+        composable("verification_checkout") {
+            VerificationCheckoutScreen(
+                onBack = { navController.popBackStack() },
+                onPaymentSuccess = {
+                    navController.navigate("badges_receipt") {
+                        popUpTo("verification_checkout") { inclusive = true }
+                    }
+                },
+                onProcessPayment = { provider, onComplete ->
+                    viewModel.processVerificationPayment(provider, onComplete)
+                }
+            )
+        }
+
+        // Green Verification Badge Status & Receipts
+        composable("badges_receipt") {
+            BadgesReceiptScreen(
+                badgeStatus = badgeStatus,
+                userName = currentUserName,
+                onBack = { navController.popBackStack() },
+                onGetBadgeClick = {
+                    navController.navigate("verification_checkout")
                 }
             )
         }
@@ -960,6 +1005,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             val effectiveAvatar = if (isCurrentUser) "" else (contact?.avatarUrl ?: "")
             val effectiveStatus = if (isCurrentUser) currentUserStatus else (contact?.aboutStatus ?: "Hey there! I am using VIBEZ.")
 
+            val effectiveVerified = if (isCurrentUser) isVerified else (contact?.isVerified == true)
+
             UserProfileScreen(
                 contactId = contactId,
                 contactName = effectiveContactName,
@@ -967,12 +1014,19 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 contactAvatar = effectiveAvatar,
                 contactStatus = effectiveStatus,
                 isCurrentUser = isCurrentUser,
+                isVerified = effectiveVerified,
                 onBackClick = { navController.popBackStack() },
                 onUpdateProfile = { newName, newPhone, newStatus, newAvatar ->
                     viewModel.updateCurrentUserProfile(newName, newPhone, newStatus, newAvatar)
                 },
                 onUpdateContact = { cId, newName, newPhone, newAbout ->
                     viewModel.updateContact(cId, newName, newPhone, newAbout)
+                },
+                onGetBadgeClick = {
+                    navController.navigate("verification_checkout")
+                },
+                onViewBadgeReceiptClick = {
+                    navController.navigate("badges_receipt")
                 },
                 onMessageClick = {
                     val matchingChat = allChatsList.firstOrNull { it.contactId == contactId }

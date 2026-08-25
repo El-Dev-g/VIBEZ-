@@ -98,6 +98,7 @@ fun SettingsScreen(
     userName: String = "Alex Rivers",
     userPhone: String = "+1 555-0198",
     googleEmail: String? = null,
+    isVerified: Boolean = false,
     onBackClick: () -> Unit,
     onToggleDarkMode: () -> Unit,
     onLogoutClick: () -> Unit = {},
@@ -105,7 +106,9 @@ fun SettingsScreen(
     onWallpaperClick: () -> Unit = {},
     onGoogleAuthClick: () -> Unit = {},
     onBackendSyncClick: () -> Unit = {},
-    onQrScanClick: () -> Unit = {}
+    onQrScanClick: () -> Unit = {},
+    onGetBadgeClick: () -> Unit = {},
+    onViewBadgeReceiptClick: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -375,6 +378,83 @@ fun SettingsScreen(
             }
 
             // 4. VIBEZ PREFERENCES LIST
+            item {
+                Text(
+                    text = "VERIFICATION & BADGE",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WhatsAppMinimalPrimary,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (isVerified) onViewBadgeReceiptClick() else onGetBadgeClick()
+                        },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isVerified) Color(0xFFECFDF5) else MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isVerified) Color(0xFF10B981) else Color(0xFF10B981).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = if (isVerified) Color.White else Color(0xFF10B981)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = if (isVerified) "Verified Badge ($3.00)" else "Get Green Verification Badge ($3.00)",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (isVerified) "Active • Tap to view payment receipt" else "Stand out & verify real identity across VIBEZ",
+                                    fontSize = 12.sp,
+                                    color = if (isVerified) Color(0xFF047857) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF10B981)
+                        ) {
+                            Text(
+                                text = if (isVerified) "Receipt" else "$3.00",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Text(
                     text = "VIBEZ PREFERENCES",

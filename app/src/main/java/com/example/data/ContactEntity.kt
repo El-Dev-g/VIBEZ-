@@ -11,5 +11,6 @@ data class ContactEntity(
     val avatarUrl: String = "",
     val aboutStatus: String = "Hey there! I am using VIBEZ.",
     val isOnline: Boolean = false,
-    val lastSeen: String = "Recently"
+    val lastSeen: String = "Recently",
+    val isVerified: Boolean = false
 )

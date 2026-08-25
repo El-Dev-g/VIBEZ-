@@ -125,4 +125,15 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body settings: UserSettingsDto
     ): UserSettingsDto
+
+    @POST("api/payments/verification/process")
+    suspend fun processVerificationPayment(
+        @Header("Authorization") token: String,
+        @Body request: ProcessBadgePaymentRequest
+    ): BadgePaymentResponse
+
+    @GET("api/payments/verification/status")
+    suspend fun getBadgeStatus(
+        @Header("Authorization") token: String
+    ): BadgeStatusResponse
 }

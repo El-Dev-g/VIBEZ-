@@ -5,6 +5,8 @@ export interface User {
   name: string;
   phoneNumber: string;
   status: 'Active' | 'Banned';
+  isVerified?: boolean;
+  verifiedAt?: string;
   createdAt: string;
 }
 
@@ -93,6 +95,8 @@ export const fetchUsers = async (): Promise<User[]> => {
       name: u.name || 'Unknown',
       phoneNumber: u.phoneNumber,
       status: u.isBanned ? 'Banned' : 'Active',
+      isVerified: !!u.isVerified,
+      verifiedAt: u.verifiedAt ? new Date(u.verifiedAt).toLocaleDateString() : undefined,
       createdAt: new Date(u.createdAt).toLocaleDateString()
     }));
   } catch (error) {
@@ -222,3 +226,64 @@ export const unbanUser = async (userId: string): Promise<boolean> => {
     return false;
   }
 };
+
+export interface BadgePaymentRecord {
+  id: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  paymentProvider: string;
+  transactionId: string;
+  rawReceipt?: string;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string;
+    phoneNumber: string;
+    isVerified: boolean;
+    avatarUrl?: string;
+  };
+}
+
+export interface BadgeSummary {
+  payments: BadgePaymentRecord[];
+  totalRevenue: number;
+  totalPurchases: number;
+  verifiedUsersCount: number;
+}
+
+export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/badges`);
+    if (!res.ok) throw new Error('Failed to fetch badge payments');
+    const data = await res.json();
+    return {
+      payments: data.payments.map((p: any) => ({
+        ...p,
+        createdAt: new Date(p.createdAt).toLocaleString()
+      })),
+      totalRevenue: data.totalRevenue || 0,
+      totalPurchases: data.totalPurchases || 0,
+      verifiedUsersCount: data.verifiedUsersCount || 0
+    };
+  } catch (error) {
+    console.error(error);
+    return { payments: [], totalRevenue: 0, totalPurchases: 0, verifiedUsersCount: 0 };
+  }
+};
+
+export const toggleUserVerificationBadge = async (userId: string, isVerified: boolean): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/badge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isVerified })
+    });
+    return res.ok;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+

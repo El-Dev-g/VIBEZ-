@@ -98,6 +98,10 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val currentAuthProvider = MutableStateFlow(authManager.getAuthProvider())
     val typingChatId = MutableStateFlow<String?>(null)
 
+    // Verification Badge State
+    val isVerified = MutableStateFlow(false)
+    val badgeStatus = MutableStateFlow<BadgeStatusResponse?>(null)
+
     // Contact Sync State
     val isSyncingContacts = MutableStateFlow(false)
     val syncStatusMessage = MutableStateFlow<String?>(null)
@@ -618,6 +622,37 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 )
             }
             onComplete()
+        }
+    }
+
+    fun refreshBadgeStatus() {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                val response = repository.getBadgeStatus(token)
+                if (response != null) {
+                    badgeStatus.value = response
+                    isVerified.value = response.isVerified
+                }
+            }
+        }
+    }
+
+    fun processVerificationPayment(provider: String, onComplete: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken()
+            if (token.isNullOrBlank()) {
+                onComplete(false, "User not authenticated")
+                return@launch
+            }
+
+            val response = repository.processVerificationPayment(provider, token)
+            if (response != null && response.success) {
+                isVerified.value = true
+                refreshBadgeStatus()
+                onComplete(true, response.message)
+            } else {
+                onComplete(false, response?.message ?: "Payment failed")
+            }
         }
     }
 }

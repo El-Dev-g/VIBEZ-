@@ -10,7 +10,9 @@ data class UserDto(
     val name: String?,
     val avatarUrl: String?,
     val about: String?,
-    val lastSeen: String
+    val lastSeen: String,
+    val isVerified: Boolean = false,
+    val verifiedAt: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -163,3 +165,41 @@ data class UserSettingsDto(
     val readReceipts: Boolean,
     val notificationsEnabled: Boolean
 )
+
+@JsonClass(generateAdapter = true)
+data class ProcessBadgePaymentRequest(
+    val paymentProvider: String = "IN_APP_PAYMENT",
+    val transactionId: String? = null,
+    val rawReceipt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class BadgePaymentDto(
+    val id: String,
+    val userId: String,
+    val amount: Double,
+    val currency: String,
+    val status: String,
+    val paymentProvider: String,
+    val transactionId: String,
+    val rawReceipt: String?,
+    val createdAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class BadgePaymentResponse(
+    val success: Boolean,
+    val message: String,
+    val payment: BadgePaymentDto?,
+    val user: UserDto?
+)
+
+@JsonClass(generateAdapter = true)
+data class BadgeStatusResponse(
+    val isVerified: Boolean,
+    val verifiedAt: String?,
+    val badgeType: String = "Green Verification Badge",
+    val price: String = "$3.00 USD",
+    val payments: List<BadgePaymentDto> = emptyList()
+)
+

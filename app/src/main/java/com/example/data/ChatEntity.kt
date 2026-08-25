@@ -15,5 +15,6 @@ data class ChatEntity(
     val isPinned: Boolean = false,
     val isArchived: Boolean = false,
     val isGroup: Boolean = false,
-    val isMuted: Boolean = false
+    val isMuted: Boolean = false,
+    val isVerified: Boolean = false
 )
