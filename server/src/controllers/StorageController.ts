@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../lib/prisma';
+import prisma from '../lib/prisma';
 
 export class StorageController {
   private s3Client: S3Client;
