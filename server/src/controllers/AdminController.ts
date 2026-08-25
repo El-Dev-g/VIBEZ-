@@ -408,6 +408,11 @@ export class AdminController {
           ownerId: 'system',
           allowComments: true,
           allowReactions: true
+        },
+        include: {
+          _count: {
+            select: { members: true }
+          }
         }
       });
 
@@ -428,7 +433,10 @@ export class AdminController {
         }
       });
 
-      res.json(community);
+      res.json({
+        ...community,
+        membersCount: (community as any)._count?.members || 0
+      });
     } catch (error) {
       console.error('Error creating official community:', error);
       res.status(500).json({ error: 'Failed to create official community' });
@@ -470,7 +478,10 @@ export class AdminController {
         }) as any;
       }
 
-      res.json(community);
+      res.json({
+        ...community,
+        membersCount: (community as any)._count?.members || 0
+      });
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch official community' });
     }

@@ -14,11 +14,18 @@ export class CommunityController {
           ]
         },
         include: {
-          members: true,
-          channels: true
+          _count: {
+            select: { members: true }
+          }
         }
       });
-      res.json(communities);
+
+      const formatted = communities.map(c => ({
+        ...c,
+        membersCount: (c as any)._count?.members || 0
+      }));
+
+      res.json(formatted);
     } catch (error) {
       console.error('Error fetching communities:', error);
       res.status(500).json({ error: 'Failed to fetch communities' });
@@ -42,10 +49,18 @@ export class CommunityController {
               role: 'ADMIN'
             }
           }
+        },
+        include: {
+          _count: {
+            select: { members: true }
+          }
         }
       });
 
-      res.json(community);
+      res.json({
+        ...community,
+        membersCount: (community as any)._count?.members || 1
+      });
     } catch (error) {
       console.error('Error creating community:', error);
       res.status(500).json({ error: 'Failed to create community' });
@@ -63,10 +78,21 @@ export class CommunityController {
               user: true
             }
           },
-          channels: true
+          channels: true,
+          _count: {
+            select: { members: true }
+          }
         }
       });
-      res.json(community);
+
+      if (!community) {
+        return res.status(404).json({ error: 'Community not found' });
+      }
+
+      res.json({
+        ...community,
+        membersCount: (community as any)._count?.members || community.members.length
+      });
     } catch (error) {
       console.error('Error fetching community details:', error);
       res.status(500).json({ error: 'Failed to fetch community details' });

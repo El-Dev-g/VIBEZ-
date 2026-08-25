@@ -312,9 +312,12 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     suspend fun syncCommunities(token: String) {
         try {
+            android.util.Log.d("WhatsAppRepository", "Syncing communities...")
             val dtos = NetworkClient.apiService.getCommunities("Bearer $token")
+            android.util.Log.d("WhatsAppRepository", "Received ${dtos.size} communities from server")
             _allCommunities.value = dtos.map { mapCommunityDtoToEntity(it) }
         } catch (e: Exception) {
+            android.util.Log.e("WhatsAppRepository", "Failed to sync communities: ${e.message}")
             e.printStackTrace()
         }
     }
