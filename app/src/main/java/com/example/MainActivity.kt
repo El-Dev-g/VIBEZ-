@@ -61,6 +61,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.data.ChatEntity
 import com.example.data.MessageEntity
 import com.example.data.StatusEntity
 import com.example.ui.WhatsAppViewModel
@@ -71,6 +72,7 @@ import com.example.ui.screens.BackendSyncScreen
 import com.example.ui.screens.CallScreen
 import com.example.ui.screens.ChatDetailScreen
 import com.example.ui.screens.ContactInfoScreen
+import com.example.ui.screens.CommunityInfoScreen
 import com.example.ui.screens.CreateCommunityScreen
 import com.example.ui.screens.CreateStatusScreen
 import com.example.ui.screens.FullCameraExperienceScreen
@@ -419,10 +421,10 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onCommunityClick = { communityId ->
                     viewModel.getCommunityChats(communityId) { communityChats ->
                         if (communityChats.isNotEmpty()) {
-                            // Navigate to the first chat (usually Announcements)
+                            // Navigate to the first chat (usually Announcements/Main channel)
                             navController.navigate("chat/${communityChats.first().id}")
                         } else {
-                            // Feedback if no channels found
+                            // Fallback if no channels are loaded
                             android.widget.Toast.makeText(context, "No announcement channels found for this community.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -534,7 +536,20 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onBackClick = { navController.popBackStack() },
                 onContactInfoClick = {
                     if (chat != null) {
-                        navController.navigate("user_profile/${chat.contactId}")
+                        if (chat.isOfficial || chat.isGroup) {
+                            val matchingCommunity = viewModel.communities.value.firstOrNull { 
+                                it.name.equals(chat.contactName, ignoreCase = true) || 
+                                chat.contactName.contains(it.name, ignoreCase = true) ||
+                                (chat.isOfficial && it.isOfficial)
+                            }
+                            if (matchingCommunity != null) {
+                                navController.navigate("community_info/${matchingCommunity.id}")
+                            } else {
+                                navController.navigate("contact_info/$chatId")
+                            }
+                        } else {
+                            navController.navigate("user_profile/${chat.contactId}")
+                        }
                     } else {
                         navController.navigate("contact_info/$chatId")
                     }
@@ -836,6 +851,46 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onDeleteChatClick = {
                     viewModel.deleteChat(chatId)
                     navController.popBackStack("main", false)
+                }
+            )
+        }
+
+        // 8d. Dedicated Community Info Profile Screen
+        composable(
+            route = "community_info/{communityId}",
+            arguments = listOf(navArgument("communityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val communityId = backStackEntry.arguments?.getString("communityId") ?: ""
+            val communitiesList by viewModel.communities.collectAsState()
+            val community = communitiesList.firstOrNull { it.id == communityId }
+
+            // Fetch the channels belonging to this community
+            var communityChannels by remember(communityId) { mutableStateOf<List<ChatEntity>>(emptyList()) }
+            LaunchedEffect(communityId) {
+                viewModel.getCommunityChats(communityId) { chats ->
+                    communityChannels = chats
+                }
+            }
+
+            val currentUserId = viewModel.authManager.getUserId() ?: ""
+            val isAdmin = community?.ownerId == currentUserId
+
+            CommunityInfoScreen(
+                community = community,
+                channels = communityChannels,
+                isAdmin = isAdmin,
+                onBackClick = { navController.popBackStack() },
+                onChannelClick = { channel ->
+                    navController.navigate("chat/${channel.id}")
+                },
+                onShareClick = {
+                    android.widget.Toast.makeText(context, "Community link copied to clipboard!", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                onToggleComments = { isEnabled ->
+                    android.widget.Toast.makeText(context, "Comments ${if (isEnabled) "enabled" else "disabled"}", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                onToggleReactions = { isEnabled ->
+                    android.widget.Toast.makeText(context, "Reactions ${if (isEnabled) "enabled" else "disabled"}", android.widget.Toast.LENGTH_SHORT).show()
                 }
             )
         }

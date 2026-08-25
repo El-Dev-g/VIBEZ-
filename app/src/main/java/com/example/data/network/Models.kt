@@ -85,6 +85,7 @@ data class CommunityDto(
     val name: String,
     val description: String?,
     val avatarUrl: String?,
+    val ownerId: String? = null,
     val membersCount: Int,
     val createdAt: String,
     val isOfficial: Boolean = false,

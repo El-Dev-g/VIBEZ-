@@ -552,9 +552,40 @@ export class AdminController {
     try {
       const { communityId } = req.params;
       
-      // Delete associated data first or rely on cascade if configured
-      // For now let's manually clean up some basics if needed, but Prisma schema might handle it
+      // 1. Find all chats associated with this community
+      const communityChats = await prisma.chat.findMany({
+        where: { communityId }
+      });
+      const chatIds = communityChats.map(c => c.id);
+
+      if (chatIds.length > 0) {
+        // 2. Delete all messages within those chats
+        await prisma.message.deleteMany({
+          where: { chatId: { in: chatIds } }
+        });
+
+        // 3. Delete all members of those chats
+        await prisma.chatMember.deleteMany({
+          where: { chatId: { in: chatIds } }
+        });
+
+        // 4. Delete the chats themselves
+        await prisma.chat.deleteMany({
+          where: { id: { in: chatIds } }
+        });
+      }
+
+      // 5. Delete all official posts belonging to this community
+      await prisma.officialPost.deleteMany({
+        where: { communityId }
+      });
+
+      // 6. Delete all community members
+      await prisma.communityMember.deleteMany({
+        where: { communityId }
+      });
       
+      // 7. Finally, delete the community itself
       await prisma.community.delete({
         where: { id: communityId }
       });

@@ -5,6 +5,7 @@ data class CommunityEntity(
     val name: String,
     val description: String = "",
     val avatarUrl: String = "",
+    val ownerId: String = "",
     val membersCount: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val isOfficial: Boolean = false,

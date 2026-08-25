@@ -311,14 +311,6 @@ private fun CommunityItem(
                     )
                 }
             }
-
-            if (community.membersCount > 0) {
-                Text(
-                    text = "${community.membersCount} members",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
 
         HorizontalDivider(

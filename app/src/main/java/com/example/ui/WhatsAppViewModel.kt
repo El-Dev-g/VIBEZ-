@@ -87,7 +87,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         return String.format("%d:%02d", minutes, seconds)
     }
 
-    private val authManager = AuthManager(application)
+    val authManager = AuthManager(application)
     
     val isLoggedIn = MutableStateFlow(authManager.isLoggedIn())
     val currentUserPhone = MutableStateFlow(authManager.getPhoneNumber() ?: "")

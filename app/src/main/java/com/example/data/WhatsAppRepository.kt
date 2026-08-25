@@ -371,6 +371,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             name = dto.name,
             description = dto.description ?: "",
             avatarUrl = dto.avatarUrl ?: "",
+            ownerId = dto.ownerId ?: "",
             membersCount = dto.membersCount,
             createdAt = parseDate(dto.createdAt),
             isOfficial = dto.isOfficial,
