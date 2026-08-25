@@ -94,6 +94,8 @@ app.delete('/api/calls/:callId', authenticate, (req, res) => call.deleteCallLog(
 app.delete('/api/calls', authenticate, (req, res) => call.clearCallLogs(req, res));
 
 // Payment / Verification Badge Routes
+app.get('/api/payments/badge-price', (req, res) => payment.getBadgePrice(req, res));
+app.get('/api/badge/price', (req, res) => payment.getBadgePrice(req, res));
 app.post('/api/payments/verification/process', authenticate, (req, res) => payment.processVerificationPayment(req, res));
 app.get('/api/payments/verification/status', authenticate, (req, res) => payment.getUserBadgeStatus(req, res));
 app.get('/api/admin/badges', (req, res) => payment.getAdminBadgePayments(req, res));

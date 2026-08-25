@@ -1,29 +1,58 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchSettings, updateSettings } from '@/services/api';
 
 export default function BadgePriceEditor({ initialPrice }: { initialPrice: number }) {
   const router = useRouter();
-  const [price, setPrice] = useState<number>(initialPrice);
+  const [activePrice, setActivePrice] = useState<number>(initialPrice ?? 3.00);
+  const [inputPrice, setInputPrice] = useState<number>(initialPrice ?? 3.00);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
+  useEffect(() => {
+    if (typeof initialPrice === 'number' && !isNaN(initialPrice)) {
+      setActivePrice(initialPrice);
+      if (!isEditing) {
+        setInputPrice(initialPrice);
+      }
+    }
+  }, [initialPrice, isEditing]);
+
+  const handleStartEdit = () => {
+    setInputPrice(activePrice);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setInputPrice(activePrice);
+    setIsEditing(false);
+  };
+
   const handleSavePrice = async () => {
+    const numericVal = parseFloat(String(inputPrice));
+    if (isNaN(numericVal) || numericVal <= 0) {
+      setMsg({ text: 'Please enter a valid price greater than $0.00', isError: true });
+      return;
+    }
+
     setIsSaving(true);
     setMsg(null);
     try {
       const currentSettings = await fetchSettings();
       const updated = await updateSettings({
         ...currentSettings,
-        verificationBadgePrice: price
+        verificationBadgePrice: numericVal
       });
-      if (updated) {
-        setPrice(updated.verificationBadgePrice);
-        setMsg({ text: `Badge price updated to $${updated.verificationBadgePrice.toFixed(2)} USD!`, isError: false });
+
+      if (updated && updated.verificationBadgePrice !== undefined) {
+        const newPrice = updated.verificationBadgePrice;
+        setActivePrice(newPrice);
+        setInputPrice(newPrice);
         setIsEditing(false);
+        setMsg({ text: `Badge price updated to $${newPrice.toFixed(2)} USD!`, isError: false });
         // Refresh server component data ONLY on success
         router.refresh();
         setTimeout(() => setMsg(null), 4000);
@@ -59,8 +88,8 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
               type="number"
               step="0.01"
               min="0.50"
-              value={price}
-              onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+              value={inputPrice}
+              onChange={(e) => setInputPrice(parseFloat(e.target.value) || 0)}
               className="w-24 bg-white text-gray-900 font-bold px-2 py-1 rounded-lg text-sm focus:outline-none"
             />
             <button
@@ -71,7 +100,7 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
               {isSaving ? 'Saving...' : 'Save'}
             </button>
             <button
-              onClick={() => setIsEditing(false)}
+              onClick={handleCancelEdit}
               className="text-emerald-300 hover:text-white text-xs px-2 py-1"
             >
               Cancel
@@ -80,11 +109,11 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
         ) : (
           <div className="flex items-center space-x-4">
             <div className="text-right">
-              <span className="text-2xl font-extrabold text-emerald-300">${price.toFixed(2)} USD</span>
+              <span className="text-2xl font-extrabold text-emerald-300">${activePrice.toFixed(2)} USD</span>
               <span className="block text-[10.5px] text-emerald-200">Per Verification</span>
             </div>
             <button
-              onClick={() => setIsEditing(true)}
+              onClick={handleStartEdit}
               className="bg-emerald-500 hover:bg-emerald-400 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-colors flex items-center space-x-1"
             >
               <span>✏️ Change Price</span>

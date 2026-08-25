@@ -1,8 +1,36 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 
 export class PaymentController {
+  // Public API: Get current verification badge price for Android app & client apps
+  async getBadgePrice(req: Request, res: Response) {
+    try {
+      let setting = await prisma.systemSetting.findFirst();
+      if (!setting) {
+        setting = await prisma.systemSetting.create({
+          data: {
+            allowNewRegistrations: true,
+            maintenanceMode: false,
+            maxGroupSize: 1024,
+            retentionDays: 90,
+            verificationBadgePrice: 3.00
+          }
+        });
+      }
+      const price = setting.verificationBadgePrice ?? 3.00;
+      return res.json({
+        price,
+        verificationBadgePrice: price,
+        currency: 'USD',
+        formattedPrice: `$${price.toFixed(2)} USD`
+      });
+    } catch (error) {
+      console.error('Error fetching badge price:', error);
+      return res.status(500).json({ error: 'Failed to fetch badge price' });
+    }
+  }
+
   // Process $3.00 Green Verification Badge Payment
   async processVerificationPayment(req: AuthRequest, res: Response) {
     try {
