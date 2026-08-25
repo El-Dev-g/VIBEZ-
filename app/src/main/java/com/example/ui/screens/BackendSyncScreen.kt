@@ -114,14 +114,14 @@ fun BackendSyncScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.CloudSync,
-                            contentDescription = "Backend Cloud",
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = "Background Sync",
                             tint = WhatsAppMinimalPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Backend & Cloud Sync",
+                            text = "Background Synchronization",
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -301,7 +301,7 @@ fun BackendSyncScreen(
             // 2. BACKEND MATCH MATRIX TILES
             item {
                 Text(
-                    text = "SYNCHRONIZATION PIPELINE",
+                    text = "BACKGROUND SYNCHRONIZATION PIPELINE",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = WhatsAppMinimalPrimary,
@@ -375,7 +375,7 @@ fun BackendSyncScreen(
             // 3. REALTIME AND STORAGE CONFIGURATION
             item {
                 Text(
-                    text = "BACKEND CONTROLS",
+                    text = "BACKGROUND CONTROLS",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = WhatsAppMinimalPrimary,

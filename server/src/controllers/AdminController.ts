@@ -222,12 +222,41 @@ export class AdminController {
   async updateSettings(req: Request, res: Response) {
     try {
       const { id, ...data } = req.body;
+      let target = await prisma.systemSetting.findFirst();
+      
+      const allowNewRegistrations = data.allowNewRegistrations !== undefined ? Boolean(data.allowNewRegistrations) : undefined;
+      const maintenanceMode = data.maintenanceMode !== undefined ? Boolean(data.maintenanceMode) : undefined;
+      const maxGroupSize = data.maxGroupSize !== undefined && !isNaN(Number(data.maxGroupSize)) ? Number(data.maxGroupSize) : undefined;
+      const retentionDays = data.retentionDays !== undefined && !isNaN(Number(data.retentionDays)) ? Number(data.retentionDays) : undefined;
+      const verificationBadgePrice = data.verificationBadgePrice !== undefined && !isNaN(Number(data.verificationBadgePrice)) ? Number(data.verificationBadgePrice) : undefined;
+
+      if (!target) {
+        target = await prisma.systemSetting.create({
+          data: {
+            allowNewRegistrations: allowNewRegistrations ?? true,
+            maintenanceMode: maintenanceMode ?? false,
+            maxGroupSize: maxGroupSize ?? 1024,
+            retentionDays: retentionDays ?? 90,
+            verificationBadgePrice: verificationBadgePrice ?? 3.00
+          }
+        });
+        return res.json(target);
+      }
+
+      const updatePayload: any = {};
+      if (allowNewRegistrations !== undefined) updatePayload.allowNewRegistrations = allowNewRegistrations;
+      if (maintenanceMode !== undefined) updatePayload.maintenanceMode = maintenanceMode;
+      if (maxGroupSize !== undefined) updatePayload.maxGroupSize = maxGroupSize;
+      if (retentionDays !== undefined) updatePayload.retentionDays = retentionDays;
+      if (verificationBadgePrice !== undefined) updatePayload.verificationBadgePrice = verificationBadgePrice;
+
       const updated = await prisma.systemSetting.update({
-        where: { id },
-        data
+        where: { id: target.id },
+        data: updatePayload
       });
       res.json(updated);
     } catch (error) {
+      console.error('Update settings error:', error);
       res.status(500).json({ error: 'Failed to update settings' });
     }
   }

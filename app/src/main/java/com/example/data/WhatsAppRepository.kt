@@ -528,6 +528,15 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
+    suspend fun getSystemStatus(): SystemStatusResponse? {
+        return try {
+            NetworkClient.apiService.getSystemStatus()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     private val _allStatuses = MutableStateFlow<List<StatusEntity>>(emptyList())
     val allStatuses: StateFlow<List<StatusEntity>> = _allStatuses.asStateFlow()
 

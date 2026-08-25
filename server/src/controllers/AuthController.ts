@@ -51,6 +51,11 @@ export class AuthController {
       });
 
       if (!user) {
+        const settings = await prisma.systemSetting.findFirst();
+        if (settings && settings.allowNewRegistrations === false) {
+          return res.status(403).json({ error: 'New user registrations are currently disabled by system administrator.' });
+        }
+
         user = await prisma.user.create({
           data: {
             googleEmail: verifiedEmail,
@@ -61,6 +66,10 @@ export class AuthController {
           }
         });
       } else {
+        if (user.isBanned) {
+          return res.status(403).json({ error: 'Your account has been suspended by system administrator.' });
+        }
+
         await prisma.user.update({
           where: { id: user.id },
           data: {

@@ -136,4 +136,7 @@ interface ApiService {
     suspend fun getBadgeStatus(
         @Header("Authorization") token: String
     ): BadgeStatusResponse
+
+    @GET("api/system/status")
+    suspend fun getSystemStatus(): SystemStatusResponse
 }

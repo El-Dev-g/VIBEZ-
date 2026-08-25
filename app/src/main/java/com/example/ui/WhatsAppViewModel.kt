@@ -102,6 +102,9 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val isVerified = MutableStateFlow(false)
     val badgeStatus = MutableStateFlow<BadgeStatusResponse?>(null)
 
+    // Maintenance Mode State
+    val isMaintenanceMode = MutableStateFlow(false)
+
     // Contact Sync State
     val isSyncingContacts = MutableStateFlow(false)
     val syncStatusMessage = MutableStateFlow<String?>(null)
@@ -652,6 +655,15 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 onComplete(true, response.message)
             } else {
                 onComplete(false, response?.message ?: "Payment failed")
+            }
+        }
+    }
+
+    fun checkSystemStatus() {
+        viewModelScope.launch {
+            val status = repository.getSystemStatus()
+            if (status != null) {
+                isMaintenanceMode.value = status.maintenanceMode
             }
         }
     }

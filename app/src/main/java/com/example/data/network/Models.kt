@@ -204,3 +204,11 @@ data class BadgeStatusResponse(
     val payments: List<BadgePaymentDto> = emptyList()
 )
 
+@JsonClass(generateAdapter = true)
+data class SystemStatusResponse(
+    val status: String = "online",
+    val maintenanceMode: Boolean = false,
+    val allowNewRegistrations: Boolean = true,
+    val badgePrice: Double = 3.0
+)
+

@@ -14,6 +14,7 @@ import { CallController } from './controllers/CallController';
 import { AdminController } from './controllers/AdminController';
 import { PaymentController } from './controllers/PaymentController';
 import { authenticate } from './middleware/auth';
+import { checkMaintenanceMode } from './middleware/maintenance';
 
 dotenv.config();
 
@@ -28,6 +29,24 @@ const io = new Server(httpServer, {
 
 app.use(cors());
 app.use(express.json());
+
+// Maintenance Mode Enforcement Middleware for all /api requests
+app.use('/api', checkMaintenanceMode);
+
+// Public System Status Route
+app.get('/api/system/status', async (req, res) => {
+  try {
+    const setting = await prisma.systemSetting.findFirst();
+    res.json({
+      status: setting?.maintenanceMode ? 'maintenance' : 'online',
+      maintenanceMode: setting?.maintenanceMode || false,
+      allowNewRegistrations: setting?.allowNewRegistrations ?? true,
+      badgePrice: setting?.verificationBadgePrice ?? 3.00
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', maintenanceMode: false });
+  }
+});
 
 const storage = new StorageController();
 const auth = new AuthController();
@@ -127,6 +146,11 @@ io.on('connection', (socket) => {
   socket.on('send_message', async (data) => {
     // data: { chatId, senderId, receiverId, content, type, mediaUrl, duration }
     try {
+      const setting = await prisma.systemSetting.findFirst();
+      if (setting?.maintenanceMode) {
+        return socket.emit('error', { message: 'System is currently undergoing scheduled maintenance.' });
+      }
+
       const message = await prisma.message.create({
         data: {
           chatId: data.chatId,

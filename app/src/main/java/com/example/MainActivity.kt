@@ -88,6 +88,7 @@ import com.example.ui.screens.StatusViewersScreen
 import com.example.ui.screens.UserProfileScreen
 import com.example.ui.screens.VerificationCheckoutScreen
 import com.example.ui.screens.BadgesReceiptScreen
+import com.example.ui.screens.MaintenanceScreen
 import com.example.ui.screens.WallpaperSettingsScreen
 
 class MainActivity : ComponentActivity() {
@@ -178,6 +179,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
     val isVerified by viewModel.isVerified.collectAsState()
     val badgeStatus by viewModel.badgeStatus.collectAsState()
+    val isMaintenanceMode by viewModel.isMaintenanceMode.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.checkSystemStatus()
+    }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
@@ -224,7 +230,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
     val startDestination = "splash"
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    if (isMaintenanceMode) {
+        MaintenanceScreen(
+            onRetry = {
+                viewModel.checkSystemStatus()
+            }
+        )
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = startDestination
@@ -1144,5 +1157,6 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             }
         )
     }
+}
 }
 }

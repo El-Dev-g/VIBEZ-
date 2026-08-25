@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.AlertDialog
@@ -506,11 +507,11 @@ fun SettingsScreen(
                             onClick = onGoogleAuthClick
                         )
 
-                        // Backend & Cloud Synchronization Hub
+                        // Background Synchronization
                         VibesSettingClickRow(
-                            icon = Icons.Default.CloudSync,
-                            title = "Backend & Cloud Synchronization",
-                            subtitle = "Verify API live sync, WebSocket, and cloud storage",
+                            icon = Icons.Default.Sync,
+                            title = "Background Synchronization",
+                            subtitle = "Configure background data sync, push updates & frequency",
                             onClick = onBackendSyncClick
                         )
 
