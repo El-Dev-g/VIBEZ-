@@ -11,11 +11,12 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Sys
   const handleSave = async () => {
     setIsSaving(true);
     setToastMessage(null);
-    const success = await updateSettings(settings);
+    const result = await updateSettings(settings);
     setIsSaving(false);
 
-    if (success) {
-      setToastMessage('System settings & Verification Badge Price updated successfully!');
+    if (result) {
+      setSettings(result);
+      setToastMessage(`System settings & Verification Badge Price ($${result.verificationBadgePrice.toFixed(2)}) updated successfully!`);
       setTimeout(() => setToastMessage(null), 4000);
     } else {
       setToastMessage('Failed to save settings. Please try again.');

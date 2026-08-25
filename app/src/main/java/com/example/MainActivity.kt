@@ -877,6 +877,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
         // Green Verification Badge Checkout
         composable("verification_checkout") {
+            LaunchedEffect(Unit) {
+                viewModel.refreshBadgeStatus()
+            }
             VerificationCheckoutScreen(
                 badgePrice = badgeStatus?.badgePrice ?: 3.00,
                 priceText = badgeStatus?.price ?: "$3.00 USD",
@@ -894,6 +897,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
         // Green Verification Badge Status & Receipts
         composable("badges_receipt") {
+            LaunchedEffect(Unit) {
+                viewModel.refreshBadgeStatus()
+            }
             BadgesReceiptScreen(
                 badgeStatus = badgeStatus,
                 userName = currentUserName,

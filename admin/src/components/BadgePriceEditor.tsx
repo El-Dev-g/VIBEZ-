@@ -18,7 +18,8 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
         verificationBadgePrice: price
       });
       if (updated) {
-        setSuccessMsg(`Badge price updated to $${price.toFixed(2)} USD!`);
+        setPrice(updated.verificationBadgePrice);
+        setSuccessMsg(`Badge price updated to $${updated.verificationBadgePrice.toFixed(2)} USD!`);
         setIsEditing(false);
         setTimeout(() => setSuccessMsg(null), 3000);
       }

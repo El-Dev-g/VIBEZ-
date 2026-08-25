@@ -144,7 +144,7 @@ export const fetchReports = async (): Promise<Report[]> => {
 
 export const fetchSettings = async (): Promise<SystemSettings> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/settings`);
+    const res = await fetch(`${API_BASE_URL}/admin/settings`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch settings');
     return await res.json();
   } catch (error) {
@@ -159,17 +159,19 @@ export const fetchSettings = async (): Promise<SystemSettings> => {
   }
 };
 
-export const updateSettings = async (settings: SystemSettings): Promise<boolean> => {
+export const updateSettings = async (settings: SystemSettings): Promise<SystemSettings | null> => {
   try {
     const res = await fetch(`${API_BASE_URL}/admin/settings`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings)
+      body: JSON.stringify(settings),
+      cache: 'no-store'
     });
-    return res.ok;
+    if (!res.ok) return null;
+    return await res.json();
   } catch (error) {
     console.error(error);
-    return false;
+    return null;
   }
 };
 
@@ -259,7 +261,7 @@ export interface BadgeSummary {
 
 export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/badges`);
+    const res = await fetch(`${API_BASE_URL}/admin/badges`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch badge payments');
     const data = await res.json();
     return {

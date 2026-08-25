@@ -228,7 +228,9 @@ export class AdminController {
       const maintenanceMode = data.maintenanceMode !== undefined ? Boolean(data.maintenanceMode) : undefined;
       const maxGroupSize = data.maxGroupSize !== undefined && !isNaN(Number(data.maxGroupSize)) ? Number(data.maxGroupSize) : undefined;
       const retentionDays = data.retentionDays !== undefined && !isNaN(Number(data.retentionDays)) ? Number(data.retentionDays) : undefined;
-      const verificationBadgePrice = data.verificationBadgePrice !== undefined && !isNaN(Number(data.verificationBadgePrice)) ? Number(data.verificationBadgePrice) : undefined;
+      
+      const rawPrice = data.verificationBadgePrice !== undefined ? data.verificationBadgePrice : data.badgePrice;
+      const verificationBadgePrice = rawPrice !== undefined && rawPrice !== null && !isNaN(parseFloat(String(rawPrice))) ? parseFloat(String(rawPrice)) : undefined;
 
       if (!target) {
         target = await prisma.systemSetting.create({

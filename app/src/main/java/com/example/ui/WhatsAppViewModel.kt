@@ -630,12 +630,26 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshBadgeStatus() {
         viewModelScope.launch {
-            authManager.getAuthToken()?.let { token ->
+            val token = authManager.getAuthToken()
+            if (!token.isNullOrBlank()) {
                 val response = repository.getBadgeStatus(token)
                 if (response != null) {
                     badgeStatus.value = response
                     isVerified.value = response.isVerified
+                    return@launch
                 }
+            }
+            // Fallback or unauthenticated check: fetch from public system status endpoint
+            val systemStatus = repository.getSystemStatus()
+            if (systemStatus != null) {
+                val formattedPrice = String.format(java.util.Locale.US, "$%.2f USD", systemStatus.badgePrice)
+                badgeStatus.value = (badgeStatus.value ?: com.example.data.network.BadgeStatusResponse(
+                    isVerified = isVerified.value,
+                    verifiedAt = null
+                )).copy(
+                    badgePrice = systemStatus.badgePrice,
+                    price = formattedPrice
+                )
             }
         }
     }
@@ -664,6 +678,14 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             val status = repository.getSystemStatus()
             if (status != null) {
                 isMaintenanceMode.value = status.maintenanceMode
+                val formattedPrice = String.format(java.util.Locale.US, "$%.2f USD", status.badgePrice)
+                badgeStatus.value = (badgeStatus.value ?: com.example.data.network.BadgeStatusResponse(
+                    isVerified = isVerified.value,
+                    verifiedAt = null
+                )).copy(
+                    badgePrice = status.badgePrice,
+                    price = formattedPrice
+                )
             }
         }
     }

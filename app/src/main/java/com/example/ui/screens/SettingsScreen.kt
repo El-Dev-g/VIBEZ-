@@ -47,7 +47,6 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.AlertDialog
@@ -505,14 +504,6 @@ fun SettingsScreen(
                             title = "Google Account & Cloud Auth",
                             subtitle = googleEmail?.let { "Connected as $it" } ?: "Link Google Account & Drive Backup",
                             onClick = onGoogleAuthClick
-                        )
-
-                        // Background Synchronization
-                        VibesSettingClickRow(
-                            icon = Icons.Default.Sync,
-                            title = "Background Synchronization",
-                            subtitle = "Configure background data sync, push updates & frequency",
-                            onClick = onBackendSyncClick
                         )
 
                         // Security Shield
