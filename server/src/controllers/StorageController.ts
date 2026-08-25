@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '../lib/prisma';
 
 export class StorageController {
   private s3Client: S3Client;
@@ -19,9 +20,10 @@ export class StorageController {
     });
   }
 
-  async getPresignedUploadUrl(fileName: string, contentType: string) {
+  async getPresignedUploadUrl(fileName: string, contentType: string, uploaderId?: string, purpose: string = 'GENERAL') {
     const fileExtension = fileName.split('.').pop();
     const fileKey = `${uuidv4()}.${fileExtension}`;
+    const publicUrl = `${process.env.CLOUDFLARE_R2_PUBLIC_DOMAIN}/${fileKey}`;
 
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
@@ -32,10 +34,23 @@ export class StorageController {
     // URL valid for 1 hour
     const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
 
+    // Save to database
+    await prisma.storageAsset.create({
+      data: {
+        fileKey,
+        fileName,
+        contentType,
+        publicUrl,
+        uploaderId,
+        purpose,
+        size: 0 // Will be updated later if we had a callback, or estimated
+      }
+    });
+
     return {
       uploadUrl,
       fileKey,
-      publicUrl: `${process.env.CLOUDFLARE_R2_PUBLIC_DOMAIN}/${fileKey}`
+      publicUrl
     };
   }
 }

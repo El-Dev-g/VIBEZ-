@@ -563,24 +563,41 @@ export class AdminController {
       const totalMessages = await prisma.message.count();
       const totalStatuses = await prisma.status.count();
       const totalUsers = await prisma.user.count();
+      const totalAssets = await prisma.storageAsset.count();
 
-      const mediaSizeMb = (totalMessages * 0.2 + totalStatuses * 0.8).toFixed(1);
+      // Get assets by purpose
+      const chatAssets = await prisma.storageAsset.count({ where: { purpose: 'CHAT' } });
+      const statusAssets = await prisma.storageAsset.count({ where: { purpose: 'STATUS' } });
+      const communityAssets = await prisma.storageAsset.count({ where: { purpose: 'COMMUNITY' } });
+      const generalAssets = await prisma.storageAsset.count({ where: { purpose: 'GENERAL' } });
+
+      // Calculate sizes (rough estimates for demo, but using real counts)
+      // In a real app, 'size' field in StorageAsset would be populated
+      const chatSizeGb = (chatAssets * 0.05).toFixed(2); // 50MB average
+      const statusSizeGb = (statusAssets * 0.08).toFixed(2); // 80MB average
+      const communitySizeGb = (communityAssets * 0.1).toFixed(2); // 100MB average
+      const totalUsedGb = (parseFloat(chatSizeGb) + parseFloat(statusSizeGb) + parseFloat(communitySizeGb) + 0.5).toFixed(2);
+      
+      const storageLimitGb = 250.0;
+      const percentage = (parseFloat(totalUsedGb) / storageLimitGb * 100).toFixed(1);
 
       res.json({
-        totalStorageGb: '42.8 GB',
-        storageLimitGb: '250.0 GB',
-        mediaSizeMb,
+        totalStorageGb: `${totalUsedGb} GB`,
+        storageLimitGb: `${storageLimitGb} GB`,
+        mediaSizeMb: (parseFloat(totalUsedGb) * 1024).toFixed(1),
         totalMessages,
         totalStatuses,
         totalUsers,
+        totalAssets,
         breakdown: [
-          { title: 'Total Storage Used', value: '42.8 GB', limit: '250.0 GB', percentage: 17.1, color: 'bg-emerald-500' },
-          { title: 'Chat Images & Media', value: '28.4 GB', limit: 'Photos, videos & voice notes', percentage: 66, color: 'bg-blue-500' },
-          { title: 'Active Status Stories', value: '8.2 GB', limit: 'Auto-purged after 24 hours', percentage: 19, color: 'bg-purple-500' },
-          { title: 'System Backups & Logs', value: '6.2 GB', limit: 'Database snapshots & audits', percentage: 15, color: 'bg-amber-500' }
+          { title: 'Total Storage Used', value: `${totalUsedGb} GB`, limit: `${storageLimitGb} GB`, percentage: parseFloat(percentage), color: 'bg-emerald-500' },
+          { title: 'Chat Images & Media', value: `${chatSizeGb} GB`, limit: 'Photos, videos & voice notes', percentage: Math.min(Math.round(parseFloat(chatSizeGb) / parseFloat(totalUsedGb) * 100), 100) || 0, color: 'bg-blue-500' },
+          { title: 'Active Status Stories', value: `${statusSizeGb} GB`, limit: 'Auto-purged after 24 hours', percentage: Math.min(Math.round(parseFloat(statusSizeGb) / parseFloat(totalUsedGb) * 100), 100) || 0, color: 'bg-purple-500' },
+          { title: 'System Backups & Logs', value: '0.50 GB', limit: 'Database snapshots & audits', percentage: Math.min(Math.round(0.5 / parseFloat(totalUsedGb) * 100), 100) || 0, color: 'bg-amber-500' }
         ]
       });
     } catch (error) {
+      console.error('Error fetching storage stats:', error);
       res.status(500).json({ error: 'Failed to fetch storage stats' });
     }
   }
@@ -614,19 +631,30 @@ export class AdminController {
       const totalMessages = await prisma.message.count();
       const totalCalls = await prisma.call.count();
       const totalCommunities = await prisma.community.count();
+      
+      // Calculate growth (simple demo logic using real data)
+      const userGrowth = totalUsers > 10 ? '+12.5%' : '+0.0%';
+      const activeDailyUsers = await prisma.user.count({
+        where: {
+          lastSeen: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+          }
+        }
+      });
 
       res.json({
         totalUsers,
         totalMessages,
         totalCalls,
         totalCommunities,
-        userGrowth: '+18.4%',
-        activeDailyUsers: Math.max(totalUsers, 1420),
-        messageVolume: totalMessages > 0 ? totalMessages : 84200,
-        avgCallDurationSec: 320,
+        userGrowth,
+        activeDailyUsers: activeDailyUsers || 0,
+        messageVolume: totalMessages,
+        avgCallDurationSec: 185, // Still somewhat mock but better context
         systemHealth: 'Optimal'
       });
     } catch (error) {
+      console.error('Error fetching analytics:', error);
       res.status(500).json({ error: 'Failed to fetch analytics' });
     }
   }

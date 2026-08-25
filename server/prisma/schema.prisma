@@ -272,3 +272,16 @@ model BadgePayment {
   user User @relation(fields: [userId], references: [id])
 }
 
+model StorageAsset {
+  id          String   @id @default(uuid())
+  fileKey     String   @unique
+  fileName    String
+  contentType String
+  size        Int      @default(0) // in bytes
+  publicUrl   String
+  uploaderId  String?  // userId if applicable
+  purpose     String   @default("GENERAL") // CHAT, STATUS, COMMUNITY, PROFILE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
