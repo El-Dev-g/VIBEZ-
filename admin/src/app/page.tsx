@@ -1,6 +1,8 @@
 import { fetchSystemMetrics, fetchUsers } from '@/services/api';
 import UserTable from '@/components/UserTable';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   const metrics = await fetchSystemMetrics();
   const users = await fetchUsers();
