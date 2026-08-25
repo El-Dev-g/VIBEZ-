@@ -112,7 +112,7 @@ export class AdminController {
           id: true,
           name: true,
           phoneNumber: true,
-          bio: true,
+          about: true,
           avatarUrl: true,
           isBanned: true,
           isVerified: true,

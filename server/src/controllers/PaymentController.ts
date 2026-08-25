@@ -146,7 +146,7 @@ export class PaymentController {
   }
 
   // Admin: Get all badge payments & total verification revenue
-  async getAdminBadgePayments(req: Response, res: Response) {
+  async getAdminBadgePayments(req: Request, res: Response) {
     try {
       const payments = await prisma.badgePayment.findMany({
         include: {
@@ -187,7 +187,7 @@ export class PaymentController {
   }
 
   // Admin: Revoke or Grant Badge
-  async toggleUserBadge(req: Response, res: Response) {
+  async toggleUserBadge(req: Request, res: Response) {
     try {
       const { userId } = req.params;
       const { isVerified, adminEmail } = req.body;

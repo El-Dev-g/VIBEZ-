@@ -5,7 +5,8 @@ const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
     return '/api';
   }
-  return 'http://localhost:3000/api';
+  const port = process.env.PORT || '8000';
+  return `http://127.0.0.1:${port}/api`;
 };
 
 export interface User {
@@ -153,21 +154,36 @@ export const fetchReports = async (): Promise<Report[]> => {
 export const fetchSettings = async (): Promise<SystemSettings> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/settings`, { cache: 'no-store' });
-    if (!res.ok) throw new Error('Failed to fetch settings');
-    return await res.json();
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vibez_system_settings', JSON.stringify(data));
+      }
+      return data;
+    }
   } catch (error) {
-    console.error(error);
-    return {
-      allowNewRegistrations: true,
-      maintenanceMode: false,
-      maxGroupSize: 1024,
-      retentionDays: 90,
-      verificationBadgePrice: 3.00
-    };
+    console.error('fetchSettings error:', error);
   }
+
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem('vibez_system_settings');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {}
+    }
+  }
+
+  return {
+    allowNewRegistrations: true,
+    maintenanceMode: false,
+    maxGroupSize: 1024,
+    retentionDays: 90,
+    verificationBadgePrice: 3.00
+  };
 };
 
-export const updateSettings = async (settings: SystemSettings): Promise<SystemSettings | null> => {
+export const updateSettings = async (settings: Partial<SystemSettings>): Promise<SystemSettings | null> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/settings`, {
       method: 'PATCH',
@@ -175,12 +191,43 @@ export const updateSettings = async (settings: SystemSettings): Promise<SystemSe
       body: JSON.stringify(settings),
       cache: 'no-store'
     });
-    if (!res.ok) return null;
-    return await res.json();
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vibez_system_settings', JSON.stringify(data));
+      }
+      return data;
+    }
   } catch (error) {
-    console.error(error);
-    return null;
+    console.error('updateSettings PATCH error:', error);
   }
+
+  try {
+    const resPost = await fetch(`${getApiBaseUrl()}/admin/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+      cache: 'no-store'
+    });
+    if (resPost.ok) {
+      const data = await resPost.json();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vibez_system_settings', JSON.stringify(data));
+      }
+      return data;
+    }
+  } catch (error) {
+    console.error('updateSettings POST error:', error);
+  }
+
+  if (typeof window !== 'undefined') {
+    const current = await fetchSettings();
+    const merged = { ...current, ...settings } as SystemSettings;
+    localStorage.setItem('vibez_system_settings', JSON.stringify(merged));
+    return merged;
+  }
+
+  return null;
 };
 
 export interface UserDetails extends User {

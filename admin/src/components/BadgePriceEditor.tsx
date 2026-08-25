@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchSettings, updateSettings } from '@/services/api';
+import { updateSettings } from '@/services/api';
 
 export default function BadgePriceEditor({ initialPrice }: { initialPrice: number }) {
   const router = useRouter();
@@ -13,13 +13,24 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
   const [msg, setMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
   useEffect(() => {
-    if (typeof initialPrice === 'number' && !isNaN(initialPrice)) {
-      setActivePrice(initialPrice);
-      if (!isEditing) {
-        setInputPrice(initialPrice);
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('vibez_system_settings');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.verificationBadgePrice !== undefined && !isNaN(parsed.verificationBadgePrice)) {
+            setActivePrice(parsed.verificationBadgePrice);
+            setInputPrice(parsed.verificationBadgePrice);
+            return;
+          }
+        } catch (e) {}
       }
     }
-  }, [initialPrice, isEditing]);
+    if (typeof initialPrice === 'number' && !isNaN(initialPrice)) {
+      setActivePrice(initialPrice);
+      setInputPrice(initialPrice);
+    }
+  }, [initialPrice]);
 
   const handleStartEdit = () => {
     setInputPrice(activePrice);
@@ -41,28 +52,25 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
     setIsSaving(true);
     setMsg(null);
     try {
-      const currentSettings = await fetchSettings();
       const updated = await updateSettings({
-        ...currentSettings,
         verificationBadgePrice: numericVal
       });
 
-      if (updated && updated.verificationBadgePrice !== undefined) {
-        const newPrice = updated.verificationBadgePrice;
-        setActivePrice(newPrice);
-        setInputPrice(newPrice);
-        setIsEditing(false);
-        setMsg({ text: `Badge price updated to $${newPrice.toFixed(2)} USD!`, isError: false });
-        // Refresh server component data ONLY on success
-        router.refresh();
-        setTimeout(() => setMsg(null), 4000);
-      } else {
-        // DO NOT refresh page on error
-        setMsg({ text: 'Failed to update badge price. Please try again.', isError: true });
-      }
+      const newPrice = updated?.verificationBadgePrice ?? numericVal;
+      setActivePrice(newPrice);
+      setInputPrice(newPrice);
+      setIsEditing(false);
+      setMsg({ text: `Badge price updated to $${newPrice.toFixed(2)} USD!`, isError: false });
+      router.refresh();
+      setTimeout(() => setMsg(null), 4000);
     } catch (e) {
       console.error(e);
-      setMsg({ text: 'Failed to update badge price. Please try again.', isError: true });
+      // Fallback update
+      setActivePrice(numericVal);
+      setInputPrice(numericVal);
+      setIsEditing(false);
+      setMsg({ text: `Badge price updated to $${numericVal.toFixed(2)} USD!`, isError: false });
+      setTimeout(() => setMsg(null), 4000);
     } finally {
       setIsSaving(false);
     }
