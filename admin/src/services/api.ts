@@ -1,4 +1,12 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const getApiBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    return '/api';
+  }
+  return 'http://localhost:3000/api';
+};
 
 export interface User {
   id: string;
@@ -27,7 +35,7 @@ export interface AuditLog {
 
 export const loginAdmin = async (email: string, password: string): Promise<AdminUser | null> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/login`, {
+    const res = await fetch(`${getApiBaseUrl()}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -42,7 +50,7 @@ export const loginAdmin = async (email: string, password: string): Promise<Admin
 
 export const fetchAuditLogs = async (): Promise<AuditLog[]> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/logs`);
+    const res = await fetch(`${getApiBaseUrl()}/admin/logs`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch logs');
     const data = await res.json();
     return data.map((l: any) => ({
@@ -69,7 +77,7 @@ export interface SystemMetrics {
 
 export const fetchSystemMetrics = async (): Promise<SystemMetrics> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/metrics`);
+    const res = await fetch(`${getApiBaseUrl()}/admin/metrics`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch metrics');
     return await res.json();
   } catch (error) {
@@ -87,7 +95,7 @@ export const fetchSystemMetrics = async (): Promise<SystemMetrics> => {
 
 export const fetchUsers = async (): Promise<User[]> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/users`);
+    const res = await fetch(`${getApiBaseUrl()}/admin/users`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch users');
     const data = await res.json();
     return data.map((u: any) => ({
@@ -125,7 +133,7 @@ export interface SystemSettings {
 
 export const fetchReports = async (): Promise<Report[]> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/reports`);
+    const res = await fetch(`${getApiBaseUrl()}/admin/reports`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch reports');
     const data = await res.json();
     return data.map((r: any) => ({
@@ -144,7 +152,7 @@ export const fetchReports = async (): Promise<Report[]> => {
 
 export const fetchSettings = async (): Promise<SystemSettings> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/settings`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/settings`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch settings');
     return await res.json();
   } catch (error) {
@@ -161,7 +169,7 @@ export const fetchSettings = async (): Promise<SystemSettings> => {
 
 export const updateSettings = async (settings: SystemSettings): Promise<SystemSettings | null> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/settings`, {
+    const res = await fetch(`${getApiBaseUrl()}/admin/settings`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
@@ -186,7 +194,7 @@ export interface UserDetails extends User {
 
 export const fetchUserById = async (userId: string): Promise<UserDetails | null> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/users/${userId}`);
+    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}`, { cache: 'no-store' });
     if (!res.ok) return null;
     const u = await res.json();
     return {
@@ -210,7 +218,7 @@ export const fetchUserById = async (userId: string): Promise<UserDetails | null>
 
 export const banUser = async (userId: string): Promise<boolean> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/ban`, {
+    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/ban`, {
       method: 'POST'
     });
     return res.ok;
@@ -222,7 +230,7 @@ export const banUser = async (userId: string): Promise<boolean> => {
 
 export const unbanUser = async (userId: string): Promise<boolean> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/unban`, {
+    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/unban`, {
       method: 'POST'
     });
     return res.ok;
@@ -261,7 +269,7 @@ export interface BadgeSummary {
 
 export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/badges`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/badges`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch badge payments');
     const data = await res.json();
     return {
@@ -282,7 +290,7 @@ export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
 
 export const toggleUserVerificationBadge = async (userId: string, isVerified: boolean): Promise<boolean> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/badge`, {
+    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/badge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isVerified })

@@ -1,24 +1,33 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { SystemSettings, updateSettings } from '@/services/api';
 
 export default function SettingsForm({ initialSettings }: { initialSettings: SystemSettings }) {
+  const router = useRouter();
   const [settings, setSettings] = useState<SystemSettings>(initialSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
     setToastMessage(null);
+    setIsError(false);
     const result = await updateSettings(settings);
     setIsSaving(false);
 
     if (result) {
       setSettings(result);
+      setIsError(false);
       setToastMessage(`System settings & Verification Badge Price ($${result.verificationBadgePrice.toFixed(2)}) updated successfully!`);
+      // Refresh page data ONLY on success
+      router.refresh();
       setTimeout(() => setToastMessage(null), 4000);
     } else {
+      // DO NOT refresh page on failure
+      setIsError(true);
       setToastMessage('Failed to save settings. Please try again.');
     }
   };
@@ -117,7 +126,9 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Sys
       </div>
 
       {toastMessage && (
-        <div className="px-6 py-2 bg-emerald-100 text-emerald-800 text-xs font-semibold">
+        <div className={`px-6 py-2.5 text-xs font-semibold ${
+          isError ? 'bg-red-100 text-red-800 border-l-4 border-red-500' : 'bg-emerald-100 text-emerald-800 border-l-4 border-emerald-500'
+        }`}>
           {toastMessage}
         </div>
       )}

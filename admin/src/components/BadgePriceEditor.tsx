@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { fetchSettings, updateSettings } from '@/services/api';
 
 export default function BadgePriceEditor({ initialPrice }: { initialPrice: number }) {
+  const router = useRouter();
   const [price, setPrice] = useState<number>(initialPrice);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
   const handleSavePrice = async () => {
     setIsSaving(true);
+    setMsg(null);
     try {
       const currentSettings = await fetchSettings();
       const updated = await updateSettings({
@@ -19,12 +22,18 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
       });
       if (updated) {
         setPrice(updated.verificationBadgePrice);
-        setSuccessMsg(`Badge price updated to $${updated.verificationBadgePrice.toFixed(2)} USD!`);
+        setMsg({ text: `Badge price updated to $${updated.verificationBadgePrice.toFixed(2)} USD!`, isError: false });
         setIsEditing(false);
-        setTimeout(() => setSuccessMsg(null), 3000);
+        // Refresh server component data ONLY on success
+        router.refresh();
+        setTimeout(() => setMsg(null), 4000);
+      } else {
+        // DO NOT refresh page on error
+        setMsg({ text: 'Failed to update badge price. Please try again.', isError: true });
       }
     } catch (e) {
       console.error(e);
+      setMsg({ text: 'Failed to update badge price. Please try again.', isError: true });
     } finally {
       setIsSaving(false);
     }
@@ -84,9 +93,11 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
         )}
       </div>
 
-      {successMsg && (
-        <div className="w-full text-xs font-semibold bg-emerald-800 text-emerald-200 p-2 rounded-lg text-center">
-          {successMsg}
+      {msg && (
+        <div className={`w-full text-xs font-semibold p-2.5 rounded-lg text-center ${
+          msg.isError ? 'bg-red-800 text-red-100' : 'bg-emerald-800 text-emerald-200'
+        }`}>
+          {msg.text}
         </div>
       )}
     </div>
