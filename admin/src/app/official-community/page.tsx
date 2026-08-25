@@ -97,6 +97,33 @@ export default function OfficialCommunityPage() {
     );
   }
 
+  if (!community && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6">
+        <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center text-3xl">🏛️</div>
+        <div className="text-center">
+          <h2 className="text-2xl font-black text-slate-900">No Official Community Found</h2>
+          <p className="text-slate-500 font-bold mt-2">The system community has not been initialized yet.</p>
+        </div>
+        <button 
+          onClick={async () => {
+            setIsLoading(true);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/admin/communities/official`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: 'VIBEZ Official', description: 'System community' })
+            });
+            if (res.ok) loadData();
+            setIsLoading(false);
+          }}
+          className="px-8 py-4 bg-emerald-500 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-600 transition-all"
+        >
+          Initialize System Community
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-10 animate-fadeIn">
       {/* Header */}

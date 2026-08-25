@@ -160,6 +160,11 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 authManager.getAuthToken()?.let { token ->
                     repository.syncStatuses(token)
                     repository.syncCommunities(token)
+                    
+                    // Trigger background contact sync if permission would likely be granted or just try
+                    // Note: Actual permission check happens in UI, but we can attempt to sync what we have
+                    // or just wait for the SelectContactScreen. 
+                    // Let's at least sync with backend for existing local contacts if any.
                 }
             }
         }

@@ -396,6 +396,7 @@ export interface AdminCommunityItem {
   members: number;
   channels: number;
   status: string;
+  isOfficial?: boolean;
 }
 
 export const fetchAdminCommunities = async (): Promise<AdminCommunityItem[]> => {
@@ -405,13 +406,21 @@ export const fetchAdminCommunities = async (): Promise<AdminCommunityItem[]> => 
   } catch (error) {
     console.error(error);
   }
-  return [
-    { id: 'c1', name: 'VIBEZ Creators Hub', members: 1240, channels: 8, status: 'Active', category: 'General', description: 'Creators Hub' },
-    { id: 'c2', name: 'Android Developers Club', members: 890, channels: 5, status: 'Active', category: 'Tech', description: 'Developers Club' },
-    { id: 'c3', name: 'Global Music Lounge', members: 3450, channels: 12, status: 'Active', category: 'Entertainment', description: 'Music Lounge' },
-    { id: 'c4', name: 'Gaming Community', members: 2100, channels: 6, status: 'Active', category: 'Gaming', description: 'Gaming' },
-    { id: 'c5', name: 'Crypto & Fintech Chat', members: 530, channels: 4, status: 'Moderated', category: 'Finance', description: 'Fintech' },
-  ];
+  return [];
+};
+
+export const createOfficialCommunity = async (name: string, description: string): Promise<any> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/official`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description })
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return null;
 };
 
 export const fetchStorageStats = async (): Promise<any> => {
@@ -455,19 +464,7 @@ export const fetchOfficialCommunity = async (): Promise<any> => {
   } catch (error) {
     console.error(error);
   }
-  return {
-    id: 'official-v',
-    name: 'VIBEZ Official',
-    description: 'The official system community for all VIBEZ citizens. Receive latest protocol updates and global announcements here.',
-    membersCount: 1420,
-    isOfficial: true,
-    allowComments: false,
-    allowReactions: true,
-    posts: [
-      { id: 'p1', content: 'Welcome to the Official VIBEZ Community! 🚀', type: 'TEXT', createdAt: new Date().toISOString(), likes: 245, comments: 0 },
-      { id: 'p2', content: 'Protocol Update v2.1.0 is now live. Please refresh your signal interface.', type: 'TEXT', createdAt: new Date(Date.now() - 86400000).toISOString(), likes: 182, comments: 0 }
-    ]
-  };
+  return null;
 };
 
 export const updateOfficialCommunity = async (data: any): Promise<any> => {
@@ -481,36 +478,31 @@ export const updateOfficialCommunity = async (data: any): Promise<any> => {
   } catch (error) {
     console.error(error);
   }
-  return { success: true, ...data };
+  return null;
 };
 
-export const createOfficialPost = async (communityId: String, post: any): Promise<any> => {
+export const createOfficialPost = async (communityId: string, postData: any): Promise<any> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/official-community/posts`, {
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/posts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ communityId, ...post })
+      body: JSON.stringify(postData)
     });
     if (res.ok) return await res.json();
   } catch (error) {
     console.error(error);
   }
-  return { id: `p_${Date.now()}`, ...post, createdAt: new Date().toISOString(), likes: 0, comments: 0 };
+  return null;
 };
 
 export const fetchOfficialCommunityMembers = async (communityId: string): Promise<any[]> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/official-community/members?communityId=${communityId}`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/members`, { cache: 'no-store' });
     if (res.ok) return await res.json();
   } catch (error) {
     console.error(error);
   }
-  return [
-    { id: 'u1', name: 'John Doe', phoneNumber: '+1 555-0101', status: 'Active', joinedAt: '2026-01-15', isFlagged: false },
-    { id: 'u2', name: 'Sarah Miller', phoneNumber: '+1 555-0102', status: 'Active', joinedAt: '2026-02-20', isFlagged: true },
-    { id: 'u3', name: 'Alex Rivera', phoneNumber: '+1 555-0103', status: 'Active', joinedAt: '2026-03-05', isFlagged: false },
-    { id: 'u4', name: 'Elena Rostova', phoneNumber: '+1 555-0104', status: 'Banned', joinedAt: '2026-01-10', isFlagged: false },
-  ];
+  return [];
 };
 
 export const flagUserInCommunity = async (userId: string, isFlagged: boolean): Promise<boolean> => {
@@ -534,22 +526,6 @@ export const fetchAnalytics = async (): Promise<any> => {
   } catch (error) {
     console.error(error);
   }
-  return {
-    totalUsers: '1,420',
-    userGrowth: '+18.4%',
-    totalMessages: '84,200',
-    totalCalls: '320',
-    totalCommunities: '12',
-    activeDailyUsers: 1420,
-    latency: '12ms',
-    packetLoss: '0.01%',
-    codec: 'Opus / VP8',
-    recentCalls: [
-      { id: 'call_101', type: 'Voice Call', duration: '04:12', caller: 'John Doe', receiver: 'Sarah Miller', status: 'Completed', latency: '32ms' },
-      { id: 'call_102', type: 'Video Call', duration: '12:45', caller: 'Alex Rivera', receiver: 'Tech Hub', status: 'Completed', latency: '48ms' },
-      { id: 'call_103', type: 'Video Call', duration: '08:10', caller: 'David Chen', receiver: 'Elena Rostova', status: 'Ongoing', latency: '28ms' },
-      { id: 'call_104', type: 'Voice Call', duration: '00:45', caller: 'Maria Garcia', receiver: 'Carlos Ruiz', status: 'Completed', latency: '35ms' },
-    ]
-  };
+  return null;
 };
 

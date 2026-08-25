@@ -432,7 +432,10 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         )
     }
 
-    suspend fun deleteExpiredStatuses() {}
+    suspend fun deleteExpiredStatuses() {
+        val twentyFourHoursAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000L)
+        _allStatuses.value = _allStatuses.value.filter { it.timestamp > twentyFourHoursAgo }
+    }
     suspend fun clearCallLogs() {
         _allCallLogs.value = emptyList()
     }

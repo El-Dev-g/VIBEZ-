@@ -77,8 +77,18 @@ fun MyStatusListScreen(
     onDeleteStatus: (String) -> Unit,
     onCreateStatusClick: () -> Unit
 ) {
-    val myStatuses = remember(statuses) {
-        statuses.filter { it.isMyStatus }.sortedByDescending { it.timestamp }
+    var currentTime by androidx.compose.runtime.remember { mutableStateOf<Long>(System.currentTimeMillis()) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60000)
+            currentTime = System.currentTimeMillis()
+        }
+    }
+
+    val myStatuses = remember(statuses, currentTime) {
+        val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
+        statuses.filter { it.isMyStatus && (currentTime - it.timestamp) < twentyFourHoursMillis }
+            .sortedByDescending { it.timestamp }
     }
 
     var statusToDelete by remember { mutableStateOf<StatusEntity?>(null) }
@@ -261,9 +271,9 @@ fun MyStatusListScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             
-                            val timeLeftMillis = remember(status.timestamp) {
+                            val timeLeftMillis = remember(status.timestamp, currentTime) {
                                 val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
-                                val elapsed = System.currentTimeMillis() - status.timestamp
+                                val elapsed = currentTime - status.timestamp
                                 (twentyFourHoursMillis - elapsed).coerceAtLeast(0L)
                             }
                             

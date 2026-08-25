@@ -109,6 +109,11 @@ app.post('/api/admin/broadcasts', (req, res) => admin.sendBroadcast(req, res));
 
 // Additional Admin Pages Routes
 app.get('/api/admin/communities', (req, res) => admin.getAdminCommunities(req, res));
+app.post('/api/admin/communities/official', (req, res) => admin.createOfficialCommunity(req, res));
+app.get('/api/admin/official-community', (req, res) => admin.getOfficialCommunity(req, res));
+app.post('/api/admin/official-community', (req, res) => admin.updateOfficialCommunity(req, res));
+app.get('/api/admin/communities/:communityId/members', (req, res) => admin.getOfficialCommunityMembers(req, res));
+app.post('/api/admin/communities/:communityId/posts', (req, res) => admin.createOfficialPost(req, res));
 app.get('/api/admin/storage', (req, res) => admin.getStorageStats(req, res));
 app.post('/api/admin/storage/purge', (req, res) => admin.purgeStorageCache(req, res));
 app.get('/api/admin/analytics', (req, res) => admin.getAnalytics(req, res));

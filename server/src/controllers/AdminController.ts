@@ -379,16 +379,159 @@ export class AdminController {
         id: c.id,
         name: c.name,
         description: c.description || 'VIBEZ Public Community',
-        category: 'General',
-        members: c._count.members || 1,
-        channels: c._count.channels || 1,
+        category: c.isOfficial ? 'System' : 'General',
+        members: c._count.members || 0,
+        channels: c._count.channels || 0,
         status: 'Active',
+        isOfficial: c.isOfficial,
         createdAt: c.createdAt
       }));
 
       res.json(formatted);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch admin communities' });
+    }
+  }
+
+  async createOfficialCommunity(req: Request, res: Response) {
+    try {
+      const { name, description, adminEmail } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: 'Name is required' });
+      }
+
+      const community = await prisma.community.create({
+        data: {
+          name,
+          description,
+          isOfficial: true,
+          ownerId: 'system',
+          allowComments: true,
+          allowReactions: true
+        }
+      });
+
+      // Create a default chat channel for this community
+      await prisma.chat.create({
+        data: {
+          name: 'Global General',
+          isGroup: true,
+          communityId: community.id
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || 'system',
+          action: 'CREATE_OFFICIAL_COMMUNITY',
+          target: community.id
+        }
+      });
+
+      res.json(community);
+    } catch (error) {
+      console.error('Error creating official community:', error);
+      res.status(500).json({ error: 'Failed to create official community' });
+    }
+  }
+
+  async getOfficialCommunity(req: Request, res: Response) {
+    try {
+      let community = await prisma.community.findFirst({
+        where: { isOfficial: true },
+        include: {
+          posts: {
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+            include: {
+              _count: {
+                select: { reactions: true, comments: true }
+              }
+            }
+          },
+          _count: {
+            select: { members: true }
+          }
+        }
+      });
+
+      if (!community) {
+        community = await prisma.community.create({
+          data: {
+            name: 'VIBEZ Official',
+            description: 'The official system community for all VIBEZ citizens.',
+            isOfficial: true,
+            ownerId: 'system',
+          },
+          include: {
+            posts: true,
+            _count: { select: { members: true } }
+          }
+        }) as any;
+      }
+
+      res.json(community);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch official community' });
+    }
+  }
+
+  async updateOfficialCommunity(req: Request, res: Response) {
+    try {
+      const { id, name, description, allowComments, allowReactions } = req.body;
+      const updated = await prisma.community.update({
+        where: { id },
+        data: { name, description, allowComments, allowReactions }
+      });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update community' });
+    }
+  }
+
+  async createOfficialPost(req: Request, res: Response) {
+    try {
+      const { communityId } = req.params;
+      const { content, type, mediaUrl } = req.body;
+      const post = await prisma.officialPost.create({
+        data: {
+          communityId,
+          content,
+          type: type || 'TEXT',
+          mediaUrl
+        },
+        include: {
+          _count: {
+            select: { reactions: true, comments: true }
+          }
+        }
+      });
+      res.json(post);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create official post' });
+    }
+  }
+
+  async getOfficialCommunityMembers(req: Request, res: Response) {
+    try {
+      const { communityId } = req.params;
+      const members = await prisma.communityMember.findMany({
+        where: { communityId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phoneNumber: true,
+              avatarUrl: true,
+              isBanned: true
+            }
+          }
+        }
+      });
+      res.json(members.map(m => ({ ...m.user, role: m.role })));
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch members' });
     }
   }
 

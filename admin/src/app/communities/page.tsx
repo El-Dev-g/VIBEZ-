@@ -1,33 +1,52 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchAdminCommunities, AdminCommunityItem } from '@/services/api';
+import { fetchAdminCommunities, createOfficialCommunity, AdminCommunityItem } from '@/services/api';
 
 export default function CommunitiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [communities, setCommunities] = useState<AdminCommunityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [newCommunity, setNewCommunity] = useState({ name: '', description: '' });
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      const data = await fetchAdminCommunities();
-      setCommunities(data || []);
-      setIsLoading(false);
-    };
-    load();
+    loadCommunities();
   }, []);
 
-  const filtered = communities.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const loadCommunities = async () => {
+    setIsLoading(true);
+    const data = await fetchAdminCommunities();
+    setCommunities(data || []);
+    setIsLoading(false);
+  };
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
+
+  const handleCreate = async () => {
+    if (!newCommunity.name) return;
+    setIsCreating(true);
+    const result = await createOfficialCommunity(newCommunity.name, newCommunity.description);
+    if (result) {
+      showToast('Official Community created successfully!');
+      setShowModal(false);
+      setNewCommunity({ name: '', description: '' });
+      loadCommunities();
+    } else {
+      showToast('Failed to create community.');
+    }
+    setIsCreating(false);
+  };
+
+  const filtered = communities.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <div className="space-y-10 animate-fadeIn">
@@ -37,7 +56,7 @@ export default function CommunitiesPage() {
           <p className="text-slate-500 font-bold mt-1">Oversee public channels, member limits, and group moderation.</p>
         </div>
         <button 
-          onClick={() => showToast('Create Community dialog opened!')}
+          onClick={() => setShowModal(true)}
           className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-4 text-sm font-black text-white hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,6 +65,56 @@ export default function CommunitiesPage() {
           Create Official Community
         </button>
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 p-8 space-y-6 animate-scaleIn">
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Create Official Community</h3>
+              <p className="text-slate-500 font-bold text-sm mt-1">Launch a new system-verified community for all citizens.</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Community Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. VIBEZ Official Support"
+                  value={newCommunity.name}
+                  onChange={(e) => setNewCommunity({ ...newCommunity, name: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Mission Statement</label>
+                <textarea
+                  placeholder="What is the purpose of this community?"
+                  value={newCommunity.description}
+                  onChange={(e) => setNewCommunity({ ...newCommunity, description: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 transition-all min-h-[120px] resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-4 bg-slate-50 text-slate-400 hover:bg-slate-100 font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all"
+              >
+                Abort
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={isCreating || !newCommunity.name}
+                className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50"
+              >
+                {isCreating ? 'Synchronizing...' : 'Initialize Community'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl text-sm font-black border border-emerald-100 animate-fadeIn">
@@ -107,6 +176,9 @@ export default function CommunitiesPage() {
                             {c.name.charAt(0)}
                           </div>
                           <div className="text-sm font-black text-slate-900">{c.name}</div>
+                          {c.isOfficial && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase tracking-widest">Official</span>
+                          )}
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-8 py-6">

@@ -38,6 +38,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,11 +88,24 @@ fun StatusListScreen(
     onMyStatusListClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val myStatuses = remember(statuses) { statuses.filter { it.isMyStatus }.sortedBy { it.timestamp } }
+    var currentTime by androidx.compose.runtime.remember { mutableStateOf<Long>(System.currentTimeMillis()) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60000) // Update every minute
+            currentTime = System.currentTimeMillis()
+        }
+    }
+
+    val activeStatuses = remember(statuses, currentTime) {
+        val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
+        statuses.filter { (currentTime - it.timestamp) < twentyFourHoursMillis }
+    }
+
+    val myStatuses = remember(activeStatuses) { activeStatuses.filter { it.isMyStatus }.sortedBy { it.timestamp } }
     val myStatus = myStatuses.firstOrNull()
 
-    val contactStatusesGrouped = remember(statuses) {
-        statuses.filter { !it.isMyStatus }
+    val contactStatusesGrouped = remember(activeStatuses) {
+        activeStatuses.filter { !it.isMyStatus }
             .groupBy { it.contactId }
             .map { (contactId, list) ->
                 val sorted = list.sortedBy { it.timestamp }
@@ -371,9 +387,9 @@ fun StatusListScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             if (myStatus != null) {
-                                val timeLeftMillis = remember(myStatus.timestamp) {
+                                val timeLeftMillis = remember(myStatus.timestamp, currentTime) {
                                     val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
-                                    val elapsed = System.currentTimeMillis() - myStatus.timestamp
+                                    val elapsed = currentTime - myStatus.timestamp
                                     (twentyFourHoursMillis - elapsed).coerceAtLeast(0L)
                                 }
                                 
@@ -468,6 +484,7 @@ fun StatusListScreen(
                 items(recentStatusesGrouped, key = { "recent_${it.contactId}" }) { group ->
                     StatusItemRow(
                         group = group,
+                        currentTime = currentTime,
                         onClick = {
                             val firstUnviewed = group.statuses.firstOrNull { !it.isViewed } ?: group.statuses.first()
                             onStatusClick(firstUnviewed)
@@ -492,6 +509,7 @@ fun StatusListScreen(
                 items(viewedStatusesGrouped, key = { "viewed_${it.contactId}" }) { group ->
                     StatusItemRow(
                         group = group,
+                        currentTime = currentTime,
                         onClick = {
                             onStatusClick(group.statuses.first())
                         }
@@ -571,6 +589,7 @@ fun StatusListScreen(
 @Composable
 fun StatusItemRow(
     group: GroupedStatus,
+    currentTime: Long,
     onClick: () -> Unit
 ) {
     Card(
@@ -612,9 +631,9 @@ fun StatusItemRow(
                 val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
                 val lastStatus = group.latestStatus
                 
-                val timeLeftMillis = remember(lastStatus.timestamp) {
+                val timeLeftMillis = remember(lastStatus.timestamp, currentTime) {
                     val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
-                    val elapsed = System.currentTimeMillis() - lastStatus.timestamp
+                    val elapsed = currentTime - lastStatus.timestamp
                     (twentyFourHoursMillis - elapsed).coerceAtLeast(0L)
                 }
                 

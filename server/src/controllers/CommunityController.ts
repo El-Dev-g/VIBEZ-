@@ -8,9 +8,10 @@ export class CommunityController {
       const userId = req.user?.id as string;
       const communities = await prisma.community.findMany({
         where: {
-          members: {
-            some: { userId }
-          }
+          OR: [
+            { members: { some: { userId } } },
+            { isOfficial: true }
+          ]
         },
         include: {
           members: true,

@@ -24,8 +24,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -197,6 +203,10 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
     val incomingCallOffer by videoCallViewModel.incomingCallOffer.collectAsState()
 
+    // Avatar Preview State
+    var previewAvatarUrl by remember { mutableStateOf<String?>(null) }
+    var previewAvatarName by remember { mutableStateOf<String?>(null) }
+
     // Request notification permissions automatically on start
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
         val permissionLauncher = rememberLauncherForActivityResult(
@@ -239,10 +249,69 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         )
     } else {
         Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(
-            navController = navController,
-            startDestination = startDestination
-        ) {
+            // Avatar Preview Dialog Layer
+            if (previewAvatarUrl != null) {
+                androidx.compose.ui.window.Dialog(
+                    onDismissRequest = { previewAvatarUrl = null },
+                    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.85f))
+                            .clickable { previewAvatarUrl = null },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Card(
+                                shape = RoundedCornerShape(24.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 24.dp),
+                                modifier = Modifier
+                                    .size(320.dp)
+                                    .clickable(enabled = false) { }
+                            ) {
+                                AsyncImage(
+                                    model = previewAvatarUrl,
+                                    contentDescription = "Preview",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    error = painterResource(id = android.R.drawable.ic_menu_report_image)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Text(
+                                text = previewAvatarName ?: "Profile Photo",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(30.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                IconButton(onClick = { previewAvatarUrl = null }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            NavHost(
+                navController = navController,
+                startDestination = startDestination
+            ) {
         // -1. Brand Splash Screen
         composable("splash") {
             SplashScreen(
@@ -384,7 +453,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     navController.navigate("new_group")
                 },
                 onAvatarClick = { contactId ->
-                    navController.navigate("user_profile/$contactId")
+                    val contact = contacts.firstOrNull { it.id == contactId }
+                    if (contact != null && !contact.avatarUrl.isNullOrEmpty()) {
+                        previewAvatarUrl = contact.avatarUrl
+                        previewAvatarName = contact.name
+                    } else {
+                        navController.navigate("user_profile/$contactId")
+                    }
                 },
                 onStatusPrivacyClick = {
                     navController.navigate("status_privacy")
