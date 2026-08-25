@@ -416,6 +416,17 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onChatClick = { chatId ->
                     navController.navigate("chat/$chatId")
                 },
+                onCommunityClick = { communityId ->
+                    viewModel.getCommunityChats(communityId) { communityChats ->
+                        if (communityChats.isNotEmpty()) {
+                            // Navigate to the first chat (usually Announcements)
+                            navController.navigate("chat/${communityChats.first().id}")
+                        } else {
+                            // Fallback if no chats found yet, maybe navigate to a detail screen or just show Toast
+                            // For now, let's just log it or do nothing to avoid white screen
+                        }
+                    }
+                },
                 onNewChatClick = {
                     navController.navigate("select_contact")
                 },

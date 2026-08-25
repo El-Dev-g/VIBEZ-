@@ -84,6 +84,7 @@ fun MainTabScreen(
     onTabSelected: (Int) -> Unit = {},
     onSearchQueryChange: (String) -> Unit,
     onChatClick: (String) -> Unit,
+    onCommunityClick: (String) -> Unit = onChatClick,
     onNewChatClick: () -> Unit,
     onStatusClick: (StatusEntity) -> Unit,
     onCreateTextStatusClick: () -> Unit = {},
@@ -431,7 +432,7 @@ fun MainTabScreen(
                 2 -> CommunitiesScreen(
                     communities = communities,
                     onCreateCommunityClick = onCreateCommunityClick,
-                    onCommunityChatClick = onChatClick
+                    onCommunityChatClick = onCommunityClick
                 )
                 3 -> CallsListScreen(
                     callLogs = callLogs,

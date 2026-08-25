@@ -381,6 +381,7 @@ export class AdminController {
         description: c.description || 'VIBEZ Public Community',
         category: c.isOfficial ? 'System' : 'General',
         members: c._count.members || 0,
+        membersCount: c._count.members || 0,
         channels: c._count.channels || 0,
         status: 'Active',
         isOfficial: c.isOfficial,
@@ -434,7 +435,12 @@ export class AdminController {
       });
 
       res.json({
-        ...community,
+        id: community.id,
+        name: community.name,
+        description: community.description,
+        isOfficial: (community as any).isOfficial,
+        ownerId: (community as any).ownerId,
+        createdAt: community.createdAt,
         membersCount: (community as any)._count?.members || 0
       });
     } catch (error) {
@@ -479,7 +485,12 @@ export class AdminController {
       }
 
       res.json({
-        ...community,
+        id: (community as any).id,
+        name: (community as any).name,
+        description: (community as any).description,
+        isOfficial: (community as any).isOfficial,
+        createdAt: (community as any).createdAt,
+        posts: (community as any).posts,
         membersCount: (community as any)._count?.members || 0
       });
     } catch (error) {

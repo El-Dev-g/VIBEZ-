@@ -21,7 +21,14 @@ export class CommunityController {
       });
 
       const formatted = communities.map(c => ({
-        ...c,
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        avatarUrl: (c as any).avatarUrl,
+        isOfficial: (c as any).isOfficial,
+        allowComments: (c as any).allowComments,
+        allowReactions: (c as any).allowReactions,
+        createdAt: c.createdAt,
         membersCount: (c as any)._count?.members || 0
       }));
 
@@ -48,6 +55,12 @@ export class CommunityController {
               userId,
               role: 'ADMIN'
             }
+          },
+          channels: {
+            create: {
+              name: 'Announcements',
+              isGroup: true
+            }
           }
         },
         include: {
@@ -58,7 +71,14 @@ export class CommunityController {
       });
 
       res.json({
-        ...community,
+        id: community.id,
+        name: community.name,
+        description: community.description,
+        avatarUrl: (community as any).avatarUrl,
+        isOfficial: (community as any).isOfficial,
+        allowComments: (community as any).allowComments,
+        allowReactions: (community as any).allowReactions,
+        createdAt: community.createdAt,
         membersCount: (community as any)._count?.members || 1
       });
     } catch (error) {
@@ -90,8 +110,17 @@ export class CommunityController {
       }
 
       res.json({
-        ...community,
-        membersCount: (community as any)._count?.members || community.members.length
+        id: community.id,
+        name: community.name,
+        description: community.description,
+        avatarUrl: (community as any).avatarUrl,
+        isOfficial: (community as any).isOfficial,
+        allowComments: (community as any).allowComments,
+        allowReactions: (community as any).allowReactions,
+        createdAt: community.createdAt,
+        membersCount: (community as any)._count?.members || community.members.length,
+        members: community.members,
+        channels: community.channels
       });
     } catch (error) {
       console.error('Error fetching community details:', error);
