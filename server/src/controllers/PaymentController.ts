@@ -25,17 +25,21 @@ export class PaymentController {
         return res.status(400).json({ error: 'Transaction ID already processed' });
       }
 
-      // Record $3.00 badge payment & update user status
+      // Fetch dynamic badge price configured by admin
+      const setting = await prisma.systemSetting.findFirst();
+      const price = setting?.verificationBadgePrice ?? 3.00;
+
+      // Record badge payment & update user status
       const payment = await prisma.$transaction(async (tx) => {
         const badgePayment = await tx.badgePayment.create({
           data: {
             userId,
-            amount: 3.00,
+            amount: price,
             currency: 'USD',
             status: 'COMPLETED',
             paymentProvider: provider,
             transactionId: txId,
-            rawReceipt: rawReceipt || `VERIFICATION_PAYMENT_PROOF_USD3_${Date.now()}`
+            rawReceipt: rawReceipt || `VERIFICATION_PAYMENT_PROOF_USD${price}_${Date.now()}`
           }
         });
 
@@ -97,11 +101,15 @@ export class PaymentController {
         orderBy: { createdAt: 'desc' }
       });
 
+      const setting = await prisma.systemSetting.findFirst();
+      const priceVal = setting?.verificationBadgePrice ?? 3.00;
+
       return res.json({
         isVerified: user?.isVerified || false,
         verifiedAt: user?.verifiedAt,
         badgeType: 'Green Verification Badge',
-        price: '$3.00 USD',
+        badgePrice: priceVal,
+        price: `$${priceVal.toFixed(2)} USD`,
         payments
       });
     } catch (error) {
@@ -135,11 +143,15 @@ export class PaymentController {
         where: { isVerified: true }
       });
 
+      const setting = await prisma.systemSetting.findFirst();
+      const verificationBadgePrice = setting?.verificationBadgePrice ?? 3.00;
+
       return res.json({
         payments,
         totalRevenue,
         totalPurchases: payments.length,
-        verifiedUsersCount
+        verifiedUsersCount,
+        verificationBadgePrice
       });
     } catch (error) {
       return res.status(500).json({ error: 'Failed to fetch badge payments' });

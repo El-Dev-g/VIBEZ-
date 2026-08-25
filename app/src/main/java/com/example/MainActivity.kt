@@ -862,9 +862,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             )
         }
 
-        // Green Verification Badge Checkout ($3.00)
+        // Green Verification Badge Checkout
         composable("verification_checkout") {
             VerificationCheckoutScreen(
+                badgePrice = badgeStatus?.badgePrice ?: 3.00,
+                priceText = badgeStatus?.price ?: "$3.00 USD",
                 onBack = { navController.popBackStack() },
                 onPaymentSuccess = {
                     navController.navigate("badges_receipt") {

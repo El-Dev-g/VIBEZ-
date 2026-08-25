@@ -201,6 +201,7 @@ model SystemSetting {
   maintenanceMode       Boolean @default(false)
   maxGroupSize          Int     @default(1024)
   retentionDays         Int     @default(90)
+  verificationBadgePrice Float  @default(3.00)
 }
 
 model BadgePayment {

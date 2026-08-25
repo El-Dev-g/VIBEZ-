@@ -28,6 +28,8 @@ import com.example.ui.components.VerifiedBadge
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VerificationCheckoutScreen(
+    badgePrice: Double = 3.00,
+    priceText: String = "$3.00 USD",
     onBack: () -> Unit,
     onPaymentSuccess: () -> Unit,
     onProcessPayment: (provider: String, onComplete: (Boolean, String?) -> Unit) -> Unit
@@ -115,7 +117,7 @@ fun VerificationCheckoutScreen(
                         modifier = Modifier.padding(top = 8.dp)
                     ) {
                         Text(
-                            text = "$3.00 USD / One-time",
+                            text = "$priceText / One-time",
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
@@ -222,7 +224,7 @@ fun VerificationCheckoutScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Pay $3.00 & Get Badge",
+                        text = "Pay $priceText & Get Badge",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )

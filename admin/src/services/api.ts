@@ -115,10 +115,12 @@ export interface Report {
 }
 
 export interface SystemSettings {
+  id?: string;
   allowNewRegistrations: boolean;
   maintenanceMode: boolean;
   maxGroupSize: number;
   retentionDays: number;
+  verificationBadgePrice: number;
 }
 
 export const fetchReports = async (): Promise<Report[]> => {
@@ -151,7 +153,8 @@ export const fetchSettings = async (): Promise<SystemSettings> => {
       allowNewRegistrations: true,
       maintenanceMode: false,
       maxGroupSize: 1024,
-      retentionDays: 90
+      retentionDays: 90,
+      verificationBadgePrice: 3.00
     };
   }
 };
@@ -251,6 +254,7 @@ export interface BadgeSummary {
   totalRevenue: number;
   totalPurchases: number;
   verifiedUsersCount: number;
+  verificationBadgePrice: number;
 }
 
 export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
@@ -265,11 +269,12 @@ export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
       })),
       totalRevenue: data.totalRevenue || 0,
       totalPurchases: data.totalPurchases || 0,
-      verifiedUsersCount: data.verifiedUsersCount || 0
+      verifiedUsersCount: data.verifiedUsersCount || 0,
+      verificationBadgePrice: data.verificationBadgePrice ?? 3.00
     };
   } catch (error) {
     console.error(error);
-    return { payments: [], totalRevenue: 0, totalPurchases: 0, verifiedUsersCount: 0 };
+    return { payments: [], totalRevenue: 0, totalPurchases: 0, verifiedUsersCount: 0, verificationBadgePrice: 3.00 };
   }
 };
 

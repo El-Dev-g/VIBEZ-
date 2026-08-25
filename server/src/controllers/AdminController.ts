@@ -208,7 +208,8 @@ export class AdminController {
             allowNewRegistrations: true,
             maintenanceMode: false,
             maxGroupSize: 1024,
-            retentionDays: 90
+            retentionDays: 90,
+            verificationBadgePrice: 3.00
           }
         });
       }

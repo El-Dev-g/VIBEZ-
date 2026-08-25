@@ -1,4 +1,5 @@
 import { fetchBadgePayments } from '@/services/api';
+import BadgePriceEditor from '@/components/BadgePriceEditor';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +12,12 @@ export default async function BadgesPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Green Verification Badges & Revenue</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Monitor $3.00 green checkmark badge subscriptions, payment audit trails, and transaction IDs.
+          Monitor green checkmark badge subscriptions, dynamic pricing configuration, payment audit trails, and transaction IDs.
         </p>
       </div>
+
+      {/* Interactive Price Editor Card */}
+      <BadgePriceEditor initialPrice={data.verificationBadgePrice} />
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -25,7 +29,7 @@ export default async function BadgesPage() {
           <p className="mt-3 text-3xl font-extrabold text-emerald-600">
             ${data.totalRevenue.toFixed(2)} USD
           </p>
-          <p className="mt-1 text-xs text-gray-500">From $3.00 verification badge sales</p>
+          <p className="mt-1 text-xs text-gray-500">From verification badge sales</p>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -36,7 +40,7 @@ export default async function BadgesPage() {
           <p className="mt-3 text-3xl font-extrabold text-gray-900">
             {data.totalPurchases}
           </p>
-          <p className="mt-1 text-xs text-gray-500">Completed $3.00 transactions</p>
+          <p className="mt-1 text-xs text-gray-500">Completed verification transactions</p>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -56,7 +60,7 @@ export default async function BadgesPage() {
         <div className="border-b border-gray-200 bg-gray-50/50 px-6 py-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900">Paid Verification Receipts & Security Logs</h2>
           <span className="text-xs bg-emerald-100 text-emerald-800 font-medium px-2.5 py-1 rounded-full">
-            $3.00 / badge
+            Active Price: ${data.verificationBadgePrice.toFixed(2)} / badge
           </span>
         </div>
 

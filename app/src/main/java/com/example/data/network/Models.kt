@@ -199,6 +199,7 @@ data class BadgeStatusResponse(
     val isVerified: Boolean,
     val verifiedAt: String?,
     val badgeType: String = "Green Verification Badge",
+    val badgePrice: Double = 3.0,
     val price: String = "$3.00 USD",
     val payments: List<BadgePaymentDto> = emptyList()
 )
