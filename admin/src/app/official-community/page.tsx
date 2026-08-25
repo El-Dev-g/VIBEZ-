@@ -84,7 +84,7 @@ export default function OfficialCommunityPage() {
     if (newPost) {
       setCommunity({
         ...community,
-        posts: [newPost, ...community.posts]
+        posts: [newPost, ...(community.posts || [])]
       });
       setPostContent('');
       showToast('Global announcement transmitted.');
@@ -211,9 +211,9 @@ export default function OfficialCommunityPage() {
                 </div>
                 <button
                   onClick={() => setCommunity({ ...community, allowComments: !community.allowComments })}
-                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${community.allowComments ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'}`}
+                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${!!community.allowComments ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'}`}
                 >
-                  <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-300 ${community.allowComments ? 'translate-x-5' : 'translate-x-0'}`} />
+                  <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-300 ${!!community.allowComments ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
@@ -224,9 +224,9 @@ export default function OfficialCommunityPage() {
                 </div>
                 <button
                   onClick={() => setCommunity({ ...community, allowReactions: !community.allowReactions })}
-                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${community.allowReactions ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'}`}
+                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${!!community.allowReactions ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'}`}
                 >
-                  <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-300 ${community.allowReactions ? 'translate-x-5' : 'translate-x-0'}`} />
+                  <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-300 ${!!community.allowReactions ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
             </div>
@@ -298,7 +298,7 @@ export default function OfficialCommunityPage() {
           {/* Post Feed */}
           <div className="space-y-6">
             <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] ml-1">Transmission History</h2>
-            {community.posts.map((post: any) => (
+            {(community.posts || []).map((post: any) => (
               <div key={post.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-lg shadow-slate-200/30 p-8 group hover:border-slate-900 transition-all duration-300">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
