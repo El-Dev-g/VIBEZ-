@@ -166,9 +166,54 @@ export const updateSettings = async (settings: SystemSettings): Promise<boolean>
   }
 };
 
+export interface UserDetails extends User {
+  bio?: string;
+  avatarUrl?: string;
+  lastSeen?: string;
+  sentMessagesCount?: number;
+  chatsCount?: number;
+  reportsReceivedCount?: number;
+}
+
+export const fetchUserById = async (userId: string): Promise<UserDetails | null> => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/users/${userId}`);
+    if (!res.ok) return null;
+    const u = await res.json();
+    return {
+      id: u.id,
+      name: u.name || 'Unknown',
+      phoneNumber: u.phoneNumber,
+      status: u.isBanned ? 'Banned' : 'Active',
+      createdAt: new Date(u.createdAt).toLocaleDateString(),
+      bio: u.bio || '',
+      avatarUrl: u.avatarUrl || '',
+      lastSeen: u.lastSeen ? new Date(u.lastSeen).toLocaleString() : 'Never',
+      sentMessagesCount: u._count?.sentMessages || 0,
+      chatsCount: u._count?.chats || 0,
+      reportsReceivedCount: u._count?.reportsReceived || 0,
+    };
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
 export const banUser = async (userId: string): Promise<boolean> => {
   try {
     const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/ban`, {
+      method: 'POST'
+    });
+    return res.ok;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
+export const unbanUser = async (userId: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/unban`, {
       method: 'POST'
     });
     return res.ok;

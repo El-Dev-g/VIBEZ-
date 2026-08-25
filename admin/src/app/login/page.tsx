@@ -17,13 +17,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const admin = await loginAdmin(email, password);
+      const admin = await loginAdmin(email.trim(), password.trim());
       if (admin) {
         // Set a cookie for the middleware to check
         document.cookie = `admin_token=${admin.token}; path=/; max-age=86400; SameSite=Strict`;
         router.push('/');
       } else {
-        setError('Invalid email or password. Hint: admin@vibez.app / admin123');
+        setError('Invalid email or password. Default: admin@vibez.com / adminpassword123');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');

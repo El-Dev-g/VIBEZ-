@@ -6,12 +6,19 @@ export class AdminController {
   async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
+      const cleanEmail = email ? email.trim().toLowerCase() : '';
+      const cleanPassword = password ? password.trim() : '';
+
+      const admin = await prisma.admin.findFirst({
+        where: {
+          email: {
+            equals: cleanEmail,
+            mode: 'insensitive'
+          }
+        }
+      });
       
-      // Check for hardcoded superadmin for convenience or query DB
-      // In production, use bcrypt to check password
-      const admin = await prisma.admin.findUnique({ where: { email } });
-      
-      if (!admin || admin.password !== password) {
+      if (!admin || admin.password !== cleanPassword) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
@@ -91,6 +98,62 @@ export class AdminController {
       res.json(enhancedReports);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch reports' });
+    }
+  }
+
+  async getUserById(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          phoneNumber: true,
+          bio: true,
+          avatarUrl: true,
+          isBanned: true,
+          createdAt: true,
+          lastSeen: true,
+          _count: {
+            select: {
+              sentMessages: true,
+              chats: true,
+              reportsReceived: true,
+            }
+          }
+        }
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch user' });
+    }
+  }
+
+  async unbanUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const { adminEmail } = req.body;
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isBanned: false }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || 'system',
+          action: 'UNBAN_USER',
+          target: userId
+        }
+      });
+
+      res.json({ success: true, message: `User ${userId} unbanned` });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to unban user' });
     }
   }
 

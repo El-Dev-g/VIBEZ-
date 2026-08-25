@@ -76,11 +76,13 @@ app.delete('/api/calls', authenticate, (req, res) => call.clearCallLogs(req, res
 app.post('/api/admin/login', (req, res) => admin.login(req, res));
 app.get('/api/admin/metrics', (req, res) => admin.getMetrics(req, res));
 app.get('/api/admin/users', (req, res) => admin.getUsers(req, res));
+app.get('/api/admin/users/:userId', (req, res) => admin.getUserById(req, res));
 app.get('/api/admin/reports', (req, res) => admin.getReports(req, res));
 app.get('/api/admin/logs', (req, res) => admin.getAuditLogs(req, res));
 app.get('/api/admin/settings', (req, res) => admin.getSettings(req, res));
 app.patch('/api/admin/settings', (req, res) => admin.updateSettings(req, res));
 app.post('/api/admin/users/:userId/ban', (req, res) => admin.banUser(req, res));
+app.post('/api/admin/users/:userId/unban', (req, res) => admin.unbanUser(req, res));
 
 // Media Routes
 app.post('/api/media/upload-url', authenticate, async (req, res) => {
