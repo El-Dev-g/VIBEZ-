@@ -99,6 +99,7 @@ fun SettingsScreen(
     userPhone: String = "+1 555-0198",
     googleEmail: String? = null,
     isVerified: Boolean = false,
+    badgePriceText: String = "$3.00 USD",
     onBackClick: () -> Unit,
     onToggleDarkMode: () -> Unit,
     onLogoutClick: () -> Unit = {},
@@ -402,6 +403,7 @@ fun SettingsScreen(
                         containerColor = if (isVerified) Color(0xFFECFDF5) else MaterialTheme.colorScheme.surface
                     )
                 ) {
+                    val shortPriceDisplay = badgePriceText.replace(" USD", "").ifBlank { "$3.00" }
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -427,7 +429,7 @@ fun SettingsScreen(
                             }
                             Column {
                                 Text(
-                                    text = if (isVerified) "Verified Badge ($3.00)" else "Get Green Verification Badge ($3.00)",
+                                    text = if (isVerified) "Verified Badge ($shortPriceDisplay)" else "Get Green Verification Badge ($shortPriceDisplay)",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -445,7 +447,7 @@ fun SettingsScreen(
                             color = Color(0xFF10B981)
                         ) {
                             Text(
-                                text = if (isVerified) "Receipt" else "$3.00",
+                                text = if (isVerified) "Receipt" else shortPriceDisplay,
                                 color = Color.White,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,

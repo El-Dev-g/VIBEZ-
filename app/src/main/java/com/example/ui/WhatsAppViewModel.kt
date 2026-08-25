@@ -149,6 +149,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             repository.deleteExpiredStatuses()
+            refreshBadgeStatus()
+            checkSystemStatus()
             
             // If logged in, init socket and sync data
             authManager.getUserId()?.let { uid ->

@@ -52,54 +52,54 @@ export default function UserTable({ initialUsers }: UserTableProps) {
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="overflow-x-auto rounded-lg border-2 border-gray-300 bg-white">
+        <table className="min-w-full divide-y-2 divide-gray-200">
+          <thead className="bg-gray-100">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Phone</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Joined At</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+              <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Phone</th>
+              <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Joined At</th>
+              <th className="px-6 py-3 text-right text-xs font-black uppercase tracking-wider text-black">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
             {users.map((user) => (
               <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                 <td className="whitespace-nowrap px-6 py-4">
-                  <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                  <div className="text-sm font-black text-black">{user.name}</div>
                 </td>
                 <td className="whitespace-nowrap px-6 py-4">
-                  <div className="text-sm text-gray-500">{user.phoneNumber}</div>
+                  <div className="text-sm font-bold text-black">{user.phoneNumber}</div>
                 </td>
                 <td className="whitespace-nowrap px-6 py-4">
-                  <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                    user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-black leading-5 ${
+                    user.status === 'Active' ? 'bg-green-200 text-black border border-green-400' : 'bg-red-200 text-black border border-red-400'
                   }`}>
                     {user.status}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                <td className="whitespace-nowrap px-6 py-4 text-sm font-bold text-black">
                   {user.createdAt}
                 </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-black">
                   <button 
                     onClick={() => handleView(user)}
-                    className="text-emerald-600 hover:text-emerald-900 mr-4 font-semibold"
+                    className="text-emerald-700 hover:text-emerald-900 mr-4 font-black"
                   >
                     View
                   </button>
                   {user.status === 'Active' ? (
                     <button 
                       onClick={() => handleBan(user.id)}
-                      className="text-red-600 hover:text-red-900"
+                      className="text-red-700 hover:text-red-900 font-black"
                     >
                       Ban
                     </button>
                   ) : (
                     <button 
                       onClick={() => handleUnban(user.id)}
-                      className="text-emerald-600 hover:text-emerald-900"
+                      className="text-emerald-700 hover:text-emerald-900 font-black"
                     >
                       Unban
                     </button>
@@ -114,12 +114,12 @@ export default function UserTable({ initialUsers }: UserTableProps) {
       {/* User Details Modal */}
       {isModalOpen && selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fadeIn">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <h3 className="text-lg font-bold text-gray-900">User Details</h3>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-6 text-black border-2 border-gray-400">
+            <div className="flex items-center justify-between border-b-2 border-gray-200 pb-4">
+              <h3 className="text-xl font-black text-black">User Details</h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                className="text-black hover:text-red-600 text-2xl font-black"
               >
                 &times;
               </button>
@@ -127,14 +127,14 @@ export default function UserTable({ initialUsers }: UserTableProps) {
 
             <div className="space-y-4">
               <div className="flex items-center space-x-4">
-                <div className="h-14 w-14 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xl">
+                <div className="h-14 w-14 rounded-full bg-emerald-100 text-emerald-900 flex items-center justify-center font-black text-xl border-2 border-emerald-300">
                   {selectedUser.name ? selectedUser.name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div>
-                  <h4 className="text-base font-semibold text-gray-900">{selectedUser.name}</h4>
-                  <p className="text-sm text-gray-500">{selectedUser.phoneNumber}</p>
-                  <span className={`mt-1 inline-flex rounded-full px-2 text-xs font-semibold ${
-                    selectedUser.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  <h4 className="text-lg font-black text-black">{selectedUser.name}</h4>
+                  <p className="text-sm font-bold text-gray-900">{selectedUser.phoneNumber}</p>
+                  <span className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-black ${
+                    selectedUser.status === 'Active' ? 'bg-green-200 text-black border border-green-400' : 'bg-red-200 text-black border border-red-400'
                   }`}>
                     {selectedUser.status}
                   </span>
@@ -142,48 +142,48 @@ export default function UserTable({ initialUsers }: UserTableProps) {
               </div>
 
               {loadingUser ? (
-                <div className="py-4 text-center text-sm text-gray-500">Loading user metadata...</div>
+                <div className="py-4 text-center text-sm font-bold text-black animate-pulse">Loading user metadata...</div>
               ) : (
-                <div className="grid grid-cols-2 gap-4 rounded-xl bg-gray-50 p-4 text-sm">
+                <div className="grid grid-cols-2 gap-4 rounded-xl bg-gray-100 border-2 border-gray-300 p-4 text-sm">
                   <div>
-                    <span className="text-xs text-gray-400 uppercase tracking-wider block">User ID</span>
-                    <span className="font-mono text-xs text-gray-700 truncate block">{selectedUser.id}</span>
+                    <span className="text-xs text-black font-black uppercase tracking-wider block">User ID</span>
+                    <span className="font-mono text-xs text-black font-bold truncate block">{selectedUser.id}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-400 uppercase tracking-wider block">Joined</span>
-                    <span className="text-gray-700 font-medium">{selectedUser.createdAt}</span>
+                    <span className="text-xs text-black font-black uppercase tracking-wider block">Joined</span>
+                    <span className="text-black font-black">{selectedUser.createdAt}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-400 uppercase tracking-wider block">Messages Sent</span>
-                    <span className="text-gray-700 font-medium">{selectedUser.sentMessagesCount ?? 0}</span>
+                    <span className="text-xs text-black font-black uppercase tracking-wider block">Messages Sent</span>
+                    <span className="text-black font-black">{selectedUser.sentMessagesCount ?? 0}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-400 uppercase tracking-wider block">Active Chats</span>
-                    <span className="text-gray-700 font-medium">{selectedUser.chatsCount ?? 0}</span>
+                    <span className="text-xs text-black font-black uppercase tracking-wider block">Active Chats</span>
+                    <span className="text-black font-black">{selectedUser.chatsCount ?? 0}</span>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t-2 border-gray-200">
               {selectedUser.status === 'Active' ? (
                 <button
                   onClick={() => handleBan(selectedUser.id)}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                  className="rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white hover:bg-red-800 transition-colors shadow"
                 >
                   Ban User
                 </button>
               ) : (
                 <button
                   onClick={() => handleUnban(selectedUser.id)}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 transition-colors shadow"
                 >
                   Unban User
                 </button>
               )}
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                className="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-bold text-black hover:bg-gray-100 transition-colors"
               >
                 Close
               </button>

@@ -838,12 +838,16 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
         // 11. Settings Screen
         composable("settings") {
+            LaunchedEffect(Unit) {
+                viewModel.refreshBadgeStatus()
+            }
             SettingsScreen(
                 isDarkMode = isDarkMode,
                 userName = currentUserName,
                 userPhone = currentUserPhone,
                 googleEmail = currentGoogleEmail,
                 isVerified = isVerified,
+                badgePriceText = badgeStatus?.price ?: "$3.00 USD",
                 onBackClick = { navController.popBackStack() },
                 onToggleDarkMode = { viewModel.toggleDarkMode() },
                 onLogoutClick = {

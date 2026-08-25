@@ -145,6 +145,8 @@ fun BadgesReceiptScreen(
                         Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         val latestPayment = badgeStatus?.payments?.firstOrNull()
+                        val currentPriceDisplay = badgeStatus?.price ?: "$3.00 USD"
+                        val paidAmountText = latestPayment?.let { "$${String.format(java.util.Locale.US, "%.2f", it.amount)} ${it.currency}" } ?: currentPriceDisplay
 
                         ReceiptRow(
                             label = "Badge Item",
@@ -153,7 +155,7 @@ fun BadgesReceiptScreen(
 
                         ReceiptRow(
                             label = "Amount Paid",
-                            value = "$3.00 USD",
+                            value = paidAmountText,
                             isHighlight = true
                         )
 
@@ -241,8 +243,11 @@ fun BadgesReceiptScreen(
                             fontWeight = FontWeight.Bold
                         )
 
+                        val priceDisplay = badgeStatus?.price ?: "$3.00 USD"
+                        val shortPrice = priceDisplay.replace(" USD", "").ifBlank { "$3.00" }
+
                         Text(
-                            text = "Get your official green checkmark badge for $3.00 USD to build trust and show off your verified status across VIBEZ.",
+                            text = "Get your official green checkmark badge for $priceDisplay to build trust and show off your verified status across VIBEZ.",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -256,7 +261,7 @@ fun BadgesReceiptScreen(
                                 containerColor = Color(0xFF10B981)
                             )
                         ) {
-                            Text("Get Verified Badge ($3.00)", fontWeight = FontWeight.Bold)
+                            Text("Get Verified Badge ($shortPrice)", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

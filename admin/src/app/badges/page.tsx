@@ -7,11 +7,11 @@ export default async function BadgesPage() {
   const data = await fetchBadgePayments();
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 bg-gray-50 min-h-screen text-black">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Green Verification Badges & Revenue</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-3xl font-black text-black">Green Verification Badges & Revenue</h1>
+        <p className="text-sm font-semibold text-gray-900 mt-1">
           Monitor green checkmark badge subscriptions, dynamic pricing configuration, payment audit trails, and transaction IDs.
         </p>
       </div>
@@ -21,57 +21,57 @@ export default async function BadgesPage() {
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-gray-300 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Badge Revenue</span>
-            <span className="rounded-full bg-emerald-100 p-2 text-emerald-600 font-bold">💵</span>
+            <span className="text-xs font-black uppercase tracking-wider text-black">Total Badge Revenue</span>
+            <span className="rounded-full bg-emerald-100 p-2 text-emerald-800 font-bold">💵</span>
           </div>
-          <p className="mt-3 text-3xl font-extrabold text-emerald-600">
+          <p className="mt-3 text-3xl font-black text-emerald-800">
             ${data.totalRevenue.toFixed(2)} USD
           </p>
-          <p className="mt-1 text-xs text-gray-500">From verification badge sales</p>
+          <p className="mt-1 text-xs font-bold text-black">From verification badge sales</p>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-gray-300 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Badge Purchases</span>
-            <span className="rounded-full bg-blue-100 p-2 text-blue-600 font-bold">💳</span>
+            <span className="text-xs font-black uppercase tracking-wider text-black">Total Badge Purchases</span>
+            <span className="rounded-full bg-blue-100 p-2 text-blue-800 font-bold">💳</span>
           </div>
-          <p className="mt-3 text-3xl font-extrabold text-gray-900">
+          <p className="mt-3 text-3xl font-black text-black">
             {data.totalPurchases}
           </p>
-          <p className="mt-1 text-xs text-gray-500">Completed verification transactions</p>
+          <p className="mt-1 text-xs font-bold text-black">Completed verification transactions</p>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border-2 border-gray-300 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Active Verified Users</span>
-            <span className="rounded-full bg-green-100 p-2 text-green-600 font-bold">✅</span>
+            <span className="text-xs font-black uppercase tracking-wider text-black">Active Verified Users</span>
+            <span className="rounded-full bg-green-100 p-2 text-green-800 font-bold">✅</span>
           </div>
-          <p className="mt-3 text-3xl font-extrabold text-gray-900">
+          <p className="mt-3 text-3xl font-black text-black">
             {data.verifiedUsersCount}
           </p>
-          <p className="mt-1 text-xs text-gray-500">Users carrying green checkmark badge</p>
+          <p className="mt-1 text-xs font-bold text-black">Users carrying green checkmark badge</p>
         </div>
       </div>
 
       {/* Transaction History Table */}
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-gray-200 bg-gray-50/50 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Paid Verification Receipts & Security Logs</h2>
-          <span className="text-xs bg-emerald-100 text-emerald-800 font-medium px-2.5 py-1 rounded-full">
+      <div className="rounded-2xl border-2 border-gray-300 bg-white shadow-sm overflow-hidden">
+        <div className="border-b-2 border-gray-200 bg-gray-100 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-base font-black text-black">Paid Verification Receipts & Security Logs</h2>
+          <span className="text-xs bg-emerald-200 text-black border border-emerald-400 font-black px-2.5 py-1 rounded-full">
             Active Price: ${data.verificationBadgePrice.toFixed(2)} / badge
           </span>
         </div>
 
         {data.payments.length === 0 ? (
-          <div className="p-12 text-center text-gray-500 text-sm">
+          <div className="p-12 text-center text-black font-bold text-sm">
             No verification badge payments recorded yet.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <table className="min-w-full divide-y-2 divide-gray-200 text-sm">
+              <thead className="bg-gray-100 text-left text-xs font-black uppercase tracking-wider text-black">
                 <tr>
                   <th className="px-6 py-3">User</th>
                   <th className="px-6 py-3">Amount</th>
@@ -86,33 +86,33 @@ export default async function BadgesPage() {
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
-                        <div className="h-9 w-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm">
+                        <div className="h-9 w-9 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center font-black text-sm">
                           {p.user?.name ? p.user.name.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <div className="font-semibold text-gray-900 flex items-center space-x-1">
+                          <div className="font-black text-black flex items-center space-x-1">
                             <span>{p.user?.name || 'Unknown User'}</span>
-                            <span className="text-emerald-500 font-bold" title="Verified Badge">✅</span>
+                            <span className="text-emerald-600 font-bold" title="Verified Badge">✅</span>
                           </div>
-                          <div className="text-xs text-gray-500">{p.user?.phoneNumber || 'N/A'}</div>
+                          <div className="text-xs font-bold text-black">{p.user?.phoneNumber || 'N/A'}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap font-black text-black">
                       ${p.amount.toFixed(2)} {p.currency}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-600 uppercase">
+                    <td className="px-6 py-4 whitespace-nowrap font-mono text-xs font-black text-black uppercase">
                       {p.paymentProvider}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap font-mono text-xs font-bold text-black">
                       {p.transactionId}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">
+                      <span className="inline-flex rounded-full bg-green-200 border border-green-400 px-2.5 py-0.5 text-xs font-black text-black">
                         {p.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-black text-black">
                       {p.createdAt}
                     </td>
                   </tr>
