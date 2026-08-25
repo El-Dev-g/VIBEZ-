@@ -10,7 +10,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 
 object NetworkClient {
-    private const val BASE_URL = "https://your-backend-url.com/" // Should be in BuildConfig ideally
+    private val BASE_URL = BuildConfig.BACKEND_URL.ifEmpty { "https://your-backend-url.com/" }
 
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
