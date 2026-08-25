@@ -195,6 +195,15 @@ model AuditLog {
   timestamp   DateTime @default(now())
 }
 
+model Broadcast {
+  id             String   @id @default(uuid())
+  title          String
+  message        String
+  targetAudience String   @default("ALL") // ALL, VERIFIED_ONLY, ADMINS
+  sentBy         String   @default("System Admin")
+  sentAt         DateTime @default(now())
+}
+
 model SystemSetting {
   id                    String  @id @default(uuid())
   allowNewRegistrations Boolean @default(true)

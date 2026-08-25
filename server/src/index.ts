@@ -101,6 +101,18 @@ app.get('/api/payments/verification/status', authenticate, (req, res) => payment
 app.get('/api/admin/badges', (req, res) => payment.getAdminBadgePayments(req, res));
 app.post('/api/admin/users/:userId/badge', (req, res) => payment.toggleUserBadge(req, res));
 
+// Broadcast & Announcements Routes
+app.get('/api/broadcasts', (req, res) => admin.getPublicBroadcasts(req, res));
+app.get('/api/announcements', (req, res) => admin.getPublicBroadcasts(req, res));
+app.get('/api/admin/broadcasts', (req, res) => admin.getBroadcasts(req, res));
+app.post('/api/admin/broadcasts', (req, res) => admin.sendBroadcast(req, res));
+
+// Additional Admin Pages Routes
+app.get('/api/admin/communities', (req, res) => admin.getAdminCommunities(req, res));
+app.get('/api/admin/storage', (req, res) => admin.getStorageStats(req, res));
+app.post('/api/admin/storage/purge', (req, res) => admin.purgeStorageCache(req, res));
+app.get('/api/admin/analytics', (req, res) => admin.getAnalytics(req, res));
+
 // Admin Routes
 app.post('/api/admin/login', (req, res) => admin.login(req, res));
 app.get('/api/admin/metrics', (req, res) => admin.getMetrics(req, res));

@@ -349,3 +349,100 @@ export const toggleUserVerificationBadge = async (userId: string, isVerified: bo
   }
 };
 
+export interface BroadcastItem {
+  id: string;
+  title: string;
+  message: string;
+  targetAudience: string;
+  sentBy: string;
+  sentAt: string;
+}
+
+export const fetchBroadcasts = async (): Promise<BroadcastItem[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/broadcasts`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch broadcasts');
+    const data = await res.json();
+    return data.map((item: any) => ({
+      ...item,
+      sentAt: new Date(item.sentAt).toLocaleString()
+    }));
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+};
+
+export const sendBroadcastApi = async (title: string, message: string, targetAudience: string): Promise<{ success: boolean; recipientCount?: number; message?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/broadcasts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, message, targetAudience })
+    });
+    if (!res.ok) return { success: false };
+    return await res.json();
+  } catch (error) {
+    console.error(error);
+    return { success: false };
+  }
+};
+
+export interface AdminCommunityItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  members: number;
+  channels: number;
+  status: string;
+}
+
+export const fetchAdminCommunities = async (): Promise<AdminCommunityItem[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch communities');
+    return await res.json();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+};
+
+export const fetchStorageStats = async (): Promise<any> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/storage`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch storage');
+    return await res.json();
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+export const purgeStorageCache = async (type: string = 'EXPIRED_STORIES'): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/storage/purge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type })
+    });
+    if (!res.ok) return { success: false };
+    return await res.json();
+  } catch (error) {
+    console.error(error);
+    return { success: false };
+  }
+};
+
+export const fetchAnalytics = async (): Promise<any> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/analytics`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch analytics');
+    return await res.json();
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+

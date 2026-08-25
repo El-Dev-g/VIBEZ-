@@ -108,7 +108,8 @@ fun SettingsScreen(
     onBackendSyncClick: () -> Unit = {},
     onQrScanClick: () -> Unit = {},
     onGetBadgeClick: () -> Unit = {},
-    onViewBadgeReceiptClick: () -> Unit = {}
+    onViewBadgeReceiptClick: () -> Unit = {},
+    onSystemBroadcastsClick: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -446,6 +447,70 @@ fun SettingsScreen(
                             Text(
                                 text = if (isVerified) "Receipt" else "$3.00",
                                 color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSystemBroadcastsClick() },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(WhatsAppMinimalNavPill),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = WhatsAppMinimalPrimary
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "System Broadcasts & Alerts",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "View official announcements & maintenance alerts",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = WhatsAppMinimalPrimary.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "View",
+                                color = WhatsAppMinimalPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)

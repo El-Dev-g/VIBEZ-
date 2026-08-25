@@ -90,6 +90,7 @@ import com.example.ui.screens.VerificationCheckoutScreen
 import com.example.ui.screens.BadgesReceiptScreen
 import com.example.ui.screens.MaintenanceScreen
 import com.example.ui.screens.WallpaperSettingsScreen
+import com.example.ui.screens.SystemBroadcastsScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -871,7 +872,17 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onViewBadgeReceiptClick = {
                     navController.navigate("badges_receipt")
+                },
+                onSystemBroadcastsClick = {
+                    navController.navigate("system_broadcasts")
                 }
+            )
+        }
+
+        // System Broadcasts & Announcements Screen
+        composable("system_broadcasts") {
+            SystemBroadcastsScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 

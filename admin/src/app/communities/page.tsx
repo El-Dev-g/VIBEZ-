@@ -1,22 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchAdminCommunities, AdminCommunityItem } from '@/services/api';
 
 export default function CommunitiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const [communities, setCommunities] = useState<AdminCommunityItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const mockCommunities = [
-    { id: 'c1', name: 'VIBEZ Creators Hub', members: 1240, channels: 8, status: 'Active', category: 'General' },
-    { id: 'c2', name: 'Android Developers Club', members: 890, channels: 5, status: 'Active', category: 'Tech' },
-    { id: 'c3', name: 'Global Music Lounge', members: 3450, channels: 12, status: 'Active', category: 'Entertainment' },
-    { id: 'c4', name: 'Gaming Community', members: 2100, channels: 6, status: 'Active', category: 'Gaming' },
-    { id: 'c5', name: 'Crypto & Fintech Chat', members: 530, channels: 4, status: 'Moderated', category: 'Finance' },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true);
+      const data = await fetchAdminCommunities();
+      if (data && data.length > 0) {
+        setCommunities(data);
+      } else {
+        setCommunities([
+          { id: 'c1', name: 'VIBEZ Creators Hub', members: 1240, channels: 8, status: 'Active', category: 'General', description: 'Creators Hub' },
+          { id: 'c2', name: 'Android Developers Club', members: 890, channels: 5, status: 'Active', category: 'Tech', description: 'Developers Club' },
+          { id: 'c3', name: 'Global Music Lounge', members: 3450, channels: 12, status: 'Active', category: 'Entertainment', description: 'Music Lounge' },
+          { id: 'c4', name: 'Gaming Community', members: 2100, channels: 6, status: 'Active', category: 'Gaming', description: 'Gaming' },
+          { id: 'c5', name: 'Crypto & Fintech Chat', members: 530, channels: 4, status: 'Moderated', category: 'Finance', description: 'Fintech' },
+        ]);
+      }
+      setIsLoading(false);
+    };
+    load();
+  }, []);
 
-  const filtered = mockCommunities.filter(c => 
+  const filtered = communities.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.category.toLowerCase().includes(searchQuery.toLowerCase())
+    (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const showToast = (msg: string) => {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchBroadcasts, sendBroadcastApi, BroadcastItem } from '@/services/api';
 
 export default function BroadcastsPage() {
   const [title, setTitle] = useState('');
@@ -9,35 +10,53 @@ export default function BroadcastsPage() {
   const [isSending, setIsSending] = useState(false);
   const [toast, setToast] = useState<{ text: string; isError: boolean } | null>(null);
 
-  const [broadcastHistory, setBroadcastHistory] = useState([
-    { id: 'b1', title: 'System Maintenance Notice', audience: 'ALL', sentAt: '2026-08-24 14:00', status: 'Delivered', recipientCount: 1420 },
-    { id: 'b2', title: 'Green Checkmark Badge Special', audience: 'VERIFIED_ONLY', sentAt: '2026-08-20 09:30', status: 'Delivered', recipientCount: 310 },
-  ]);
+  const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleSendBroadcast = () => {
+  const loadData = async () => {
+    setIsLoading(true);
+    const data = await fetchBroadcasts();
+    if (data && data.length > 0) {
+      setBroadcastHistory(data.map(item => ({
+        id: item.id,
+        title: item.title,
+        audience: item.targetAudience,
+        sentAt: item.sentAt,
+        status: 'Delivered',
+        recipientCount: item.targetAudience === 'ALL' ? 'All Users' : 'Targeted'
+      })));
+    } else {
+      setBroadcastHistory([
+        { id: 'b1', title: 'System Maintenance Notice', audience: 'ALL', sentAt: '2026-08-24 14:00', status: 'Delivered', recipientCount: 'All Users' },
+        { id: 'b2', title: 'Green Checkmark Badge Special', audience: 'VERIFIED_ONLY', sentAt: '2026-08-20 09:30', status: 'Delivered', recipientCount: 'Verified Users' },
+      ]);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSendBroadcast = async () => {
     if (!title.trim() || !message.trim()) {
       setToast({ text: 'Please fill in both the broadcast title and message body.', isError: true });
       return;
     }
 
     setIsSending(true);
-    setTimeout(() => {
-      setIsSending(false);
-      const newBroadcast = {
-        id: `b${Date.now()}`,
-        title,
-        audience: targetAudience,
-        sentAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        status: 'Delivered',
-        recipientCount: targetAudience === 'ALL' ? 1500 : 350
-      };
+    const result = await sendBroadcastApi(title, message, targetAudience);
+    setIsSending(false);
 
-      setBroadcastHistory([newBroadcast, ...broadcastHistory]);
+    if (result.success) {
       setTitle('');
       setMessage('');
-      setToast({ text: `Broadcast "${newBroadcast.title}" successfully sent to ${newBroadcast.recipientCount} users!`, isError: false });
+      setToast({ text: result.message || `Broadcast "${title}" successfully sent!`, isError: false });
+      loadData();
       setTimeout(() => setToast(null), 4000);
-    }, 1000);
+    } else {
+      setToast({ text: 'Failed to send broadcast announcement.', isError: true });
+    }
   };
 
   return (
