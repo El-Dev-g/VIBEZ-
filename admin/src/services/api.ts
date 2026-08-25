@@ -423,6 +423,42 @@ export const createOfficialCommunity = async (name: string, description: string)
   return null;
 };
 
+export const fetchOfficialCommunities = async (): Promise<AdminCommunityItem[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/official-communities`, { cache: 'no-store' });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return [];
+};
+
+export const toggleOfficialStatus = async (communityId: string, isOfficial: boolean): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/official`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isOfficial })
+    });
+    return res.ok;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
+export const deleteCommunity = async (communityId: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
 export const fetchStorageStats = async (): Promise<any> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/storage`, { cache: 'no-store' });

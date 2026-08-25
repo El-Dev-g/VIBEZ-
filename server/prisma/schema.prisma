@@ -56,7 +56,7 @@ model Chat {
   members     ChatMember[]
   
   communityId String?
-  community   Community? @relation(fields: [communityId], references: [id])
+  community   Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
 }
 
 model ChatMember {
@@ -143,7 +143,7 @@ model OfficialPost {
   mediaUrl      String?
   createdAt     DateTime @default(now())
   
-  community     Community @relation(fields: [communityId], references: [id])
+  community     Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
   
   reactions     PostReaction[]
   comments      PostComment[]
@@ -156,7 +156,7 @@ model PostReaction {
   emoji         String   @default("👍")
   createdAt     DateTime @default(now())
 
-  post          OfficialPost @relation(fields: [postId], references: [id])
+  post          OfficialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   user          User         @relation(fields: [userId], references: [id])
 
   @@unique([postId, userId, emoji])
@@ -169,7 +169,7 @@ model PostComment {
   content       String
   createdAt     DateTime @default(now())
 
-  post          OfficialPost @relation(fields: [postId], references: [id])
+  post          OfficialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   user          User         @relation(fields: [userId], references: [id])
 }
 
@@ -179,7 +179,7 @@ model CommunityMember {
   userId      String
   role        String   @default("MEMBER") // ADMIN, MEMBER
   
-  community   Community @relation(fields: [communityId], references: [id])
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [id])
 }
 

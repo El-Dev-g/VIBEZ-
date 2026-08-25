@@ -59,7 +59,13 @@ export class CommunityController {
           channels: {
             create: {
               name: 'Announcements',
-              isGroup: true
+              isGroup: true,
+              members: {
+                create: {
+                  userId,
+                  role: 'ADMIN'
+                }
+              }
             }
           }
         },
@@ -132,12 +138,65 @@ export class CommunityController {
     try {
       const { communityId } = req.params;
       const channels = await prisma.chat.findMany({
-        where: { communityId, isGroup: true }
+        where: { communityId, isGroup: true },
+        include: {
+          members: {
+            include: { user: true }
+          },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' }
+          }
+        }
       });
       res.json(channels);
     } catch (error) {
       console.error('Error fetching community channels:', error);
       res.status(500).json({ error: 'Failed to fetch community channels' });
+    }
+  }
+
+  async joinCommunity(req: AuthRequest, res: Response) {
+    try {
+      const { communityId } = req.params;
+      const userId = req.user?.id as string;
+
+      // Check if already a member
+      const existingMember = await prisma.communityMember.findFirst({
+        where: { communityId, userId }
+      });
+
+      if (existingMember) {
+        return res.json({ message: 'Already a member' });
+      }
+
+      // Add to community
+      await prisma.communityMember.create({
+        data: {
+          communityId,
+          userId,
+          role: 'MEMBER'
+        }
+      });
+
+      // Also add to all public channels in the community
+      const channels = await prisma.chat.findMany({
+        where: { communityId, isGroup: true }
+      });
+
+      for (const channel of channels) {
+        await prisma.chatMember.create({
+          data: {
+            chatId: channel.id,
+            userId
+          }
+        }).catch(() => {}); // Ignore if already a member of channel
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error joining community:', error);
+      res.status(500).json({ error: 'Failed to join community' });
     }
   }
 }

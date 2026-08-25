@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchAdminCommunities, createOfficialCommunity, AdminCommunityItem } from '@/services/api';
+import { fetchAdminCommunities, createOfficialCommunity, AdminCommunityItem, deleteCommunity, toggleOfficialStatus } from '@/services/api';
 
 export default function CommunitiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; isError: boolean } | null>(null);
   const [communities, setCommunities] = useState<AdminCommunityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -23,8 +23,8 @@ export default function CommunitiesPage() {
     setIsLoading(false);
   };
 
-  const showToast = (msg: string) => {
-    setToast(msg);
+  const showToast = (text: string, isError = false) => {
+    setToast({ text, isError });
     setTimeout(() => setToast(null), 3000);
   };
 
@@ -38,9 +38,31 @@ export default function CommunitiesPage() {
       setNewCommunity({ name: '', description: '' });
       loadCommunities();
     } else {
-      showToast('Failed to create community.');
+      showToast('Failed to create community.', true);
     }
     setIsCreating(false);
+  };
+
+  const handleToggleOfficial = async (id: string, currentStatus: boolean) => {
+    const success = await toggleOfficialStatus(id, !currentStatus);
+    if (success) {
+      showToast(`Community classification updated.`);
+      loadCommunities();
+    } else {
+      showToast('Update failed.', true);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be reversed.`)) return;
+    
+    const success = await deleteCommunity(id);
+    if (success) {
+      showToast('Community purged from system.');
+      loadCommunities();
+    } else {
+      showToast('Failed to delete community.', true);
+    }
   };
 
   const filtered = communities.filter(c => 
@@ -117,8 +139,10 @@ export default function CommunitiesPage() {
       )}
 
       {toast && (
-        <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl text-sm font-black border border-emerald-100 animate-fadeIn">
-          {toast}
+        <div className={`p-4 rounded-2xl text-sm font-black border animate-fadeIn ${
+          toast.isError ? 'bg-red-50 text-red-700 border-red-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+        }`}>
+          {toast.text}
         </div>
       )}
 
@@ -197,16 +221,20 @@ export default function CommunitiesPage() {
                       <td className="whitespace-nowrap px-8 py-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button 
-                            onClick={() => showToast(`Managing ${c.name}`)}
-                            className="px-4 py-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                            onClick={() => handleToggleOfficial(c.id, c.isOfficial || false)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                              c.isOfficial 
+                                ? 'bg-slate-900 text-white hover:bg-slate-700' 
+                                : 'bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white'
+                            }`}
                           >
-                            Manage
+                            {c.isOfficial ? 'Unmark System' : 'Mark System'}
                           </button>
                           <button 
-                            onClick={() => showToast(`Moderated ${c.name}`)}
+                            onClick={() => handleDelete(c.id, c.name)}
                             className="px-4 py-2 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
                           >
-                            Moderate
+                            Purge
                           </button>
                         </div>
                       </td>

@@ -338,7 +338,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     suspend fun getCommunityChats(communityId: String, token: String): List<ChatEntity> {
         return try {
             val dtos = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
-            dtos.map { dto ->
+            val entities = dtos.map { dto ->
                 ChatEntity(
                     id = dto.id,
                     contactId = "",
@@ -350,6 +350,15 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     isOfficial = dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
                 )
             }
+            // Cache these chats so they are available in the global chat list for navigation
+            val currentChats = _allChats.value.toMutableList()
+            entities.forEach { entity ->
+                if (currentChats.none { it.id == entity.id }) {
+                    currentChats.add(entity)
+                }
+            }
+            _allChats.value = currentChats
+            entities
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

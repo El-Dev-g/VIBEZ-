@@ -85,6 +85,7 @@ app.put('/api/statuses/privacy', authenticate, (req, res) => status.updatePrivac
 app.get('/api/communities', authenticate, (req, res) => community.getCommunities(req, res));
 app.post('/api/communities', authenticate, (req, res) => community.createCommunity(req, res));
 app.get('/api/communities/:communityId', authenticate, (req, res) => community.getCommunityDetails(req, res));
+app.post('/api/communities/:communityId/join', authenticate, (req, res) => community.joinCommunity(req, res));
 app.get('/api/communities/:communityId/chats', authenticate, (req, res) => community.getCommunityChannels(req, res));
 
 // Call Routes
@@ -110,8 +111,11 @@ app.post('/api/admin/broadcasts', (req, res) => admin.sendBroadcast(req, res));
 // Additional Admin Pages Routes
 app.get('/api/admin/communities', (req, res) => admin.getAdminCommunities(req, res));
 app.post('/api/admin/communities/official', (req, res) => admin.createOfficialCommunity(req, res));
+app.get('/api/admin/official-communities', (req, res) => admin.getOfficialCommunities(req, res));
 app.get('/api/admin/official-community', (req, res) => admin.getOfficialCommunity(req, res));
 app.post('/api/admin/official-community', (req, res) => admin.updateOfficialCommunity(req, res));
+app.post('/api/admin/communities/:communityId/official', (req, res) => admin.toggleOfficialStatus(req, res));
+app.delete('/api/admin/communities/:communityId', (req, res) => admin.deleteCommunity(req, res));
 app.get('/api/admin/communities/:communityId/members', (req, res) => admin.getOfficialCommunityMembers(req, res));
 app.post('/api/admin/communities/:communityId/posts', (req, res) => admin.createOfficialPost(req, res));
 app.get('/api/admin/storage', (req, res) => admin.getStorageStats(req, res));

@@ -422,8 +422,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                             // Navigate to the first chat (usually Announcements)
                             navController.navigate("chat/${communityChats.first().id}")
                         } else {
-                            // Fallback if no chats found yet, maybe navigate to a detail screen or just show Toast
-                            // For now, let's just log it or do nothing to avoid white screen
+                            // Feedback if no channels found
+                            android.widget.Toast.makeText(context, "No announcement channels found for this community.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 },

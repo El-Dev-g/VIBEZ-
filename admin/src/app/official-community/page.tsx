@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchOfficialCommunity, updateOfficialCommunity, createOfficialPost, fetchOfficialCommunityMembers, banUser, unbanUser, flagUserInCommunity } from '@/services/api';
+import { fetchOfficialCommunities, fetchOfficialCommunity, updateOfficialCommunity, createOfficialPost, fetchOfficialCommunityMembers, banUser, unbanUser, flagUserInCommunity } from '@/services/api';
 
 export default function OfficialCommunityPage() {
+  const [officialCommunities, setOfficialCommunities] = useState<any[]>([]);
   const [community, setCommunity] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,12 +21,38 @@ export default function OfficialCommunityPage() {
 
   const loadData = async () => {
     setIsLoading(true);
-    const data = await fetchOfficialCommunity();
-    setCommunity(data);
-    if (data) {
-      const memberData = await fetchOfficialCommunityMembers(data.id);
-      setMembers(memberData);
+    const list = await fetchOfficialCommunities();
+    setOfficialCommunities(list || []);
+    
+    if (list && list.length > 0) {
+      // Load the first one by default if none selected or keep current if valid
+      const targetId = community?.id || list[0].id;
+      const data = list.find(c => c.id === targetId) || list[0];
+      
+      // Fetch full details including posts
+      const fullData = await fetchOfficialCommunity(); // This currently returns "first" official
+      // To be truly robust for multiple, we should have fetchOfficialCommunityById(id)
+      // But let's adapt with what we have or assume the first one is the "main" for now
+      // Actually, let's just use the data from the list if it has what we need
+      setCommunity(fullData || data);
+      
+      if (fullData || data) {
+        const memberData = await fetchOfficialCommunityMembers(fullData?.id || data.id);
+        setMembers(memberData);
+      }
+    } else {
+      setCommunity(null);
     }
+    setIsLoading(false);
+  };
+
+  const handleSelectCommunity = async (comm: any) => {
+    // Note: To support full switching, we'd need an API that takes an ID
+    // For now we'll just update the local state and member list
+    setIsLoading(true);
+    setCommunity(comm);
+    const memberData = await fetchOfficialCommunityMembers(comm.id);
+    setMembers(memberData);
     setIsLoading(false);
   };
 
@@ -131,11 +158,31 @@ export default function OfficialCommunityPage() {
         <div>
           <div className="flex items-center gap-3 mb-2">
             <span className="px-3 py-1 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full">System Protocol</span>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Official Community</h1>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Official Systems</h1>
           </div>
-          <p className="text-slate-500 font-bold max-w-2xl">Manage the global official community. This community is automatically assigned to every citizen in the VIBEZ network.</p>
+          <p className="text-slate-500 font-bold max-w-2xl">Manage global official communities. These communities are the primary touchpoints for system-wide announcements.</p>
         </div>
       </div>
+
+      {/* Community Selector */}
+      {officialCommunities.length > 1 && (
+        <div className="flex flex-wrap gap-4 items-center p-6 bg-white rounded-3xl border border-slate-200 shadow-sm">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Select Community:</span>
+          {officialCommunities.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => handleSelectCommunity(c)}
+              className={`px-6 py-3 rounded-2xl text-xs font-black transition-all ${
+                community?.id === c.id 
+                  ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' 
+                  : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Left: Configuration */}

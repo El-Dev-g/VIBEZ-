@@ -422,7 +422,13 @@ export class AdminController {
         data: {
           name: 'Global General',
           isGroup: true,
-          communityId: community.id
+          communityId: community.id,
+          members: {
+            create: {
+              userId: 'system',
+              role: 'ADMIN'
+            }
+          }
         }
       });
 
@@ -446,6 +452,27 @@ export class AdminController {
     } catch (error) {
       console.error('Error creating official community:', error);
       res.status(500).json({ error: 'Failed to create official community' });
+    }
+  }
+
+  async getOfficialCommunities(req: Request, res: Response) {
+    try {
+      const communities = await prisma.community.findMany({
+        where: { isOfficial: true },
+        include: {
+          _count: {
+            select: { members: true, channels: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      res.json(communities.map(c => ({
+        ...c,
+        membersCount: c._count.members || 0
+      })));
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch official communities' });
     }
   }
 
@@ -495,6 +522,56 @@ export class AdminController {
       });
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch official community' });
+    }
+  }
+
+  async toggleOfficialStatus(req: Request, res: Response) {
+    try {
+      const { communityId } = req.params;
+      const { isOfficial } = req.body;
+      
+      const updated = await prisma.community.update({
+        where: { id: communityId },
+        data: { isOfficial }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: 'system',
+          action: isOfficial ? 'MARK_OFFICIAL' : 'UNMARK_OFFICIAL',
+          target: communityId
+        }
+      });
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to toggle official status' });
+    }
+  }
+
+  async deleteCommunity(req: Request, res: Response) {
+    try {
+      const { communityId } = req.params;
+      
+      // Delete associated data first or rely on cascade if configured
+      // For now let's manually clean up some basics if needed, but Prisma schema might handle it
+      
+      await prisma.community.delete({
+        where: { id: communityId }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: 'system',
+          action: 'DELETE_COMMUNITY',
+          target: communityId
+        }
+      });
+
+      res.json({ success: true, message: 'Community deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting community:', error);
+      res.status(500).json({ error: 'Failed to delete community' });
     }
   }
 
