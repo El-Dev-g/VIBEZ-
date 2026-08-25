@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import PaymentSettings from '@/components/PaymentSettings';
 import TransactionList from '@/components/TransactionList';
+import RevenueChart from '@/components/RevenueChart';
 
 export default function PaymentsPage() {
   const [activeTab, setActiveTab] = useState<'transactions' | 'config'>('transactions');
@@ -59,6 +60,10 @@ export default function PaymentsPage() {
                 <div className="mt-2 text-rose-400 text-xs font-bold">No data available</div>
               </div>
             </div>
+
+            <section>
+              <RevenueChart />
+            </section>
             
             <section className="space-y-4">
               <h2 className="text-xl font-black text-white px-2">Recent Transactions</h2>
