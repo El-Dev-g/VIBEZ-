@@ -419,6 +419,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     navController.navigate("chat/$chatId")
                 },
                 onCommunityClick = { communityId ->
+                    navController.navigate("community_info/$communityId")
+                },
+                onCommunityChatClick = { communityId ->
                     viewModel.getCommunityChats(communityId) { communityChats ->
                         if (communityChats.isNotEmpty()) {
                             // Navigate to the first chat (usually Announcements/Main channel)
@@ -1035,18 +1038,22 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         composable("verification_checkout") {
             LaunchedEffect(Unit) {
                 viewModel.refreshBadgeStatus()
+                viewModel.loadPaymentProviders()
             }
+            val paymentProviders by viewModel.paymentProviders.collectAsState()
+            
             VerificationCheckoutScreen(
                 badgePrice = badgeStatus?.badgePrice ?: 3.00,
                 priceText = badgeStatus?.price ?: "$3.00 USD",
+                providers = paymentProviders,
                 onBack = { navController.popBackStack() },
                 onPaymentSuccess = {
                     navController.navigate("badges_receipt") {
                         popUpTo("verification_checkout") { inclusive = true }
                     }
                 },
-                onProcessPayment = { provider, onComplete ->
-                    viewModel.processVerificationPayment(provider, onComplete)
+                onProcessPayment = { provider, amount, onComplete ->
+                    viewModel.processVerificationPayment(provider, amount, onComplete)
                 }
             )
         }

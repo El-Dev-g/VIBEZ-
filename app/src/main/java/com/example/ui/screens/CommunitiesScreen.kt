@@ -53,6 +53,7 @@ import com.example.ui.theme.WhatsAppMinimalPrimary
 fun CommunitiesScreen(
     communities: List<CommunityEntity> = emptyList(),
     onCreateCommunityClick: () -> Unit = {},
+    onCommunityClick: (String) -> Unit = {},
     onCommunityChatClick: (String) -> Unit = {}
 ) {
     LazyColumn(
@@ -218,7 +219,8 @@ fun CommunitiesScreen(
                 CommunityItem(
                     community = community,
                     isOfficial = isOfficial,
-                    onCommunityClick = { onCommunityChatClick(community.id) }
+                    onCommunityClick = { onCommunityClick(community.id) },
+                    onCommunityChatClick = { onCommunityChatClick(community.id) }
                 )
                 HorizontalDivider(
                     thickness = 6.dp,
@@ -233,7 +235,8 @@ fun CommunitiesScreen(
 private fun CommunityItem(
     community: CommunityEntity,
     isOfficial: Boolean = false,
-    onCommunityClick: () -> Unit
+    onCommunityClick: () -> Unit,
+    onCommunityChatClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -323,7 +326,7 @@ private fun CommunityItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onCommunityClick)
+                .clickable(onClick = onCommunityChatClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

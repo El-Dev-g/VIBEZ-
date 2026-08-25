@@ -102,6 +102,16 @@ app.get('/api/payments/verification/status', authenticate, (req, res) => payment
 app.get('/api/admin/badges', (req, res) => payment.getAdminBadgePayments(req, res));
 app.post('/api/admin/users/:userId/badge', (req, res) => payment.toggleUserBadge(req, res));
 
+// Multi-Provider Payment Management
+app.get('/api/admin/payments/providers', (req, res) => payment.getPaymentProviders(req, res));
+app.patch('/api/admin/payments/providers/:id', (req, res) => payment.updatePaymentProvider(req, res));
+app.get('/api/admin/payments/transactions', (req, res) => payment.getPaymentTransactions(req, res));
+
+// Client Payment Integration Layer
+app.get('/api/payments/providers', (req, res) => payment.getAvailableProviders(req, res));
+app.post('/api/payments/create', authenticate, (req, res) => payment.createPayment(req, res));
+app.post('/api/payments/webhook', (req, res) => payment.updatePaymentStatus(req, res));
+
 // Broadcast & Announcements Routes
 app.get('/api/broadcasts', (req, res) => admin.getPublicBroadcasts(req, res));
 app.get('/api/announcements', (req, res) => admin.getPublicBroadcasts(req, res));
@@ -135,6 +145,13 @@ app.put('/api/admin/settings', (req, res) => admin.updateSettings(req, res));
 app.post('/api/admin/settings', (req, res) => admin.updateSettings(req, res));
 app.post('/api/admin/users/:userId/ban', (req, res) => admin.banUser(req, res));
 app.post('/api/admin/users/:userId/unban', (req, res) => admin.unbanUser(req, res));
+
+// Admin Profile, Password & Sessions Routes
+app.get('/api/admin/profile', authenticate, (req, res) => admin.getProfile(req, res));
+app.put('/api/admin/profile', authenticate, (req, res) => admin.updateProfile(req, res));
+app.post('/api/admin/change-password', authenticate, (req, res) => admin.changePassword(req, res));
+app.get('/api/admin/sessions', authenticate, (req, res) => admin.getSessions(req, res));
+app.delete('/api/admin/sessions/:sessionId', authenticate, (req, res) => admin.revokeSession(req, res));
 
 // Media Routes
 app.post('/api/media/upload-url', authenticate, async (req, res) => {

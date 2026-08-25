@@ -765,4 +765,150 @@ export class AdminController {
       res.status(500).json({ error: 'Failed to fetch analytics' });
     }
   }
+
+  // --- Profile, Security & Session Management ---
+  private adminSessions = [
+    { id: 'sess_1', device: 'macOS Chrome', ip: '192.168.1.104', location: 'London, UK', current: true },
+    { id: 'sess_2', device: 'iOS Safari', ip: '192.168.1.189', location: 'London, UK', current: false },
+    { id: 'sess_3', device: 'Windows Edge', ip: '84.120.44.11', location: 'Berlin, DE', current: false }
+  ];
+
+  async getProfile(req: Request, res: Response) {
+    try {
+      const adminId = (req as any).user?.id;
+      if (!adminId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const admin = await prisma.admin.findUnique({
+        where: { id: adminId }
+      });
+
+      if (!admin) {
+        return res.status(404).json({ error: 'Admin not found' });
+      }
+
+      res.json({
+        id: admin.id,
+        email: admin.email,
+        name: admin.name || 'System Admin',
+        photo: admin.photo || '',
+        role: admin.role,
+        twoFactorEnabled: admin.twoFactorEnabled
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch admin profile' });
+    }
+  }
+
+  async updateProfile(req: Request, res: Response) {
+    try {
+      const adminId = (req as any).user?.id;
+      if (!adminId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const { name, email, role, photo } = req.body;
+
+      const updated = await prisma.admin.update({
+        where: { id: adminId },
+        data: {
+          name: name ?? undefined,
+          email: email ?? undefined,
+          role: role ?? undefined,
+          photo: photo ?? undefined
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: updated.email,
+          action: 'UPDATE_PROFILE',
+          target: updated.id
+        }
+      });
+
+      res.json({
+        id: updated.id,
+        email: updated.email,
+        name: updated.name || 'System Admin',
+        photo: updated.photo || '',
+        role: updated.role,
+        twoFactorEnabled: updated.twoFactorEnabled
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update admin profile' });
+    }
+  }
+
+  async changePassword(req: Request, res: Response) {
+    try {
+      const adminId = (req as any).user?.id;
+      if (!adminId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const { current, new: newPassword } = req.body;
+      if (!current || !newPassword) {
+        return res.status(400).json({ error: 'Current password and new password are required' });
+      }
+
+      const admin = await prisma.admin.findUnique({
+        where: { id: adminId }
+      });
+
+      if (!admin) {
+        return res.status(404).json({ error: 'Admin not found' });
+      }
+
+      if (admin.password !== current) {
+        return res.status(400).json({ error: 'Incorrect current password' });
+      }
+
+      await prisma.admin.update({
+        where: { id: adminId },
+        data: { password: newPassword }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: admin.email,
+          action: 'CHANGE_PASSWORD',
+          target: admin.id
+        }
+      });
+
+      res.json({ success: true, message: 'Password updated successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to change password' });
+    }
+  }
+
+  async getSessions(req: Request, res: Response) {
+    try {
+      res.json(this.adminSessions);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch active sessions' });
+    }
+  }
+
+  async revokeSession(req: Request, res: Response) {
+    try {
+      const { sessionId } = req.params;
+      this.adminSessions = this.adminSessions.filter(s => s.id !== sessionId);
+
+      const adminEmail = (req as any).user?.email || 'admin@vibez.app';
+      await prisma.auditLog.create({
+        data: {
+          adminEmail,
+          action: 'REVOKE_SESSION',
+          target: sessionId
+        }
+      });
+
+      res.json({ success: true, message: 'Session revoked successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to revoke session' });
+    }
+  }
 }

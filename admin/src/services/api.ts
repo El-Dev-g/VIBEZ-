@@ -49,6 +49,103 @@ export const loginAdmin = async (email: string, password: string): Promise<Admin
   }
 };
 
+export const getAdminHeaders = () => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('vibez_admin_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+};
+
+export interface AdminProfile {
+  id: string;
+  email: string;
+  name: string;
+  photo: string;
+  role: string;
+  twoFactorEnabled: boolean;
+}
+
+export interface AdminSession {
+  id: string;
+  device: string;
+  ip: string;
+  location: string;
+  current: boolean;
+}
+
+export const fetchAdminProfile = async (): Promise<AdminProfile | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/profile`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return null;
+};
+
+export const updateAdminProfile = async (data: { name: string; email: string; role?: string; photo?: string }): Promise<AdminProfile | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/profile`, {
+      method: 'PUT',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return null;
+};
+
+export const changeAdminPassword = async (current: string, newKey: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/change-password`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ current, new: newKey })
+    });
+    if (res.ok) return await res.json();
+    const data = await res.json();
+    return { success: false, error: data.error || 'Password change failed' };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: 'Network error changing password' };
+  }
+};
+
+export const fetchAdminSessions = async (): Promise<AdminSession[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/sessions`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return [];
+};
+
+export const revokeAdminSession = async (sessionId: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders()
+    });
+    return res.ok;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
 export const fetchAuditLogs = async (): Promise<AuditLog[]> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/logs`, { cache: 'no-store' });
@@ -563,5 +660,64 @@ export const fetchAnalytics = async (): Promise<any> => {
     console.error(error);
   }
   return null;
+};
+
+export interface PaymentProvider {
+  id: string;
+  name: string;
+  isEnabled: boolean;
+  config: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  provider: string;
+  providerRef: string;
+  metadata: any;
+  createdAt: string;
+  user?: {
+    name: string;
+    phoneNumber: string;
+  };
+}
+
+export const fetchPaymentProviders = async (): Promise<PaymentProvider[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/payments/providers`, { headers: getAdminHeaders() });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return [];
+};
+
+export const updatePaymentProvider = async (id: string, data: any): Promise<PaymentProvider | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/payments/providers/${id}`, {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return null;
+};
+
+export const fetchPaymentTransactions = async (): Promise<PaymentTransaction[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/payments/transactions`, { headers: getAdminHeaders() });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return [];
 };
 

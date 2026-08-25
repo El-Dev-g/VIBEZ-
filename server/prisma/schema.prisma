@@ -40,6 +40,7 @@ model User {
   reportsSubmitted Report[]  @relation("Reporter")
   reportsReceived  Report[]  @relation("ReportedUser")
   badgePayments    BadgePayment[]
+  paymentTransactions PaymentTransaction[]
   officialPostReactions PostReaction[]
   officialPostComments  PostComment[]
 }
@@ -213,11 +214,14 @@ model UserSettings {
 }
 
 model Admin {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      String   @default("MODERATOR") // SUPERADMIN, MODERATOR, SUPPORT
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  email            String   @unique
+  password         String
+  name             String?  @default("System Admin")
+  photo            String?  @default("")
+  role             String   @default("MODERATOR") // SUPERADMIN, MODERATOR, SUPPORT
+  twoFactorEnabled Boolean  @default(false)
+  createdAt        DateTime @default(now())
 }
 
 model Report {
@@ -283,5 +287,29 @@ model StorageAsset {
   purpose     String   @default("GENERAL") // CHAT, STATUS, COMMUNITY, PROFILE
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model PaymentProvider {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g., "STRIPE", "PAYPAL"
+  isEnabled   Boolean  @default(false)
+  config      Json?    // Encrypted or secure storage of keys (publicKey, secretKey, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PaymentTransaction {
+  id              String   @id @default(uuid())
+  userId          String
+  amount          Float
+  currency        String   @default("USD")
+  status          String   @default("PENDING") // PENDING, COMPLETED, FAILED, CANCELLED
+  provider        String   // STRIPE, PAYPAL
+  providerRef     String?  @unique // Provider's internal ID
+  metadata        Json?    // For extra data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }
 

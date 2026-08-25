@@ -574,4 +574,12 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     private val _allCallLogs = MutableStateFlow<List<CallLogEntity>>(emptyList())
     val allCallLogs: StateFlow<List<CallLogEntity>> = _allCallLogs.asStateFlow()
     val starredMessages: Flow<List<MessageEntity>> = MutableStateFlow<List<MessageEntity>>(emptyList())
+
+    suspend fun getAvailablePaymentProviders(token: String): List<PaymentProviderDto> {
+        return NetworkClient.apiService.getAvailablePaymentProviders("Bearer $token")
+    }
+
+    suspend fun createPayment(token: String, request: CreatePaymentRequest): CreatePaymentResponse {
+        return NetworkClient.apiService.createPayment("Bearer $token", request)
+    }
 }

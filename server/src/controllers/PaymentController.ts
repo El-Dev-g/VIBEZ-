@@ -213,4 +213,131 @@ export class PaymentController {
       return res.status(500).json({ error: 'Failed to update badge status' });
     }
   }
+
+  // Admin: Get all payment providers
+  async getPaymentProviders(req: Request, res: Response) {
+    try {
+      let providers = await prisma.paymentProvider.findMany();
+      if (providers.length === 0) {
+        await prisma.paymentProvider.createMany({
+          data: [
+            { name: 'STRIPE', isEnabled: false, config: { publicKey: '', secretKey: '' } },
+            { name: 'PAYPAL', isEnabled: false, config: { clientId: '', clientSecret: '' } }
+          ]
+        });
+        providers = await prisma.paymentProvider.findMany();
+      }
+      return res.json(providers);
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to fetch providers' });
+    }
+  }
+
+  // Client: Get available providers (config filtered)
+  async getAvailableProviders(req: Request, res: Response) {
+    try {
+      const providers = await prisma.paymentProvider.findMany({
+        where: { isEnabled: true },
+        select: { id: true, name: true }
+      });
+      return res.json(providers);
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to fetch available providers' });
+    }
+  }
+
+  // Admin: Update payment provider
+  async updatePaymentProvider(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { isEnabled, config } = req.body;
+      const provider = await prisma.paymentProvider.update({
+        where: { id },
+        data: { isEnabled, config }
+      });
+      return res.json(provider);
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to update provider' });
+    }
+  }
+
+  // Admin: Get all payment transactions
+  async getPaymentTransactions(req: Request, res: Response) {
+    try {
+      const transactions = await prisma.paymentTransaction.findMany({
+        include: {
+          user: {
+            select: { name: true, phoneNumber: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      return res.json(transactions);
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  }
+
+  // Client: Create Payment (Simulated Provider Integration)
+  async createPayment(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { provider, amount, currency = 'USD', metadata } = req.body;
+
+      const activeProvider = await prisma.paymentProvider.findUnique({
+        where: { name: provider }
+      });
+
+      if (!activeProvider || !activeProvider.isEnabled) {
+        return res.status(400).json({ error: 'Payment provider not available' });
+      }
+
+      const providerRef = `SIM_${provider}_${Date.now()}`;
+
+      const transaction = await prisma.paymentTransaction.create({
+        data: {
+          userId,
+          amount,
+          currency,
+          provider,
+          providerRef,
+          status: 'PENDING',
+          metadata
+        }
+      });
+
+      return res.json({
+        success: true,
+        transactionId: transaction.id,
+        providerRef,
+        message: `Secure ${provider} payment session initiated.`
+      });
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to initiate payment' });
+    }
+  }
+
+  // Webhook: Update payment status from provider
+  async updatePaymentStatus(req: Request, res: Response) {
+    try {
+      const { providerRef, status } = req.body;
+      const transaction = await prisma.paymentTransaction.update({
+        where: { providerRef },
+        data: { status }
+      });
+
+      if (status === 'COMPLETED' && transaction.metadata && (transaction.metadata as any).purpose === 'VERIFICATION_BADGE') {
+         await prisma.user.update({
+           where: { id: transaction.userId },
+           data: { isVerified: true, verifiedAt: new Date() }
+         });
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to update payment status' });
+    }
+  }
 }

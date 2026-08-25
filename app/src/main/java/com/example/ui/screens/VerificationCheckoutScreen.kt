@@ -30,11 +30,12 @@ import com.example.ui.components.VerifiedBadge
 fun VerificationCheckoutScreen(
     badgePrice: Double = 3.00,
     priceText: String = "$3.00 USD",
+    providers: List<com.example.data.network.PaymentProviderDto> = emptyList(),
     onBack: () -> Unit,
     onPaymentSuccess: () -> Unit,
-    onProcessPayment: (provider: String, onComplete: (Boolean, String?) -> Unit) -> Unit
+    onProcessPayment: (provider: String, amount: Double, onComplete: (Boolean, String?) -> Unit) -> Unit
 ) {
-    var selectedProvider by remember { mutableStateOf("IN_APP_PAYMENT") }
+    var selectedProvider by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -163,19 +164,22 @@ fun VerificationCheckoutScreen(
                     style = MaterialTheme.typography.titleSmall
                 )
 
-                PaymentOptionTile(
-                    title = "In-App Payment Provider",
-                    subtitle = "Instant activation via Google Play / Card",
-                    selected = selectedProvider == "IN_APP_PAYMENT",
-                    onClick = { selectedProvider = "IN_APP_PAYMENT" }
-                )
-
-                PaymentOptionTile(
-                    title = "Stripe / Credit Card",
-                    subtitle = "Pay securely with Visa, MasterCard, or Amex",
-                    selected = selectedProvider == "STRIPE",
-                    onClick = { selectedProvider = "STRIPE" }
-                )
+                if (providers.isEmpty()) {
+                    Text(
+                        text = "No payment providers configured by administrator.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    providers.forEach { provider ->
+                        PaymentOptionTile(
+                            title = provider.name,
+                            subtitle = "Pay securely with ${provider.name}",
+                            selected = selectedProvider == provider.name,
+                            onClick = { selectedProvider = provider.name }
+                        )
+                    }
+                }
             }
 
             if (errorMessage != null) {
@@ -190,18 +194,20 @@ fun VerificationCheckoutScreen(
             // Pay CTA Button
             Button(
                 onClick = {
-                    isProcessing = true
-                    errorMessage = null
-                    onProcessPayment(selectedProvider) { success, msg ->
-                        isProcessing = false
-                        if (success) {
-                            onPaymentSuccess()
-                        } else {
-                            errorMessage = msg ?: "Payment failed. Please try again."
+                    if (selectedProvider != null) {
+                        isProcessing = true
+                        errorMessage = null
+                        onProcessPayment(selectedProvider!!, badgePrice) { success, msg ->
+                            isProcessing = false
+                            if (success) {
+                                onPaymentSuccess()
+                            } else {
+                                errorMessage = msg ?: "Payment failed. Please try again."
+                            }
                         }
                     }
                 },
-                enabled = !isProcessing,
+                enabled = !isProcessing && selectedProvider != null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),

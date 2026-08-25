@@ -216,3 +216,25 @@ data class SystemStatusResponse(
     val badgePrice: Double = 3.0
 )
 
+@JsonClass(generateAdapter = true)
+data class PaymentProviderDto(
+    val id: String,
+    val name: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CreatePaymentRequest(
+    val provider: String,
+    val amount: Double,
+    val currency: String = "USD",
+    val metadata: Map<String, String>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CreatePaymentResponse(
+    val success: Boolean,
+    val transactionId: String,
+    val providerRef: String,
+    val message: String
+)
+

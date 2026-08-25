@@ -139,4 +139,15 @@ interface ApiService {
 
     @GET("api/system/status")
     suspend fun getSystemStatus(): SystemStatusResponse
+
+    @GET("api/payments/providers")
+    suspend fun getAvailablePaymentProviders(
+        @Header("Authorization") token: String
+    ): List<PaymentProviderDto>
+
+    @POST("api/payments/create")
+    suspend fun createPayment(
+        @Header("Authorization") token: String,
+        @Body request: CreatePaymentRequest
+    ): CreatePaymentResponse
 }

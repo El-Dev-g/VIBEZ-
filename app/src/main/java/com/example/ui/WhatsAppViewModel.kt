@@ -662,7 +662,22 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun processVerificationPayment(provider: String, onComplete: (Boolean, String?) -> Unit) {
+    private val _paymentProviders = MutableStateFlow<List<com.example.data.network.PaymentProviderDto>>(emptyList())
+    val paymentProviders = _paymentProviders.asStateFlow()
+
+    fun loadPaymentProviders() {
+        viewModelScope.launch {
+            try {
+                val token = authManager.getAuthToken() ?: return@launch
+                val providers = repository.getAvailablePaymentProviders(token)
+                _paymentProviders.value = providers
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun processVerificationPayment(provider: String, amount: Double, onComplete: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             val token = authManager.getAuthToken()
             if (token.isNullOrBlank()) {
@@ -670,13 +685,25 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 return@launch
             }
 
-            val response = repository.processVerificationPayment(provider, token)
-            if (response != null && response.success) {
-                isVerified.value = true
-                refreshBadgeStatus()
-                onComplete(true, response.message)
-            } else {
-                onComplete(false, response?.message ?: "Payment failed")
+            try {
+                val response = repository.createPayment(
+                    token,
+                    com.example.data.network.CreatePaymentRequest(
+                        provider = provider,
+                        amount = amount,
+                        metadata = mapOf("purpose" to "VERIFICATION_BADGE")
+                    )
+                )
+                if (response.success) {
+                    isVerified.value = true
+                    refreshBadgeStatus()
+                    onComplete(true, response.message)
+                } else {
+                    onComplete(false, response.message)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onComplete(false, e.message ?: "Payment failed")
             }
         }
     }

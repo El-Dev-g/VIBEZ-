@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import DashboardShell from "@/components/DashboardShell";
+import ClientLayout from "@/components/ClientLayout";
 
 export const metadata: Metadata = {
   title: "VIBEZ Admin Portal",
@@ -15,9 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="antialiased h-full bg-gray-50">
-        <DashboardShell>
+        <ClientLayout>
           {children}
-        </DashboardShell>
+        </ClientLayout>
       </body>
     </html>
   );

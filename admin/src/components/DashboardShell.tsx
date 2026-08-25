@@ -10,7 +10,12 @@ export default function DashboardShell({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const pathname = usePathname();
+  let pathname = '';
+  try {
+    pathname = usePathname() || '';
+  } catch (e) {
+    pathname = '';
+  }
   const isLoginPage = pathname === '/login';
 
   if (isLoginPage) {
