@@ -62,8 +62,7 @@ export class CommunityController {
               isGroup: true,
               members: {
                 create: {
-                  userId,
-                  role: 'ADMIN'
+                  userId
                 }
               }
             }
@@ -137,7 +136,24 @@ export class CommunityController {
   async getCommunityChannels(req: AuthRequest, res: Response) {
     try {
       const { communityId } = req.params;
-      const channels = await prisma.chat.findMany({
+      const userId = req.user?.id as string;
+
+      // Ensure the user is registered as a member of the community itself
+      const existingCommunityMember = await prisma.communityMember.findFirst({
+        where: { communityId, userId }
+      });
+
+      if (!existingCommunityMember) {
+        await prisma.communityMember.create({
+          data: {
+            communityId,
+            userId,
+            role: 'MEMBER'
+          }
+        }).catch(() => {});
+      }
+
+      let channels = await prisma.chat.findMany({
         where: { communityId, isGroup: true },
         include: {
           members: {
@@ -149,6 +165,56 @@ export class CommunityController {
           }
         }
       });
+
+      if (channels.length === 0) {
+        // Automatically create an "Announcements" channel on the fly so it is immediately functional
+        const newChannel = await prisma.chat.create({
+          data: {
+            name: 'Announcements',
+            isGroup: true,
+            communityId,
+            members: {
+              create: {
+                userId
+              }
+            }
+          },
+          include: {
+            members: {
+              include: { user: true }
+            },
+            messages: {
+              take: 1,
+              orderBy: { createdAt: 'desc' }
+            }
+          }
+        });
+        channels = [newChannel];
+      } else {
+        // Ensure the user is a member of every channel in this community so they can view and receive messages
+        for (const channel of channels) {
+          const isMember = channel.members.some(m => m.userId === userId);
+          if (!isMember) {
+            await prisma.chatMember.create({
+              data: {
+                chatId: channel.id,
+                userId
+              }
+            }).catch(() => {});
+            
+            // Append the new member object to our response so the client receives it instantly
+            const userObj = await prisma.user.findUnique({ where: { id: userId } });
+            if (userObj) {
+              channel.members.push({
+                chatId: channel.id,
+                userId,
+                user: userObj
+              } as any);
+            }
+          }
+        }
+      }
+
       res.json(channels);
     } catch (error) {
       console.error('Error fetching community channels:', error);

@@ -420,13 +420,12 @@ export class AdminController {
       // Create a default chat channel for this community
       await prisma.chat.create({
         data: {
-          name: 'Global General',
+          name: 'Announcements',
           isGroup: true,
           communityId: community.id,
           members: {
             create: {
-              userId: 'system',
-              role: 'ADMIN'
+              userId: 'system'
             }
           }
         }
