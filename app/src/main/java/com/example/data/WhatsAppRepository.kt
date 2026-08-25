@@ -145,7 +145,17 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     private fun parseDate(dateStr: String?): Long {
         if (dateStr == null) return System.currentTimeMillis()
-        return System.currentTimeMillis() // Simplified
+        return try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                java.time.Instant.parse(dateStr).toEpochMilli()
+            } else {
+                val format = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
+                format.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                format.parse(dateStr)?.time ?: System.currentTimeMillis()
+            }
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
     }
 
     suspend fun resetChatUnreadCount(chatId: String) {
@@ -357,10 +367,10 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         )
     }
 
-    suspend fun syncStatuses(token: String) {
+    suspend fun syncStatuses(token: String, currentUserId: String?) {
         try {
             val dtos = NetworkClient.apiService.getStatuses("Bearer $token")
-            _allStatuses.value = dtos.map { mapStatusDtoToEntity(it) }
+            _allStatuses.value = dtos.map { mapStatusDtoToEntity(it, currentUserId) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -406,7 +416,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                 backgroundColor = colorHex
             )
             val dto = NetworkClient.apiService.createStatus("Bearer $token", request)
-            val entity = mapStatusDtoToEntity(dto)
+            val currentUserId = if (dto.userId != "ME") dto.userId else null // Just use the ID from the response if possible
+            val entity = mapStatusDtoToEntity(dto, currentUserId ?: "ME")
             _allStatuses.value = _allStatuses.value + entity
             entity.id
         } catch (e: Exception) {
@@ -415,7 +426,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
-    private fun mapStatusDtoToEntity(dto: StatusDto): StatusEntity {
+    private fun mapStatusDtoToEntity(dto: StatusDto, currentUserId: String?): StatusEntity {
         return StatusEntity(
             id = dto.id,
             contactId = dto.userId,
@@ -426,8 +437,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             textCaption = dto.content ?: "",
             backgroundColorHex = dto.backgroundColor ?: "#075E54",
             timestamp = parseDate(dto.createdAt),
-            isViewed = dto.viewers.any { it.userId == "ME" }, // Simplified
-            isMyStatus = dto.userId == "ME",
+            isViewed = currentUserId != null && dto.viewers.any { it.userId == currentUserId },
+            isMyStatus = currentUserId != null && dto.userId == currentUserId,
             viewCount = dto.viewers.size
         )
     }

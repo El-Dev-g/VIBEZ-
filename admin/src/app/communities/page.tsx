@@ -126,7 +126,7 @@ export default function CommunitiesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="Total Communities" value={communities.length} icon="🌐" color="bg-blue-500" />
         <StatCard title="Active Channels" value={communities.reduce((acc, c) => acc + (c.channels || 0), 0)} icon="📺" color="bg-purple-500" />
-        <StatCard title="Global Members" value={communities.reduce((acc, c) => acc + (c.members || 0), 0).toLocaleString()} icon="👥" color="bg-emerald-500" />
+        <StatCard title="Global Members" value={(communities || []).reduce((acc, c) => acc + (c.members || 0), 0).toLocaleString()} icon="👥" color="bg-emerald-500" />
         <StatCard title="Group Limit" value="1,024" icon="🛡️" color="bg-slate-700" />
       </div>
 
@@ -173,7 +173,7 @@ export default function CommunitiesPage() {
                       <td className="whitespace-nowrap px-8 py-6">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 font-black text-xs border border-slate-200 group-hover:scale-110 transition-transform">
-                            {c.name.charAt(0)}
+                            {c.name?.charAt(0) || '?'}
                           </div>
                           <div className="text-sm font-black text-slate-900">{c.name}</div>
                           {c.isOfficial && (
@@ -184,7 +184,7 @@ export default function CommunitiesPage() {
                       <td className="whitespace-nowrap px-8 py-6">
                         <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200">{c.category}</span>
                       </td>
-                      <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{c.members.toLocaleString()}</td>
+                      <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{(c.members || 0).toLocaleString()}</td>
                       <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-500">{c.channels} Channels</td>
                       <td className="whitespace-nowrap px-8 py-6">
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${

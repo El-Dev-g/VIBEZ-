@@ -26,7 +26,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         <MetricCard 
           title="Active Users" 
-          value={metrics.activeUsers.toLocaleString()} 
+          value={(metrics?.activeUsers || 0).toLocaleString()} 
           change="+12%" 
           trend="up" 
           icon={(
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
         />
         <MetricCard 
           title="Total Chats" 
-          value={metrics.totalChats.toLocaleString()} 
+          value={(metrics?.totalChats || 0).toLocaleString()} 
           change="+5.4%" 
           trend="up" 
           icon={(
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
         />
         <MetricCard 
           title="Total Messages" 
-          value={metrics.totalMessages.toLocaleString()} 
+          value={(metrics?.totalMessages || 0).toLocaleString()} 
           icon={(
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

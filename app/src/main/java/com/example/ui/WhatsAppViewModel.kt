@@ -158,7 +158,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     // Handle incoming
                 }
                 authManager.getAuthToken()?.let { token ->
-                    repository.syncStatuses(token)
+                    repository.syncStatuses(token, uid)
                     repository.syncCommunities(token)
                     
                     // Trigger background contact sync if permission would likely be granted or just try
@@ -225,8 +225,9 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     suspend fun syncEverythingWithBackend() {
         authManager.getAuthToken()?.let { token ->
+            val uid = authManager.getUserId()
             repository.syncChats(token)
-            repository.syncStatuses(token)
+            repository.syncStatuses(token, uid)
             repository.syncCommunities(token)
             repository.syncCallLogs(token)
             repository.getSettings(token)?.let { settings ->
@@ -270,7 +271,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 // Initialize Socket & Sync
                 repository.initSocket(response.user.id) { }
                 repository.syncChats(response.token)
-                repository.syncStatuses(response.token)
+                repository.syncStatuses(response.token, response.user.id)
                 repository.syncCommunities(response.token)
 
                 onComplete?.invoke(true, null)
@@ -481,7 +482,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     fun syncStatuses() {
         viewModelScope.launch {
             authManager.getAuthToken()?.let { token ->
-                repository.syncStatuses(token)
+                repository.syncStatuses(token, authManager.getUserId())
             }
         }
     }

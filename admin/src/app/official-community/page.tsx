@@ -145,11 +145,11 @@ export default function OfficialCommunityPage() {
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Community Identity</label>
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="w-16 h-16 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-slate-900/20">
-                  {community.name.charAt(0)}
+                  {community.name?.charAt(0) || '?'}
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-900">{community.name}</h3>
-                  <p className="text-xs font-bold text-slate-400">{community.membersCount.toLocaleString()} Citizens Enrolled</p>
+                  <p className="text-xs font-bold text-slate-400">{(community.membersCount || 0).toLocaleString()} Citizens Enrolled</p>
                 </div>
               </div>
             </div>
@@ -258,7 +258,7 @@ export default function OfficialCommunityPage() {
                     <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black">V</div>
                     <div>
                       <p className="text-xs font-black text-slate-900 uppercase">System Command</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(post.createdAt).toLocaleString()}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{post.createdAt ? new Date(post.createdAt).toLocaleString() : 'System Time'}</p>
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-slate-50 text-slate-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-slate-100">
@@ -268,10 +268,10 @@ export default function OfficialCommunityPage() {
                 <p className="text-slate-900 font-bold leading-relaxed">{post.content}</p>
                 <div className="mt-8 pt-6 border-t border-slate-50 flex items-center gap-6">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{post.likes.toLocaleString()} Reactions</span>
+                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{(post.likes || 0).toLocaleString()} Reactions</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-400">
-                    <span className="text-[10px] font-black uppercase tracking-widest">{post.comments.toLocaleString()} Comments</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{(post.comments || 0).toLocaleString()} Comments</span>
                   </div>
                 </div>
               </div>
@@ -308,13 +308,13 @@ export default function OfficialCommunityPage() {
                   <td className="whitespace-nowrap px-8 py-6">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 font-black text-xs border border-slate-200 group-hover:scale-110 transition-transform">
-                        {member.name.charAt(0)}
+                        {member.name?.charAt(0) || '?'}
                       </div>
-                      <div className="text-sm font-black text-slate-900">{member.name}</div>
+                      <div className="text-sm font-black text-slate-900">{member.name || 'Unknown Citizen'}</div>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-500 font-mono text-[10px]">{member.phoneNumber}</td>
-                  <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{member.joinedAt}</td>
+                  <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-500 font-mono text-[10px]">{member.phoneNumber || 'N/A'}</td>
+                  <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'Protocol Entry'}</td>
                   <td className="whitespace-nowrap px-8 py-6">
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${
