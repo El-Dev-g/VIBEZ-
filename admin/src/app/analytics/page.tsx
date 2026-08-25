@@ -20,111 +20,116 @@ export default function AnalyticsPage() {
   }, []);
 
   const metrics = [
-    { label: 'Total Registered Users', value: analytics?.totalUsers ?? '1,420', change: analytics?.userGrowth ?? '+18.4%', color: 'emerald' },
-    { label: 'Total Messages Transmitted', value: analytics?.totalMessages ?? '84,200', change: 'Encrypted traffic', color: 'blue' },
-    { label: 'Voice & Video Calls', value: analytics?.totalCalls ?? '320', change: 'Active WebRTC sessions', color: 'purple' },
-    { label: 'Active Communities', value: analytics?.totalCommunities ?? '12', change: 'Public & private groups', color: 'indigo' },
+    { label: 'Registered Citizens', value: analytics?.totalUsers ?? '1,420', change: analytics?.userGrowth ?? '+18.4%', icon: '👥' },
+    { label: 'Data Transmitted', value: analytics?.totalMessages ?? '84,200', change: 'Encrypted traffic', icon: '📡' },
+    { label: 'Active Channels', value: analytics?.totalCalls ?? '320', change: 'Real-time WebRTC', icon: '📞' },
+    { label: 'Communities', value: analytics?.totalCommunities ?? '12', change: 'Public Groups', icon: '🌐' },
   ];
 
   const recentCalls = [
-    { id: 'call_101', type: 'Voice Call', duration: '04:12', caller: 'John Doe (+15550192)', receiver: 'Sarah Miller', status: 'Completed', latency: '32ms' },
-    { id: 'call_102', type: 'Video Call', duration: '12:45', caller: 'Alex Rivera', receiver: 'Tech Team Group', status: 'Completed', latency: '48ms' },
+    { id: 'call_101', type: 'Voice Call', duration: '04:12', caller: 'John Doe', receiver: 'Sarah Miller', status: 'Completed', latency: '32ms' },
+    { id: 'call_102', type: 'Video Call', duration: '12:45', caller: 'Alex Rivera', receiver: 'Tech Hub', status: 'Completed', latency: '48ms' },
     { id: 'call_103', type: 'Video Call', duration: '08:10', caller: 'David Chen', receiver: 'Elena Rostova', status: 'Ongoing', latency: '28ms' },
     { id: 'call_104', type: 'Voice Call', duration: '00:45', caller: 'Maria Garcia', receiver: 'Carlos Ruiz', status: 'Completed', latency: '35ms' },
   ];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 text-black bg-gray-50 min-h-screen">
-      <div>
-        <h1 className="text-3xl font-black text-black">Calls & System Analytics</h1>
-        <p className="text-sm font-semibold text-gray-900 mt-1">
-          Monitor WebRTC voice/video session traffic, network latency, media stream quality, and real-time backend analytics.
-        </p>
+    <div className="space-y-10 animate-fadeIn">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tight">Analytics</h2>
+          <p className="text-slate-500 font-bold mt-1">Monitor global signal traffic and network health parameters.</p>
+        </div>
       </div>
 
       {/* Top Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((m) => (
-          <div key={m.label} className="bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm">
-            <p className="text-xs font-black text-black uppercase tracking-wider">{m.label}</p>
-            <p className="text-3xl font-black text-black mt-2">{m.value}</p>
-            <p className="text-xs font-bold text-emerald-700 mt-1">{m.change}</p>
+          <div key={m.label} className="group p-8 rounded-[2rem] bg-white border border-slate-200 shadow-xl shadow-slate-200/50 hover:border-emerald-500/20 transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-2xl">{m.icon}</span>
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{m.change}</span>
+            </div>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{m.label}</h3>
+            <p className="mt-2 text-3xl font-black text-slate-900 tracking-tight">{m.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Network & Protocol Status */}
-      <div className="bg-white p-6 rounded-2xl border-2 border-gray-300 shadow-sm space-y-4">
-        <h2 className="text-lg font-black text-black border-b-2 border-gray-200 pb-3">
-          ⚡ Real-time WebRTC & Socket Relay Health
-        </h2>
+      {/* Infrastructure Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <HealthCard title="Relay Servers" status="Operational" latency="12ms" loss="0.01%" />
+        <HealthCard title="Signaling Node" status="Connected" traffic={`${analytics?.activeDailyUsers ?? 1420} units`} />
+        <HealthCard title="Media Protocol" status="HD Ready" codec="Opus / VP8" />
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-          <div className="p-4 rounded-xl bg-gray-100 border-2 border-gray-300 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-black">TURN / STUN Servers</span>
-              <span className="px-2 py-0.5 text-xs bg-emerald-200 text-black border border-emerald-400 rounded-full font-black">Online</span>
-            </div>
-            <p className="text-xs font-bold text-gray-900">Latency: 12ms | Packet Loss: 0.01%</p>
-          </div>
+      {/* Recent Transmissions Log */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-8 bg-slate-900 rounded-full"></div>
+          <h3 className="text-2xl font-black text-slate-900 tracking-tight">Signal Feed</h3>
+        </div>
 
-          <div className="p-4 rounded-xl bg-gray-100 border-2 border-gray-300 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-black">Socket.IO Signaling Node</span>
-              <span className="px-2 py-0.5 text-xs bg-emerald-200 text-black border border-emerald-400 rounded-full font-black">Connected</span>
-            </div>
-            <p className="text-xs font-bold text-gray-900">Active Connections: {analytics?.activeDailyUsers ?? 1420} devices</p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-gray-100 border-2 border-gray-300 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold text-black">Audio Codec (Opus)</span>
-              <span className="px-2 py-0.5 text-xs bg-blue-200 text-black border border-blue-400 rounded-full font-black">HD 48kHz</span>
-            </div>
-            <p className="text-xs font-bold text-gray-900">Video Codec: VP8 / H.264 dynamic</p>
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Transmission ID</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Type</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Source</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Destination</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Duration</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Latency</th>
+                  <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {recentCalls.map((call) => (
+                  <tr key={call.id} className="group hover:bg-slate-50/50 transition-all duration-200">
+                    <td className="whitespace-nowrap px-8 py-6 font-mono text-[10px] font-bold text-slate-400 uppercase">{call.id}</td>
+                    <td className="whitespace-nowrap px-8 py-6">
+                      <span className="text-sm font-black text-slate-900">{call.type}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-600">{call.caller}</td>
+                    <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-600">{call.receiver}</td>
+                    <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{call.duration}</td>
+                    <td className="whitespace-nowrap px-8 py-6">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span className="text-sm font-black text-emerald-600">{call.latency}</span>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-8 py-6 text-right">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        call.status === 'Ongoing' ? 'bg-blue-50 text-blue-700 border border-blue-100 animate-pulse' : 'bg-slate-50 text-slate-600 border border-slate-100'
+                      }`}>
+                        {call.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Call Session Logs */}
-      <div className="bg-white rounded-2xl border-2 border-gray-300 shadow-sm overflow-hidden">
-        <div className="p-4 border-b-2 border-gray-200 bg-gray-100">
-          <h3 className="font-black text-black text-base">Recent Voice & Video Call Log</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y-2 divide-gray-200 text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Call ID</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Type</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Caller</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Receiver</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Duration</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Latency</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {recentCalls.map((call) => (
-                <tr key={call.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-mono text-xs font-bold text-gray-900">{call.id}</td>
-                  <td className="px-6 py-4 font-black text-black">{call.type}</td>
-                  <td className="px-6 py-4 font-bold text-black">{call.caller}</td>
-                  <td className="px-6 py-4 font-bold text-black">{call.receiver}</td>
-                  <td className="px-6 py-4 font-black text-black">{call.duration}</td>
-                  <td className="px-6 py-4 text-emerald-700 font-black">{call.latency}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-black ${
-                      call.status === 'Ongoing' ? 'bg-blue-200 text-black border border-blue-400 animate-pulse' : 'bg-gray-200 text-black border border-gray-300'
-                    }`}>
-                      {call.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+function HealthCard({ title, status, latency, loss, traffic, codec }: any) {
+  return (
+    <div className="p-8 rounded-[2.5rem] bg-slate-900 text-white shadow-xl shadow-slate-900/20">
+      <div className="flex items-center justify-between mb-6">
+        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">{title}</h4>
+        <span className="px-2.5 py-1 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg">{status}</span>
+      </div>
+      <div className="space-y-1">
+        {latency && <p className="text-2xl font-black tracking-tight">{latency} <span className="text-xs font-bold text-slate-500 uppercase ml-1">Latency</span></p>}
+        {traffic && <p className="text-2xl font-black tracking-tight">{traffic}</p>}
+        {codec && <p className="text-2xl font-black tracking-tight">{codec}</p>}
+        {loss && <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Packet Loss: {loss}</p>}
       </div>
     </div>
   );

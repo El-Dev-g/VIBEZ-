@@ -8,138 +8,140 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Sys
   const router = useRouter();
   const [settings, setSettings] = useState<SystemSettings>(initialSettings);
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isError, setIsError] = useState(false);
+  const [toast, setToast] = useState<{ text: string; isError: boolean } | null>(null);
 
   const handleSave = async () => {
     setIsSaving(true);
-    setToastMessage(null);
-    setIsError(false);
+    setToast(null);
     const result = await updateSettings(settings);
     setIsSaving(false);
 
     if (result) {
       setSettings(result);
-      setIsError(false);
-      setToastMessage(`System settings & Verification Badge Price ($${result.verificationBadgePrice.toFixed(2)}) updated successfully!`);
-      // Refresh page data ONLY on success
+      setToast({ text: `Protocol updated: Verification set to $${result.verificationBadgePrice.toFixed(2)}`, isError: false });
       router.refresh();
-      setTimeout(() => setToastMessage(null), 4000);
+      setTimeout(() => setToast(null), 4000);
     } else {
-      // DO NOT refresh page on failure
-      setIsError(true);
-      setToastMessage('Failed to save settings. Please try again.');
+      setToast({ text: 'Protocol update failed.', isError: true });
     }
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="p-6 space-y-6">
-        {/* Toggle 1: Registration */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900">Allow New Registrations</h4>
-            <p className="text-xs text-gray-500">Enable or disable user onboarding globally.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSettings({ ...settings, allowNewRegistrations: !settings.allowNewRegistrations })}
-            className={`w-12 h-6 rounded-full p-1 transition-colors ${
-              settings.allowNewRegistrations ? 'bg-emerald-500' : 'bg-gray-300'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                settings.allowNewRegistrations ? 'translate-x-6' : 'translate-x-0'
+    <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+      <div className="p-10 space-y-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          {/* Toggle 1: Registration */}
+          <div className="flex items-center justify-between p-6 rounded-2xl bg-slate-50 border border-slate-100">
+            <div>
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Citizen Onboarding</h4>
+              <p className="text-xs font-bold text-slate-500 mt-1">Enable global registration signals.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSettings({ ...settings, allowNewRegistrations: !settings.allowNewRegistrations })}
+              className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${
+                settings.allowNewRegistrations ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'
               }`}
-            />
-          </button>
-        </div>
+            >
+              <div
+                className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
+                  settings.allowNewRegistrations ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
 
-        {/* Toggle 2: Maintenance */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900">Maintenance Mode</h4>
-            <p className="text-xs text-gray-500">Put the system in read-only mode for maintenance.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })}
-            className={`w-12 h-6 rounded-full p-1 transition-colors ${
-              settings.maintenanceMode ? 'bg-emerald-500' : 'bg-gray-300'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                settings.maintenanceMode ? 'translate-x-6' : 'translate-x-0'
+          {/* Toggle 2: Maintenance */}
+          <div className="flex items-center justify-between p-6 rounded-2xl bg-slate-50 border border-slate-100">
+            <div>
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Protocol Lockout</h4>
+              <p className="text-xs font-bold text-slate-500 mt-1">Activate system-wide maintenance.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })}
+              className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${
+                settings.maintenanceMode ? 'bg-amber-500 shadow-lg shadow-amber-500/30' : 'bg-slate-300'
               }`}
-            />
-          </button>
+            >
+              <div
+                className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
+                  settings.maintenanceMode ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
         {/* Inputs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">
-          {/* Verification Badge Price ($ USD) */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-emerald-900 flex items-center space-x-1">
-              <span>Verification Badge Price ($ USD)</span>
-              <span className="text-emerald-600 font-bold">✅</span>
-            </label>
-            <div className="relative rounded-md shadow-sm">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <span className="text-gray-500 text-sm">$</span>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-10 border-t border-slate-100">
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Verification Fee ($ USD)</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-5 text-slate-400 font-black text-sm group-focus-within:text-slate-900 transition-colors">$</div>
               <input
                 type="number"
                 step="0.01"
                 min="0.50"
                 value={settings.verificationBadgePrice ?? 3.00}
                 onChange={(e) => setSettings({ ...settings, verificationBadgePrice: parseFloat(e.target.value) || 0 })}
-                className="w-full rounded-md border border-emerald-300 pl-7 pr-3 py-2 text-sm font-bold text-gray-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none bg-emerald-50/30"
+                className="w-full pl-10 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
               />
             </div>
-            <p className="text-xs text-gray-500">
-              Users pay this price in app to receive their green checkmark badge.
-            </p>
+            <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-1 uppercase tracking-widest">Global checkmark pricing.</p>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-900">Max Group Size</label>
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Max Signal Group Size</label>
             <input
               type="number"
               value={settings.maxGroupSize}
               onChange={(e) => setSettings({ ...settings, maxGroupSize: parseInt(e.target.value) || 1024 })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
             />
+            <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-1 uppercase tracking-widest">Maximum cluster density.</p>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-900">Message Retention (Days)</label>
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Data Retention (Days)</label>
             <input
               type="number"
               value={settings.retentionDays}
               onChange={(e) => setSettings({ ...settings, retentionDays: parseInt(e.target.value) || 90 })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
             />
+            <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-1 uppercase tracking-widest">System archival lifespan.</p>
           </div>
         </div>
       </div>
 
-      {toastMessage && (
-        <div className={`px-6 py-2.5 text-xs font-semibold ${
-          isError ? 'bg-red-100 text-red-800 border-l-4 border-red-500' : 'bg-emerald-100 text-emerald-800 border-l-4 border-emerald-500'
+      {toast && (
+        <div className={`px-10 py-5 text-sm font-black border-t border-b animate-fadeIn ${
+          toast.isError ? 'bg-red-50 text-red-700 border-red-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
         }`}>
-          {toastMessage}
+          {toast.text}
         </div>
       )}
 
-      <div className="bg-gray-50 px-6 py-4 flex justify-end">
+      <div className="bg-slate-50 px-10 py-8 flex justify-end">
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="rounded-md bg-emerald-600 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+          className="px-10 py-5 bg-slate-900 hover:bg-black text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-slate-900/20 disabled:opacity-50 active:scale-95 flex items-center gap-3"
         >
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          {isSaving ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+              Updating Protocols...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Apply Settings
+            </>
+          )}
         </button>
       </div>
     </div>

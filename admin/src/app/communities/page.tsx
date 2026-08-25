@@ -40,105 +40,131 @@ export default function CommunitiesPage() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6 text-black bg-gray-50 min-h-screen">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-10 animate-fadeIn">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-black">Communities & Group Management</h1>
-          <p className="text-sm font-semibold text-gray-900 mt-1">
-            Oversee VIBEZ public communities, channel structures, member limits, and group moderation.
-          </p>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tight">Communities</h2>
+          <p className="text-slate-500 font-bold mt-1">Oversee public channels, member limits, and group moderation.</p>
         </div>
         <button 
           onClick={() => showToast('Create Community dialog opened!')}
-          className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-sm transition-colors shadow-sm self-start md:self-auto"
+          className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-4 text-sm font-black text-white hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
         >
-          + Create Official Community
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Create Official Community
         </button>
       </div>
 
       {toast && (
-        <div className="p-3 bg-emerald-100 text-black rounded-lg text-sm font-bold border-l-4 border-emerald-600">
+        <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl text-sm font-black border border-emerald-100 animate-fadeIn">
           {toast}
         </div>
       )}
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm">
-          <p className="text-xs font-black text-black uppercase tracking-wider">Total Communities</p>
-          <p className="text-3xl font-black text-black mt-1">{communities.length}</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm">
-          <p className="text-xs font-black text-black uppercase tracking-wider">Active Channels</p>
-          <p className="text-3xl font-black text-black mt-1">{communities.reduce((acc, c) => acc + (c.channels || 0), 0)}</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm">
-          <p className="text-xs font-black text-black uppercase tracking-wider">Community Members</p>
-          <p className="text-3xl font-black text-black mt-1">{communities.reduce((acc, c) => acc + (c.members || 0), 0).toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm">
-          <p className="text-xs font-black text-black uppercase tracking-wider">Max Group Size Limit</p>
-          <p className="text-3xl font-black text-black mt-1">1,024</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Total Communities" value={communities.length} icon="🌐" color="bg-blue-500" />
+        <StatCard title="Active Channels" value={communities.reduce((acc, c) => acc + (c.channels || 0), 0)} icon="📺" color="bg-purple-500" />
+        <StatCard title="Global Members" value={communities.reduce((acc, c) => acc + (c.members || 0), 0).toLocaleString()} icon="👥" color="bg-emerald-500" />
+        <StatCard title="Group Limit" value="1,024" icon="🛡️" color="bg-slate-700" />
       </div>
 
-      {/* Filter and Table */}
-      <div className="bg-white rounded-2xl border-2 border-gray-300 shadow-sm overflow-hidden">
-        <div className="p-4 border-b-2 border-gray-200 bg-gray-100 flex items-center justify-between">
-          <input
-            type="text"
-            placeholder="Search communities by name or category..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-4 py-2 border-2 border-gray-300 rounded-lg text-sm w-full max-w-md focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-black"
-          />
+      {/* Filter and Table Container */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative flex-1 group max-w-xl">
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search communities by name or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-sm"
+            />
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y-2 divide-gray-200">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Community Name</th>
-                <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Members</th>
-                <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Channels</th>
-                <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider text-black">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-black uppercase tracking-wider text-black">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {filtered.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-black text-black">{c.name}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-gray-900">{c.category}</td>
-                  <td className="px-6 py-4 text-sm font-black text-black">{c.members.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-gray-900">{c.channels} channels</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-black ${
-                      c.status === 'Active' ? 'bg-emerald-200 text-black border border-emerald-400' : 'bg-amber-200 text-black border border-amber-400'
-                    }`}>
-                      {c.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right text-sm font-bold space-x-2">
-                    <button 
-                      onClick={() => showToast(`Managing ${c.name}`)}
-                      className="text-emerald-700 hover:text-emerald-900 font-black"
-                    >
-                      Manage
-                    </button>
-                    <button 
-                      onClick={() => showToast(`Moderated ${c.name}`)}
-                      className="text-red-700 hover:text-red-900 font-black"
-                    >
-                      Moderate
-                    </button>
-                  </td>
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Community Name</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Classification</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Pop. Size</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Architecture</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Operational Status</th>
+                  <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Commands</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filtered.map((c) => (
+                  <tr key={c.id} className="group hover:bg-slate-50/50 transition-all duration-200">
+                    <td className="whitespace-nowrap px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 font-black text-xs border border-slate-200 group-hover:scale-110 transition-transform">
+                          {c.name.charAt(0)}
+                        </div>
+                        <div className="text-sm font-black text-slate-900">{c.name}</div>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-8 py-6">
+                      <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200">{c.category}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{c.members.toLocaleString()}</td>
+                    <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-500">{c.channels} Channels</td>
+                    <td className="whitespace-nowrap px-8 py-6">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${
+                        c.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-8 py-6 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => showToast(`Managing ${c.name}`)}
+                          className="px-4 py-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                          Manage
+                        </button>
+                        <button 
+                          onClick={() => showToast(`Moderated ${c.name}`)}
+                          className="px-4 py-2 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                          Moderate
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon, color }: { title: string; value: string | number; icon: string; color: string }) {
+  return (
+    <div className="relative group overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/50">
+      <div className="flex items-center justify-between">
+        <div className={`w-12 h-12 rounded-2xl ${color} flex items-center justify-center text-white text-xl shadow-lg shadow-current/20 transition-transform group-hover:scale-110`}>
+          {icon}
+        </div>
+      </div>
+      <div className="mt-6">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{title}</h3>
+        <p className="mt-1 text-3xl font-black text-slate-900 tracking-tight">
+          {value}
+        </p>
       </div>
     </div>
   );

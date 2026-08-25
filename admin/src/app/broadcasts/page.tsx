@@ -40,7 +40,7 @@ export default function BroadcastsPage() {
 
   const handleSendBroadcast = async () => {
     if (!title.trim() || !message.trim()) {
-      setToast({ text: 'Please fill in both the broadcast title and message body.', isError: true });
+      setToast({ text: 'Fill in both the broadcast title and message body.', isError: true });
       return;
     }
 
@@ -51,117 +51,138 @@ export default function BroadcastsPage() {
     if (result.success) {
       setTitle('');
       setMessage('');
-      setToast({ text: result.message || `Broadcast "${title}" successfully sent!`, isError: false });
+      setToast({ text: `Broadcast Protocol "${title}" successfully initiated!`, isError: false });
       loadData();
       setTimeout(() => setToast(null), 4000);
     } else {
-      setToast({ text: 'Failed to send broadcast announcement.', isError: true });
+      setToast({ text: 'Broadcast protocol failure.', isError: true });
     }
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 bg-gray-50 min-h-screen text-black">
-      <div>
-        <h1 className="text-3xl font-black text-black">Broadcasts & System Alerts</h1>
-        <p className="text-sm font-semibold text-gray-900 mt-1">
-          Send global push notifications, announcements, or maintenance notices directly to VIBEZ app users.
-        </p>
+    <div className="space-y-10 animate-fadeIn">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tight">Broadcasts</h2>
+          <p className="text-slate-500 font-bold mt-1">Deploy global push notifications and system announcements.</p>
+        </div>
       </div>
 
       {toast && (
-        <div className={`p-4 rounded-xl text-sm font-black ${
-          toast.isError ? 'bg-red-200 text-black border-l-4 border-red-600' : 'bg-emerald-200 text-black border-l-4 border-emerald-600'
+        <div className={`p-4 rounded-2xl text-sm font-black border animate-fadeIn ${
+          toast.isError ? 'bg-red-50 text-red-700 border-red-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
         }`}>
           {toast.text}
         </div>
       )}
 
-      {/* Broadcast Composer */}
-      <div className="bg-white p-6 rounded-2xl border-2 border-gray-300 shadow-sm space-y-4">
-        <h2 className="text-lg font-black text-black border-b-2 border-gray-200 pb-3">
-          📢 Compose New System Broadcast
-        </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+        {/* Composer */}
+        <div className="lg:col-span-2 space-y-8 bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-6">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.167H3.38a1.345 1.345 0 01-1.345-1.344v-3.322A1.345 1.345 0 013.38 7.655h1.874l2.147-6.167a1.76 1.76 0 013.417.592z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 8a5 5 0 010 8" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.73 5.27a10 10 0 010 13.46" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">Compose System Alert</h3>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 space-y-1">
-            <label className="text-xs font-black uppercase tracking-wider text-black">Notification Title</label>
-            <input
-              type="text"
-              placeholder="e.g., Important Security Update"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-sm bg-white font-bold text-black focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Broadcast Title</label>
+              <input
+                type="text"
+                placeholder="e.g., Critical Protocol Update"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-slate-900/10 focus:bg-white transition-all placeholder:text-slate-300"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Target Classification</label>
+              <select
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
+                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-slate-900/10 focus:bg-white transition-all appearance-none cursor-pointer"
+              >
+                <option value="ALL">Global (All Signals)</option>
+                <option value="VERIFIED_ONLY">Verified Units (Green Badge)</option>
+                <option value="ADMINS">Administrative Core</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Transmission Message</label>
+            <textarea
+              rows={5}
+              placeholder="Input global message parameters..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-slate-900/10 focus:bg-white transition-all placeholder:text-slate-300 resize-none"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-black uppercase tracking-wider text-black">Target Audience</label>
-            <select
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-sm bg-white font-bold text-black focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          <div className="flex justify-end pt-4">
+            <button
+              onClick={handleSendBroadcast}
+              disabled={isSending}
+              className="px-10 py-5 bg-slate-900 hover:bg-black text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-slate-900/20 disabled:opacity-50 active:scale-95 flex items-center gap-3"
             >
-              <option value="ALL">All VIBEZ Users</option>
-              <option value="VERIFIED_ONLY">Verified Users Only (Green Badge)</option>
-              <option value="ADMINS">System Administrators</option>
-            </select>
+              {isSending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  Broadcasting...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  Initiate Broadcast
+                </>
+              )}
+            </button>
           </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-xs font-black uppercase tracking-wider text-black">Broadcast Message</label>
-          <textarea
-            rows={4}
-            placeholder="Type your message to be broadcasted to all active devices..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-sm bg-white font-bold text-black focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
+        {/* History / Tips */}
+        <div className="space-y-6">
+          <div className="bg-emerald-500 rounded-[2.5rem] p-8 text-white shadow-xl shadow-emerald-500/20">
+            <h4 className="text-sm font-black uppercase tracking-widest opacity-80">Protocol Status</h4>
+            <div className="mt-4 flex items-center gap-4">
+              <div className="text-4xl font-black">Online</div>
+              <div className="w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.8)]"></div>
+            </div>
+            <p className="mt-4 text-xs font-bold leading-relaxed opacity-90">
+              Broadcast services are operational. All transmissions are encrypted and delivered via global mesh protocol.
+            </p>
+          </div>
 
-        <div className="flex justify-end pt-2">
-          <button
-            onClick={handleSendBroadcast}
-            disabled={isSending}
-            className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm rounded-lg transition-colors shadow-sm disabled:opacity-50"
-          >
-            {isSending ? 'Sending Notification...' : '🚀 Send Push Broadcast'}
-          </button>
-        </div>
-      </div>
-
-      {/* Broadcast History Table */}
-      <div className="bg-white rounded-2xl border-2 border-gray-300 shadow-sm overflow-hidden">
-        <div className="p-4 border-b-2 border-gray-200 bg-gray-100">
-          <h3 className="font-black text-black text-base">Past Broadcast History</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y-2 divide-gray-200 text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Title</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Target Audience</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Recipients</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Sent Date</th>
-                <th className="px-6 py-3 text-left font-black text-black uppercase tracking-wider text-xs">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-xl shadow-slate-200/50">
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Archived Transmissions</h3>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto scrollbar-hide">
               {broadcastHistory.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-black text-black">{item.title}</td>
-                  <td className="px-6 py-4 font-bold text-black">{item.audience}</td>
-                  <td className="px-6 py-4 font-black text-emerald-800">{item.recipientCount} users</td>
-                  <td className="px-6 py-4 font-bold text-black">{item.sentAt}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 bg-green-200 text-black border border-green-400 rounded-full text-xs font-black">
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
+                <div key={item.id} className="p-6 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{item.recipientCount}</span>
+                    <span className="text-[10px] font-bold text-slate-400">{item.sentAt.split(' ')[0]}</span>
+                  </div>
+                  <h4 className="text-sm font-black text-slate-900 leading-tight">{item.title}</h4>
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.status}</span>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

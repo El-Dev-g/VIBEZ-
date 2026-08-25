@@ -6,43 +6,61 @@ export default async function AuditLogsPage() {
   const logs = await fetchAuditLogs();
 
   return (
-    <div className="p-8 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Audit Logs</h2>
-        <p className="text-gray-500">Track administrative actions and system changes.</p>
+    <div className="space-y-10 animate-fadeIn">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tight">Audit Logs</h2>
+          <p className="text-slate-500 font-bold mt-1">Track administrative actions and signal modifications across the ecosystem.</p>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Admin</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Action</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Target</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Timestamp</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {logs.map((log) => (
-              <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                <td className="whitespace-nowrap px-6 py-4">
-                  <div className="text-sm font-medium text-gray-900">{log.adminEmail}</div>
-                </td>
-                <td className="whitespace-nowrap px-6 py-4">
-                  <span className="inline-flex rounded-full bg-blue-100 px-2 text-xs font-semibold leading-5 text-blue-800">
-                    {log.action}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {log.target}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {log.timestamp}
-                </td>
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Administrative Unit</th>
+                <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Protocol Action</th>
+                <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Target Vector</th>
+                <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Timestamp</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {logs.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-8 py-20 text-center">
+                    <p className="text-slate-400 font-black uppercase tracking-widest text-xs">No administrative audit events recorded.</p>
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => (
+                  <tr key={log.id} className="group hover:bg-slate-50/50 transition-all duration-200">
+                    <td className="whitespace-nowrap px-8 py-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-[10px]">
+                          {log.adminEmail.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="text-sm font-black text-slate-900">{log.adminEmail}</div>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-8 py-6">
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider border border-blue-100">
+                        <span className="w-1 h-1 rounded-full bg-blue-500"></span>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-8 py-6">
+                      <div className="text-sm font-bold text-slate-600">{log.target}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-8 py-6 text-right font-mono text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      {log.timestamp}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
