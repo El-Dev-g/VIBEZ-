@@ -2,12 +2,12 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loginAdmin } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -31,7 +31,7 @@ export default function LoginPage() {
           token: res.token,
           name: res.name
         });
-        const redirectUrl = searchParams.get('redirect') || '/';
+        const redirectUrl = (searchParams && searchParams.get('redirect')) ? searchParams.get('redirect')! : '/';
         router.push(redirectUrl);
       } else {
         setError(res?.error || 'Access Denied: You do not have administrator permissions. Regular users cannot access this portal.');
@@ -118,6 +118,18 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0b1120] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
 
