@@ -30,8 +30,9 @@ export default function PaymentsPage() {
         fetchBadgePayments()
       ]);
 
+      const badgeRecords = badgePayments?.payments || [];
       const completedTx = (transactions || []).filter(t => t.status === 'COMPLETED');
-      const completedBadges = (badgePayments || []).filter(b => b.status === 'COMPLETED');
+      const completedBadges = badgeRecords.filter(b => b.status === 'COMPLETED');
 
       const txRevenue = completedTx.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
       const badgeRevenue = completedBadges.reduce((acc, b) => acc + (Number(b.amount) || 0), 0);
@@ -39,7 +40,7 @@ export default function PaymentsPage() {
 
       const activeProviders = (providers || []).filter(p => p.isEnabled);
 
-      const totalAll = (transactions?.length || 0) + (badgePayments?.length || 0);
+      const totalAll = (transactions?.length || 0) + badgeRecords.length;
       const totalCompleted = completedTx.length + completedBadges.length;
       const successRate = totalAll > 0 ? Math.round((totalCompleted / totalAll) * 100) : 100;
 
