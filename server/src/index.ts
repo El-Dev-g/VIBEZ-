@@ -66,6 +66,8 @@ app.get('/api/auth/profile', authenticate, (req, res) => auth.getProfile(req, re
 // User Routes
 app.get('/api/users/search', authenticate, (req, res) => user.searchUsers(req, res));
 app.put('/api/users/profile', authenticate, (req, res) => user.updateProfile(req, res));
+app.post('/api/users/change-phone/request', authenticate, (req, res) => user.requestPhoneChange(req, res));
+app.post('/api/users/change-phone/verify', authenticate, (req, res) => user.verifyPhoneChange(req, res));
 app.get('/api/users/settings', authenticate, (req, res) => user.getSettings(req, res));
 app.put('/api/users/settings', authenticate, (req, res) => user.updateSettings(req, res));
 

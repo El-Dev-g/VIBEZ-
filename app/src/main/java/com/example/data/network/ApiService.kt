@@ -51,6 +51,18 @@ interface ApiService {
         @Body profile: Map<String, String>
     ): UserDto
 
+    @POST("api/users/change-phone/request")
+    suspend fun requestPhoneChange(
+        @Header("Authorization") token: String,
+        @Body request: RequestPhoneChangeRequest
+    ): RequestPhoneChangeResponse
+
+    @POST("api/users/change-phone/verify")
+    suspend fun verifyPhoneChange(
+        @Header("Authorization") token: String,
+        @Body request: VerifyPhoneChangeRequest
+    ): VerifyPhoneChangeResponse
+
     @GET("api/communities")
     suspend fun getCommunities(@Header("Authorization") token: String): List<CommunityDto>
 

@@ -70,6 +70,36 @@ data class SyncContactsRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class RequestPhoneChangeRequest(
+    val currentPhone: String,
+    val newPhone: String
+)
+
+@JsonClass(generateAdapter = true)
+data class RequestPhoneChangeResponse(
+    val success: Boolean,
+    val requestId: String,
+    val newPhone: String,
+    val message: String,
+    val verificationCode: String? = null,
+    val expiresInSeconds: Long = 600
+)
+
+@JsonClass(generateAdapter = true)
+data class VerifyPhoneChangeRequest(
+    val requestId: String,
+    val verificationCode: String
+)
+
+@JsonClass(generateAdapter = true)
+data class VerifyPhoneChangeResponse(
+    val success: Boolean,
+    val user: UserDto,
+    val token: String,
+    val message: String
+)
+
+@JsonClass(generateAdapter = true)
 data class LoginResponse(
     val user: UserDto,
     val token: String

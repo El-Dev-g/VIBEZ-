@@ -369,20 +369,113 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun updateUserProfile(name: String, about: String, phoneNumber: String? = null, avatarUrl: String? = null) {
-        currentUserName.value = name
         currentUserStatus.value = about
-        if (phoneNumber != null) currentUserPhone.value = phoneNumber
         if (avatarUrl != null) currentUserAvatar.value = avatarUrl
+        
+        val token = authManager.getAuthToken()
+        val userId = authManager.getUserId() ?: ""
+        val phone = currentUserPhone.value
+        val currentName = currentUserName.value.ifBlank { name }
+
         authManager.saveAuthData(
-            token = authManager.getAuthToken() ?: "",
-            userId = authManager.getUserId() ?: "",
-            phoneNumber = phoneNumber ?: currentUserPhone.value,
-            userName = name,
+            token = token ?: "",
+            userId = userId,
+            phoneNumber = phone,
+            userName = currentName,
             userAbout = about,
             userAvatar = avatarUrl ?: currentUserAvatar.value,
             googleEmail = currentGoogleEmail.value,
             authProvider = currentAuthProvider.value
         )
+
+        if (!token.isNullOrBlank()) {
+            viewModelScope.launch {
+                try {
+                    repository.updateUserProfile(currentName, about, avatarUrl, token)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    fun requestPhoneChange(
+        currentPhone: String,
+        newPhone: String,
+        onResult: (Boolean, String, String?, Long) -> Unit
+    ) {
+        val token = authManager.getAuthToken()
+        if (token.isNullOrBlank()) {
+            onResult(false, "Authentication token missing. Please sign in again.", null, 0)
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = repository.requestPhoneChange(currentPhone, newPhone, token)
+                if (response.success) {
+                    onResult(true, response.message, response.verificationCode, response.expiresInSeconds)
+                } else {
+                    onResult(false, response.message, null, 0)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                val message = e.message ?: "Failed to initiate phone number change request with server"
+                onResult(false, message, null, 0)
+            }
+        }
+    }
+
+    fun verifyPhoneChange(
+        requestId: String,
+        verificationCode: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        val token = authManager.getAuthToken()
+        if (token.isNullOrBlank()) {
+            onResult(false, "Authentication token missing. Please sign in again.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = repository.verifyPhoneChange(requestId, verificationCode, token)
+                if (response.success) {
+                    val updatedPhone = response.user.phoneNumber
+                    val updatedName = response.user.name ?: currentUserName.value
+                    val updatedAbout = response.user.about ?: currentUserStatus.value
+                    val updatedAvatar = response.user.avatarUrl ?: currentUserAvatar.value
+
+                    authManager.saveAuthData(
+                        token = response.token,
+                        userId = response.user.id,
+                        phoneNumber = updatedPhone,
+                        userName = updatedName,
+                        userAbout = updatedAbout,
+                        userAvatar = updatedAvatar,
+                        googleEmail = currentGoogleEmail.value,
+                        authProvider = currentAuthProvider.value
+                    )
+
+                    currentUserPhone.value = updatedPhone
+                    currentUserName.value = updatedName
+                    currentUserStatus.value = updatedAbout
+                    currentUserAvatar.value = updatedAvatar
+
+                    // Re-sync with the refreshed token
+                    repository.syncChats(response.token)
+                    repository.syncStatuses(response.token, response.user.id)
+
+                    onResult(true, response.message)
+                } else {
+                    onResult(false, response.message)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                val message = e.message ?: "Failed to verify phone change code on server"
+                onResult(false, message)
+            }
+        }
     }
 
     fun unlinkGoogleAccount() {

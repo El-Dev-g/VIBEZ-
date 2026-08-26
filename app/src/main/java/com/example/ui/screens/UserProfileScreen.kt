@@ -103,6 +103,7 @@ fun UserProfileScreen(
     isGroup: Boolean = false,
     isVerified: Boolean = false,
     onBackClick: () -> Unit,
+    onChangePhoneClick: (() -> Unit)? = null,
     onUpdateProfile: ((name: String, phone: String, status: String, avatarUrl: String?) -> Unit)? = null,
     onUpdateContact: ((contactId: String, name: String, phone: String, about: String) -> Unit)? = null,
     onMessageClick: (() -> Unit)? = null,
@@ -137,8 +138,7 @@ fun UserProfileScreen(
     }
 
     // Dialog state
-    var showEditNameDialog by remember { mutableStateOf(false) }
-    var showEditPhoneDialog by remember { mutableStateOf(false) }
+    var showNameLockedInfoDialog by remember { mutableStateOf(false) }
     var showEditStatusDialog by remember { mutableStateOf(false) }
     var showEditContactDialog by remember { mutableStateOf(false) }
     var showQrDialog by remember { mutableStateOf(false) }
@@ -300,12 +300,11 @@ fun UserProfileScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Full Display Name with Quick Edit Option
+                        // Full Display Name (Read-Only Identity)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable(enabled = isCurrentUser) {
-                                editNameInput = currentName
-                                showEditNameDialog = true
+                                showNameLockedInfoDialog = true
                             }
                         ) {
                             Text(
@@ -320,56 +319,86 @@ fun UserProfileScreen(
                             if (isCurrentUser) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit name",
-                                    tint = WhatsAppMinimalPrimary,
-                                    modifier = Modifier.size(18.dp)
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Name is locked",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Phone Number Chip with copy & edit
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = WhatsAppMinimalPrimary.copy(alpha = 0.12f),
-                            modifier = Modifier.clickable {
-                                if (isCurrentUser) {
-                                    editPhoneInput = currentPhone
-                                    showEditPhoneDialog = true
-                                } else {
+                        // Phone Number Chip (Read-Only Identity with Change Request Action)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = WhatsAppMinimalPrimary.copy(alpha = 0.12f),
+                                modifier = Modifier.clickable {
                                     clipboardManager.setText(AnnotatedString(currentPhone))
                                     scope.launch {
                                         snackbarHostState.showSnackbar("Phone number copied to clipboard")
                                     }
                                 }
-                            }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Phone,
-                                    contentDescription = "Phone",
-                                    tint = WhatsAppMinimalPrimary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = currentPhone,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = WhatsAppMinimalPrimary
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = if (isCurrentUser) Icons.Default.Edit else Icons.Default.ContentCopy,
-                                    contentDescription = if (isCurrentUser) "Edit" else "Copy",
-                                    tint = WhatsAppMinimalPrimary,
-                                    modifier = Modifier.size(12.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Phone,
+                                        contentDescription = "Phone",
+                                        tint = WhatsAppMinimalPrimary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = currentPhone,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = WhatsAppMinimalPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy phone number",
+                                        tint = WhatsAppMinimalPrimary,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+
+                            if (isCurrentUser && onChangePhoneClick != null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = WhatsAppMinimalAccent.copy(alpha = 0.15f),
+                                    modifier = Modifier.clickable {
+                                        onChangePhoneClick()
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Change Number",
+                                            tint = WhatsAppMinimalAccent,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Change",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = WhatsAppMinimalAccent
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -698,105 +727,44 @@ fun UserProfileScreen(
         }
     }
 
-    // --- DIALOGS FOR EDITING USER DATA & CONTACT DATA ---
+    // --- DIALOGS FOR USER PROFILE & DATA ---
 
-    // 1. Edit Name Dialog
-    if (showEditNameDialog) {
+    // 1. Name Locked Info Dialog (Read-only identity protection)
+    if (showNameLockedInfoDialog) {
         AlertDialog(
-            onDismissRequest = { showEditNameDialog = false },
-            title = { Text("Edit Display Name", fontWeight = FontWeight.Bold) },
+            onDismissRequest = { showNameLockedInfoDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = WhatsAppMinimalPrimary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = { Text("Display Name Is Locked", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     Text(
-                        "Enter your name to appear in chats and contact lists.",
+                        "Your registered name ($currentName) is tied to your cryptographic identity and verified profile on the VIBEZ network.",
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 18.sp
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = editNameInput,
-                        onValueChange = { editNameInput = it },
-                        label = { Text("Display Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WhatsAppMinimalPrimary,
-                            cursorColor = WhatsAppMinimalPrimary
-                        )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        "To prevent impersonation, contact spoofing, and fraud, display names cannot be changed directly in the app. For legal or identity corrections, please contact support.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 16.sp
                     )
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        if (editNameInput.isNotBlank()) {
-                            currentName = editNameInput.trim()
-                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus, currentAvatar)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Display name saved")
-                            }
-                        }
-                        showEditNameDialog = false
-                    },
+                    onClick = { showNameLockedInfoDialog = false },
                     colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary)
                 ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditNameDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    // 2. Edit Phone Dialog
-    if (showEditPhoneDialog) {
-        AlertDialog(
-            onDismissRequest = { showEditPhoneDialog = false },
-            title = { Text("Edit Phone Number", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text(
-                        "Your phone number is used for direct message routing.",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = editPhoneInput,
-                        onValueChange = { editPhoneInput = it },
-                        label = { Text("Phone Number") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = WhatsAppMinimalPrimary,
-                            cursorColor = WhatsAppMinimalPrimary
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (editPhoneInput.isNotBlank()) {
-                            currentPhone = editPhoneInput.trim()
-                            onUpdateProfile?.invoke(currentName, currentPhone, currentStatus, currentAvatar)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Phone number updated")
-                            }
-                        }
-                        showEditPhoneDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary)
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditPhoneDialog = false }) {
-                    Text("Cancel")
+                    Text("Understood")
                 }
             }
         )

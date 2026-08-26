@@ -110,7 +110,8 @@ fun SettingsScreen(
     onQrScanClick: () -> Unit = {},
     onGetBadgeClick: () -> Unit = {},
     onViewBadgeReceiptClick: () -> Unit = {},
-    onSystemBroadcastsClick: () -> Unit = {}
+    onSystemBroadcastsClick: () -> Unit = {},
+    onChangePhoneClick: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -571,6 +572,14 @@ fun SettingsScreen(
                             title = "Google Account & Cloud Auth",
                             subtitle = googleEmail?.let { "Connected as $it" } ?: "Link Google Account & Drive Backup",
                             onClick = onGoogleAuthClick
+                        )
+
+                        // Change Phone Number
+                        VibesSettingClickRow(
+                            icon = Icons.Default.Phone,
+                            title = "Change Phone Number",
+                            subtitle = "Migrate your account and encrypted keys to a new number",
+                            onClick = onChangePhoneClick
                         )
 
                         // Security Shield

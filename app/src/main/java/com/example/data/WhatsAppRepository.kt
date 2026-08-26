@@ -328,13 +328,27 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     suspend fun updateUserProfile(name: String, about: String, avatarUrl: String?, token: String): UserDto? {
         return try {
-            val params = mutableMapOf("name" to name, "about" to about)
+            val params = mutableMapOf("about" to about)
             if (avatarUrl != null) params["avatarUrl"] = avatarUrl
             NetworkClient.apiService.updateProfile("Bearer $token", params)
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
+    }
+
+    suspend fun requestPhoneChange(currentPhone: String, newPhone: String, token: String): RequestPhoneChangeResponse {
+        return NetworkClient.apiService.requestPhoneChange(
+            "Bearer $token",
+            RequestPhoneChangeRequest(currentPhone = currentPhone, newPhone = newPhone)
+        )
+    }
+
+    suspend fun verifyPhoneChange(requestId: String, verificationCode: String, token: String): VerifyPhoneChangeResponse {
+        return NetworkClient.apiService.verifyPhoneChange(
+            "Bearer $token",
+            VerifyPhoneChangeRequest(requestId = requestId, verificationCode = verificationCode)
+        )
     }
 
     suspend fun searchUsers(query: String, token: String): List<UserDto> {

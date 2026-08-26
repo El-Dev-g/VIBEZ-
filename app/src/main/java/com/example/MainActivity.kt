@@ -96,6 +96,7 @@ import com.example.ui.screens.StatusViewersScreen
 import com.example.ui.screens.UserProfileScreen
 import com.example.ui.screens.VerificationCheckoutScreen
 import com.example.ui.screens.BadgesReceiptScreen
+import com.example.ui.screens.ChangePhoneNumberScreen
 import com.example.ui.screens.MaintenanceScreen
 import com.example.ui.screens.WallpaperSettingsScreen
 import com.example.ui.screens.SystemBroadcastsScreen
@@ -1023,6 +1024,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onSystemBroadcastsClick = {
                     navController.navigate("system_broadcasts")
+                },
+                onChangePhoneClick = {
+                    navController.navigate("change_phone")
                 }
             )
         }
@@ -1200,6 +1204,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 isCurrentUser = isCurrentUser,
                 isVerified = effectiveVerified,
                 onBackClick = { navController.popBackStack() },
+                onChangePhoneClick = {
+                    navController.navigate("change_phone")
+                },
                 onUpdateProfile = { newName, newPhone, newStatus, newAvatar ->
                     viewModel.updateCurrentUserProfile(newName, newPhone, newStatus, newAvatar)
                 },
@@ -1247,6 +1254,17 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                         // For simplicity, navigate with a special ID or handle in screen
                         navController.navigate("shared_media/NONE")
                     }
+                }
+            )
+        }
+
+        // 13. Dedicated Change Phone Number Screen
+        composable("change_phone") {
+            ChangePhoneNumberScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() },
+                onSuccess = {
+                    navController.popBackStack()
                 }
             )
         }
