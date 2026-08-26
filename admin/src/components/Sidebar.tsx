@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: (
@@ -73,6 +74,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const { user, logout } = useAuth();
   let pathname = '';
   try {
     pathname = usePathname() || '';
@@ -81,6 +83,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   }
 
   if (pathname === '/login') return null;
+
+  const displayName = user?.name || (user?.email ? user.email.split('@')[0] : 'System Admin');
+  const displayEmail = user?.email || 'admin@vibez.com';
+  const displayRole = user?.role || 'SuperAdmin';
+  
+  const initials = displayName
+    .split(' ')
+    .map((w) => w[0])
+    .filter(Boolean)
+    .join('')
+    .substring(0, 2)
+    .toUpperCase() || 'AD';
 
   return (
     <>
@@ -107,6 +121,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <button 
             onClick={onClose}
             className="rounded-lg p-2 hover:bg-white/5 transition-colors lg:hidden text-gray-400"
+            aria-label="Close navigation menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l18 18" />
@@ -144,18 +159,25 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-sm font-black shadow-lg shadow-emerald-500/20">
-                  AD
+                  {initials}
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-[#0f172a] rounded-full"></div>
+                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0f172a] rounded-full"></div>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-white truncate">System Admin</p>
-                <p className="text-xs font-bold text-gray-500 truncate">admin@vibez.app</p>
+                <p className="text-sm font-black text-white truncate">{displayName}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">{displayRole}</span>
+                  <span className="text-gray-600">•</span>
+                  <span className="text-[11px] font-medium text-gray-400 truncate">{displayEmail}</span>
+                </div>
               </div>
             </div>
-            <button className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-black text-white transition-all border border-white/5">
+            <button 
+              onClick={() => logout()}
+              className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/10 text-xs font-black text-white hover:text-red-400 transition-all border border-white/5 hover:border-red-500/20 group"
+            >
               <span>Sign Out</span>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>

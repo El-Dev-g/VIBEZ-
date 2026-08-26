@@ -13,7 +13,7 @@ import { CommunityController } from './controllers/CommunityController';
 import { CallController } from './controllers/CallController';
 import { AdminController } from './controllers/AdminController';
 import { PaymentController } from './controllers/PaymentController';
-import { authenticate } from './middleware/auth';
+import { authenticate, authenticateAdmin } from './middleware/auth';
 import { checkMaintenanceMode } from './middleware/maintenance';
 
 dotenv.config();
@@ -99,13 +99,15 @@ app.get('/api/payments/badge-price', (req, res) => payment.getBadgePrice(req, re
 app.get('/api/badge/price', (req, res) => payment.getBadgePrice(req, res));
 app.post('/api/payments/verification/process', authenticate, (req, res) => payment.processVerificationPayment(req, res));
 app.get('/api/payments/verification/status', authenticate, (req, res) => payment.getUserBadgeStatus(req, res));
-app.get('/api/admin/badges', (req, res) => payment.getAdminBadgePayments(req, res));
-app.post('/api/admin/users/:userId/badge', (req, res) => payment.toggleUserBadge(req, res));
+app.get('/api/admin/badges', authenticateAdmin, (req, res) => payment.getAdminBadgePayments(req, res));
+app.post('/api/admin/users/:userId/badge', authenticateAdmin, (req, res) => payment.toggleUserBadge(req, res));
 
 // Multi-Provider Payment Management
-app.get('/api/admin/payments/providers', (req, res) => payment.getPaymentProviders(req, res));
-app.patch('/api/admin/payments/providers/:id', (req, res) => payment.updatePaymentProvider(req, res));
-app.get('/api/admin/payments/transactions', (req, res) => payment.getPaymentTransactions(req, res));
+app.get('/api/admin/payments/providers', authenticateAdmin, (req, res) => payment.getPaymentProviders(req, res));
+app.patch('/api/admin/payments/providers/:id', authenticateAdmin, (req, res) => payment.updatePaymentProvider(req, res));
+app.post('/api/admin/payments/providers/:id/test', authenticateAdmin, (req, res) => payment.testProviderCredentials(req, res));
+app.post('/api/admin/payments/test-credentials', authenticateAdmin, (req, res) => payment.testProviderCredentials(req, res));
+app.get('/api/admin/payments/transactions', authenticateAdmin, (req, res) => payment.getPaymentTransactions(req, res));
 
 // Client Payment Integration Layer
 app.get('/api/payments/providers', (req, res) => payment.getAvailableProviders(req, res));
@@ -115,43 +117,43 @@ app.post('/api/payments/webhook', (req, res) => payment.updatePaymentStatus(req,
 // Broadcast & Announcements Routes
 app.get('/api/broadcasts', (req, res) => admin.getPublicBroadcasts(req, res));
 app.get('/api/announcements', (req, res) => admin.getPublicBroadcasts(req, res));
-app.get('/api/admin/broadcasts', (req, res) => admin.getBroadcasts(req, res));
-app.post('/api/admin/broadcasts', (req, res) => admin.sendBroadcast(req, res));
+app.get('/api/admin/broadcasts', authenticateAdmin, (req, res) => admin.getBroadcasts(req, res));
+app.post('/api/admin/broadcasts', authenticateAdmin, (req, res) => admin.sendBroadcast(req, res));
 
 // Additional Admin Pages Routes
-app.get('/api/admin/communities', (req, res) => admin.getAdminCommunities(req, res));
-app.post('/api/admin/communities/official', (req, res) => admin.createOfficialCommunity(req, res));
-app.get('/api/admin/official-communities', (req, res) => admin.getOfficialCommunities(req, res));
-app.get('/api/admin/official-community', (req, res) => admin.getOfficialCommunity(req, res));
-app.post('/api/admin/official-community', (req, res) => admin.updateOfficialCommunity(req, res));
-app.post('/api/admin/communities/:communityId/official', (req, res) => admin.toggleOfficialStatus(req, res));
-app.delete('/api/admin/communities/:communityId', (req, res) => admin.deleteCommunity(req, res));
-app.get('/api/admin/communities/:communityId/members', (req, res) => admin.getOfficialCommunityMembers(req, res));
-app.post('/api/admin/communities/:communityId/posts', (req, res) => admin.createOfficialPost(req, res));
-app.get('/api/admin/storage', (req, res) => admin.getStorageStats(req, res));
-app.post('/api/admin/storage/purge', (req, res) => admin.purgeStorageCache(req, res));
-app.get('/api/admin/analytics', (req, res) => admin.getAnalytics(req, res));
+app.get('/api/admin/communities', authenticateAdmin, (req, res) => admin.getAdminCommunities(req, res));
+app.post('/api/admin/communities/official', authenticateAdmin, (req, res) => admin.createOfficialCommunity(req, res));
+app.get('/api/admin/official-communities', authenticateAdmin, (req, res) => admin.getOfficialCommunities(req, res));
+app.get('/api/admin/official-community', authenticateAdmin, (req, res) => admin.getOfficialCommunity(req, res));
+app.post('/api/admin/official-community', authenticateAdmin, (req, res) => admin.updateOfficialCommunity(req, res));
+app.post('/api/admin/communities/:communityId/official', authenticateAdmin, (req, res) => admin.toggleOfficialStatus(req, res));
+app.delete('/api/admin/communities/:communityId', authenticateAdmin, (req, res) => admin.deleteCommunity(req, res));
+app.get('/api/admin/communities/:communityId/members', authenticateAdmin, (req, res) => admin.getOfficialCommunityMembers(req, res));
+app.post('/api/admin/communities/:communityId/posts', authenticateAdmin, (req, res) => admin.createOfficialPost(req, res));
+app.get('/api/admin/storage', authenticateAdmin, (req, res) => admin.getStorageStats(req, res));
+app.post('/api/admin/storage/purge', authenticateAdmin, (req, res) => admin.purgeStorageCache(req, res));
+app.get('/api/admin/analytics', authenticateAdmin, (req, res) => admin.getAnalytics(req, res));
 
 // Admin Routes
 app.post('/api/admin/login', (req, res) => admin.login(req, res));
-app.get('/api/admin/metrics', (req, res) => admin.getMetrics(req, res));
-app.get('/api/admin/users', (req, res) => admin.getUsers(req, res));
-app.get('/api/admin/users/:userId', (req, res) => admin.getUserById(req, res));
-app.get('/api/admin/reports', (req, res) => admin.getReports(req, res));
-app.get('/api/admin/logs', (req, res) => admin.getAuditLogs(req, res));
-app.get('/api/admin/settings', (req, res) => admin.getSettings(req, res));
-app.patch('/api/admin/settings', (req, res) => admin.updateSettings(req, res));
-app.put('/api/admin/settings', (req, res) => admin.updateSettings(req, res));
-app.post('/api/admin/settings', (req, res) => admin.updateSettings(req, res));
-app.post('/api/admin/users/:userId/ban', (req, res) => admin.banUser(req, res));
-app.post('/api/admin/users/:userId/unban', (req, res) => admin.unbanUser(req, res));
+app.get('/api/admin/metrics', authenticateAdmin, (req, res) => admin.getMetrics(req, res));
+app.get('/api/admin/users', authenticateAdmin, (req, res) => admin.getUsers(req, res));
+app.get('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.getUserById(req, res));
+app.get('/api/admin/reports', authenticateAdmin, (req, res) => admin.getReports(req, res));
+app.get('/api/admin/logs', authenticateAdmin, (req, res) => admin.getAuditLogs(req, res));
+app.get('/api/admin/settings', authenticateAdmin, (req, res) => admin.getSettings(req, res));
+app.patch('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
+app.put('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
+app.post('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
+app.post('/api/admin/users/:userId/ban', authenticateAdmin, (req, res) => admin.banUser(req, res));
+app.post('/api/admin/users/:userId/unban', authenticateAdmin, (req, res) => admin.unbanUser(req, res));
 
 // Admin Profile, Password & Sessions Routes
-app.get('/api/admin/profile', authenticate, (req, res) => admin.getProfile(req, res));
-app.put('/api/admin/profile', authenticate, (req, res) => admin.updateProfile(req, res));
-app.post('/api/admin/change-password', authenticate, (req, res) => admin.changePassword(req, res));
-app.get('/api/admin/sessions', authenticate, (req, res) => admin.getSessions(req, res));
-app.delete('/api/admin/sessions/:sessionId', authenticate, (req, res) => admin.revokeSession(req, res));
+app.get('/api/admin/profile', authenticateAdmin, (req, res) => admin.getProfile(req, res));
+app.put('/api/admin/profile', authenticateAdmin, (req, res) => admin.updateProfile(req, res));
+app.post('/api/admin/change-password', authenticateAdmin, (req, res) => admin.changePassword(req, res));
+app.get('/api/admin/sessions', authenticateAdmin, (req, res) => admin.getSessions(req, res));
+app.delete('/api/admin/sessions/:sessionId', authenticateAdmin, (req, res) => admin.revokeSession(req, res));
 
 // Media Routes
 app.post('/api/media/upload-url', authenticate, async (req, res) => {

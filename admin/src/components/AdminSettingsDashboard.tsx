@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import {
   SystemSettings,
   updateSettings,
@@ -20,6 +21,7 @@ interface AdminSettingsDashboardProps {
 
 export default function AdminSettingsDashboard({ initialSettings }: AdminSettingsDashboardProps) {
   const router = useRouter();
+  const { logout, refreshProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'notifications' | 'security' | 'logs' | 'logout'>('profile');
   
   // Settings Tab state
@@ -144,6 +146,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
         role: result.role,
         photo: result.photo || '',
       });
+      await refreshProfile();
       setProfileToast('Profile successfully updated.');
     } else {
       setProfileToast('Failed to update profile.');
@@ -190,8 +193,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('vibez_admin_token');
-    router.push('/login');
+    logout();
   };
 
   return (

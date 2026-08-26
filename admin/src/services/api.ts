@@ -22,8 +22,18 @@ export interface User {
 export interface AdminUser {
   id: string;
   email: string;
-  role: 'SuperAdmin' | 'Moderator' | 'Support';
+  role: 'SuperAdmin' | 'Moderator' | 'Support' | 'SUPERADMIN';
+  name?: string;
   token?: string;
+}
+
+export interface LoginResponse {
+  id?: string;
+  email?: string;
+  name?: string;
+  role?: string;
+  token?: string;
+  error?: string;
 }
 
 export interface AuditLog {
@@ -34,30 +44,50 @@ export interface AuditLog {
   timestamp: string;
 }
 
-export const loginAdmin = async (email: string, password: string): Promise<AdminUser | null> => {
+export const getAdminHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (typeof window !== 'undefined') {
+    let token = localStorage.getItem('vibez_admin_token');
+    if (!token && typeof document !== 'undefined') {
+      const match = document.cookie.match(/(?:^|;\s*)admin_token=([^;]*)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } else {
+    try {
+      const { cookies } = require('next/headers');
+      const cookieStore = cookies();
+      const token = cookieStore.get('admin_token')?.value;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch {
+      // Out of request context
+    }
+  }
+  return headers;
+};
+
+export const loginAdmin = async (email: string, password: string): Promise<LoginResponse | null> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    if (!res.ok) return null;
-    return await res.json();
+    const data = await res.json();
+    if (!res.ok) {
+      return { 
+        error: data.error || 'Access Denied: You do not have administrator permissions. Regular users are forbidden from accessing the administration gate.' 
+      };
+    }
+    return data;
   } catch (error) {
     console.error(error);
-    return null;
+    return { error: 'Unable to connect to authorization server. Please try again.' };
   }
-};
-
-export const getAdminHeaders = () => {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('vibez_admin_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-  }
-  return headers;
 };
 
 export interface AdminProfile {
@@ -148,7 +178,10 @@ export const revokeAdminSession = async (sessionId: string): Promise<boolean> =>
 
 export const fetchAuditLogs = async (): Promise<AuditLog[]> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/logs`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/logs`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (!res.ok) throw new Error('Failed to fetch logs');
     const data = await res.json();
     return data.map((l: any) => ({
@@ -169,13 +202,20 @@ export interface SystemMetrics {
   totalChats: number;
   totalMessages: number;
   pendingReports: number;
+  totalCommunities?: number;
+  totalCalls?: number;
+  totalRevenue?: number;
+  verifiedUsers?: number;
   systemStatus: 'Healthy' | 'Warning' | 'Down';
   latencyMs: number;
 }
 
 export const fetchSystemMetrics = async (): Promise<SystemMetrics> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/metrics`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/metrics`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (!res.ok) throw new Error('Failed to fetch metrics');
     return await res.json();
   } catch (error) {
@@ -193,7 +233,10 @@ export const fetchSystemMetrics = async (): Promise<SystemMetrics> => {
 
 export const fetchUsers = async (): Promise<User[]> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/users`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/users`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (!res.ok) throw new Error('Failed to fetch users');
     const data = await res.json();
     return data.map((u: any) => ({
@@ -231,7 +274,10 @@ export interface SystemSettings {
 
 export const fetchReports = async (): Promise<Report[]> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/reports`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/reports`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (!res.ok) throw new Error('Failed to fetch reports');
     const data = await res.json();
     return data.map((r: any) => ({
@@ -250,7 +296,10 @@ export const fetchReports = async (): Promise<Report[]> => {
 
 export const fetchSettings = async (): Promise<SystemSettings> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/settings`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/settings`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (res.ok) {
       const data = await res.json();
       if (typeof window !== 'undefined') {
@@ -284,7 +333,7 @@ export const updateSettings = async (settings: Partial<SystemSettings>): Promise
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/settings`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(settings),
       cache: 'no-store'
     });
@@ -302,7 +351,7 @@ export const updateSettings = async (settings: Partial<SystemSettings>): Promise
   try {
     const resPost = await fetch(`${getApiBaseUrl()}/admin/settings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(settings),
       cache: 'no-store'
     });
@@ -338,7 +387,10 @@ export interface UserDetails extends User {
 
 export const fetchUserById = async (userId: string): Promise<UserDetails | null> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (!res.ok) return null;
     const u = await res.json();
     return {
@@ -363,7 +415,8 @@ export const fetchUserById = async (userId: string): Promise<UserDetails | null>
 export const banUser = async (userId: string): Promise<boolean> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/ban`, {
-      method: 'POST'
+      method: 'POST',
+      headers: getAdminHeaders()
     });
     return res.ok;
   } catch (error) {
@@ -375,7 +428,8 @@ export const banUser = async (userId: string): Promise<boolean> => {
 export const unbanUser = async (userId: string): Promise<boolean> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/unban`, {
-      method: 'POST'
+      method: 'POST',
+      headers: getAdminHeaders()
     });
     return res.ok;
   } catch (error) {
@@ -413,7 +467,10 @@ export interface BadgeSummary {
 
 export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/badges`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/badges`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (!res.ok) throw new Error('Failed to fetch badge payments');
     const data = await res.json();
     return {
@@ -436,7 +493,7 @@ export const toggleUserVerificationBadge = async (userId: string, isVerified: bo
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/badge`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ isVerified })
     });
     return res.ok;
@@ -457,7 +514,10 @@ export interface BroadcastItem {
 
 export const fetchBroadcasts = async (): Promise<BroadcastItem[]> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/broadcasts`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/broadcasts`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (!res.ok) throw new Error('Failed to fetch broadcasts');
     const data = await res.json();
     return data.map((item: any) => ({
@@ -474,7 +534,7 @@ export const sendBroadcastApi = async (title: string, message: string, targetAud
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/broadcasts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ title, message, targetAudience })
     });
     if (!res.ok) return { success: false };
@@ -498,7 +558,10 @@ export interface AdminCommunityItem {
 
 export const fetchAdminCommunities = async (): Promise<AdminCommunityItem[]> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/communities`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (res.ok) return await res.json();
   } catch (error) {
     console.error(error);
@@ -510,7 +573,7 @@ export const createOfficialCommunity = async (name: string, description: string)
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/communities/official`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ name, description })
     });
     if (res.ok) return await res.json();
@@ -522,7 +585,10 @@ export const createOfficialCommunity = async (name: string, description: string)
 
 export const fetchOfficialCommunities = async (): Promise<AdminCommunityItem[]> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/official-communities`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/official-communities`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (res.ok) return await res.json();
   } catch (error) {
     console.error(error);
@@ -534,7 +600,7 @@ export const toggleOfficialStatus = async (communityId: string, isOfficial: bool
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/official`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ isOfficial })
     });
     return res.ok;
@@ -547,7 +613,8 @@ export const toggleOfficialStatus = async (communityId: string, isOfficial: bool
 export const deleteCommunity = async (communityId: string): Promise<boolean> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getAdminHeaders()
     });
     return res.ok;
   } catch (error) {
@@ -558,21 +625,24 @@ export const deleteCommunity = async (communityId: string): Promise<boolean> => 
 
 export const fetchStorageStats = async (): Promise<any> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/storage`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/storage`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (res.ok) return await res.json();
   } catch (error) {
     console.error(error);
   }
   return {
-    totalStorageGb: '42.8 GB',
+    totalStorageGb: '0.0 GB',
     storageLimitGb: '250.0 GB',
-    totalStoragePercentage: 17.1,
-    mediaSizeGb: '28.4',
-    mediaPercentage: 66,
-    totalStatuses: '1,240',
-    statusPercentage: 19,
-    totalMessages: '84,200',
-    logsPercentage: 15,
+    totalStoragePercentage: 0,
+    mediaSizeGb: '0.0',
+    mediaPercentage: 0,
+    totalStatuses: '0',
+    statusPercentage: 0,
+    totalMessages: '0',
+    logsPercentage: 0,
   };
 };
 
@@ -580,7 +650,7 @@ export const purgeStorageCache = async (type: string = 'EXPIRED_STORIES'): Promi
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/storage/purge`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ type })
     });
     if (res.ok) return await res.json();
@@ -592,7 +662,10 @@ export const purgeStorageCache = async (type: string = 'EXPIRED_STORIES'): Promi
 
 export const fetchOfficialCommunity = async (): Promise<any> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/official-community`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/official-community`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (res.ok) return await res.json();
   } catch (error) {
     console.error(error);
@@ -604,7 +677,7 @@ export const updateOfficialCommunity = async (data: any): Promise<any> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/official-community`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(data)
     });
     if (res.ok) return await res.json();
@@ -618,7 +691,7 @@ export const createOfficialPost = async (communityId: string, postData: any): Pr
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/posts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(postData)
     });
     if (res.ok) return await res.json();
@@ -630,7 +703,10 @@ export const createOfficialPost = async (communityId: string, postData: any): Pr
 
 export const fetchOfficialCommunityMembers = async (communityId: string): Promise<any[]> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/members`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/members`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (res.ok) return await res.json();
   } catch (error) {
     console.error(error);
@@ -642,7 +718,7 @@ export const flagUserInCommunity = async (userId: string, isFlagged: boolean): P
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/flag`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ isFlagged })
     });
     return res.ok;
@@ -654,7 +730,10 @@ export const flagUserInCommunity = async (userId: string, isFlagged: boolean): P
 
 export const fetchAnalytics = async (): Promise<any> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/analytics`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/admin/analytics`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store' 
+    });
     if (res.ok) return await res.json();
   } catch (error) {
     console.error(error);
@@ -667,6 +746,10 @@ export interface PaymentProvider {
   name: string;
   isEnabled: boolean;
   config: any;
+  isConfigured?: boolean;
+  isTested?: boolean;
+  testStatus?: 'SUCCESS' | 'FAILED' | 'UNTESTED' | 'NOT_CONFIGURED';
+  lastTestedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -697,18 +780,35 @@ export const fetchPaymentProviders = async (): Promise<PaymentProvider[]> => {
   return [];
 };
 
-export const updatePaymentProvider = async (id: string, data: any): Promise<PaymentProvider | null> => {
+export const updatePaymentProvider = async (id: string, data: any): Promise<{ provider?: PaymentProvider; error?: string }> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/payments/providers/${id}`, {
       method: 'PATCH',
       headers: getAdminHeaders(),
       body: JSON.stringify(data)
     });
-    if (res.ok) return await res.json();
-  } catch (error) {
+    const result = await res.json();
+    if (res.ok) return { provider: result };
+    return { error: result.error || 'Failed to update payment provider' };
+  } catch (error: any) {
     console.error(error);
+    return { error: error?.message || 'Network error updating provider' };
   }
-  return null;
+};
+
+export const testPaymentCredentials = async (id: string, name?: string, config?: any): Promise<{ success: boolean; message?: string; error?: string; livemode?: boolean }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/payments/providers/${id}/test`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ name, config })
+    });
+    const data = await res.json();
+    return data;
+  } catch (error: any) {
+    console.error(error);
+    return { success: false, error: error?.message || 'Connection timeout while testing credentials' };
+  }
 };
 
 export const fetchPaymentTransactions = async (): Promise<PaymentTransaction[]> => {

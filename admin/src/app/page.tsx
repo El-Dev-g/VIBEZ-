@@ -12,22 +12,22 @@ export default async function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-4xl font-black text-slate-900 tracking-tight">Dashboard Overview</h2>
-          <p className="text-slate-500 font-bold mt-1">Real-time platform performance and user management.</p>
+          <p className="text-slate-500 font-bold mt-1">Real-time live database telemetry, network health, and user administration.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            <span className="text-xs font-black uppercase tracking-wider">Live System Sync</span>
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></div>
+            <span className="text-xs font-black uppercase tracking-wider">Dynamic DB Sync Active</span>
           </div>
         </div>
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <MetricCard 
           title="Active Users" 
           value={(metrics?.activeUsers || 0).toLocaleString()} 
-          change="+12%" 
+          change={`${users?.length || 0} registered`} 
           trend="up" 
           icon={(
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,7 +39,7 @@ export default async function DashboardPage() {
         <MetricCard 
           title="Total Chats" 
           value={(metrics?.totalChats || 0).toLocaleString()} 
-          change="+5.4%" 
+          change="Real-time P2P" 
           trend="up" 
           icon={(
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,8 +49,9 @@ export default async function DashboardPage() {
           color="bg-emerald-500"
         />
         <MetricCard 
-          title="Total Messages" 
+          title="Messages Sent" 
           value={(metrics?.totalMessages || 0).toLocaleString()} 
+          change="E2E Encrypted"
           icon={(
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -59,7 +60,19 @@ export default async function DashboardPage() {
           color="bg-purple-500"
         />
         <MetricCard 
-          title="System Status" 
+          title="Pending Reports" 
+          value={(metrics?.pendingReports || 0).toString()} 
+          change={metrics?.pendingReports > 0 ? "Requires review" : "All cleared"}
+          trend={metrics?.pendingReports > 0 ? "up" : "down"}
+          icon={(
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          )}
+          color={metrics?.pendingReports > 0 ? "bg-rose-500" : "bg-teal-500"}
+        />
+        <MetricCard 
+          title="System Health" 
           value={metrics.systemStatus} 
           status={metrics.systemStatus}
           icon={(
@@ -70,9 +83,9 @@ export default async function DashboardPage() {
           color="bg-slate-700"
         />
         <MetricCard 
-          title="Avg Latency" 
+          title="Avg Query Latency" 
           value={`${metrics.latencyMs}ms`} 
-          change="-2ms" 
+          change="Direct Engine" 
           trend="down" 
           icon={(
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,14 +101,8 @@ export default async function DashboardPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-2 h-8 bg-slate-900 rounded-full"></div>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Registered Users</h3>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Registered Citizen Records</h3>
           </div>
-          <button className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-black text-white hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 active:scale-95">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Export All Data
-          </button>
         </div>
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
           <UserTable initialUsers={users} />
@@ -123,22 +130,24 @@ function MetricCard({
   color: string;
 }) {
   return (
-    <div className="relative group overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/50 hover:-translate-y-1">
+    <div className="relative group overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/50 hover:-translate-y-1">
       <div className="absolute -right-4 -top-4 w-20 h-20 opacity-5 transition-transform group-hover:scale-150 group-hover:rotate-12">
         <div className={`w-full h-full rounded-full ${color}`}></div>
       </div>
       
       <div className="flex items-center justify-between">
-        <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center text-white shadow-lg shadow-current/20 transition-transform group-hover:scale-110`}>
+        <div className={`w-12 h-12 rounded-2xl ${color} flex items-center justify-center text-white shadow-lg shadow-current/20 transition-transform group-hover:scale-110`}>
           {icon}
         </div>
         {change && (
           <div className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
-            trend === 'up' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
+            trend === 'up' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'
           }`}>
-            <svg className={`w-3 h-3 ${trend === 'up' ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-            </svg>
+            {trend === 'up' && (
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            )}
             {change}
           </div>
         )}
