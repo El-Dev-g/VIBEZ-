@@ -77,6 +77,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
@@ -294,7 +295,7 @@ fun AuthScreen(
 
                 // Clean Subtitle
                 Text(
-                    text = if (activeTab == 0) "Sign in with Google to continue" else "Firebase Phone Number Authentication",
+                    text = if (activeTab == 0) "Sign in with Google to continue" else "Phone Number Authentication",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -332,7 +333,7 @@ fun AuthScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Phone (Firebase)",
+                                text = "Phone Number",
                                 color = if (activeTab == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
@@ -366,29 +367,11 @@ fun AuthScreen(
                 if (activeTab == 1) {
                     // FIREBASE PHONE NUMBER AUTHENTICATION FLOW
                     if (phoneAuthStep == 0) {
-                        // Step 0: Phone Number & Display Name Input
+                        // Step 0: Phone Number Input Only
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            OutlinedTextField(
-                                value = phoneName,
-                                onValueChange = { phoneName = it },
-                                label = { Text("Display Name") },
-                                placeholder = { Text("e.g. Alex Morgan") },
-                                singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("phone_auth_name_field"),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = WhatsAppEmerald,
-                                    cursorColor = WhatsAppEmerald
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
                             OutlinedTextField(
                                 value = phoneNumber,
                                 onValueChange = {
@@ -669,12 +652,44 @@ fun AuthScreen(
                                             val email = googleIdTokenCredential.id
                                             val name = googleIdTokenCredential.displayName ?: email.substringBefore("@")
                                             val avatar = googleIdTokenCredential.profilePictureUri?.toString()
-                                            val idToken = googleIdTokenCredential.idToken
+                                            val rawIdToken = googleIdTokenCredential.idToken
 
-                                            if (onNavigateToPhoneIdentity != null) {
-                                                onNavigateToPhoneIdentity(email, name, avatar, idToken)
-                                            } else if (onGoogleAuthSuccess != null) {
-                                                onGoogleAuthSuccess(email, name, avatar, null, idToken)
+                                            val auth = firebaseAuth
+                                            if (auth != null) {
+                                                val firebaseCredential = GoogleAuthProvider.getCredential(rawIdToken, null)
+                                                auth.signInWithCredential(firebaseCredential)
+                                                    .addOnCompleteListener { firebaseTask ->
+                                                        if (firebaseTask.isSuccessful) {
+                                                            val firebaseUser = auth.currentUser
+                                                            firebaseUser?.getIdToken(false)?.addOnCompleteListener { tokenTask ->
+                                                                val firebaseIdToken = if (tokenTask.isSuccessful) tokenTask.result?.token else rawIdToken
+                                                                isSigningIn = false
+                                                                if (onNavigateToPhoneIdentity != null) {
+                                                                    onNavigateToPhoneIdentity(email, name, avatar, firebaseIdToken)
+                                                                } else if (onGoogleAuthSuccess != null) {
+                                                                    onGoogleAuthSuccess(email, name, avatar, null, firebaseIdToken)
+                                                                }
+                                                            } ?: run {
+                                                                isSigningIn = false
+                                                                if (onNavigateToPhoneIdentity != null) {
+                                                                    onNavigateToPhoneIdentity(email, name, avatar, rawIdToken)
+                                                                } else if (onGoogleAuthSuccess != null) {
+                                                                    onGoogleAuthSuccess(email, name, avatar, null, rawIdToken)
+                                                                }
+                                                            }
+                                                        } else {
+                                                            isSigningIn = false
+                                                            val exc = firebaseTask.exception
+                                                            errorMessage = "Firebase Google Sign-In failed: ${exc?.localizedMessage ?: "Could not sign in with Firebase."}"
+                                                        }
+                                                    }
+                                            } else {
+                                                isSigningIn = false
+                                                if (onNavigateToPhoneIdentity != null) {
+                                                    onNavigateToPhoneIdentity(email, name, avatar, rawIdToken)
+                                                } else if (onGoogleAuthSuccess != null) {
+                                                    onGoogleAuthSuccess(email, name, avatar, null, rawIdToken)
+                                                }
                                             }
                                         }
                                     } catch (e: GetCredentialException) {
@@ -740,7 +755,7 @@ fun AuthScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "End-to-end encrypted • Firebase & Custom Backend",
+                        text = "End-to-end encrypted • Secure Session",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

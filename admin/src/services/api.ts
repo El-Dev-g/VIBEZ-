@@ -438,6 +438,19 @@ export const unbanUser = async (userId: string): Promise<boolean> => {
   }
 };
 
+export const deleteUser = async (userId: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders()
+    });
+    return res.ok;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
 export interface BadgePaymentRecord {
   id: string;
   userId: string;

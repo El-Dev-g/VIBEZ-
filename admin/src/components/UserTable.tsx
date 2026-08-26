@@ -1,6 +1,6 @@
 'use client';
 
-import { User, UserDetails, banUser, unbanUser, fetchUserById } from '@/services/api';
+import { User, UserDetails, banUser, unbanUser, deleteUser, fetchUserById } from '@/services/api';
 import { useState } from 'react';
 
 interface UserTableProps {
@@ -44,6 +44,19 @@ export default function UserTable({ initialUsers }: UserTableProps) {
       setUsers(users.map(u => u.id === userId ? { ...u, status: 'Active' as const } : u));
       if (selectedUser?.id === userId) {
         setSelectedUser({ ...selectedUser, status: 'Active' });
+      }
+    }
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (confirm('Are you sure you want to permanently delete this user? All their chats, statuses, and data will be erased forever. This action is irreversible.')) {
+      const success = await deleteUser(userId);
+      if (success) {
+        setUsers(users.filter(u => u.id !== userId));
+        setIsModalOpen(false);
+        setSelectedUser(null);
+      } else {
+        alert('Failed to delete user.');
       }
     }
   };
@@ -126,6 +139,15 @@ export default function UserTable({ initialUsers }: UserTableProps) {
                         </svg>
                       </button>
                     )}
+                    <button 
+                      onClick={() => handleDelete(user.id)}
+                      className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-600 hover:text-white transition-all"
+                      title="Delete User"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -209,7 +231,7 @@ export default function UserTable({ initialUsers }: UserTableProps) {
               {selectedUser.status === 'Active' ? (
                 <button
                   onClick={() => handleBan(selectedUser.id)}
-                  className="rounded-2xl bg-red-500 px-8 py-4 text-sm font-black text-white hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 active:scale-95 flex items-center gap-2"
+                  className="rounded-2xl bg-amber-500 px-6 py-4 text-sm font-black text-white hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 active:scale-95 flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -219,7 +241,7 @@ export default function UserTable({ initialUsers }: UserTableProps) {
               ) : (
                 <button
                   onClick={() => handleUnban(selectedUser.id)}
-                  className="rounded-2xl bg-emerald-500 px-8 py-4 text-sm font-black text-white hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center gap-2"
+                  className="rounded-2xl bg-emerald-500 px-6 py-4 text-sm font-black text-white hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -228,8 +250,17 @@ export default function UserTable({ initialUsers }: UserTableProps) {
                 </button>
               )}
               <button
+                onClick={() => handleDelete(selectedUser.id)}
+                className="rounded-2xl bg-red-600 px-6 py-4 text-sm font-black text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete Profile
+              </button>
+              <button
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-2xl border-2 border-slate-200 px-8 py-4 text-sm font-black text-slate-900 hover:bg-slate-50 transition-all active:scale-95"
+                className="rounded-2xl border-2 border-slate-200 px-6 py-4 text-sm font-black text-slate-900 hover:bg-slate-50 transition-all active:scale-95"
               >
                 Close Profile
               </button>

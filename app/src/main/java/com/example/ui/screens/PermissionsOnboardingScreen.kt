@@ -155,36 +155,31 @@ fun PermissionsOnboardingScreen(
             PermissionItem(
                 icon = Icons.Default.Contacts,
                 title = "Contacts",
-                description = "Find your friends and sync your address book with VIBEZ.",
+                description = "Find friends using the app",
                 isGranted = multiplePermissionsState.permissions.any { it.permission == Manifest.permission.READ_CONTACTS && it.status.isGranted }
             )
             
             PermissionItem(
                 icon = Icons.Default.Notifications,
                 title = "Notifications",
-                description = "Get notified instantly when you receive new messages or calls.",
+                description = "Receive new messages/calls",
                 isGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     multiplePermissionsState.permissions.any { it.permission == Manifest.permission.POST_NOTIFICATIONS && it.status.isGranted }
                 } else true
             )
-            
+
             PermissionItem(
-                icon = Icons.Default.CameraAlt,
-                title = "Camera & Microphone",
-                description = "Take photos, record videos, and make high-quality voice/video calls.",
-                isGranted = multiplePermissionsState.permissions.any { it.permission == Manifest.permission.CAMERA && it.status.isGranted } &&
-                          multiplePermissionsState.permissions.any { it.permission == Manifest.permission.RECORD_AUDIO && it.status.isGranted }
+                icon = Icons.Default.Mic,
+                title = "Microphone",
+                description = "Voice/video calls and voice messages",
+                isGranted = multiplePermissionsState.permissions.any { it.permission == Manifest.permission.RECORD_AUDIO && it.status.isGranted }
             )
             
             PermissionItem(
-                icon = Icons.Default.PhotoLibrary,
-                title = "Media Access",
-                description = "Share photos and videos from your gallery with your contacts.",
-                isGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    multiplePermissionsState.permissions.any { it.permission == Manifest.permission.READ_MEDIA_IMAGES && it.status.isGranted }
-                } else {
-                    multiplePermissionsState.permissions.any { it.permission == Manifest.permission.READ_EXTERNAL_STORAGE && it.status.isGranted }
-                }
+                icon = Icons.Default.CameraAlt,
+                title = "Camera",
+                description = "Video calls and camera messages",
+                isGranted = multiplePermissionsState.permissions.any { it.permission == Manifest.permission.CAMERA && it.status.isGranted }
             )
             
             Spacer(modifier = Modifier.height(20.dp))

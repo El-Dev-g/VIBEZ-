@@ -90,6 +90,17 @@ import com.example.ui.theme.WhatsAppMinimalAccent
 import com.example.ui.theme.WhatsAppMinimalNavPill
 import com.example.ui.theme.WhatsAppMinimalPrimary
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalContext
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.FirebaseAuth
+import com.example.BuildConfig
+import com.example.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.BorderStroke
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -117,6 +128,11 @@ fun UserProfileScreen(
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val credentialManager = remember { CredentialManager.create(context) }
+    var isLinkingGoogle by remember { mutableStateOf(false) }
+    val firebaseAuth = remember { FirebaseAuth.getInstance() }
+    var currentUserState by remember { mutableStateOf(firebaseAuth.currentUser) }
 
     // Local mutable state for editing
     var currentName by remember(contactName) { mutableStateOf(contactName) }
@@ -430,6 +446,155 @@ fun UserProfileScreen(
                                         label = "Video",
                                         onClick = onVideoCallClick
                                     )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // LINKED ACCOUNTS SECTION (Only visible to current user for binding accounts)
+            if (isCurrentUser) {
+                item {
+                    val isGoogleLinked = currentUserState?.providerData?.any {
+                        it.providerId == com.google.firebase.auth.GoogleAuthProvider.PROVIDER_ID
+                    } == true
+                    val googleEmail = currentUserState?.providerData?.find {
+                        it.providerId == com.google.firebase.auth.GoogleAuthProvider.PROVIDER_ID
+                    }?.email ?: currentUserState?.email
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Linked Accounts",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = WhatsAppMinimalPrimary
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_google_logo),
+                                    contentDescription = "Google",
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isGoogleLinked && !googleEmail.isNullOrEmpty()) googleEmail else "Google Account",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (isGoogleLinked) "Linked securely for verification & easy backups" else "Not linked",
+                                        fontSize = 12.sp,
+                                        color = if (isGoogleLinked) WhatsAppMinimalPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (isGoogleLinked) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Linked",
+                                        tint = WhatsAppMinimalPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            if (!isGoogleLinked) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Link your Google account to secure your chats, enable easy cloud backups, and allow seamless logins across devices.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 16.sp
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            isLinkingGoogle = true
+                                            try {
+                                                if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isEmpty() || BuildConfig.GOOGLE_WEB_CLIENT_ID == "your-google-web-client-id.apps.googleusercontent.com") {
+                                                    snackbarHostState.showSnackbar("Google Web Client ID is not configured!")
+                                                    isLinkingGoogle = false
+                                                    return@launch
+                                                }
+
+                                                val googleIdOption = GetGoogleIdOption.Builder()
+                                                    .setFilterByAuthorizedAccounts(false)
+                                                    .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                                                    .setAutoSelectEnabled(false)
+                                                    .build()
+
+                                                val request = GetCredentialRequest.Builder()
+                                                    .addCredentialOption(googleIdOption)
+                                                    .build()
+
+                                                val result = credentialManager.getCredential(
+                                                    context = context,
+                                                    request = request
+                                                )
+
+                                                val credential = result.credential
+                                                if (credential is GoogleIdTokenCredential) {
+                                                    val rawIdToken = credential.idToken
+                                                    val firebaseCredential = GoogleAuthProvider.getCredential(rawIdToken, null)
+                                                    val user = firebaseAuth.currentUser
+                                                    if (user != null) {
+                                                        user.linkWithCredential(firebaseCredential)
+                                                            .addOnCompleteListener { task ->
+                                                                isLinkingGoogle = false
+                                                                if (task.isSuccessful) {
+                                                                    currentUserState = firebaseAuth.currentUser
+                                                                    scope.launch {
+                                                                        snackbarHostState.showSnackbar("Google Account linked successfully!")
+                                                                    }
+                                                                    onUpdateProfile?.invoke(
+                                                                        currentName,
+                                                                        currentPhone,
+                                                                        currentStatus,
+                                                                        currentAvatar
+                                                                    )
+                                                                } else {
+                                                                    val msg = task.exception?.localizedMessage ?: "Failed to link Google account."
+                                                                    scope.launch {
+                                                                        if (msg.contains("credential already associated") || msg.contains("PROVIDER_ALREADY_LINKED")) {
+                                                                            snackbarHostState.showSnackbar("This Google Account is already linked to another profile.")
+                                                                        } else {
+                                                                            snackbarHostState.showSnackbar("Linking failed: $msg")
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                    } else {
+                                                        isLinkingGoogle = false
+                                                    }
+                                                } else {
+                                                    isLinkingGoogle = false
+                                                }
+                                            } catch (e: Exception) {
+                                                isLinkingGoogle = false
+                                                e.printStackTrace()
+                                                val msg = e.localizedMessage ?: "Error during Google Account selection."
+                                                snackbarHostState.showSnackbar(msg)
+                                            }
+                                        }
+                                    },
+                                    enabled = !isLinkingGoogle,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(text = if (isLinkingGoogle) "Linking Google..." else "Link Google Account", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }

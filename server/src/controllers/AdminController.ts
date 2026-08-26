@@ -991,4 +991,113 @@ export class AdminController {
       res.status(500).json({ error: 'Failed to revoke session' });
     }
   }
+
+  async deleteUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const { adminEmail } = req.body;
+
+      // 1. Delete associated Messages (sent or received)
+      await prisma.message.deleteMany({
+        where: {
+          OR: [
+            { senderId: userId },
+            { receiverId: userId }
+          ]
+        }
+      });
+
+      // 2. Delete ChatMember relations
+      await prisma.chatMember.deleteMany({
+        where: { userId }
+      });
+
+      // 3. Delete StatusView relations
+      await prisma.statusView.deleteMany({
+        where: { userId }
+      });
+
+      // 4. Delete Statuses (and sub-views of those statuses)
+      const userStatuses = await prisma.status.findMany({
+        where: { userId },
+        select: { id: true }
+      });
+      const statusIds = userStatuses.map(s => s.id);
+      if (statusIds.length > 0) {
+        await prisma.statusView.deleteMany({
+          where: { statusId: { in: statusIds } }
+        });
+        await prisma.status.deleteMany({
+          where: { id: { in: statusIds } }
+        });
+      }
+
+      // 5. Delete CommunityMember relations
+      await prisma.communityMember.deleteMany({
+        where: { userId }
+      });
+
+      // 6. Delete Calls made or received
+      await prisma.call.deleteMany({
+        where: {
+          OR: [
+            { callerId: userId },
+            { receiverId: userId }
+          ]
+        }
+      });
+
+      // 7. Delete UserSettings
+      await prisma.userSettings.deleteMany({
+        where: { userId }
+      });
+
+      // 8. Delete Reports submitted or received
+      await prisma.report.deleteMany({
+        where: {
+          OR: [
+            { reporterId: userId },
+            { reportedUserId: userId }
+          ]
+        }
+      });
+
+      // 9. Delete BadgePayments
+      await prisma.badgePayment.deleteMany({
+        where: { userId }
+      });
+
+      // 10. Delete PaymentTransactions
+      await prisma.paymentTransaction.deleteMany({
+        where: { userId }
+      });
+
+      // 11. Delete Post Reactions & Comments
+      await prisma.postReaction.deleteMany({
+        where: { userId }
+      });
+      await prisma.postComment.deleteMany({
+        where: { userId }
+      });
+
+      // 12. Delete User itself
+      await prisma.user.delete({
+        where: { id: userId }
+      });
+
+      // Log action in audit logs
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || 'system',
+          action: 'DELETE_USER',
+          target: userId
+        }
+      });
+
+      res.json({ success: true, message: `User ${userId} deleted successfully` });
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      res.status(500).json({ error: 'Failed to delete user' });
+    }
+  }
 }

@@ -150,6 +150,7 @@ app.put('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSett
 app.post('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
 app.post('/api/admin/users/:userId/ban', authenticateAdmin, (req, res) => admin.banUser(req, res));
 app.post('/api/admin/users/:userId/unban', authenticateAdmin, (req, res) => admin.unbanUser(req, res));
+app.delete('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.deleteUser(req, res));
 
 // Admin Profile, Password & Sessions Routes
 app.get('/api/admin/profile', authenticateAdmin, (req, res) => admin.getProfile(req, res));
