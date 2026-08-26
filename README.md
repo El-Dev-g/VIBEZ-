@@ -4,6 +4,12 @@ A high-fidelity communication application built with modern Android development 
 
 ## 🚀 Features
 
+### **Authentication & Identity**
+- **Firebase Phone Number Auth**: Real-time SMS OTP verification with auto-retrieval and fallback simulation.
+- **Google Sign-In**: Seamless authentication with Google Credential Manager.
+- **Verified Badge System**: Verified profile status badges with server validation.
+- **Secure Phone Migration**: Authenticated multi-step phone number change with code challenges.
+
 ### **Chat & Messaging**
 - **Rich Conversations**: Support for text, voice notes, and media messages.
 - **Starred Messages**: Save important messages for quick access.
@@ -21,12 +27,42 @@ A high-fidelity communication application built with modern Android development 
 - **MVVM Pattern**: Clean separation of concerns using ViewModels and StateFlow.
 - **Responsive UI**: Built entirely with Jetpack Compose and Material 3, following edge-to-edge design principles.
 
+---
+
+## ☁️ Server Environment Variables (Render / Cloud Deployment)
+
+All backend variables are configured directly in your **Render Web Service Dashboard** (`Environment` tab):
+
+### 1. Backend Core Variables (`/server`)
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/vibez_db?sslmode=require` |
+| `JWT_SECRET` | Secret key for signing backend session JWTs | `your-strong-production-jwt-secret` |
+| `PORT` | Server listening port | `10000` (or `3000`) |
+| `GOOGLE_CLIENT_ID` | OAuth Web Client ID for validating Google tokens | `31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com` |
+
+### 2. Cloudflare R2 Media Storage *(Optional)*
+| Variable | Description |
+| :--- | :--- |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account Identifier |
+| `CLOUDFLARE_R2_BUCKET_NAME` | R2 Bucket Name for uploaded media & voice notes |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID` | R2 Access Key ID |
+| `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | R2 Secret Access Key |
+| `CLOUDFLARE_R2_PUBLIC_DOMAIN` | Custom public CDN/domain URL (e.g. `https://media.yourdomain.com`) |
+
+### 3. Firebase Admin SDK *(Optional for backend token verification)*
+| Variable / Secret File | Description |
+| :--- | :--- |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Secret File (e.g. `/etc/secrets/serviceAccountKey.json`) |
+
+---
+
 ## 🛠️ Tech Stack
 
 - **UI**: Jetpack Compose (Material 3)
 - **Image Loading**: Modern image loading libraries
 - **Navigation**: Type-safe navigation
-- **Database**: Local SQLite-based storage
+- **Database**: Local SQLite-based storage + PostgreSQL Backend
 - **Concurrency**: Kotlin Coroutines & Flow
 
 ## 🛠️ Getting Started

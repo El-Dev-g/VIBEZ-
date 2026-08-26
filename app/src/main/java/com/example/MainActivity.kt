@@ -327,11 +327,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             )
         }
 
-        // 0. User Authentication Screen (Google Sign-In Primary)
+        // 0. User Authentication Screen (Firebase Phone Auth + Google Sign-In)
         composable("auth") {
             AuthScreen(
-                onAuthSuccess = { phone, name, about ->
-                    viewModel.loginWithPhone(phone, name, about) { success, _ ->
+                onAuthSuccess = { phone, name, about, firebaseIdToken ->
+                    viewModel.loginWithPhone(phone, name, about, avatarUrl = null, firebaseIdToken = firebaseIdToken) { success, _ ->
                         navController.navigate("permissions_onboarding") {
                             popUpTo("auth") { inclusive = true }
                         }

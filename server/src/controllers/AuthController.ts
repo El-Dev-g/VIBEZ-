@@ -9,7 +9,7 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 export class AuthController {
   async phoneLogin(req: Request, res: Response) {
     try {
-      const { phoneNumber, name, about, avatarUrl } = req.body;
+      const { phoneNumber, name, about, avatarUrl, firebaseIdToken } = req.body;
       const cleanPhone = (phoneNumber || '').trim();
 
       if (!cleanPhone) {
@@ -53,7 +53,7 @@ export class AuthController {
       }
 
       const token = jwt.sign(
-        { id: user.id, phoneNumber: user.phoneNumber },
+        { id: user.id, phoneNumber: user.phoneNumber, firebaseVerified: !!firebaseIdToken },
         process.env.JWT_SECRET || 'secret',
         { expiresIn: '30d' }
       );

@@ -87,7 +87,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         phoneNumber: String,
         name: String? = null,
         about: String? = null,
-        avatarUrl: String? = null
+        avatarUrl: String? = null,
+        firebaseIdToken: String? = null
     ): LoginResponse {
         return try {
             NetworkClient.apiService.loginWithPhone(
@@ -95,7 +96,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     phoneNumber = phoneNumber.trim(),
                     name = name?.trim(),
                     about = about?.trim(),
-                    avatarUrl = avatarUrl
+                    avatarUrl = avatarUrl,
+                    firebaseIdToken = firebaseIdToken
                 )
             )
         } catch (e: Exception) {

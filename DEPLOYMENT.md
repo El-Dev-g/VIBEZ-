@@ -1,62 +1,56 @@
 # VIBEZ Deployment Guide
 
-This guide provides instructions for deploying the **VIBEZ** ecosystem, including the Node.js Backend Server and the Next.js Admin Portal.
+This guide provides instructions for deploying the **VIBEZ** ecosystem, including the Node.js Backend Server on Render and the Next.js Admin Portal.
 
 ---
 
 ## 🛠️ General Prerequisites
 
--   **Cloud Provider Account**: Google Cloud, Railway, Render, or similar.
--   **PostgreSQL Database**: Required for production (e.g., Cloud SQL, Railway Postgres, or Render Database).
--   **Node.js 20+**: Required for both server and admin builds.
--   **Docker**: Required for containerized deployments (optional but recommended).
+- **Cloud Provider Account**: Render, Railway, Google Cloud, or similar.
+- **PostgreSQL Database**: Required for production (e.g., Render Postgres, Supabase, Neon, or Railway).
+- **Node.js 20+**: Required for both server and admin builds.
 
 ---
 
-## 📡 1. Backend Server Deployment (`/server`)
+## 📡 1. Backend Server Deployment on Render (`/server`)
 
-The VIBEZ backend is a Node.js/Express application using Prisma ORM.
+The VIBEZ backend is a Node.js/Express application using Prisma ORM with WebSockets and WebRTC signaling.
 
-### **Step 1: Environment Variables**
-Create a `.env` file in the `/server` directory:
+### **Step 1: Environment Variables on Render Dashboard**
+Under your Web Service's **Environment** tab, configure the following variables:
+
 ```env
-PORT=3000
-DATABASE_URL="postgresql://user:password@host:port/dbname?schema=public"
-JWT_SECRET="your-super-secret-key"
-GOOGLE_CLIENT_ID="your-google-client-id"
+PORT=10000
+DATABASE_URL="postgresql://user:password@host:port/dbname?sslmode=require"
+JWT_SECRET="your-production-jwt-secret-key"
+GOOGLE_CLIENT_ID="31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com"
 ```
 
-### **Step 2: Database Setup**
-Run Prisma migrations to set up your production database schema:
-```bash
-cd server
-npm install
-npx prisma generate
-npx prisma migrate deploy
+#### Optional: Cloudflare R2 Media Storage
+```env
+CLOUDFLARE_ACCOUNT_ID="your-cloudflare-account-id"
+CLOUDFLARE_R2_BUCKET_NAME="vibez-media"
+CLOUDFLARE_R2_ACCESS_KEY_ID="your-r2-access-key-id"
+CLOUDFLARE_R2_SECRET_ACCESS_KEY="your-r2-secret-access-key"
+CLOUDFLARE_R2_PUBLIC_DOMAIN="https://media.yourdomain.com"
 ```
 
-### **Step 3: Deploy Options**
+#### Optional: Firebase Admin Verification
+- Create a **Secret File** on Render named `serviceAccountKey.json`.
+- Add environment variable: `GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/serviceAccountKey.json`.
 
-#### **Option A: Google Cloud Run**
-Build and push the Docker image:
-```bash
-gcloud builds submit --tag gcr.io/[PROJECT_ID]/vibez-server .
-gcloud run deploy vibez-server --image gcr.io/[PROJECT_ID]/vibez-server --platform managed
-```
+---
 
-#### **Option B: Railway (Highly Recommended for Node/Next)**
-1.  Connect your GitHub repository to [Railway](https://railway.app).
-2.  Add a new service from the `/server` directory.
-3.  Add your Environment Variables in the Railway Dashboard.
-4.  Railway will automatically detect the `Dockerfile` and deploy.
+### **Step 2: Render Web Service Configuration**
 
-#### **Option C: Render**
-1.  Create a new **Web Service** on [Render](https://render.com).
-2.  Connect your repository and set the **Root Directory** to `server`.
-3.  Set the **Environment** to `Node`.
-4.  Set the **Build Command** to `npm install && npx prisma generate && npm run build`.
-5.  Set the **Start Command** to `npm start`.
-6.  Add your Environment Variables in the **Environment** tab.
+1. Create a new **Web Service** on [Render](https://render.com).
+2. Connect your Git repository.
+3. Configure the service settings:
+   - **Root Directory**: `server`
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install && npx prisma generate && npm run build`
+   - **Start Command**: `npm start`
+4. Deploy the service.
 
 ---
 
@@ -64,57 +58,21 @@ gcloud run deploy vibez-server --image gcr.io/[PROJECT_ID]/vibez-server --platfo
 
 The VIBEZ Admin Portal is a Next.js application.
 
-### **Step 1: Environment Variables**
-Create a `.env.production` file in the `/admin` directory:
+### **Environment Variables**
 ```env
-NEXT_PUBLIC_API_URL="https://your-server-url.com/api"
+NEXT_PUBLIC_API_URL="https://vibez-n5h1.onrender.com/api"
 ```
 
-### **Step 2: Deploy Options**
-
-#### **Option A: Vercel (Native Next.js Support)**
-1.  Connect your repository to [Vercel](https://vercel.com).
-2.  Set the **Root Directory** to `admin`.
-3.  Add the `NEXT_PUBLIC_API_URL` environment variable.
-4.  Deploy.
-
-#### **Option B: Google Cloud Run**
-Build and push the Docker image:
-```bash
-cd admin
-gcloud builds submit --tag gcr.io/[PROJECT_ID]/vibez-admin .
-gcloud run deploy vibez-admin --image gcr.io/[PROJECT_ID]/vibez-admin --platform managed
-```
-
-#### **Option C: Railway**
-1.  Connect your repository to Railway.
-2.  Add a new service from the `/admin` directory.
-3.  Add `NEXT_PUBLIC_API_URL` to the variables.
-4.  Deploy.
-
-#### **Option D: Render**
-1.  Create a new **Web Service** on Render.
-2.  Connect your repository and set the **Root Directory** to `admin`.
-3.  Set the **Environment** to `Node`.
-4.  Set the **Build Command** to `npm install && npm run build`.
-5.  Set the **Start Command** to `npm start`.
-6.  Add your Environment Variables.
+### **Deploy on Render / Vercel**
+1. Set **Root Directory** to `admin`.
+2. Set **Build Command** to `npm install && npm run build`.
+3. Set **Start Command** to `npm start`.
+4. Add the `NEXT_PUBLIC_API_URL` variable.
 
 ---
 
 ## 📱 3. Android App Configuration
 
-Before distributing the Android app, ensure it is configured to point to your live backend:
-
-1.  Update `BuildConfig.BACKEND_URL` (or your API service configuration) to point to your deployed server URL.
-2.  Ensure `google-services.json` is correctly placed in `app/` for Firebase/Google Auth.
-3.  Add your production SHA-1 fingerprint to the Firebase Console.
-
----
-
-## 🛡️ Security Checklist
-
--   [ ] **JWT Secret**: Use a long, random string for `JWT_SECRET`.
--   [ ] **CORS**: Update the CORS configuration in `server/src/index.ts` to only allow your admin portal domain.
--   [ ] **SSL**: Ensure all traffic is served over HTTPS.
--   [ ] **Admin Credentials**: Change the default admin credentials after the first login.
+1. **Backend URL**: In `.env` / AI Studio Secrets panel, `BACKEND_URL` is set to `https://vibez-n5h1.onrender.com/`.
+2. **Google Services**: Ensure `app/google-services.json` is present for Firebase and Google Auth.
+3. **Web Client ID**: Set `GOOGLE_WEB_CLIENT_ID` in the Secrets panel.

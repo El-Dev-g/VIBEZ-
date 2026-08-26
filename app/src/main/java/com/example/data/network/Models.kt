@@ -61,7 +61,8 @@ data class PhoneAuthRequest(
     val phoneNumber: String,
     val name: String? = null,
     val about: String? = null,
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    val firebaseIdToken: String? = null
 )
 
 @JsonClass(generateAdapter = true)

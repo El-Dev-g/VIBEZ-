@@ -241,6 +241,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         name: String,
         about: String = "Hey there! I am using VIBEZ.",
         avatarUrl: String? = null,
+        firebaseIdToken: String? = null,
         onComplete: ((Boolean, String?) -> Unit)? = null
     ) {
         viewModelScope.launch {
@@ -250,7 +251,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     phoneNumber = cleanPhone,
                     name = name.trim(),
                     about = about.trim(),
-                    avatarUrl = avatarUrl
+                    avatarUrl = avatarUrl,
+                    firebaseIdToken = firebaseIdToken
                 )
 
                 val effectiveName = response.user.name?.takeIf { it.isNotBlank() } ?: name.ifBlank { cleanPhone }
