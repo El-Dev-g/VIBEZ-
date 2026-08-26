@@ -83,6 +83,42 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
+    suspend fun loginWithPhone(
+        phoneNumber: String,
+        name: String? = null,
+        about: String? = null,
+        avatarUrl: String? = null
+    ): LoginResponse {
+        return try {
+            NetworkClient.apiService.loginWithPhone(
+                PhoneAuthRequest(
+                    phoneNumber = phoneNumber.trim(),
+                    name = name?.trim(),
+                    about = about?.trim(),
+                    avatarUrl = avatarUrl
+                )
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+    fun logout() {
+        try {
+            socketManager?.disconnect()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        socketManager = null
+        _allChats.value = emptyList()
+        _allCommunities.value = emptyList()
+        _allContacts.value = emptyList()
+        _allStatuses.value = emptyList()
+        _allCallLogs.value = emptyList()
+        _currentChatMessages.value = emptyMap()
+    }
+
     suspend fun syncChats(token: String) {
         try {
             val remoteChats = NetworkClient.apiService.getChats("Bearer $token")

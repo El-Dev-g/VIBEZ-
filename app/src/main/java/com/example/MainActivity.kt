@@ -330,7 +330,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         composable("auth") {
             AuthScreen(
                 onAuthSuccess = { phone, name, about ->
-                    viewModel.loginWithGoogle("user@vibez.app", name, null, phone) { success, _ ->
+                    viewModel.loginWithPhone(phone, name, about) { success, _ ->
                         navController.navigate("permissions_onboarding") {
                             popUpTo("auth") { inclusive = true }
                         }

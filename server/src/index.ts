@@ -60,6 +60,7 @@ const payment = new PaymentController();
 
 // Auth Routes
 app.post('/api/auth/google', (req, res) => auth.googleLogin(req, res));
+app.post('/api/auth/phone', (req, res) => auth.phoneLogin(req, res));
 app.get('/api/auth/profile', authenticate, (req, res) => auth.getProfile(req, res));
 
 // User Routes

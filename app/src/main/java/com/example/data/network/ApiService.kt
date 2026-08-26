@@ -6,6 +6,9 @@ interface ApiService {
     @POST("api/auth/google")
     suspend fun loginWithGoogle(@Body request: GoogleAuthRequest): LoginResponse
 
+    @POST("api/auth/phone")
+    suspend fun loginWithPhone(@Body request: PhoneAuthRequest): LoginResponse
+
     @GET("api/auth/profile")
     suspend fun getProfile(@Header("Authorization") token: String): UserDto
 

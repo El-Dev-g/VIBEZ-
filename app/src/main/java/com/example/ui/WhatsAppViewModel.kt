@@ -236,6 +236,60 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun loginWithPhone(
+        phone: String,
+        name: String,
+        about: String = "Hey there! I am using VIBEZ.",
+        avatarUrl: String? = null,
+        onComplete: ((Boolean, String?) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val cleanPhone = phone.trim()
+                val response = repository.loginWithPhone(
+                    phoneNumber = cleanPhone,
+                    name = name.trim(),
+                    about = about.trim(),
+                    avatarUrl = avatarUrl
+                )
+
+                val effectiveName = response.user.name?.takeIf { it.isNotBlank() } ?: name.ifBlank { cleanPhone }
+                val effectiveAbout = response.user.about?.takeIf { it.isNotBlank() } ?: about
+                val effectiveAvatar = response.user.avatarUrl ?: avatarUrl ?: ""
+
+                authManager.saveAuthData(
+                    token = response.token,
+                    userId = response.user.id,
+                    phoneNumber = cleanPhone,
+                    userName = effectiveName,
+                    userAbout = effectiveAbout,
+                    userAvatar = effectiveAvatar,
+                    googleEmail = null,
+                    authProvider = "PHONE"
+                )
+
+                currentUserPhone.value = cleanPhone
+                currentUserName.value = effectiveName
+                currentUserStatus.value = effectiveAbout
+                currentUserAvatar.value = effectiveAvatar
+                currentGoogleEmail.value = null
+                currentAuthProvider.value = "PHONE"
+                isLoggedIn.value = true
+
+                // Initialize Socket & Sync
+                repository.initSocket(response.user.id) { }
+                repository.syncChats(response.token)
+                repository.syncStatuses(response.token, response.user.id)
+                repository.syncCommunities(response.token)
+
+                onComplete?.invoke(true, null)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onComplete?.invoke(false, e.message)
+            }
+        }
+    }
+
     fun loginWithGoogle(
         email: String,
         name: String,
@@ -249,21 +303,26 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 val effectivePhone = phone?.ifBlank { null } ?: ""
                 val response = repository.loginWithGoogle(email, name, avatarUrl, effectivePhone, idToken)
                 
+                val finalPhone = response.user.phoneNumber.ifBlank { effectivePhone }
+                val finalName = response.user.name ?: name
+                val finalAbout = response.user.about ?: "⚡ Connected with Google"
+                val finalAvatar = response.user.avatarUrl ?: avatarUrl ?: ""
+
                 authManager.saveAuthData(
                     token = response.token,
                     userId = response.user.id,
-                    phoneNumber = response.user.phoneNumber.ifBlank { effectivePhone },
-                    userName = response.user.name ?: name,
-                    userAbout = response.user.about ?: "⚡ Connected with Google",
-                    userAvatar = response.user.avatarUrl ?: avatarUrl,
+                    phoneNumber = finalPhone,
+                    userName = finalName,
+                    userAbout = finalAbout,
+                    userAvatar = finalAvatar,
                     googleEmail = email,
                     authProvider = "GOOGLE"
                 )
                 
-                currentUserPhone.value = response.user.phoneNumber.ifBlank { effectivePhone }
-                currentUserName.value = response.user.name ?: name
-                currentUserStatus.value = response.user.about ?: "⚡ Connected with Google"
-                currentUserAvatar.value = response.user.avatarUrl ?: avatarUrl ?: ""
+                currentUserPhone.value = finalPhone
+                currentUserName.value = finalName
+                currentUserStatus.value = finalAbout
+                currentUserAvatar.value = finalAvatar
                 currentGoogleEmail.value = email
                 currentAuthProvider.value = "GOOGLE"
                 isLoggedIn.value = true
@@ -297,7 +356,16 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun logoutUser() {
         authManager.logout()
+        currentUserPhone.value = ""
+        currentUserName.value = ""
+        currentUserStatus.value = ""
+        currentUserAvatar.value = ""
+        currentGoogleEmail.value = null
+        currentAuthProvider.value = "PHONE"
         isLoggedIn.value = false
+        isVerified.value = false
+        badgeStatus.value = null
+        repository.logout()
     }
 
     fun updateUserProfile(name: String, about: String, phoneNumber: String? = null, avatarUrl: String? = null) {

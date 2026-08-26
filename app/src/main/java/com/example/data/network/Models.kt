@@ -57,6 +57,14 @@ data class GoogleAuthRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class PhoneAuthRequest(
+    val phoneNumber: String,
+    val name: String? = null,
+    val about: String? = null,
+    val avatarUrl: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class SyncContactsRequest(
     val phoneNumbers: List<String>
 )
