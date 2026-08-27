@@ -539,19 +539,6 @@ export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
   }
 };
 
-export const toggleUserVerificationBadge = async (userId: string, isVerified: boolean): Promise<boolean> => {
-  try {
-    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/badge`, {
-      method: 'POST',
-      headers: getAdminHeaders(),
-      body: JSON.stringify({ isVerified })
-    });
-    return res.ok;
-  } catch (error) {
-    console.error(error);
-    return false;
-  }
-};
 
 export interface BroadcastItem {
   id: string;

@@ -68,7 +68,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialCustomException
 import androidx.credentials.exceptions.GetCredentialException
 import com.example.BuildConfig
 import com.example.R
@@ -647,8 +650,23 @@ fun AuthScreen(
                                         )
 
                                         val credential = result.credential
-                                        if (credential is GoogleIdTokenCredential) {
-                                            val googleIdTokenCredential = credential
+                                        val googleIdTokenCredential = when (credential) {
+                                            is GoogleIdTokenCredential -> credential
+                                            is CustomCredential -> {
+                                                if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                                    try {
+                                                        GoogleIdTokenCredential.createFrom(credential.data)
+                                                    } catch (e: Exception) {
+                                                        null
+                                                    }
+                                                } else {
+                                                    null
+                                                }
+                                            }
+                                            else -> null
+                                        }
+
+                                        if (googleIdTokenCredential != null) {
                                             val email = googleIdTokenCredential.id
                                             val name = googleIdTokenCredential.displayName ?: email.substringBefore("@")
                                             val avatar = googleIdTokenCredential.profilePictureUri?.toString()
@@ -680,7 +698,7 @@ fun AuthScreen(
                                                         } else {
                                                             isSigningIn = false
                                                             val exc = firebaseTask.exception
-                                                            errorMessage = "Firebase Google Sign-In failed: ${exc?.localizedMessage ?: "Could not sign in with Firebase."}"
+                                                            errorMessage = "Firebase Google Sign-In error: ${exc?.localizedMessage ?: "Could not sign in with Firebase."}\n\nPlease verify that Google Sign-in provider is enabled in your Firebase Console (Authentication > Sign-in method)."
                                                         }
                                                     }
                                             } else {
@@ -691,15 +709,30 @@ fun AuthScreen(
                                                     onGoogleAuthSuccess(email, name, avatar, null, rawIdToken)
                                                 }
                                             }
+                                        } else {
+                                            isSigningIn = false
+                                            errorMessage = "Google Sign-In: Could not extract Google credential from provider response (${credential::class.java.simpleName})."
                                         }
-                                    } catch (e: GetCredentialException) {
-                                        e.printStackTrace()
-                                        errorMessage = "Google Sign-In: ${e.message ?: "Authentication failed."}\n\nPlease check Google Play Services or use Phone Number authentication."
+                                    } catch (e: GetCredentialCancellationException) {
+                                        // User dismissed or cancelled the Google chooser dialog
                                         isSigningIn = false
+                                    } catch (e: GetCredentialCustomException) {
+                                        isSigningIn = false
+                                        e.printStackTrace()
+                                        errorMessage = "Google Sign-In failed: ${e.message ?: "Authentication service error."}\n\nPlease check Google Play Services or use Phone Number authentication."
+                                    } catch (e: GetCredentialException) {
+                                        isSigningIn = false
+                                        e.printStackTrace()
+                                        errorMessage = "Google Sign-In error: ${e.message ?: "Authentication failed."}\n\nTip: In emulator or testing environments, you can also sign in instantly using the Phone Number tab."
                                     } catch (e: Exception) {
+                                        isSigningIn = false
                                         e.printStackTrace()
                                         errorMessage = "An unexpected error occurred: ${e.message ?: "Unknown error"}"
-                                        isSigningIn = false
+                                    } finally {
+                                        // Guarantee loading spinner resets
+                                        if (isSigningIn) {
+                                            isSigningIn = false
+                                        }
                                     }
                                 }
                             }
