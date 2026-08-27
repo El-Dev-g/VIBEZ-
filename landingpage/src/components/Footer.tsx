@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { MessageSquare } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useLanguage } from '../lib/LanguageContext';
 import { fetchPublicAppConfig, PublicAppConfig } from '../lib/api';
 
@@ -33,9 +33,9 @@ export default function Footer() {
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-[#008069] to-[#25d366] p-0.5 flex items-center justify-center">
               <div className="h-full w-full rounded-[6px] bg-[#0b141a] flex items-center justify-center">
-                <MessageSquare className="h-4 w-4 text-[#00a884]" />
+                <Zap className="h-4 w-4 text-[#008069] fill-[#008069]/20" />
               </div>
             </div>
             <span className="text-base font-black tracking-tight text-white">{config.appName}</span>

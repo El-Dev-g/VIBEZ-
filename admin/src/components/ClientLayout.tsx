@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardShell from './DashboardShell';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { usePathname } from 'next/navigation';
+import { Zap } from 'lucide-react';
 
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -14,8 +15,8 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-[#0b1120]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-xl shadow-emerald-500/30 animate-pulse">
-            <span className="text-white font-black text-xl">V</span>
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#008069] to-[#25d366] flex items-center justify-center shadow-2xl shadow-emerald-500/30 animate-pulse">
+            <Zap className="text-white w-8 h-8 fill-white/20" />
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]"></div>

@@ -6,6 +6,7 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loginAdmin } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { Zap } from 'lucide-react';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -55,8 +56,8 @@ function LoginForm() {
 
       <div className="w-full max-w-md space-y-8 relative z-10">
         <div className="text-center">
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-xl shadow-emerald-500/20 mb-4">
-            <span className="text-white font-black text-2xl">V</span>
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#008069] to-[#25d366] flex items-center justify-center shadow-2xl shadow-emerald-500/20 mb-4">
+            <Zap className="text-white w-9 h-9 fill-white/20" />
           </div>
           <h2 className="text-3xl font-black tracking-tight text-white">
             VIBEZ <span className="text-emerald-400">Admin Gate</span>

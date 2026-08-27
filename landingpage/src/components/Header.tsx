@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  MessageSquare, 
+  Zap, 
   Download, 
   Menu, 
   X
@@ -40,9 +40,9 @@ export default function Header() {
           
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-lg shadow-[#00a884]/15 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#008069] to-[#25d366] p-0.5 shadow-lg shadow-[#008069]/15 flex items-center justify-center">
               <div className="h-full w-full rounded-[10px] bg-[#0b141a] flex items-center justify-center">
-                <MessageSquare className="h-5 w-5 text-[#00a884]" />
+                <Zap className="h-5 w-5 text-[#008069] fill-[#008069]/20" />
               </div>
             </div>
             <span className="text-2xl font-black tracking-tight text-white">

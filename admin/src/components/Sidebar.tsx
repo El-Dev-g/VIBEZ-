@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { Zap } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: (
@@ -118,8 +119,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Branding */}
         <div className="flex h-20 items-center justify-between px-8 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <span className="text-white font-black text-lg">V</span>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#008069] to-[#25d366] flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Zap className="text-white w-5 h-5 fill-white/20" />
             </div>
             <h1 className="text-xl font-black tracking-tight text-white">VIBEZ <span className="text-emerald-500 text-xs font-bold uppercase tracking-widest ml-1">Admin</span></h1>
           </div>
