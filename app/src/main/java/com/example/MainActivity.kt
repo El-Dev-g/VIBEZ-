@@ -528,6 +528,12 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             val initialDimming by viewModel.wallpaperDimming.collectAsState()
             val customWallpaper = chat?.let { chatWallpapersMap[it.id] } ?: globalWall
 
+            LaunchedEffect(chatId) {
+                if (chatId.isNotEmpty()) {
+                    viewModel.joinChat(chatId)
+                }
+            }
+
             val contact = chat?.let { c -> contacts.firstOrNull { it.id == c.contactId } }
 
             val currentUserId = viewModel.authManager.getUserId() ?: ""

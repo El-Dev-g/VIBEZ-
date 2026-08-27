@@ -17,7 +17,7 @@ import org.json.JSONObject
 class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for binary compatibility if needed, but not using it
 
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var socketManager: SocketManager? = null
+    var socketManager: SocketManager? = null
 
     private val _allChats = MutableStateFlow<List<ChatEntity>>(emptyList())
     val allChats: StateFlow<List<ChatEntity>> = _allChats.asStateFlow()
@@ -33,15 +33,19 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     fun initSocket(userId: String, onNewMessage: (MessageEntity) -> Unit) {
         socketManager = SocketManager(userId).apply {
             connect { json ->
-                val messageDto = parseMessageJson(json)
-                val entity = mapMessageDtoToEntity(messageDto)
-                
-                // Update in-memory messages
-                val currentList = _currentChatMessages.value[entity.chatId] ?: emptyList()
-                val newList = (currentList + entity).distinctBy { it.id }
-                _currentChatMessages.value = _currentChatMessages.value + (entity.chatId to newList)
-                
-                onNewMessage(entity)
+                try {
+                    val messageDto = parseMessageJson(json)
+                    val entity = mapMessageDtoToEntity(messageDto)
+                    
+                    // Update in-memory messages
+                    val currentList = _currentChatMessages.value[entity.chatId] ?: emptyList()
+                    val newList = (currentList + entity).distinctBy { it.id }
+                    _currentChatMessages.value = _currentChatMessages.value + (entity.chatId to newList)
+                    
+                    onNewMessage(entity)
+                } catch (e: Exception) {
+                    android.util.Log.e("WhatsAppRepository", "Error parsing socket message", e)
+                }
             }
         }
     }
@@ -174,16 +178,16 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     private fun parseMessageJson(json: JSONObject): MessageDto {
         return MessageDto(
-            id = json.getString("id"),
-            content = json.getString("content"),
-            type = json.getString("type"),
-            status = json.getString("status"),
+            id = json.optString("id", java.util.UUID.randomUUID().toString()),
+            content = json.optString("content", ""),
+            type = json.optString("type", "TEXT"),
+            status = json.optString("status", "SENT"),
             mediaUrl = json.optString("mediaUrl", null),
-            duration = if (json.has("duration")) json.getInt("duration") else null,
-            senderId = json.getString("senderId"),
+            duration = if (!json.isNull("duration")) json.optInt("duration", 0) else null,
+            senderId = json.optString("senderId", "unknown"),
             receiverId = json.optString("receiverId", null),
-            chatId = json.getString("chatId"),
-            createdAt = json.getString("createdAt"),
+            chatId = json.optString("chatId", "unknown"),
+            createdAt = json.optString("createdAt", ""),
             sender = null
         )
     }

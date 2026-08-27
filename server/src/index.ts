@@ -29,7 +29,9 @@ const io = new Server(httpServer, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // Configure CORS for HTTP REST APIs with Security Rules
@@ -237,18 +239,21 @@ io.on('connection', (socket) => {
 
   socket.on('join_chat', (chatId) => {
     socket.join(`chat_${chatId}`);
+    console.log(`Socket ${socket.id} joined room chat_${chatId}`);
   });
-
+ 
   socket.on('send_message', async (data) => {
-    // data: { chatId, senderId, receiverId, content, type, mediaUrl, duration }
+    // data: { id, chatId, senderId, receiverId, content, type, mediaUrl, duration }
+    console.log(`Message received from ${data.senderId} for chat ${data.chatId}: ${data.content?.substring(0, 20)}...`);
     try {
       const setting = await prisma.systemSetting.findFirst();
       if (setting?.maintenanceMode) {
         return socket.emit('error', { message: 'System is currently undergoing scheduled maintenance.' });
       }
-
+ 
       const message = await prisma.message.create({
         data: {
+          id: data.id || undefined, // Use client-provided ID if available for optimistic UI sync
           chatId: data.chatId,
           senderId: data.senderId,
           receiverId: data.receiverId,
@@ -262,12 +267,14 @@ io.on('connection', (socket) => {
           sender: true
         }
       });
-
+ 
       // Broadcast to chat room
+      console.log(`Broadcasting message ${message.id} to room chat_${data.chatId}`);
       io.to(`chat_${data.chatId}`).emit('receive_message', message);
       
       // Also notify receiver if it's a private chat for badge updates
       if (data.receiverId) {
+        console.log(`Notifying receiver user_${data.receiverId} about new message`);
         io.to(`user_${data.receiverId}`).emit('new_message_notification', {
           chatId: data.chatId,
           message
@@ -275,6 +282,7 @@ io.on('connection', (socket) => {
       }
     } catch (error) {
       console.error('Error saving message:', error);
+      socket.emit('error', { message: 'Failed to send message' });
     }
   });
 

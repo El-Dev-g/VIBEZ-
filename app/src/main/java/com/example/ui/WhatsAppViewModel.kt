@@ -648,6 +648,10 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun joinChat(chatId: String) {
+        repository.socketManager?.joinChat(chatId)
+    }
+
     fun deleteChat(chatId: String) {
         viewModelScope.launch {
             repository.deleteChat(chatId)

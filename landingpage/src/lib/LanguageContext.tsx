@@ -10,7 +10,7 @@ export interface LanguageContextType {
   language: Language
   setLanguage: (lang: Language) => void
   t: (path: string, variablesOrFallback?: Record<string, any> | string, fallback?: string) => string
-  dict: typeof translationsData.en
+  dict: any
 }
 
 const languages: { code: Language; label: string; flag: string; nativeName: string }[] = [
