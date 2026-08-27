@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import {
   SystemSettings,
   updateSettings,
@@ -15,7 +15,7 @@ import {
   revokeAdminSession,
   toggleTwoFactor,
   fetchSecurityHealth
-} from '@/services/api';
+} from '../services/api';
 
 interface AdminSettingsDashboardProps {
   initialSettings?: SystemSettings | null;

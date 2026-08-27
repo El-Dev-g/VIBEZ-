@@ -1,5 +1,5 @@
-import { fetchSettings } from '@/services/api';
-import AdminSettingsDashboard from '@/components/AdminSettingsDashboard';
+import { fetchSettings } from '../../services/api';
+import AdminSettingsDashboard from '../../components/AdminSettingsDashboard';
 
 export const dynamic = 'force-dynamic';
 

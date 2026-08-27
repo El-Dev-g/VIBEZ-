@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchPaymentTransactions, fetchBadgePayments } from '@/services/api';
+import { fetchPaymentTransactions, fetchBadgePayments } from '../services/api';
 import {
   LineChart,
   Line,

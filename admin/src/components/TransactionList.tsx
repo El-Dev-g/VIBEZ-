@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchPaymentTransactions, PaymentTransaction } from '@/services/api';
+import { fetchPaymentTransactions, PaymentTransaction } from '../services/api';
 
 export default function TransactionList() {
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);

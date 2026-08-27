@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { SystemSettings, updateSettings } from '@/services/api';
+import { SystemSettings, updateSettings } from '../services/api';
 
 interface SettingsFormProps {
   initialSettings?: SystemSettings | null;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchPaymentProviders, updatePaymentProvider, testPaymentCredentials, PaymentProvider } from '@/services/api';
+import { fetchPaymentProviders, updatePaymentProvider, testPaymentCredentials, PaymentProvider } from '../services/api';
 
 export default function PaymentSettings() {
   const [providers, setProviders] = useState<PaymentProvider[]>([]);

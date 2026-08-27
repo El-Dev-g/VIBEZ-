@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { fetchAdminProfile, AdminProfile } from '@/services/api';
+import { fetchAdminProfile, AdminProfile } from '../services/api';
 
 export interface AdminUserData {
   id: string;

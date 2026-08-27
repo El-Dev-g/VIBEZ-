@@ -1,4 +1,4 @@
-import { fetchAuditLogs } from '@/services/api';
+import { fetchAuditLogs } from '../../services/api';
 
 export const dynamic = 'force-dynamic';
 

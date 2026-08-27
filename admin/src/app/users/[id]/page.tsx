@@ -1,4 +1,4 @@
-import { fetchUserById } from '@/services/api';
+import { fetchUserById } from '../../../services/api';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
