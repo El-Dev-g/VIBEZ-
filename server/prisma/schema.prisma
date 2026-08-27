@@ -260,6 +260,22 @@ model SystemSetting {
   maxGroupSize          Int     @default(1024)
   retentionDays         Int     @default(90)
   verificationBadgePrice Float  @default(3.00)
+  appDownloadUrl        String? @default("")
+  appVersion            String? @default("1.0.0")
+  appName               String? @default("VIBEZ")
+  contactEmail          String? @default("support@vibez.chat")
+  contactPhone          String? @default("+1 (800) 555-0199")
+  supportAddress        String? @default("San Francisco, CA, USA")
+}
+
+model ContactInquiry {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  subject   String?  @default("General Inquiry")
+  message   String
+  status    String   @default("UNREAD") // UNREAD, READ, REPLIED
+  createdAt DateTime @default(now())
 }
 
 model BadgePayment {

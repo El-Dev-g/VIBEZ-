@@ -261,7 +261,13 @@ export class AdminController {
             maintenanceMode: false,
             maxGroupSize: 1024,
             retentionDays: 90,
-            verificationBadgePrice: 3.00
+            verificationBadgePrice: 3.00,
+            appDownloadUrl: '',
+            appVersion: '1.0.0',
+            appName: 'VIBEZ',
+            contactEmail: 'support@vibez.chat',
+            contactPhone: '+1 (800) 555-0199',
+            supportAddress: 'San Francisco, CA, USA'
           }
         });
       }
@@ -284,6 +290,13 @@ export class AdminController {
       const rawPrice = data.verificationBadgePrice !== undefined ? data.verificationBadgePrice : data.badgePrice;
       const verificationBadgePrice = rawPrice !== undefined && rawPrice !== null && !isNaN(parseFloat(String(rawPrice))) ? parseFloat(String(rawPrice)) : undefined;
 
+      const appDownloadUrl = data.appDownloadUrl !== undefined ? String(data.appDownloadUrl).trim() : undefined;
+      const appVersion = data.appVersion !== undefined ? String(data.appVersion).trim() : undefined;
+      const appName = data.appName !== undefined ? String(data.appName).trim() : undefined;
+      const contactEmail = data.contactEmail !== undefined ? String(data.contactEmail).trim() : undefined;
+      const contactPhone = data.contactPhone !== undefined ? String(data.contactPhone).trim() : undefined;
+      const supportAddress = data.supportAddress !== undefined ? String(data.supportAddress).trim() : undefined;
+
       if (!target) {
         target = await prisma.systemSetting.create({
           data: {
@@ -291,7 +304,13 @@ export class AdminController {
             maintenanceMode: maintenanceMode ?? false,
             maxGroupSize: maxGroupSize ?? 1024,
             retentionDays: retentionDays ?? 90,
-            verificationBadgePrice: verificationBadgePrice ?? 3.00
+            verificationBadgePrice: verificationBadgePrice ?? 3.00,
+            appDownloadUrl: appDownloadUrl ?? '',
+            appVersion: appVersion ?? '1.0.0',
+            appName: appName ?? 'VIBEZ',
+            contactEmail: contactEmail ?? 'support@vibez.chat',
+            contactPhone: contactPhone ?? '+1 (800) 555-0199',
+            supportAddress: supportAddress ?? 'San Francisco, CA, USA'
           }
         });
         return res.json(target);
@@ -303,6 +322,12 @@ export class AdminController {
       if (maxGroupSize !== undefined) updatePayload.maxGroupSize = maxGroupSize;
       if (retentionDays !== undefined) updatePayload.retentionDays = retentionDays;
       if (verificationBadgePrice !== undefined) updatePayload.verificationBadgePrice = verificationBadgePrice;
+      if (appDownloadUrl !== undefined) updatePayload.appDownloadUrl = appDownloadUrl;
+      if (appVersion !== undefined) updatePayload.appVersion = appVersion;
+      if (appName !== undefined) updatePayload.appName = appName;
+      if (contactEmail !== undefined) updatePayload.contactEmail = contactEmail;
+      if (contactPhone !== undefined) updatePayload.contactPhone = contactPhone;
+      if (supportAddress !== undefined) updatePayload.supportAddress = supportAddress;
 
       const updated = await prisma.systemSetting.update({
         where: { id: target.id },
@@ -312,6 +337,72 @@ export class AdminController {
     } catch (error) {
       console.error('Update settings error:', error);
       res.status(500).json({ error: 'Failed to update settings' });
+    }
+  }
+
+  // Public config endpoint for Landing Page & Apps
+  async getPublicAppConfig(req: Request, res: Response) {
+    try {
+      const settings = await prisma.systemSetting.findFirst();
+      res.json({
+        appName: settings?.appName || 'VIBEZ',
+        appVersion: settings?.appVersion || '1.0.0',
+        appDownloadUrl: settings?.appDownloadUrl || '',
+        contactEmail: settings?.contactEmail || 'support@vibez.chat',
+        contactPhone: settings?.contactPhone || '+1 (800) 555-0199',
+        supportAddress: settings?.supportAddress || 'San Francisco, CA, USA',
+        maintenanceMode: settings?.maintenanceMode || false,
+        allowNewRegistrations: settings?.allowNewRegistrations ?? true,
+      });
+    } catch (error) {
+      res.status(500).json({
+        appName: 'VIBEZ',
+        appVersion: '1.0.0',
+        appDownloadUrl: '',
+        contactEmail: 'support@vibez.chat',
+        contactPhone: '+1 (800) 555-0199',
+        supportAddress: 'San Francisco, CA, USA'
+      });
+    }
+  }
+
+  // Contact form submission
+  async submitContactInquiry(req: Request, res: Response) {
+    try {
+      const { name, email, subject, message } = req.body;
+      if (!name || !email || !message) {
+        return res.status(400).json({ error: 'Name, email, and message are required.' });
+      }
+
+      const inquiry = await (prisma as any).contactInquiry.create({
+        data: {
+          name: name.trim(),
+          email: email.trim(),
+          subject: subject ? subject.trim() : 'General Support Request',
+          message: message.trim(),
+          status: 'UNREAD'
+        }
+      });
+
+      res.json({
+        success: true,
+        message: 'Your message has been received! Our support team will get back to you shortly.',
+        ticketId: inquiry.id
+      });
+    } catch (error) {
+      console.error('Contact inquiry error:', error);
+      res.status(500).json({ error: 'Failed to submit contact message' });
+    }
+  }
+
+  async getContactInquiries(req: Request, res: Response) {
+    try {
+      const inquiries = await (prisma as any).contactInquiry.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(inquiries || []);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch inquiries' });
     }
   }
 

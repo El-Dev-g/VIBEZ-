@@ -33,7 +33,7 @@ app.use(express.json());
 // Maintenance Mode Enforcement Middleware for all /api requests
 app.use('/api', checkMaintenanceMode);
 
-// Public System Status Route
+// Public System Status & App Config Routes
 app.get('/api/system/status', async (req, res) => {
   try {
     const setting = await prisma.systemSetting.findFirst();
@@ -41,12 +41,19 @@ app.get('/api/system/status', async (req, res) => {
       status: setting?.maintenanceMode ? 'maintenance' : 'online',
       maintenanceMode: setting?.maintenanceMode || false,
       allowNewRegistrations: setting?.allowNewRegistrations ?? true,
-      badgePrice: setting?.verificationBadgePrice ?? 3.00
+      badgePrice: setting?.verificationBadgePrice ?? 3.00,
+      appDownloadUrl: setting?.appDownloadUrl || '',
+      appVersion: setting?.appVersion || '1.0.0',
+      appName: setting?.appName || 'VIBEZ'
     });
   } catch (error) {
     res.status(500).json({ status: 'error', maintenanceMode: false });
   }
 });
+app.get('/api/config/public', (req, res) => admin.getPublicAppConfig(req, res));
+app.get('/api/app/download-info', (req, res) => admin.getPublicAppConfig(req, res));
+app.post('/api/contact', (req, res) => admin.submitContactInquiry(req, res));
+app.get('/api/admin/inquiries', authenticateAdmin, (req, res) => admin.getContactInquiries(req, res));
 
 const storage = new StorageController();
 const auth = new AuthController();

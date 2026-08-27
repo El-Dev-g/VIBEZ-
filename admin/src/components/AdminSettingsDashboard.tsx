@@ -471,6 +471,107 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                 </div>
               </div>
 
+              {/* App Distribution & Landing Page Synchronization */}
+              <div className="pt-6 border-t border-slate-100 space-y-6">
+                <div>
+                  <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <span>📱</span> App Release & Landing Page Download Link
+                  </h4>
+                  <p className="text-xs font-bold text-slate-400 mt-1">
+                    Configure the direct APK download URL or store link. The public Landing Page dynamically connects to this link for its "Download APK" buttons.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">App Download URL (Direct APK / Google Drive / S3 Link)</label>
+                    <input
+                      type="url"
+                      placeholder="https://example.com/downloads/vibez-app-release.apk"
+                      value={settings.appDownloadUrl || ''}
+                      onChange={(e) => setSettings({ ...settings, appDownloadUrl: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    />
+                    <p className="text-[11px] text-slate-400 font-medium ml-1">
+                      {settings.appDownloadUrl ? (
+                        <span className="text-emerald-600 font-bold">✓ Landing page button currently directs to: {settings.appDownloadUrl}</span>
+                      ) : (
+                        <span>Leave empty to use the default app preview deployment link.</span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Current App Version</label>
+                    <input
+                      type="text"
+                      placeholder="1.0.0"
+                      value={settings.appVersion || '1.0.0'}
+                      onChange={(e) => setSettings({ ...settings, appVersion: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Official App Brand Name</label>
+                    <input
+                      type="text"
+                      placeholder="VIBEZ"
+                      value={settings.appName || 'VIBEZ'}
+                      onChange={(e) => setSettings({ ...settings, appName: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Public Contact & Support Information */}
+              <div className="pt-6 border-t border-slate-100 space-y-6">
+                <div>
+                  <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <span>📫</span> Public Support & Contact Information
+                  </h4>
+                  <p className="text-xs font-bold text-slate-400 mt-1">
+                    Information displayed on the Contact & About pages of the Landing Page.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Support Email</label>
+                    <input
+                      type="email"
+                      placeholder="support@vibez.chat"
+                      value={settings.contactEmail || 'support@vibez.chat'}
+                      onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Support Hotline Phone</label>
+                    <input
+                      type="text"
+                      placeholder="+1 (800) 555-0199"
+                      value={settings.contactPhone || '+1 (800) 555-0199'}
+                      onChange={(e) => setSettings({ ...settings, contactPhone: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Office / HQ Address</label>
+                    <input
+                      type="text"
+                      placeholder="San Francisco, CA, USA"
+                      value={settings.supportAddress || 'San Francisco, CA, USA'}
+                      onChange={(e) => setSettings({ ...settings, supportAddress: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {settingsToast && (
                 <div className={`px-5 py-3 text-sm font-bold rounded-2xl animate-fadeIn ${
                   settingsToast.isError ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'

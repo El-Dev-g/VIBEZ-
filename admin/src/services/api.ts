@@ -270,6 +270,12 @@ export interface SystemSettings {
   maxGroupSize: number;
   retentionDays: number;
   verificationBadgePrice: number;
+  appDownloadUrl?: string;
+  appVersion?: string;
+  appName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  supportAddress?: string;
 }
 
 export const fetchReports = async (): Promise<Report[]> => {

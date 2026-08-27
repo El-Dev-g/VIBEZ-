@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
   MessageSquare, 
   ShieldCheck, 
@@ -23,18 +24,38 @@ import {
   Heart,
   Moon,
   Image as ImageIcon,
-  Check
+  Check,
+  ExternalLink
 } from 'lucide-react';
+import { fetchPublicAppConfig, PublicAppConfig } from '../lib/api';
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'chats' | 'calls' | 'status' | 'privacy'>('chats');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  // Dynamic system configuration fetched from Admin Panel / Backend
+  const [config, setConfig] = useState<PublicAppConfig>({
+    appName: 'VIBEZ',
+    appVersion: '1.0.0',
+    appDownloadUrl: '',
+    contactEmail: 'support@vibez.chat',
+    contactPhone: '+1 (800) 555-0199',
+    supportAddress: 'San Francisco, CA, USA',
+    maintenanceMode: false,
+    allowNewRegistrations: true
+  });
+
   // Dynamic typing animation in mock chat
   const [typedText, setTypedText] = useState('');
   const [typingIndex, setTypingIndex] = useState(0);
   const fullText = "Are we still on for the video call tonight?";
+
+  useEffect(() => {
+    fetchPublicAppConfig().then(data => {
+      if (data) setConfig(data);
+    });
+  }, []);
 
   useEffect(() => {
     if (typingIndex < fullText.length) {
@@ -56,6 +77,11 @@ export default function LandingPage() {
     setOpenFaq(openFaq === index ? null : index);
   };
 
+  // Determine active download target
+  const downloadLink = config.appDownloadUrl && config.appDownloadUrl.trim() !== ''
+    ? config.appDownloadUrl
+    : 'https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app';
+
   return (
     <div className="min-h-screen bg-[#0b141a] text-[#e9edef] selection:bg-[#00a884] selection:text-white">
       
@@ -65,34 +91,37 @@ export default function LandingPage() {
           <div className="flex items-center justify-between h-16">
             
             {/* Logo */}
-            <div className="flex items-center gap-2.5">
+            <Link href="/" className="flex items-center gap-2.5">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-lg shadow-[#00a884]/15 flex items-center justify-center">
                 <div className="h-full w-full rounded-[10px] bg-[#0b141a] flex items-center justify-center">
                   <MessageSquare className="h-5 w-5 text-[#00a884]" />
                 </div>
               </div>
               <span className="text-2xl font-black tracking-tight text-white">
-                VIBEZ
+                {config.appName}
               </span>
-            </div>
+            </Link>
 
             {/* Desktop Navigation Links */}
             <div className="hidden md:flex items-center gap-8 text-sm font-medium">
               <a href="#features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Features</a>
               <a href="#experience" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Experience</a>
-              <a href="#privacy" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Privacy & Security</a>
-              <a href="#how-it-works" className="text-[#8696a0] hover:text-[#00a884] transition-colors">How It Works</a>
+              <Link href="/about" className="text-[#8696a0] hover:text-[#00a884] transition-colors">About Us</Link>
+              <Link href="/contact" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Contact</Link>
+              <Link href="/privacy" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Privacy</Link>
               <a href="#faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">FAQ</a>
             </div>
 
             {/* Call to Action Button */}
             <div className="hidden md:flex items-center gap-4">
               <a 
-                href="#download" 
+                href={downloadLink} 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all shadow-lg shadow-[#00a884]/20 hover:scale-105 active:scale-95"
               >
                 <Download className="h-4 w-4" />
-                Get App
+                Download APK {config.appVersion ? `v${config.appVersion}` : ''}
               </a>
             </div>
 
@@ -126,20 +155,27 @@ export default function LandingPage() {
             >
               Experience
             </a>
-            <a 
-              href="#privacy" 
+            <Link 
+              href="/about" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Privacy & Security
-            </a>
-            <a 
-              href="#how-it-works" 
+              About Us
+            </Link>
+            <Link 
+              href="/contact" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              How It Works
-            </a>
+              Contact
+            </Link>
+            <Link 
+              href="/privacy" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
+            >
+              Privacy Policy
+            </Link>
             <a 
               href="#faq" 
               onClick={() => setMobileMenuOpen(false)}
@@ -149,12 +185,14 @@ export default function LandingPage() {
             </a>
             <div className="pt-3 border-t border-[#202c33]">
               <a 
-                href="#download" 
+                href={downloadLink} 
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full text-center flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all"
               >
                 <Download className="h-4 w-4" />
-                Download APK for Android
+                Download APK {config.appVersion ? `v${config.appVersion}` : ''}
               </a>
             </div>
           </div>
@@ -174,7 +212,7 @@ export default function LandingPage() {
             <div className="lg:col-span-7 space-y-7 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111b21] border border-[#202c33] text-[#00a884] text-xs font-bold tracking-wide">
                 <Sparkles className="h-4 w-4" />
-                Next-Gen Secure Messenger
+                Secure Android Messenger {config.appVersion ? `(v${config.appVersion})` : ''}
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15]">
@@ -188,14 +226,16 @@ export default function LandingPage() {
                 Connect seamlessly with the people who matter most. Enjoy lightning-fast messaging, crystal-clear voice & video calls, full-quality media sharing, and expressive status updates.
               </p>
 
-              {/* Action Buttons */}
+              {/* Action Buttons with dynamic admin APK download link */}
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                 <a 
-                  href="#download" 
+                  href={downloadLink} 
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 hover:-translate-y-0.5 transition-all active:translate-y-0"
                 >
                   <Download className="h-5 w-5" />
-                  Download for Android
+                  Download APK for Android
                 </a>
                 <a 
                   href="#experience" 
@@ -422,7 +462,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto mb-12 space-y-4">
-            <h2 className="text-3xl font-extrabold text-white">Experience VIBEZ on Your Phone</h2>
+            <h2 className="text-3xl font-extrabold text-white">Experience {config.appName} on Your Phone</h2>
             <p className="text-sm text-[#8696a0]">
               Select a view below to preview the intuitive screens built for everyday use.
             </p>
@@ -540,7 +580,7 @@ export default function LandingPage() {
                     Feel Like You're in the Same Room
                   </h3>
                   <p className="text-[#8696a0] text-sm leading-relaxed">
-                    Experience crystal-clear audio and sharp video calls with minimal data usage. Whether catching up with family or calling across the globe, VIBEZ connects you reliably.
+                    Experience crystal-clear audio and sharp video calls with minimal data usage. Whether catching up with family or calling across the globe, {config.appName} connects you reliably.
                   </p>
                   
                   <div className="space-y-3.5">
@@ -725,7 +765,7 @@ export default function LandingPage() {
               Get Started in 3 Simple Steps
             </h2>
             <p className="text-base text-[#8696a0]">
-              Starting your conversation on VIBEZ takes less than a minute.
+              Starting your conversation on {config.appName} takes less than a minute.
             </p>
           </div>
 
@@ -738,7 +778,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-lg font-bold text-white">Download the App</h3>
               <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
-                Download and install the lightweight APK directly onto your Android device or tablet.
+                Download and install the lightweight APK directly onto your Android phone or tablet.
               </p>
             </div>
 
@@ -775,31 +815,31 @@ export default function LandingPage() {
           <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
             <h2 className="text-3xl font-extrabold text-white">Frequently Asked Questions</h2>
             <p className="text-sm text-[#8696a0]">
-              Everything you need to know about using VIBEZ on your phone.
+              Everything you need to know about using {config.appName} on your phone.
             </p>
           </div>
 
           <div className="space-y-4">
             {[
               {
-                q: "Is VIBEZ free to use for calls and messages?",
-                a: "Yes! VIBEZ uses your phone's internet connection (Wi-Fi or cellular data) to send messages and make calls, so you don't have to pay standard SMS or cellular voice fees."
+                q: `Is ${config.appName} free to use for calls and messages?`,
+                a: `Yes! ${config.appName} uses your phone's internet connection (Wi-Fi or cellular data) to send messages and make calls, so you don't have to pay standard SMS or cellular voice fees.`
               },
               {
-                q: "How do I add friends on VIBEZ?",
-                a: "Simply tap the 'New Chat' button inside the app and choose a contact from your address book who is on VIBEZ, or invite them directly using your personalized invite link."
+                q: `How do I add friends on ${config.appName}?`,
+                a: `Simply tap the 'New Chat' button inside the app and choose a contact from your address book who is on ${config.appName}, or invite them directly using your personalized invite link.`
               },
               {
                 q: "Are my photos and videos shared in high quality?",
-                a: "Yes. VIBEZ is designed to preserve your media quality so that photos and videos remain clear when shared with your contacts."
+                a: `Yes. ${config.appName} is designed to preserve your media quality so that photos and videos remain clear when shared with your contacts.`
               },
               {
                 q: "What devices are supported?",
-                a: "VIBEZ runs on Android phones and tablets running Android 8.0 and above, with responsive design support for foldables and tablets."
+                a: `${config.appName} runs on Android phones and tablets running Android 8.0 and above, with responsive design support for foldables and tablets.`
               },
               {
-                q: "How does VIBEZ protect my privacy?",
-                a: "VIBEZ ensures that your conversations stay private. We do not sell your personal data or show invasive third-party ad trackers."
+                q: `How does ${config.appName} protect my privacy?`,
+                a: `${config.appName} ensures that your conversations stay private. We do not sell your personal data or show invasive third-party ad trackers.`
               }
             ].map((faq, index) => (
               <div 
@@ -838,7 +878,7 @@ export default function LandingPage() {
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-            Ready to Experience VIBEZ?
+            Ready to Experience {config.appName}?
           </h2>
           <p className="text-base text-[#8696a0] max-w-xl mx-auto leading-relaxed">
             Download the Android app today and stay closer to friends and family with fast, private messaging and calls.
@@ -846,13 +886,13 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
             <a 
-              href="https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app"
+              href={downloadLink} 
               target="_blank" 
               rel="noopener noreferrer"
               className="w-full text-center px-8 py-4 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2.5"
             >
               <Download className="h-5 w-5" />
-              Download APK Directly
+              Download APK Directly {config.appVersion ? `(v${config.appVersion})` : ''}
             </a>
           </div>
 
@@ -873,19 +913,23 @@ export default function LandingPage() {
                   <MessageSquare className="h-4 w-4 text-[#00a884]" />
                 </div>
               </div>
-              <span className="text-base font-black tracking-tight text-white">VIBEZ</span>
+              <span className="text-base font-black tracking-tight text-white">{config.appName}</span>
             </div>
 
-            <div className="flex items-center gap-6 text-xs">
+            <div className="flex flex-wrap justify-center items-center gap-6 text-xs font-medium">
               <a href="#features" className="hover:text-white transition-colors">Features</a>
-              <a href="#privacy" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#faq" className="hover:text-white transition-colors">Help & FAQ</a>
-              <a href="#download" className="hover:text-white transition-colors">Download</a>
+              <Link href="/about" className="hover:text-white transition-colors">About Us</Link>
+              <Link href="/contact" className="hover:text-white transition-colors">Contact Support</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+              <a href={downloadLink} target="_blank" rel="noopener noreferrer" className="text-[#00a884] hover:underline font-bold">
+                Download APK
+              </a>
             </div>
           </div>
 
           <div className="border-t border-[#202c33] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-            <p>&copy; {new Date().getFullYear()} VIBEZ. Simple, secure messaging for everyone.</p>
+            <p>&copy; {new Date().getFullYear()} {config.appName}. Simple, secure messaging for everyone.</p>
             <p className="text-[#8696a0]">Fast • Private • Free</p>
           </div>
 
