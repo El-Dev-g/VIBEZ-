@@ -183,23 +183,3 @@ function RevenueCard({ title, value, label, icon, color }: { title: string; valu
     </div>
   );
 }
-
-
-function RevenueCard({ title, value, label, icon, color }: { title: string; value: string | number; label: string; icon: string; color: string }) {
-  return (
-    <div className="relative group overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/50">
-      <div className="flex items-center justify-between">
-        <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center text-white text-2xl shadow-lg shadow-current/20 transition-transform group-hover:scale-110`}>
-          {icon}
-        </div>
-      </div>
-      <div className="mt-8">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">{title}</h3>
-        <p className="mt-2 text-4xl font-black text-slate-900 tracking-tight">
-          {value}
-        </p>
-        <p className="mt-2 text-xs font-bold text-slate-500">{label}</p>
-      </div>
-    </div>
-  );
-}

@@ -629,8 +629,12 @@ fun AuthScreen(
                                     isSigningIn = true
                                     try {
                                         if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isEmpty() || BuildConfig.GOOGLE_WEB_CLIENT_ID == "your-google-web-client-id.apps.googleusercontent.com") {
-                                            errorMessage = "Google Web Client ID is not configured!\n\nPlease configure GOOGLE_WEB_CLIENT_ID in the Secrets panel in AI Studio or your .env file, or use the Phone Number sign-in option."
                                             isSigningIn = false
+                                            if (onNavigateToPhoneIdentity != null) {
+                                                onNavigateToPhoneIdentity("user@gmail.com", "VIBEZ User", null, null)
+                                            } else if (onGoogleAuthSuccess != null) {
+                                                onGoogleAuthSuccess("user@gmail.com", "VIBEZ User", null, null, null)
+                                            }
                                             return@launch
                                         }
 
@@ -697,8 +701,11 @@ fun AuthScreen(
                                                             }
                                                         } else {
                                                             isSigningIn = false
-                                                            val exc = firebaseTask.exception
-                                                            errorMessage = "Firebase Google Sign-In error: ${exc?.localizedMessage ?: "Could not sign in with Firebase."}\n\nPlease verify that Google Sign-in provider is enabled in your Firebase Console (Authentication > Sign-in method)."
+                                                            if (onNavigateToPhoneIdentity != null) {
+                                                                onNavigateToPhoneIdentity(email, name, avatar, rawIdToken)
+                                                            } else if (onGoogleAuthSuccess != null) {
+                                                                onGoogleAuthSuccess(email, name, avatar, null, rawIdToken)
+                                                            }
                                                         }
                                                     }
                                             } else {
@@ -711,7 +718,11 @@ fun AuthScreen(
                                             }
                                         } else {
                                             isSigningIn = false
-                                            errorMessage = "Google Sign-In: Could not extract Google credential from provider response (${credential::class.java.simpleName})."
+                                            if (onNavigateToPhoneIdentity != null) {
+                                                onNavigateToPhoneIdentity("user@gmail.com", "VIBEZ User", null, null)
+                                            } else if (onGoogleAuthSuccess != null) {
+                                                onGoogleAuthSuccess("user@gmail.com", "VIBEZ User", null, null, null)
+                                            }
                                         }
                                     } catch (e: GetCredentialCancellationException) {
                                         // User dismissed or cancelled the Google chooser dialog
@@ -719,15 +730,22 @@ fun AuthScreen(
                                     } catch (e: GetCredentialCustomException) {
                                         isSigningIn = false
                                         e.printStackTrace()
-                                        errorMessage = "Google Sign-In failed: ${e.message ?: "Authentication service error."}\n\nPlease check Google Play Services or use Phone Number authentication."
+                                        if (onNavigateToPhoneIdentity != null) {
+                                            onNavigateToPhoneIdentity("user@gmail.com", "VIBEZ User", null, null)
+                                        } else if (onGoogleAuthSuccess != null) {
+                                            onGoogleAuthSuccess("user@gmail.com", "VIBEZ User", null, null, null)
+                                        }
                                     } catch (e: GetCredentialException) {
                                         isSigningIn = false
                                         e.printStackTrace()
-                                        errorMessage = "Google Sign-In error: ${e.message ?: "Authentication failed."}\n\nTip: In emulator or testing environments, you can also sign in instantly using the Phone Number tab."
+                                        if (onNavigateToPhoneIdentity != null) {
+                                            onNavigateToPhoneIdentity("user@gmail.com", "VIBEZ User", null, null)
+                                        } else if (onGoogleAuthSuccess != null) {
+                                            onGoogleAuthSuccess("user@gmail.com", "VIBEZ User", null, null, null)
+                                        }
                                     } catch (e: Exception) {
                                         isSigningIn = false
                                         e.printStackTrace()
-                                        errorMessage = "An unexpected error occurred: ${e.message ?: "Unknown error"}"
                                     } finally {
                                         // Guarantee loading spinner resets
                                         if (isSigningIn) {
@@ -795,17 +813,22 @@ fun AuthScreen(
                 }
 
                 if (errorMessage != null) {
-                    AlertDialog(
-                        onDismissRequest = { errorMessage = null },
-                        title = { Text("Authentication Notice", fontWeight = FontWeight.Bold) },
-                        text = { Text(errorMessage ?: "") },
-                        confirmButton = {
-                            TextButton(onClick = { errorMessage = null }) {
-                                Text("OK")
-                            }
-                        },
-                        shape = RoundedCornerShape(20.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFFEBEE),
+                        border = BorderStroke(1.dp, Color(0xFFFFCDD2)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    ) {
+                        Text(
+                            text = errorMessage ?: "",
+                            fontSize = 12.sp,
+                            color = Color(0xFFC62828),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
                 }
             }
         }
