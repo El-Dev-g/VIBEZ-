@@ -18,8 +18,10 @@ import {
   Clock
 } from 'lucide-react';
 import { fetchPublicAppConfig, PublicAppConfig } from '../../lib/api';
+import { useLanguage } from '../../lib/LanguageContext';
 
 export default function AboutPage() {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<PublicAppConfig>({
     appName: 'VIBEZ',
     appVersion: '1.0.0',
@@ -51,18 +53,18 @@ export default function AboutPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111b21] border border-[#202c33] text-[#00a884] text-xs font-bold">
             <Sparkles className="h-4 w-4" />
-            Our Vision & Mission
+            {t('about.badge')}
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-            Connecting People Worldwide with <br />
+            {t('about.title')} <br />
             <span className="bg-gradient-to-r from-[#00a884] via-[#25d366] to-[#53bdeb] bg-clip-text text-transparent">
-              Speed, Simplicity & Privacy
+              {t('about.titleGradient')}
             </span>
           </h1>
 
           <p className="text-base sm:text-lg text-[#8696a0] leading-relaxed max-w-2xl mx-auto">
-            {config.appName} was built with a single mission: to provide everyone around the globe with seamless, ad-free, private communication without friction or subscription walls.
+            {t('about.subtitle', { appName: config.appName })}
           </p>
         </div>
       </section>
@@ -71,8 +73,8 @@ export default function AboutPage() {
       <section className="py-16 bg-[#111b21] border-y border-[#202c33]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
-            <h2 className="text-3xl font-extrabold text-white">What We Stand For</h2>
-            <p className="text-sm text-[#8696a0]">Our foundational values guide every line of code we craft.</p>
+            <h2 className="text-3xl font-extrabold text-white">{t('about.standForTitle')}</h2>
+            <p className="text-sm text-[#8696a0]">{t('about.standForSub')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -80,9 +82,9 @@ export default function AboutPage() {
               <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884]">
                 <Lock className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Uncompromising Privacy</h3>
+              <h3 className="text-lg font-bold text-white">{t('about.val1Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Your conversations are private. We don't track your location, read your chat content, or sell advertising profiles to third-party data brokers.
+                {t('about.val1Desc')}
               </p>
             </div>
 
@@ -90,9 +92,9 @@ export default function AboutPage() {
               <div className="h-12 w-12 rounded-xl bg-[#53bdeb]/15 flex items-center justify-center text-[#53bdeb]">
                 <Zap className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Blazing Speed & Reliability</h3>
+              <h3 className="text-lg font-bold text-white">{t('about.val2Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Engineered for maximum battery efficiency and fluid message delivery even on low-bandwidth networks (2G/3G/4G/5G).
+                {t('about.val2Desc')}
               </p>
             </div>
 
@@ -100,9 +102,9 @@ export default function AboutPage() {
               <div className="h-12 w-12 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-400">
                 <Heart className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white">Built for People</h3>
+              <h3 className="text-lg font-bold text-white">{t('about.val3Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                An intuitive, clutter-free experience that feels effortless for everyone, from tech enthusiasts to grandparents.
+                {t('about.val3Desc')}
               </p>
             </div>
           </div>
@@ -113,12 +115,12 @@ export default function AboutPage() {
       <section className="py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <div className="space-y-6">
-            <h2 className="text-3xl font-extrabold text-white">The {config.appName} Story</h2>
+            <h2 className="text-3xl font-extrabold text-white">{t('about.storyTitle', { appName: config.appName })}</h2>
             <p className="text-base text-[#8696a0] leading-relaxed">
-              Modern messaging shouldn't be overloaded with invasive advertising, bloated algorithms, or complicated lock-in ecosystems. We created {config.appName} as a clean alternative where conversation takes center stage.
+              {t('about.storyP1', { appName: config.appName })}
             </p>
             <p className="text-base text-[#8696a0] leading-relaxed">
-              Today, {config.appName} delivers instant text messaging, high-definition voice and video calls, disappearing 24-hour status updates, and rich multimedia sharing across all modern Android devices.
+              {t('about.storyP2', { appName: config.appName })}
             </p>
           </div>
 
@@ -126,24 +128,24 @@ export default function AboutPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 p-8 rounded-2xl bg-[#111b21] border border-[#202c33] text-center">
             <div>
               <div className="text-3xl font-black text-white">99.9%</div>
-              <div className="text-xs text-[#8696a0] mt-1">Uptime Reliability</div>
+              <div className="text-xs text-[#8696a0] mt-1">{t('about.uptime')}</div>
             </div>
             <div>
               <div className="text-3xl font-black text-[#00a884]">0 Ads</div>
-              <div className="text-xs text-[#8696a0] mt-1">No Annoying Popups</div>
+              <div className="text-xs text-[#8696a0] mt-1">{t('about.noAds')}</div>
             </div>
             <div>
               <div className="text-3xl font-black text-white">HD</div>
-              <div className="text-xs text-[#8696a0] mt-1">Audio & Video</div>
+              <div className="text-xs text-[#8696a0] mt-1">{t('about.hdAudioVideo')}</div>
             </div>
             <div>
               <div className="text-3xl font-black text-[#53bdeb]">{config.appVersion || 'v1.0.0'}</div>
-              <div className="text-xs text-[#8696a0] mt-1">Latest Release</div>
+              <div className="text-xs text-[#8696a0] mt-1">{t('about.latestRelease')}</div>
             </div>
           </div>
 
           <div className="pt-8 text-center">
-            <h3 className="text-xl font-bold text-white mb-4">Ready to start chatting?</h3>
+            <h3 className="text-xl font-bold text-white mb-4">{t('about.readyToChat')}</h3>
             {hasDownloadUrl ? (
               <a 
                 href={downloadLink}
@@ -152,7 +154,7 @@ export default function AboutPage() {
                 className="btn-download-pulse inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-sm shadow-xl shadow-[#00a884]/20 transition-all hover:scale-105"
               >
                 <Download className="h-4 w-4" />
-                Download APK for Android
+                {t('hero.downloadBtn')}
               </a>
             ) : (
               <Link 
@@ -160,7 +162,7 @@ export default function AboutPage() {
                 className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-[#8696a0] hover:text-white font-bold text-sm transition-all"
               >
                 <Clock className="h-4 w-4 text-amber-400" />
-                No App Available
+                {t('hero.noAppAvailable')}
               </Link>
             )}
           </div>

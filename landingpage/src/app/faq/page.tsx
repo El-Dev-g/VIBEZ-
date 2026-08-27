@@ -57,63 +57,63 @@ export default function FaqPage() {
   const faqs: FaqItem[] = [
     {
       category: 'general',
-      q: `Is ${config.appName} free to download and use?`,
-      a: `Yes! ${config.appName} is completely free. It uses your device's internet connection (Wi-Fi or cellular data) to send messages and place calls. Standard data rates from your mobile carrier may apply if using cellular data without an unlimited plan.`
+      q: t('faq.q1', { appName: config.appName }),
+      a: t('faq.a1', { appName: config.appName })
     },
     {
       category: 'general',
-      q: `How do I install ${config.appName} on my Android device?`,
-      a: `Tap the "Download APK" button on our website. Once downloaded, tap the APK file in your Downloads folder. If prompted, enable "Install from Unknown Sources" or "Allow from this source" in your Android Settings, and tap "Install". The app will be ready in seconds!`
+      q: t('faq.q2', { appName: config.appName }),
+      a: t('faq.a2', { appName: config.appName })
     },
     {
       category: 'general',
-      q: `Which Android versions and devices are supported?`,
-      a: `${config.appName} runs on all Android devices running Android 8.0 (Oreo) and above. It is fully optimized for smartphones, tablets, foldables, and Chromebooks running the Android runtime.`
+      q: t('faq.q3', { appName: config.appName }),
+      a: t('faq.a3', { appName: config.appName })
     },
     {
       category: 'calling',
-      q: 'Can I make international voice and video calls for free?',
-      a: `Yes! As long as both you and the person you are calling have an active internet connection, international voice and video calls on ${config.appName} carry zero long-distance or international calling fees.`
+      q: t('faq.q4', { appName: config.appName }),
+      a: t('faq.a4', { appName: config.appName })
     },
     {
       category: 'calling',
-      q: 'Does calling consume a lot of mobile data?',
-      a: `${config.appName} uses adaptive Opus audio and lightweight H.264/VP8 video codecs designed specifically to deliver crystal-clear quality even on constrained 2G/3G/4G connections while keeping data usage minimal.`
+      q: t('faq.q5', { appName: config.appName }),
+      a: t('faq.a5', { appName: config.appName })
     },
     {
       category: 'privacy',
-      q: `How does ${config.appName} protect my messages and privacy?`,
-      a: `We believe in total privacy. Your chats are strictly between you and your recipients. We never sell your personal data, profile info, or conversations to advertisers or third-party data brokers.`
+      q: t('faq.q6', { appName: config.appName }),
+      a: t('faq.a6', { appName: config.appName })
     },
     {
       category: 'privacy',
-      q: 'How does the Biometric App Lock work?',
-      a: `In ${config.appName} Settings ➔ Privacy, you can enable "Fingerprint / Biometric Lock". When active, you will be prompted to unlock the app using your device's fingerprint sensor or facial recognition whenever you open it.`
+      q: t('faq.q7', { appName: config.appName }),
+      a: t('faq.a7', { appName: config.appName })
     },
     {
       category: 'media',
-      q: 'What is the maximum file size for sharing photos and videos?',
-      a: `You can share high-definition photos, video clips, and audio notes. Photos are kept in high resolution without heavy compression artifacts so your memories look vibrant.`
+      q: t('faq.q8', { appName: config.appName }),
+      a: t('faq.a8', { appName: config.appName })
     },
     {
       category: 'media',
-      q: 'How long do status updates stay visible?',
-      a: `Status stories (text updates, photos, and short videos) automatically disappear after 24 hours. You can see who viewed your status and delete any update at any time.`
+      q: t('faq.q9', { appName: config.appName }),
+      a: t('faq.a9', { appName: config.appName })
     },
     {
       category: 'troubleshooting',
-      q: 'I am not receiving notifications when new messages arrive. How do I fix this?',
-      a: `On Android, battery optimization settings can sometimes put background apps to sleep. Go to Android Settings ➔ Apps ➔ ${config.appName} ➔ Battery ➔ Select "Unrestricted". Also ensure "Do Not Disturb" is turned off.`
+      q: t('faq.q10', { appName: config.appName }),
+      a: t('faq.a10', { appName: config.appName })
     },
     {
       category: 'troubleshooting',
-      q: 'How do I backup or transfer my chats to a new phone?',
-      a: `Your profile and conversations are tied to your registered phone number. When you log in on a new device and complete the SMS verification, your chats and contact connections will sync over seamlessly.`
+      q: t('faq.q11', { appName: config.appName }),
+      a: t('faq.a11', { appName: config.appName })
     },
     {
       category: 'general',
-      q: 'How do I create and manage group chats?',
-      a: `Tap the "New Chat" icon in the app and select "New Group". Choose contacts from your address book, assign a group name and photo. As the group creator, you can promote other admins, edit group info, or invite members with a direct link.`
+      q: t('faq.q12', { appName: config.appName }),
+      a: t('faq.a12', { appName: config.appName })
     }
   ];
 
@@ -141,18 +141,18 @@ export default function FaqPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111b21] border border-[#202c33] text-[#00a884] text-xs font-bold">
             <HelpCircle className="h-4 w-4" />
-            Help & Knowledge Base
+            {t('faq.badge')}
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-            Frequently Asked <br />
+            {t('faq.title')} <br />
             <span className="bg-gradient-to-r from-[#00a884] via-[#25d366] to-[#53bdeb] bg-clip-text text-transparent">
-              Questions & Answers
+              {t('faq.titleGradient')}
             </span>
           </h1>
 
           <p className="text-base text-[#8696a0] leading-relaxed max-w-xl mx-auto">
-            Find immediate answers regarding {config.appName} installation, calls, messaging, security, and account settings.
+            {t('faq.subtitle', { appName: config.appName })}
           </p>
 
           {/* Search Bar */}
@@ -160,7 +160,7 @@ export default function FaqPage() {
             <Search className="h-5 w-5 text-[#8696a0] absolute left-4 top-1/2 -translate-y-1/2" />
             <input 
               type="text"
-              placeholder="Search questions (e.g. video calls, APK install, privacy)..."
+              placeholder={t('faq.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-[#111b21] border-2 border-[#202c33] text-sm text-white placeholder-[#8696a0] focus:outline-none focus:border-[#00a884] transition-all shadow-xl"
@@ -170,12 +170,12 @@ export default function FaqPage() {
           {/* Category Filter Pills */}
           <div className="pt-3 flex flex-wrap items-center justify-center gap-2">
             {[
-              { id: 'all', label: 'All Topics' },
-              { id: 'general', label: 'General & Setup' },
-              { id: 'calling', label: 'Calls & Voice' },
-              { id: 'privacy', label: 'Privacy & Security' },
-              { id: 'media', label: 'Media & Status' },
-              { id: 'troubleshooting', label: 'Troubleshooting' }
+              { id: 'all', label: t('faq.allTopics') },
+              { id: 'general', label: t('faq.catGeneral') },
+              { id: 'calling', label: t('faq.catCalling') },
+              { id: 'privacy', label: t('faq.catPrivacy') },
+              { id: 'media', label: t('faq.catMedia') },
+              { id: 'troubleshooting', label: t('faq.catTroubleshoot') }
             ].map(cat => (
               <button
                 key={cat.id}
@@ -198,16 +198,16 @@ export default function FaqPage() {
         {filteredFaqs.length === 0 ? (
           <div className="text-center py-16 bg-[#111b21] rounded-3xl border border-[#202c33] space-y-4">
             <HelpCircle className="h-12 w-12 text-[#8696a0] mx-auto" />
-            <h3 className="text-lg font-bold text-white">No Matching Questions Found</h3>
+            <h3 className="text-lg font-bold text-white">{t('faq.noResultsTitle')}</h3>
             <p className="text-xs text-[#8696a0] max-w-sm mx-auto">
-              We couldn't find an answer matching "{searchQuery}". Reach out to our support team directly for assistance!
+              {t('faq.noResultsDesc', { query: searchQuery })}
             </p>
             <Link 
               href="/contact"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#00a884] text-white text-xs font-bold hover:bg-[#008f72] transition-colors"
             >
               <Mail className="h-3.5 w-3.5" />
-              Contact Support
+              {t('faq.contactSupportBtn')}
             </Link>
           </div>
         ) : (
@@ -242,9 +242,9 @@ export default function FaqPage() {
 
         {/* Still Have Questions Box */}
         <div className="mt-16 bg-gradient-to-tr from-[#111b21] to-[#0b141a] p-8 rounded-3xl border border-[#202c33] text-center space-y-4 shadow-xl">
-          <h3 className="text-xl font-bold text-white">Still have questions?</h3>
+          <h3 className="text-xl font-bold text-white">{t('faq.stillHaveQuestions')}</h3>
           <p className="text-xs sm:text-sm text-[#8696a0] max-w-md mx-auto">
-            Our support engineers are available to help you with setup, bug reports, or feature recommendations.
+            {t('faq.supportSub')}
           </p>
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link 
@@ -252,13 +252,13 @@ export default function FaqPage() {
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white text-xs font-bold shadow-lg shadow-[#00a884]/20 transition-all hover:scale-105"
             >
               <Mail className="h-4 w-4" />
-              Send a Support Message
+              {t('faq.sendSupportBtn')}
             </Link>
             <a 
               href={`mailto:${config.contactEmail || 'support@vibez.chat'}`}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#111b21] hover:bg-[#202c33] border border-[#202c33] text-white text-xs font-bold transition-all"
             >
-              Email {config.contactEmail || 'support@vibez.chat'}
+              {t('faq.emailSupportBtn')} {config.contactEmail || 'support@vibez.chat'}
             </a>
           </div>
         </div>

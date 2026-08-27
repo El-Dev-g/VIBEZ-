@@ -196,8 +196,20 @@ fun AuthScreen(
             override fun onVerificationFailed(e: FirebaseException) {
                 isSigningIn = false
                 e.printStackTrace()
-                // Provide clear message with direct fallback option if quota or Play Services are restricted
-                errorMessage = "Firebase SMS verification: ${e.message ?: "Failed to send SMS code."}\n\nTip: You can also use simulated verification code '123456' for test numbers."
+                
+                val msg = e.message ?: ""
+                val specificError = when {
+                    msg.contains("-14") || msg.contains("Integrity API") -> 
+                        "Google Play Integrity failed because your Play Store is outdated. Please update the Google Play Store to the latest version."
+                    msg.contains("INVALID_CERT_HASH") || msg.contains("certificate hash") -> 
+                        "Security mismatch: The app's certificate hash doesn't match Firebase settings. Please register the current SHA fingerprint in Firebase Console."
+                    msg.contains("reCAPTCHA") -> 
+                        "App verification failed (reCAPTCHA). Ensure reCAPTCHA Enterprise is enabled in Firebase Console."
+                    else -> "Firebase SMS verification: ${e.message ?: "Failed to send SMS code."}"
+                }
+                
+                errorMessage = "$specificError\n\nTip: For development, you can use simulated verification codes for test numbers registered in Firebase."
+                
                 // Still allow user to proceed to code entry in testing environments
                 phoneAuthStep = 1
                 verificationIdState = "test_vid_${System.currentTimeMillis()}"

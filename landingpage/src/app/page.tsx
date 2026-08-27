@@ -50,7 +50,7 @@ export default function LandingPage() {
   // Dynamic typing animation in mock chat
   const [typedText, setTypedText] = useState('');
   const [typingIndex, setTypingIndex] = useState(0);
-  const fullText = language === 'es' ? '¿Seguimos en pie para la videollamada hoy?' : 'Are we still on for the video call tonight?';
+  const fullText = t('preview.msgTyping');
 
   useEffect(() => {
     fetchPublicAppConfig().then(data => {
@@ -61,7 +61,7 @@ export default function LandingPage() {
   useEffect(() => {
     setTypedText('');
     setTypingIndex(0);
-  }, [language]);
+  }, [language, fullText]);
 
   useEffect(() => {
     if (typingIndex < fullText.length) {
@@ -103,18 +103,18 @@ export default function LandingPage() {
             <div className="lg:col-span-7 space-y-7 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111b21] border border-[#202c33] text-[#00a884] text-xs font-bold tracking-wide">
                 <Sparkles className="h-4 w-4" />
-                Secure Android Messenger {config.appVersion ? `(v${config.appVersion})` : ''}
+                {t('hero.badge')} {config.appVersion ? `(v${config.appVersion})` : ''}
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15]">
-                Simple. Reliable. <br />
+                {t('hero.titlePart1')} <br />
                 <span className="bg-gradient-to-r from-[#00a884] via-[#25d366] to-[#53bdeb] bg-clip-text text-transparent">
-                  Private Conversations.
+                  {t('hero.titleGradient')}
                 </span>
               </h1>
 
               <p className="text-base sm:text-lg text-[#8696a0] max-w-xl mx-auto lg:mx-0 font-normal leading-relaxed">
-                Connect seamlessly with the people who matter most. Enjoy lightning-fast messaging, crystal-clear voice & video calls, full-quality media sharing, and expressive status updates.
+                {t('hero.subtitle')}
               </p>
 
               {/* Action Buttons with dynamic admin APK download link */}
@@ -127,7 +127,7 @@ export default function LandingPage() {
                     className="btn-download-pulse w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 transition-all active:scale-95"
                   >
                     <Download className="h-5 w-5" />
-                    {t('hero.downloadBtn') || 'Download APK for Android'}
+                    {t('hero.downloadBtn')}
                   </a>
                 ) : (
                   <Link 
@@ -135,14 +135,14 @@ export default function LandingPage() {
                     className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-[#8696a0] hover:text-white font-bold text-base transition-all"
                   >
                     <Clock className="h-5 w-5 text-amber-400" />
-                    {t('hero.noAppAvailable') || 'No App Available'}
+                    {t('hero.noAppAvailable')}
                   </Link>
                 )}
                 <a 
                   href="#experience" 
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-[#111b21] hover:bg-[#202c33] border border-[#202c33] text-white font-semibold text-base transition-all hover:-translate-y-0.5"
                 >
-                  See How It Looks
+                  {t('hero.seeHowItLooks')}
                   <ArrowRight className="h-4 w-4 text-[#8696a0]" />
                 </a>
               </div>
@@ -150,16 +150,16 @@ export default function LandingPage() {
               {/* Key Features Quick Scannable Row */}
               <div className="pt-6 grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0 text-center lg:text-left border-t border-[#202c33]">
                 <div>
-                  <div className="text-2xl font-extrabold text-white">Free</div>
-                  <div className="text-xs text-[#8696a0] mt-0.5">Calls & Messages</div>
+                  <div className="text-2xl font-extrabold text-white">{t('hero.statFree')}</div>
+                  <div className="text-xs text-[#8696a0] mt-0.5">{t('hero.statFreeDesc')}</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-extrabold text-white">HD</div>
-                  <div className="text-xs text-[#8696a0] mt-0.5">Photos & Videos</div>
+                  <div className="text-2xl font-extrabold text-white">{t('hero.statHd')}</div>
+                  <div className="text-xs text-[#8696a0] mt-0.5">{t('hero.statHdDesc')}</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-extrabold text-white">100%</div>
-                  <div className="text-xs text-[#8696a0] mt-0.5">Private & Secure</div>
+                  <div className="text-2xl font-extrabold text-white">{t('hero.statPrivate')}</div>
+                  <div className="text-xs text-[#8696a0] mt-0.5">{t('hero.statPrivateDesc')}</div>
                 </div>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function LandingPage() {
                       </div>
                       <div>
                         <div className="text-xs font-bold text-white leading-tight">Sarah Jenkins</div>
-                        <div className="text-[10px] text-[#00a884]">online</div>
+                        <div className="text-[10px] text-[#00a884]">{t('preview.online')}</div>
                       </div>
                     </div>
                     
@@ -209,18 +209,18 @@ export default function LandingPage() {
                     <div className="text-center my-1">
                       <span className="inline-flex items-center gap-1 bg-[#111b21] text-[#8696a0] text-[9px] px-2.5 py-1 rounded-full border border-[#202c33]">
                         <Lock className="h-2.5 w-2.5 text-[#00a884]" />
-                        Messages are private and secured
+                        {t('preview.encryptionBadge')}
                       </span>
                     </div>
 
                     {/* Received Message */}
                     <div className="flex justify-start max-w-[85%]">
                       <div className="bg-[#111b21] text-[#e9edef] p-3 rounded-2xl rounded-tl-sm border border-[#202c33] space-y-1 shadow-sm">
-                        <p>Hey! Check out this snapshot from the trip today 🌴</p>
+                        <p>{t('preview.msgReceived')}</p>
                         <div className="h-24 w-full bg-gradient-to-tr from-emerald-800/40 to-teal-900/60 rounded-lg flex items-center justify-center my-1 border border-[#202c33]">
                           <div className="flex items-center gap-1.5 text-[10px] text-emerald-300 font-medium">
                             <ImageIcon className="h-3.5 w-3.5" />
-                            Sunset_Coast.jpg (HD)
+                            {t('preview.imageFilename')}
                           </div>
                         </div>
                         <span className="block text-[9px] text-right text-[#8696a0]">4:20 PM</span>
@@ -230,7 +230,7 @@ export default function LandingPage() {
                     {/* Sent Message */}
                     <div className="flex justify-end ml-auto max-w-[85%]">
                       <div className="bg-[#005c4b] text-white p-3 rounded-2xl rounded-tr-sm space-y-1 shadow-sm">
-                        <p>That looks incredible! 😍 Loved the photo quality!</p>
+                        <p>{t('preview.msgSent')}</p>
                         <div className="flex items-center justify-end gap-1 text-[9px] text-[#8696a0]">
                           <span className="text-white/70">4:21 PM</span>
                           <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
@@ -243,7 +243,7 @@ export default function LandingPage() {
                       <div className="flex justify-start max-w-[85%] animate-fade-in">
                         <div className="bg-[#111b21] text-[#e9edef] p-3 rounded-2xl rounded-tl-sm border border-[#202c33] space-y-1 shadow-sm">
                           <p className="border-r-2 border-[#00a884] pr-1">{typedText}</p>
-                          <span className="block text-[8px] text-right text-[#8696a0]">Typing...</span>
+                          <span className="block text-[8px] text-right text-[#8696a0]">{t('preview.typing')}</span>
                         </div>
                       </div>
                     )}
@@ -279,10 +279,10 @@ export default function LandingPage() {
           
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-              Everything You Need in a Chat App
+              {t('features.title')}
             </h2>
             <p className="text-base text-[#8696a0]">
-              Crafted with care to give you the most fluid, enjoyable, and private communication experience on your phone.
+              {t('features.subtitle')}
             </p>
           </div>
 
@@ -293,9 +293,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
                 <Lock className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Private & Confidential</h3>
+              <h3 className="text-lg font-bold text-white mb-2">{t('features.f1Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Your personal chats and calls stay strictly between you and the person you're communicating with.
+                {t('features.f1Desc')}
               </p>
             </div>
 
@@ -304,9 +304,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
                 <Video className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Crystal-Clear Calls</h3>
+              <h3 className="text-lg font-bold text-white mb-2">{t('features.f2Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Make high-quality 1-on-1 voice and video calls with friends and family worldwide for free.
+                {t('features.f2Desc')}
               </p>
             </div>
 
@@ -315,9 +315,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
                 <Users className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Stay Connected in Groups</h3>
+              <h3 className="text-lg font-bold text-white mb-2">{t('features.f3Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Share messages, photos, and videos across family circles, project teams, and friend circles with ease.
+                {t('features.f3Desc')}
               </p>
             </div>
 
@@ -326,9 +326,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
                 <Camera className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">High Quality Photos & Video</h3>
+              <h3 className="text-lg font-bold text-white mb-2">{t('features.f4Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Send images and videos without heavy compression so memories stay crisp and vibrant.
+                {t('features.f4Desc')}
               </p>
             </div>
 
@@ -337,9 +337,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
                 <Clock className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">24-Hour Status Updates</h3>
+              <h3 className="text-lg font-bold text-white mb-2">{t('features.f5Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Share text, photo, and video moments that your contacts can see and that automatically disappear after 24 hours.
+                {t('features.f5Desc')}
               </p>
             </div>
 
@@ -348,9 +348,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
                 <Moon className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Comfortable Dark Mode</h3>
+              <h3 className="text-lg font-bold text-white mb-2">{t('features.f6Title')}</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Sleek dark theme optimized for eye comfort at night and battery conservation on OLED screens.
+                {t('features.f6Desc')}
               </p>
             </div>
 
@@ -363,9 +363,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto mb-12 space-y-4">
-            <h2 className="text-3xl font-extrabold text-white">Experience {config.appName} on Your Phone</h2>
+            <h2 className="text-3xl font-extrabold text-white">
+              {t('experience.title', { appName: config.appName })}
+            </h2>
             <p className="text-sm text-[#8696a0]">
-              Select a view below to preview the intuitive screens built for everyday use.
+              {t('experience.subtitle')}
             </p>
 
             {/* Tabs for End Users */}
@@ -375,28 +377,28 @@ export default function LandingPage() {
                 className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'chats' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
               >
                 <MessageSquare className="h-4 w-4" />
-                Chats & Groups
+                {t('experience.tabChats')}
               </button>
               <button 
                 onClick={() => setActiveTab('calls')}
                 className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'calls' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
               >
                 <Phone className="h-4 w-4" />
-                Voice & Video
+                {t('experience.tabCalls')}
               </button>
               <button 
                 onClick={() => setActiveTab('status')}
                 className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'status' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
               >
                 <Clock className="h-4 w-4" />
-                Status Stories
+                {t('experience.tabStatus')}
               </button>
               <button 
                 onClick={() => setActiveTab('privacy')}
                 className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'privacy' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
               >
                 <ShieldCheck className="h-4 w-4" />
-                Privacy & Lock
+                {t('experience.tabPrivacy')}
               </button>
             </div>
           </div>
@@ -409,21 +411,21 @@ export default function LandingPage() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-fade-in">
                 <div className="lg:col-span-6 space-y-6">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#00a884] bg-[#00a884]/15 px-3.5 py-1.5 rounded-full">
-                    Instant Messaging
+                    {t('experience.chats.badge')}
                   </span>
                   <h3 className="text-2xl lg:text-3xl font-extrabold text-white">
-                    Conversations Made Effortless
+                    {t('experience.chats.title')}
                   </h3>
                   <p className="text-[#8696a0] text-sm leading-relaxed">
-                    Chat one-on-one or organize conversations in clean group channels. Enjoy instant message delivery, real-time typing indicators, read receipts, and expressive emoji reactions.
+                    {t('experience.chats.subtitle')}
                   </p>
                   
                   <div className="space-y-3.5">
                     {[
-                      "Instant delivery ticks (Sent, Delivered, Read)",
-                      "Voice notes with interactive audio seek waveforms",
-                      "Rich photo & video sharing with captions",
-                      "Quick pin & archive to organize important conversations"
+                      t('experience.chats.feat1'),
+                      t('experience.chats.feat2'),
+                      t('experience.chats.feat3'),
+                      t('experience.chats.feat4')
                     ].map((feat, i) => (
                       <div key={i} className="flex items-center gap-3">
                         <div className="h-5 w-5 rounded-full bg-[#00a884]/20 flex items-center justify-center text-[#00a884]">
@@ -437,13 +439,13 @@ export default function LandingPage() {
 
                 <div className="lg:col-span-6 bg-[#0b141a] rounded-2xl p-5 border border-[#202c33] space-y-3">
                   <div className="text-xs font-bold text-white pb-3 border-b border-[#202c33] flex justify-between items-center">
-                    <span>Recent Chats</span>
-                    <span className="text-[#00a884] text-[11px] font-semibold">New Chat +</span>
+                    <span>{t('experience.chats.recentTitle')}</span>
+                    <span className="text-[#00a884] text-[11px] font-semibold">{t('experience.chats.newChat')}</span>
                   </div>
 
                   {[
                     { name: "Family Circle 🏡", msg: "Mom: Dinner is at 7 tonight!", time: "5:12 PM", unread: 2, avatar: "F" },
-                    { name: "Sarah Jenkins", msg: "Loved the photo quality!", time: "4:21 PM", unread: 0, avatar: "S" },
+                    { name: "Sarah Jenkins", msg: t('preview.msgSent'), time: "4:21 PM", unread: 0, avatar: "S" },
                     { name: "David K.", msg: "Let's catch up tomorrow morning", time: "Yesterday", unread: 0, avatar: "D" },
                   ].map((chat, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#111b21] transition-colors border border-transparent hover:border-[#202c33]">
@@ -475,21 +477,21 @@ export default function LandingPage() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-fade-in">
                 <div className="lg:col-span-6 space-y-6">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#53bdeb] bg-[#53bdeb]/15 px-3.5 py-1.5 rounded-full">
-                    HD Voice & Video
+                    {t('experience.calls.badge')}
                   </span>
                   <h3 className="text-2xl lg:text-3xl font-extrabold text-white">
-                    Feel Like You're in the Same Room
+                    {t('experience.calls.title')}
                   </h3>
                   <p className="text-[#8696a0] text-sm leading-relaxed">
-                    Experience crystal-clear audio and sharp video calls with minimal data usage. Whether catching up with family or calling across the globe, {config.appName} connects you reliably.
+                    {t('experience.calls.subtitle', { appName: config.appName })}
                   </p>
                   
                   <div className="space-y-3.5">
                     {[
-                      "Optimized for low-bandwidth networks (2G, 3G, 4G, 5G & Wi-Fi)",
-                      "Seamless camera flipping and microphone muting",
-                      "Call history log with quick redial shortcuts",
-                      "Zero cost international calling over the internet"
+                      t('experience.calls.feat1'),
+                      t('experience.calls.feat2'),
+                      t('experience.calls.feat3'),
+                      t('experience.calls.feat4')
                     ].map((feat, i) => (
                       <div key={i} className="flex items-center gap-3">
                         <div className="h-5 w-5 rounded-full bg-[#53bdeb]/20 flex items-center justify-center text-[#53bdeb]">
@@ -663,10 +665,10 @@ export default function LandingPage() {
           
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-              Get Started in 3 Simple Steps
+              {t('howItWorks.title')}
             </h2>
             <p className="text-base text-[#8696a0]">
-              Starting your conversation on {config.appName} takes less than a minute.
+              {t('howItWorks.subtitle', { appName: config.appName })}
             </p>
           </div>
 
@@ -677,9 +679,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-full bg-[#00a884] text-white font-extrabold text-lg flex items-center justify-center mx-auto shadow-lg shadow-[#00a884]/20">
                 1
               </div>
-              <h3 className="text-lg font-bold text-white">Download the App</h3>
+              <h3 className="text-lg font-bold text-white">{t('howItWorks.step1Title')}</h3>
               <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
-                Download and install the lightweight APK directly onto your Android phone or tablet.
+                {t('howItWorks.step1Desc')}
               </p>
             </div>
 
@@ -688,9 +690,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-full bg-[#00a884] text-white font-extrabold text-lg flex items-center justify-center mx-auto shadow-lg shadow-[#00a884]/20">
                 2
               </div>
-              <h3 className="text-lg font-bold text-white">Verify Phone Number</h3>
+              <h3 className="text-lg font-bold text-white">{t('howItWorks.step2Title')}</h3>
               <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
-                Enter your mobile number and confirm with a fast, secure one-time verification code.
+                {t('howItWorks.step2Desc')}
               </p>
             </div>
 
@@ -699,9 +701,9 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-full bg-[#00a884] text-white font-extrabold text-lg flex items-center justify-center mx-auto shadow-lg shadow-[#00a884]/20">
                 3
               </div>
-              <h3 className="text-lg font-bold text-white">Start Chatting & Calling</h3>
+              <h3 className="text-lg font-bold text-white">{t('howItWorks.step3Title')}</h3>
               <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
-                Add contacts, start sending text or audio messages, and enjoy crystal-clear voice and video calls.
+                {t('howItWorks.step3Desc')}
               </p>
             </div>
 
@@ -714,33 +716,33 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
-            <h2 className="text-3xl font-extrabold text-white">Frequently Asked Questions</h2>
+            <h2 className="text-3xl font-extrabold text-white">{t('faq.title')}</h2>
             <p className="text-sm text-[#8696a0]">
-              Everything you need to know about using {config.appName} on your phone.
+              {t('faq.subtitle', { appName: config.appName })}
             </p>
           </div>
 
           <div className="space-y-4">
             {[
               {
-                q: `Is ${config.appName} free to use for calls and messages?`,
-                a: `Yes! ${config.appName} uses your phone's internet connection (Wi-Fi or cellular data) to send messages and make calls, so you don't have to pay standard SMS or cellular voice fees.`
+                q: t('faq.q1', { appName: config.appName }),
+                a: t('faq.a1', { appName: config.appName })
               },
               {
-                q: `How do I add friends on ${config.appName}?`,
-                a: `Simply tap the 'New Chat' button inside the app and choose a contact from your address book who is on ${config.appName}, or invite them directly using your personalized invite link.`
+                q: t('faq.q2', { appName: config.appName }),
+                a: t('faq.a2', { appName: config.appName })
               },
               {
-                q: "Are my photos and videos shared in high quality?",
-                a: `Yes. ${config.appName} is designed to preserve your media quality so that photos and videos remain clear when shared with your contacts.`
+                q: t('faq.q3', { appName: config.appName }),
+                a: t('faq.a3', { appName: config.appName })
               },
               {
-                q: "What devices are supported?",
-                a: `${config.appName} runs on Android phones and tablets running Android 8.0 and above, with responsive design support for foldables and tablets.`
+                q: t('faq.q4', { appName: config.appName }),
+                a: t('faq.a4', { appName: config.appName })
               },
               {
-                q: `How does ${config.appName} protect my privacy?`,
-                a: `${config.appName} ensures that your conversations stay private. We do not sell your personal data or show invasive third-party ad trackers.`
+                q: t('faq.q5', { appName: config.appName }),
+                a: t('faq.a5', { appName: config.appName })
               }
             ].map((faq, index) => (
               <div 
@@ -772,17 +774,19 @@ export default function LandingPage() {
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
           
-          <div className="inline-flex h-16 w-16 rounded-3xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-xl shadow-[#00a884]/20 items-center justify-center mx-auto">
-            <div className="h-full w-full rounded-[22px] bg-[#0b141a] flex items-center justify-center">
-              <Download className="h-8 w-8 text-[#00a884]" />
-            </div>
+          <div className="inline-flex h-16 w-16 rounded-3xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-xl shadow-[#00a884]/20 overflow-hidden mx-auto">
+            <img 
+              src="/logo.jpg" 
+              alt="VIBEZ App Icon" 
+              className="h-full w-full object-cover rounded-[22px]"
+            />
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-            Ready to Experience {config.appName}?
+            {t('cta.title', { appName: config.appName })}
           </h2>
           <p className="text-base text-[#8696a0] max-w-xl mx-auto leading-relaxed">
-            Download the Android app today and stay closer to friends and family with fast, private messaging and calls.
+            {t('cta.subtitle', { appName: config.appName })}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
@@ -794,7 +798,7 @@ export default function LandingPage() {
                 className="btn-download-pulse w-full text-center px-8 py-4 rounded-full bg-[#00a884] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 active:scale-95 transition-all flex items-center justify-center gap-2.5"
               >
                 <Download className="h-5 w-5" />
-                {t('hero.downloadBtn') || 'Download APK Directly'} {config.appVersion ? `(v${config.appVersion})` : ''}
+                {t('hero.downloadBtn')} {config.appVersion ? `(v${config.appVersion})` : ''}
               </a>
             ) : (
               <Link 
@@ -802,13 +806,13 @@ export default function LandingPage() {
                 className="w-full text-center px-8 py-4 rounded-full bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-[#8696a0] hover:text-white font-bold text-base transition-all flex items-center justify-center gap-2.5"
               >
                 <Clock className="h-5 w-5 text-amber-400" />
-                {t('hero.noAppAvailable') || 'No App Available'}
+                {t('hero.noAppAvailable')}
               </Link>
             )}
           </div>
 
           <p className="text-xs text-[#8696a0]">
-            Compatible with all Android devices running Android 8.0 or newer.
+            {t('cta.compatible')}
           </p>
         </div>
       </section>

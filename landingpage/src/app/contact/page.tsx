@@ -16,8 +16,10 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { fetchPublicAppConfig, submitContactForm, PublicAppConfig } from '../../lib/api';
+import { useLanguage } from '../../lib/LanguageContext';
 
 export default function ContactPage() {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<PublicAppConfig>({
     appName: 'VIBEZ',
     appVersion: '1.0.0',
@@ -56,14 +58,14 @@ export default function ContactPage() {
       const res = await submitContactForm(formData);
       setSubmitResult({
         success: true,
-        message: res.message || 'Thank you for reaching out! Our team has received your message and will reply via email shortly.',
+        message: res.message || t('contact.successMsg'),
         ticketId: res.ticketId
       });
       setFormData({ name: '', email: '', subject: '', message: '' });
     } catch (error: any) {
       setSubmitResult({
         success: false,
-        message: error.message || 'We could not send your message right now. Please try emailing us directly.'
+        message: error.message || t('contact.errorMsg')
       });
     } finally {
       setIsSubmitting(false);
@@ -82,13 +84,13 @@ export default function ContactPage() {
           <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111b21] border border-[#202c33] text-[#00a884] text-xs font-bold">
               <Sparkles className="h-4 w-4" />
-              We're Here to Help
+              {t('contact.badge')}
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white">
-              Contact & Support Center
+              {t('contact.title')}
             </h1>
             <p className="text-sm sm:text-base text-[#8696a0]">
-              Have a question, feedback, or need technical assistance with {config.appName}? Get in touch with our support team.
+              {t('contact.subtitle', { appName: config.appName })}
             </p>
           </div>
 
@@ -99,10 +101,10 @@ export default function ContactPage() {
               
               <div className="bg-[#111b21] p-6 rounded-2xl border border-[#202c33] space-y-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>💬</span> Get in Touch Directly
+                  <span>💬</span> {t('contact.directTitle')}
                 </h3>
                 <p className="text-xs text-[#8696a0] leading-relaxed">
-                  Our customer care team typically responds within 24 hours on business days.
+                  {t('contact.directSub')}
                 </p>
 
                 <div className="space-y-4 pt-2">
@@ -111,7 +113,7 @@ export default function ContactPage() {
                       <Mail className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="text-xs text-[#8696a0]">Email Support</div>
+                      <div className="text-xs text-[#8696a0]">{t('contact.emailLabel')}</div>
                       <a href={`mailto:${config.contactEmail || 'support@vibez.chat'}`} className="text-sm font-bold text-white hover:text-[#00a884] transition-colors">
                         {config.contactEmail || 'support@vibez.chat'}
                       </a>
@@ -123,7 +125,7 @@ export default function ContactPage() {
                       <Phone className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="text-xs text-[#8696a0]">Hotline Phone</div>
+                      <div className="text-xs text-[#8696a0]">{t('contact.phoneLabel')}</div>
                       <a href={`tel:${config.contactPhone || '+18005550199'}`} className="text-sm font-bold text-white hover:text-[#53bdeb] transition-colors">
                         {config.contactPhone || '+1 (800) 555-0199'}
                       </a>
@@ -135,7 +137,7 @@ export default function ContactPage() {
                       <MapPin className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="text-xs text-[#8696a0]">Headquarters</div>
+                      <div className="text-xs text-[#8696a0]">{t('contact.hqLabel')}</div>
                       <p className="text-sm font-bold text-white">
                         {config.supportAddress || 'San Francisco, CA, USA'}
                       </p>
@@ -147,9 +149,9 @@ export default function ContactPage() {
                       <Clock className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="text-xs text-[#8696a0]">Support Hours</div>
+                      <div className="text-xs text-[#8696a0]">{t('contact.hoursLabel')}</div>
                       <p className="text-sm font-bold text-white">
-                        Monday – Friday, 9:00 AM – 6:00 PM (UTC)
+                        {t('contact.hoursValue')}
                       </p>
                     </div>
                   </div>
@@ -160,10 +162,15 @@ export default function ContactPage() {
               <div className="bg-[#111b21] p-6 rounded-2xl border border-[#202c33] space-y-3">
                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
                   <HelpCircle className="h-4 w-4 text-[#00a884]" />
-                  Need Immediate Help?
+                  {t('contact.needHelpQ')}
                 </h4>
                 <p className="text-xs text-[#8696a0] leading-relaxed">
-                  Check our <Link href="/#faq" className="text-[#00a884] underline">FAQ Section</Link> on the homepage for instant answers to installation and troubleshooting steps.
+                  {t('contact.faqLinkFull', { link: t('contact.faqLinkText') }).split('{link}').map((part, i, arr) => (
+                    <React.Fragment key={i}>
+                      {part}
+                      {i < arr.length - 1 && <Link href="/#faq" className="text-[#00a884] underline">{t('contact.faqLinkText')}</Link>}
+                    </React.Fragment>
+                  ))}
                 </p>
               </div>
 
@@ -171,8 +178,8 @@ export default function ContactPage() {
 
             {/* Right Column: Interactive Contact Form */}
             <div className="lg:col-span-7 bg-[#111b21] p-8 sm:p-10 rounded-3xl border border-[#202c33] shadow-2xl">
-              <h2 className="text-xl font-black text-white mb-1">Send Us a Message</h2>
-              <p className="text-xs text-[#8696a0] mb-6">Fill out the form below and our support engineers will review your inquiry.</p>
+              <h2 className="text-xl font-black text-white mb-1">{t('contact.formTitle')}</h2>
+              <p className="text-xs text-[#8696a0] mb-6">{t('contact.formSub')}</p>
 
               {submitResult && (
                 <div className={`p-4 rounded-2xl mb-6 text-xs sm:text-sm font-medium flex items-start gap-3 animate-fade-in ${
@@ -186,10 +193,10 @@ export default function ContactPage() {
                     <AlertCircle className="h-5 w-5 shrink-0 text-red-400 mt-0.5" />
                   )}
                   <div>
-                    <p className="font-bold">{submitResult.success ? 'Message Submitted Successfully' : 'Submission Failed'}</p>
+                    <p className="font-bold">{submitResult.success ? t('contact.successTitle') : t('contact.errorTitle')}</p>
                     <p className="mt-1">{submitResult.message}</p>
                     {submitResult.ticketId && (
-                      <p className="mt-1 text-[11px] text-emerald-400/80 font-mono">Reference Ticket ID: {submitResult.ticketId}</p>
+                      <p className="mt-1 text-[11px] text-emerald-400/80 font-mono">{t('contact.ticketRefLabel')}: {submitResult.ticketId}</p>
                     )}
                   </div>
                 </div>
@@ -198,11 +205,11 @@ export default function ContactPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#8696a0]">Your Name *</label>
+                    <label className="text-xs font-semibold text-[#8696a0]">{t('contact.nameLabel')}</label>
                     <input 
                       type="text"
                       required
-                      placeholder="Jane Doe"
+                      placeholder={t('contact.namePlaceholder')}
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-[#0b141a] border border-[#202c33] text-sm text-white placeholder-[#8696a0]/50 focus:outline-none focus:border-[#00a884] transition-colors"
@@ -210,11 +217,11 @@ export default function ContactPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#8696a0]">Email Address *</label>
+                    <label className="text-xs font-semibold text-[#8696a0]">{t('contact.emailInputLabel')}</label>
                     <input 
                       type="email"
                       required
-                      placeholder="jane@example.com"
+                      placeholder={t('contact.emailPlaceholder')}
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-[#0b141a] border border-[#202c33] text-sm text-white placeholder-[#8696a0]/50 focus:outline-none focus:border-[#00a884] transition-colors"
@@ -223,10 +230,10 @@ export default function ContactPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#8696a0]">Subject</label>
+                  <label className="text-xs font-semibold text-[#8696a0]">{t('contact.subjectLabel')}</label>
                   <input 
                     type="text"
-                    placeholder="e.g. Question about group call limits or feature request"
+                    placeholder={t('contact.subjectPlaceholder')}
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl bg-[#0b141a] border border-[#202c33] text-sm text-white placeholder-[#8696a0]/50 focus:outline-none focus:border-[#00a884] transition-colors"
@@ -234,11 +241,11 @@ export default function ContactPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#8696a0]">Your Message *</label>
+                  <label className="text-xs font-semibold text-[#8696a0]">{t('contact.messageLabel')}</label>
                   <textarea 
                     rows={5}
                     required
-                    placeholder="Describe how we can assist you..."
+                    placeholder={t('contact.messagePlaceholder')}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl bg-[#0b141a] border border-[#202c33] text-sm text-white placeholder-[#8696a0]/50 focus:outline-none focus:border-[#00a884] transition-colors resize-none"
@@ -251,7 +258,7 @@ export default function ContactPage() {
                   className="w-full py-3.5 px-6 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-sm shadow-xl shadow-[#00a884]/20 transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
                 >
                   <Send className="h-4 w-4" />
-                  {isSubmitting ? 'Sending Message...' : 'Send Message'}
+                  {isSubmitting ? t('contact.sendingBtn') : t('contact.sendBtn')}
                 </button>
               </form>
             </div>

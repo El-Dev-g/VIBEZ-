@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import translationsData from './translations.json'
 import { Globe, ChevronDown, Check } from 'lucide-react'
 
-export type Language = 'en' | 'es'
+export type Language = 'en' | 'es' | 'fr' | 'de' | 'pt' | 'ar' | 'it' | 'ru'
 
 export interface LanguageContextType {
   language: Language
@@ -16,6 +16,12 @@ export interface LanguageContextType {
 const languages: { code: Language; label: string; flag: string; nativeName: string }[] = [
   { code: 'en', label: 'English', flag: '🇺🇸', nativeName: 'English (US)' },
   { code: 'es', label: 'Español', flag: '🇪🇸', nativeName: 'Español' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷', nativeName: 'Français' },
+  { code: 'de', label: 'Deutsch', flag: '🇩🇪', nativeName: 'Deutsch' },
+  { code: 'pt', label: 'Português', flag: '🇧🇷', nativeName: 'Português' },
+  { code: 'ar', label: 'العربية', flag: '🇸🇦', nativeName: 'العربية' },
+  { code: 'it', label: 'Italiano', flag: '🇮🇹', nativeName: 'Italiano' },
+  { code: 'ru', label: 'Русский', flag: '🇷🇺', nativeName: 'Русский' },
 ]
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
@@ -27,13 +33,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true)
     const stored = localStorage.getItem('vibez_preferred_lang') as Language
-    if (stored && (stored === 'en' || stored === 'es')) {
+    const validLangs: Language[] = ['en', 'es', 'fr', 'de', 'pt', 'ar', 'it', 'ru']
+    if (stored && validLangs.includes(stored)) {
       setLanguageState(stored)
     } else {
       // Auto-detect browser language if preferred
-      const navLang = navigator.language.slice(0, 2)
-      if (navLang === 'es') {
-        setLanguageState('es')
+      const navLang = navigator.language.slice(0, 2) as Language
+      if (validLangs.includes(navLang)) {
+        setLanguageState(navLang)
       }
     }
   }, [])

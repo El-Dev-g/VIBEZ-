@@ -129,20 +129,18 @@ export default function DownloadPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111b21] border border-[#202c33] text-[#00a884] text-xs font-bold">
             <Sparkles className="h-4 w-4" />
-            {language === 'es' ? 'Centro Oficial de Descargas' : 'Official Release Center'}
+            {t('download.badge')}
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
-            {language === 'es' ? `Descarga ${config.appName} para` : `Download ${config.appName} for`} <br />
+            {t('download.title')} <br />
             <span className="bg-gradient-to-r from-[#00a884] via-[#25d366] to-[#53bdeb] bg-clip-text text-transparent">
               Android Smartphone & Tablet
             </span>
           </h1>
 
           <p className="text-base sm:text-lg text-[#8696a0] leading-relaxed max-w-2xl mx-auto">
-            {language === 'es' 
-              ? 'Obtén el paquete APK oficial directamente en tu dispositivo Android. Instalación rápida, sin sobrecarga y con actualizaciones fluidas.' 
-              : 'Get the latest official APK package directly to your Android device. Fast installation, zero bloat, and automatic background updates.'}
+            {t('download.subtitle')}
           </p>
 
           {/* Download Box */}
@@ -151,14 +149,14 @@ export default function DownloadPage() {
               
               <div className="flex items-center justify-between text-left border-b border-[#202c33] pb-5">
                 <div>
-                  <div className="text-xs text-[#8696a0] font-medium">{language === 'es' ? 'Versión del Paquete' : 'Package Version'}</div>
+                  <div className="text-xs text-[#8696a0] font-medium">{t('download.packageVersion')}</div>
                   <div className="text-lg font-bold text-white flex items-center gap-2">
                     <span>{config.appName} APK</span>
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#00a884]/20 text-[#00a884]">{config.appVersion || 'v1.0.0'}</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-[#8696a0] font-medium">{language === 'es' ? 'Plataforma Mínima' : 'Platform'}</div>
+                  <div className="text-xs text-[#8696a0] font-medium">{t('download.platform')}</div>
                   <div className="text-sm font-bold text-[#53bdeb]">Android 8.0+</div>
                 </div>
               </div>
@@ -172,7 +170,7 @@ export default function DownloadPage() {
                   className="btn-download-pulse w-full py-4 px-8 rounded-2xl bg-[#00a884] text-white font-black text-base shadow-xl shadow-[#00a884]/30 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
                 >
                   <Download className="h-5 w-5" />
-                  {language === 'es' ? 'Descargar APK Directo Ahora' : 'Download Direct APK Now'}
+                  {t('download.downloadBtn')}
                 </a>
               ) : (
                 <div className="space-y-3">
@@ -180,12 +178,10 @@ export default function DownloadPage() {
                     <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
                     <div className="text-xs space-y-1">
                       <div className="font-bold text-amber-300">
-                        {language === 'es' ? 'Descarga de APK Pendiente' : 'APK Release Pending'}
+                        {t('download.apkPendingTitle')}
                       </div>
                       <p className="text-[#8696a0] leading-relaxed">
-                        {language === 'es' 
-                          ? 'El administrador aún no ha configurado el enlace de descarga del APK en el Panel de Administración. Vuelve a consultar pronto.' 
-                          : 'The administrator has not configured the APK download link in the Admin Panel yet. Please check back shortly.'}
+                        {t('download.apkPendingDesc')}
                       </p>
                     </div>
                   </div>
@@ -194,7 +190,7 @@ export default function DownloadPage() {
                     className="w-full py-4 px-8 rounded-2xl bg-[#202c33] border border-[#2a3942] text-[#8696a0] font-bold text-base cursor-not-allowed flex items-center justify-center gap-2.5 opacity-80"
                   >
                     <Clock className="h-5 w-5 text-amber-400" />
-                    {language === 'es' ? 'No hay APK Disponible' : 'No App Available'}
+                    {t('download.noAppAvailable')}
                   </button>
                 </div>
               )}
@@ -202,11 +198,11 @@ export default function DownloadPage() {
               <div className="flex items-center justify-center gap-6 text-[11px] text-[#8696a0]">
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-[#00a884]" />
-                  <span>{language === 'es' ? '100% Libre de Virus' : '100% Virus & Malware Free'}</span>
+                  <span>{t('download.virusFree')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-[#00a884]" />
-                  <span>{language === 'es' ? 'Binario Oficial Firmado' : 'Official Signed Binary'}</span>
+                  <span>{t('download.verifiedBinary')}</span>
                 </div>
               </div>
 
@@ -228,15 +224,13 @@ export default function DownloadPage() {
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00a884] uppercase tracking-wider">
                   <Activity className="h-3.5 w-3.5" />
-                  {language === 'es' ? 'Herramienta de Compatibilidad' : 'Device Compatibility Checker'}
+                  {t('download.compatibilityTitle')}
                 </div>
                 <h2 className="text-2xl font-black text-white">
-                  {language === 'es' ? '¿Tu dispositivo Android es compatible?' : 'Check Your Android Compatibility'}
+                  {t('download.compatibilityMainTitle')}
                 </h2>
                 <p className="text-xs sm:text-sm text-[#8696a0]">
-                  {language === 'es' 
-                    ? 'Selecciona tu versión de Android o usa la detección automática para verificar los requisitos de VIBEZ.' 
-                    : 'Select your Android version or auto-detect your current device to verify if VIBEZ runs smoothly.'}
+                  {t('download.compatibilitySubtitle', { appName: config.appName })}
                 </p>
               </div>
 
@@ -247,7 +241,7 @@ export default function DownloadPage() {
                 title="Detect device OS from browser"
               >
                 <RefreshCw className="h-3.5 w-3.5 text-[#00a884]" />
-                {language === 'es' ? 'Detectar Mi Dispositivo' : 'Auto-Detect Device'}
+                {t('download.autoDetectBtn')}
               </button>
             </div>
 
@@ -255,7 +249,7 @@ export default function DownloadPage() {
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center relative z-10">
               <div className="sm:col-span-8 space-y-1.5">
                 <label className="block text-xs font-semibold text-[#8696a0]">
-                  {language === 'es' ? 'Selecciona tu Versión de Android:' : 'Select Your Android Version:'}
+                  {t('download.selectOsLabel')}
                 </label>
                 <div className="relative">
                   <select
@@ -275,13 +269,13 @@ export default function DownloadPage() {
 
               <div className="sm:col-span-4 bg-[#0b141a] p-3 rounded-xl border border-[#202c33] text-center space-y-1">
                 <div className="text-[10px] text-[#8696a0] uppercase font-bold tracking-wider">
-                  {language === 'es' ? 'Requisito Mínimo' : 'Minimum Required'}
+                  {t('download.minRequired')}
                 </div>
                 <div className="text-sm font-black text-[#00a884]">
                   Android 8.0 (API 26)
                 </div>
                 <div className="text-[10px] text-[#8696a0]">
-                  {language === 'es' ? 'Lanzado en 2017 o posterior' : 'Oreo or Newer'}
+                  {t('download.minYear')}
                 </div>
               </div>
             </div>
@@ -291,9 +285,9 @@ export default function DownloadPage() {
               <div className="p-3 rounded-xl bg-[#0b141a]/90 border border-[#202c33] flex items-center justify-between text-xs text-[#8696a0]">
                 <div className="flex items-center gap-2">
                   <Smartphone className="h-4 w-4 text-[#53bdeb]" />
-                  <span>{language === 'es' ? 'Dispositivo detectado:' : 'Detected Device:'} <strong className="text-white">{detectedOS}</strong></span>
+                  <span>{t('download.detectedOS')} <strong className="text-white">{detectedOS}</strong></span>
                 </div>
-                <span className="text-[11px] text-[#00a884] font-semibold">{language === 'es' ? 'Detectado' : 'Matched'}</span>
+                <span className="text-[11px] text-[#00a884] font-semibold">{t('download.matched')}</span>
               </div>
             )}
 
@@ -319,7 +313,7 @@ export default function DownloadPage() {
                           ? 'bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/40' 
                           : 'bg-red-500/20 text-red-400 border border-red-500/40'
                       }`}>
-                        {currentInfo.supported ? (language === 'es' ? 'Compatible' : 'Fully Compatible') : (language === 'es' ? 'No Compatible' : 'Unsupported OS')}
+                        {currentInfo.supported ? t('download.compatibleLabel') : t('download.unsupportedLabel')}
                       </span>
                     </div>
                     <p className="text-xs text-[#8696a0] mt-1">{currentInfo.notes}</p>
@@ -335,18 +329,18 @@ export default function DownloadPage() {
                       className="btn-download-pulse shrink-0 self-start sm:self-center px-4 py-2.5 rounded-xl bg-[#00a884] text-white text-xs font-bold shadow-lg shadow-[#00a884]/20 flex items-center gap-2 active:scale-95"
                     >
                       <Download className="h-3.5 w-3.5" />
-                      {language === 'es' ? 'Descargar APK' : 'Download APK'}
+                      {t('download.downloadBtn')}
                     </a>
                   ) : (
                     <div className="shrink-0 self-start sm:self-center px-3.5 py-2 rounded-xl bg-[#202c33] border border-[#2a3942] text-[#8696a0] text-xs font-semibold flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 text-amber-400" />
-                      {language === 'es' ? 'No Disponible' : 'Not Available Yet'}
+                      {t('download.unavailable')}
                     </div>
                   )
                 ) : (
                   <div className="shrink-0 self-start sm:self-center px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    {language === 'es' ? 'Actualización Requerida' : 'OS Upgrade Needed'}
+                    {t('download.upgradeNeeded')}
                   </div>
                 )}
               </div>
@@ -354,34 +348,34 @@ export default function DownloadPage() {
               {/* Requirement Matrix Breakdown */}
               <div className="mt-5 pt-4 border-t border-[#202c33] grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="bg-[#0b141a]/60 p-2.5 rounded-xl border border-[#202c33]">
-                  <div className="text-[10px] text-[#8696a0]">{language === 'es' ? 'Llamadas HD WebRTC' : 'HD WebRTC Calls'}</div>
+                  <div className="text-[10px] text-[#8696a0]">{t('download.webrtc')}</div>
                   <div className={`font-bold flex items-center gap-1 mt-0.5 ${currentInfo.supported ? 'text-[#00a884]' : 'text-red-400'}`}>
                     {currentInfo.supported ? <Check className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    {currentInfo.supported ? (language === 'es' ? 'Soportado' : 'Supported') : (language === 'es' ? 'No disponible' : 'Unavailable')}
+                    {currentInfo.supported ? t('download.supported') : t('download.unavailable')}
                   </div>
                 </div>
 
                 <div className="bg-[#0b141a]/60 p-2.5 rounded-xl border border-[#202c33]">
-                  <div className="text-[10px] text-[#8696a0]">{language === 'es' ? 'Mensajería Rápida' : 'Instant Chat'}</div>
+                  <div className="text-[10px] text-[#8696a0]">{t('download.instantChat')}</div>
                   <div className={`font-bold flex items-center gap-1 mt-0.5 ${currentInfo.supported ? 'text-[#00a884]' : 'text-red-400'}`}>
                     {currentInfo.supported ? <Check className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    {currentInfo.supported ? (language === 'es' ? 'Soportado' : 'Supported') : (language === 'es' ? 'No disponible' : 'Unavailable')}
+                    {currentInfo.supported ? t('download.supported') : t('download.unavailable')}
                   </div>
                 </div>
 
                 <div className="bg-[#0b141a]/60 p-2.5 rounded-xl border border-[#202c33]">
-                  <div className="text-[10px] text-[#8696a0]">{language === 'es' ? 'Notificaciones Push' : 'Push Notifications'}</div>
+                  <div className="text-[10px] text-[#8696a0]">{t('download.pushNotifications')}</div>
                   <div className={`font-bold flex items-center gap-1 mt-0.5 ${currentInfo.supported ? 'text-[#00a884]' : 'text-red-400'}`}>
                     {currentInfo.supported ? <Check className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    {currentInfo.supported ? (language === 'es' ? 'Soportado' : 'Supported') : (language === 'es' ? 'No disponible' : 'Unavailable')}
+                    {currentInfo.supported ? t('download.supported') : t('download.unavailable')}
                   </div>
                 </div>
 
                 <div className="bg-[#0b141a]/60 p-2.5 rounded-xl border border-[#202c33]">
-                  <div className="text-[10px] text-[#8696a0]">{language === 'es' ? 'Cifrado de Seguridad' : 'Security Protocols'}</div>
+                  <div className="text-[10px] text-[#8696a0]">{t('download.securityProtocols')}</div>
                   <div className={`font-bold flex items-center gap-1 mt-0.5 ${currentInfo.supported ? 'text-[#00a884]' : 'text-red-400'}`}>
                     {currentInfo.supported ? <Check className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    {currentInfo.supported ? 'TLS 1.3 / AES' : (language === 'es' ? 'Inseguro' : 'Deprecated')}
+                    {currentInfo.supported ? 'TLS 1.3 / AES' : t('download.unavailable')}
                   </div>
                 </div>
               </div>
@@ -396,18 +390,18 @@ export default function DownloadPage() {
               >
                 <div className="flex items-center gap-2">
                   <HelpCircle className="h-4 w-4 text-[#53bdeb]" />
-                  <span>{language === 'es' ? '¿Cómo verificar la versión de Android en mi teléfono?' : 'How do I find the Android version on my phone?'}</span>
+                  <span>{t('download.howToFindQ')}</span>
                 </div>
                 <ChevronDown className={`h-4 w-4 text-[#8696a0] transition-transform ${showHowToFind ? 'rotate-180 text-[#00a884]' : ''}`} />
               </button>
 
               {showHowToFind && (
                 <div className="px-4 pb-4 pt-1 text-xs text-[#8696a0] space-y-2 border-t border-[#202c33]/50">
-                  <ol className="list-decimal list-inside space-y-1.5 pl-1 leading-relaxed">
-                    <li>{language === 'es' ? 'Abre la aplicación' : 'Open the'} <strong className="text-white">{language === 'es' ? 'Ajustes / Configuración' : 'Settings'}</strong> {language === 'es' ? 'de tu teléfono.' : 'app on your device.'}</li>
-                    <li>{language === 'es' ? 'Desplázate hacia abajo y toca' : 'Scroll down and tap'} <strong className="text-white">{language === 'es' ? 'Acerca del teléfono' : 'About phone'}</strong> {language === 'es' ? 'o' : 'or'} <strong className="text-white">{language === 'es' ? 'Información del software' : 'System > About Phone'}</strong>.</li>
-                    <li>{language === 'es' ? 'Busca el campo' : 'Look for the'} <strong className="text-white">{language === 'es' ? 'Versión de Android' : 'Android version'}</strong> {language === 'es' ? 'para ver el número de tu sistema operativo.' : 'field to see your version number (e.g. 10, 11, 12, 13, 14, 15).'}</li>
-                  </ol>
+                  <div className="space-y-1.5 pl-1 leading-relaxed">
+                    <p dangerouslySetInnerHTML={{ __html: t('download.howToFindStep1') }} />
+                    <p dangerouslySetInnerHTML={{ __html: t('download.howToFindStep2') }} />
+                    <p dangerouslySetInnerHTML={{ __html: t('download.howToFindStep3') }} />
+                  </div>
                 </div>
               )}
             </div>
@@ -423,10 +417,10 @@ export default function DownloadPage() {
           
           <div className="text-center space-y-3 max-w-2xl mx-auto">
             <h2 className="text-3xl font-extrabold text-white">
-              {language === 'es' ? 'Cómo Instalar en 3 Simples Pasos' : 'How to Install in 3 Easy Steps'}
+              {t('download.howToInstallTitle')}
             </h2>
             <p className="text-sm text-[#8696a0]">
-              {language === 'es' ? 'Sigue esta breve guía para instalar el archivo APK en tu dispositivo Android.' : 'Follow this quick guide to install the APK on your Android device.'}
+              {t('download.howToInstallSubtitle')}
             </p>
           </div>
 
@@ -437,12 +431,10 @@ export default function DownloadPage() {
                 1
               </div>
               <h3 className="text-lg font-bold text-white">
-                {language === 'es' ? '1. Descargar APK' : '1. Download APK'}
+                {t('download.step1Title')}
               </h3>
               <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
-                {language === 'es' 
-                  ? 'Toca el botón "Descargar APK". Tu navegador te pedirá confirmar la descarga del archivo.' 
-                  : 'Tap the "Download APK" button above. Your browser will prompt you to save the vibez.apk file.'}
+                {t('download.step1Desc')}
               </p>
             </div>
 
@@ -451,12 +443,10 @@ export default function DownloadPage() {
                 2
               </div>
               <h3 className="text-lg font-bold text-white">
-                {language === 'es' ? '2. Permitir Fuentes Desconocidas' : '2. Allow Unknown Sources'}
+                {t('download.step2Title')}
               </h3>
               <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
-                {language === 'es'
-                  ? 'Cuando Android lo solicite, toca Ajustes y activa "Permitir desde esta fuente" para tu navegador o explorador de archivos.'
-                  : 'When prompted by Android, tap Settings and toggle on "Allow from this source" for Chrome or your File Manager.'}
+                {t('download.step2Desc')}
               </p>
             </div>
 
@@ -465,12 +455,10 @@ export default function DownloadPage() {
                 3
               </div>
               <h3 className="text-lg font-bold text-white">
-                {language === 'es' ? '3. Instalar y Chatear' : '3. Launch & Register'}
+                {t('download.step3Title')}
               </h3>
               <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
-                {language === 'es'
-                  ? `Toca Instalar. Una vez completado, abre ${config.appName}, verifica tu número y ¡comienza a disfrutar!`
-                  : `Tap Install. Once finished, open ${config.appName}, enter your phone number to receive your instant verification code, and start chatting!`}
+                {t('download.step3Desc', { appName: config.appName })}
               </p>
             </div>
 
@@ -482,32 +470,32 @@ export default function DownloadPage() {
       {/* System Requirements */}
       <section className="py-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white text-center">
-          {language === 'es' ? 'Requisitos del Sistema' : 'System Requirements'}
+          {t('download.requirements')}
         </h2>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-[#111b21] p-6 rounded-2xl border border-[#202c33] space-y-2">
             <Smartphone className="h-6 w-6 text-[#00a884]" />
-            <div className="text-xs text-[#8696a0]">{language === 'es' ? 'Versión de SO' : 'OS Version'}</div>
+            <div className="text-xs text-[#8696a0]">{t('download.platform')}</div>
             <div className="text-sm font-bold text-white">Android 8.0 (Oreo) +</div>
           </div>
 
           <div className="bg-[#111b21] p-6 rounded-2xl border border-[#202c33] space-y-2">
             <Cpu className="h-6 w-6 text-[#53bdeb]" />
-            <div className="text-xs text-[#8696a0]">{language === 'es' ? 'Procesador' : 'Processor'}</div>
+            <div className="text-xs text-[#8696a0]">{t('download.processor')}</div>
             <div className="text-sm font-bold text-white">ARM64, ARMv7, x86_64</div>
           </div>
 
           <div className="bg-[#111b21] p-6 rounded-2xl border border-[#202c33] space-y-2">
             <Layers className="h-6 w-6 text-purple-400" />
-            <div className="text-xs text-[#8696a0]">{language === 'es' ? 'Memoria RAM' : 'RAM'}</div>
+            <div className="text-xs text-[#8696a0]">{t('download.ram')}</div>
             <div className="text-sm font-bold text-white">1 GB RAM (2 GB rec.)</div>
           </div>
 
           <div className="bg-[#111b21] p-6 rounded-2xl border border-[#202c33] space-y-2">
             <Clock className="h-6 w-6 text-amber-400" />
-            <div className="text-xs text-[#8696a0]">{language === 'es' ? 'Almacenamiento' : 'Storage'}</div>
-            <div className="text-sm font-bold text-white">~45 MB {language === 'es' ? 'libres' : 'free space'}</div>
+            <div className="text-xs text-[#8696a0]">{t('download.storage')}</div>
+            <div className="text-sm font-bold text-white">~45 MB {t('download.unavailable') === 'Unavailable' ? 'free space' : ''}</div>
           </div>
         </div>
       </section>
