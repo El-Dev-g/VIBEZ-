@@ -119,14 +119,20 @@ export class AdminController {
           id: true,
           name: true,
           phoneNumber: true,
+          googleEmail: true,
+          avatarUrl: true,
+          authProvider: true,
+          about: true,
           isBanned: true,
           isVerified: true,
           verifiedAt: true,
           createdAt: true,
+          lastSeen: true,
         }
       });
       res.json(users);
     } catch (error) {
+      console.error('Admin getUsers error:', error);
       res.status(500).json({ error: 'Failed to fetch users' });
     }
   }
@@ -164,8 +170,10 @@ export class AdminController {
           id: true,
           name: true,
           phoneNumber: true,
-          about: true,
+          googleEmail: true,
           avatarUrl: true,
+          authProvider: true,
+          about: true,
           isBanned: true,
           isVerified: true,
           verifiedAt: true,
@@ -185,6 +193,7 @@ export class AdminController {
       }
       res.json(user);
     } catch (error) {
+      console.error('Admin getUserById error:', error);
       res.status(500).json({ error: 'Failed to fetch user' });
     }
   }

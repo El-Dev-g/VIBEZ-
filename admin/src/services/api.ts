@@ -13,10 +13,15 @@ export interface User {
   id: string;
   name: string;
   phoneNumber: string;
+  googleEmail?: string;
+  avatarUrl?: string;
+  authProvider?: string;
+  about?: string;
   status: 'Active' | 'Banned';
   isVerified?: boolean;
   verifiedAt?: string;
   createdAt: string;
+  lastSeen?: string;
 }
 
 export interface AdminUser {
@@ -48,6 +53,15 @@ export const getAdminHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (typeof window !== 'undefined') {
     let token = localStorage.getItem('vibez_admin_token');
+    if (!token) {
+      try {
+        const storedUser = localStorage.getItem('vibez_admin_user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (parsed?.token) token = parsed.token;
+        }
+      } catch (e) {}
+    }
     if (!token && typeof document !== 'undefined') {
       const match = document.cookie.match(/(?:^|;\s*)admin_token=([^;]*)/);
       if (match) token = decodeURIComponent(match[1]);
@@ -226,19 +240,28 @@ export const fetchUsers = async (): Promise<User[]> => {
       headers: getAdminHeaders(),
       cache: 'no-store' 
     });
-    if (!res.ok) throw new Error('Failed to fetch users');
+    if (!res.ok) {
+      console.warn(`fetchUsers failed with status ${res.status}`);
+      return [];
+    }
     const data = await res.json();
+    if (!Array.isArray(data)) return [];
     return data.map((u: any) => ({
       id: u.id,
-      name: u.name || 'Unknown',
-      phoneNumber: u.phoneNumber,
+      name: u.name || (u.googleEmail ? u.googleEmail.split('@')[0] : 'Citizen'),
+      phoneNumber: u.phoneNumber || u.googleEmail || 'No Signal Info',
+      googleEmail: u.googleEmail || undefined,
+      avatarUrl: u.avatarUrl || undefined,
+      authProvider: u.authProvider || (u.googleEmail ? 'GOOGLE' : 'PHONE'),
+      about: u.about || undefined,
       status: u.isBanned ? 'Banned' : 'Active',
-      isVerified: !!u.isVerified,
+      isVerified: Boolean(u.isVerified),
       verifiedAt: u.verifiedAt ? new Date(u.verifiedAt).toLocaleDateString() : undefined,
-      createdAt: new Date(u.createdAt).toLocaleDateString()
+      createdAt: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'Recent',
+      lastSeen: u.lastSeen ? new Date(u.lastSeen).toLocaleString() : undefined
     }));
   } catch (error) {
-    console.error(error);
+    console.error('Error in fetchUsers:', error);
     return [];
   }
 };
@@ -390,12 +413,17 @@ export const fetchUserById = async (userId: string): Promise<UserDetails | null>
     const u = await res.json();
     return {
       id: u.id,
-      name: u.name || 'Unknown',
-      phoneNumber: u.phoneNumber,
+      name: u.name || (u.googleEmail ? u.googleEmail.split('@')[0] : 'Citizen'),
+      phoneNumber: u.phoneNumber || u.googleEmail || 'No Signal Info',
+      googleEmail: u.googleEmail || undefined,
+      avatarUrl: u.avatarUrl || undefined,
+      authProvider: u.authProvider || (u.googleEmail ? 'GOOGLE' : 'PHONE'),
+      about: u.about || '',
       status: u.isBanned ? 'Banned' : 'Active',
-      createdAt: new Date(u.createdAt).toLocaleDateString(),
-      bio: u.bio || '',
-      avatarUrl: u.avatarUrl || '',
+      isVerified: Boolean(u.isVerified),
+      verifiedAt: u.verifiedAt ? new Date(u.verifiedAt).toLocaleDateString() : undefined,
+      createdAt: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'Recent',
+      bio: u.about || '',
       lastSeen: u.lastSeen ? new Date(u.lastSeen).toLocaleString() : 'Never',
       sentMessagesCount: u._count?.sentMessages || 0,
       chatsCount: u._count?.chats || 0,
@@ -404,6 +432,20 @@ export const fetchUserById = async (userId: string): Promise<UserDetails | null>
   } catch (error) {
     console.error(error);
     return null;
+  }
+};
+
+export const toggleUserVerificationBadge = async (userId: string, isVerified: boolean): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/badge`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ isVerified })
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('toggleUserVerificationBadge error:', error);
+    return false;
   }
 };
 
