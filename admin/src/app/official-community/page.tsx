@@ -15,7 +15,7 @@ import {
   updateCommunityMemberRole,
   addCommunityMember,
   fetchUsers
-} from '@/services/api';
+} from '../../services/api';
 
 export default function OfficialCommunityPage() {
   const [officialCommunities, setOfficialCommunities] = useState<any[]>([]);

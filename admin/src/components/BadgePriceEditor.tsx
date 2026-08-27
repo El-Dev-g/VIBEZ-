@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateSettings } from '@/services/api';
+import { updateSettings } from '../services/api';
 
 export default function BadgePriceEditor({ initialPrice }: { initialPrice: number }) {
   const router = useRouter();

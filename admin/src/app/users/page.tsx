@@ -1,5 +1,5 @@
-import { fetchUsers } from '@/services/api';
-import UserTable from '@/components/UserTable';
+import { fetchUsers } from '../../services/api';
+import UserTable from '../../components/UserTable';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import DashboardShell from '@/components/DashboardShell';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
+import DashboardShell from './DashboardShell';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { usePathname } from 'next/navigation';
 
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {

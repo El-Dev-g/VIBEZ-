@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { fetchAnalytics } from '@/services/api';
+import { fetchAnalytics } from '../../services/api';
 
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<any>(null);

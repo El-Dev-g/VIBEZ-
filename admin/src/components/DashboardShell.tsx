@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardShell({
   children,

@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { fetchBroadcasts, sendBroadcastApi, BroadcastItem } from '@/services/api';
+import { fetchBroadcasts, sendBroadcastApi, BroadcastItem } from '../../services/api';
 
 export default function BroadcastsPage() {
   const [title, setTitle] = useState('');

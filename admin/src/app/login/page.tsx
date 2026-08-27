@@ -4,8 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { loginAdmin } from '@/services/api';
-import { useAuth } from '@/context/AuthContext';
+import { loginAdmin } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 function LoginForm() {
   const [email, setEmail] = useState('');

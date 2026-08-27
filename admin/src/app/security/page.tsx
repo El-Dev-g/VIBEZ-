@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { fetchSecurityHealth, toggleTwoFactor, changeAdminPassword, fetchAdminSessions } from '@/services/api';
+import { fetchSecurityHealth, toggleTwoFactor, changeAdminPassword, fetchAdminSessions } from '../../services/api';
 
 export default function SecurityPage() {
   const [health, setHealth] = useState<any>(null);

@@ -1,6 +1,6 @@
 'use client';
 
-import { User, UserDetails, banUser, unbanUser, deleteUser, fetchUserById, fetchUsers, toggleUserVerificationBadge } from '@/services/api';
+import { User, UserDetails, banUser, unbanUser, deleteUser, fetchUserById, fetchUsers, toggleUserVerificationBadge } from '../services/api';
 import { useState, useEffect, useMemo } from 'react';
 
 interface UserTableProps {

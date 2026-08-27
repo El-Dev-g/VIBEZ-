@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchBadgePayments, BadgeSummary } from '@/services/api';
-import BadgePriceEditor from '@/components/BadgePriceEditor';
+import { fetchBadgePayments, BadgeSummary } from '../../services/api';
+import BadgePriceEditor from '../../components/BadgePriceEditor';
 
 export default function BadgesPage() {
   const [data, setData] = useState<BadgeSummary>({

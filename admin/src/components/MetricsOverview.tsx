@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { fetchSystemMetrics, SystemMetrics } from '@/services/api';
+import { fetchSystemMetrics, SystemMetrics } from '../services/api';
 
 interface MetricsOverviewProps {
   userCountFallback?: number;
