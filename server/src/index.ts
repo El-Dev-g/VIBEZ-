@@ -88,8 +88,8 @@ app.get('/api/system/status', async (req, res) => {
     res.status(500).json({ status: 'error', maintenanceMode: false });
   }
 });
-app.get('/api/config/public', (req, res) => admin.getPublicAppConfig(req, res));
-app.get('/api/app/download-info', (req, res) => admin.getPublicAppConfig(req, res));
+app.get('/api/config/public', authenticateAdmin, (req, res) => admin.getPublicAppConfig(req, res));
+app.get('/api/app/download-info', authenticateAdmin, (req, res) => admin.getPublicAppConfig(req, res));
 app.post('/api/contact', (req, res) => admin.submitContactInquiry(req, res));
 app.get('/api/admin/inquiries', authenticateAdmin, (req, res) => admin.getContactInquiries(req, res));
 
@@ -144,8 +144,8 @@ app.delete('/api/calls/:callId', authenticate, (req, res) => call.deleteCallLog(
 app.delete('/api/calls', authenticate, (req, res) => call.clearCallLogs(req, res));
 
 // Payment / Verification Badge Routes
-app.get('/api/payments/badge-price', (req, res) => payment.getBadgePrice(req, res));
-app.get('/api/badge/price', (req, res) => payment.getBadgePrice(req, res));
+app.get('/api/payments/badge-price', authenticateAdmin, (req, res) => payment.getBadgePrice(req, res));
+app.get('/api/badge/price', authenticateAdmin, (req, res) => payment.getBadgePrice(req, res));
 app.post('/api/payments/verification/process', authenticate, (req, res) => payment.processVerificationPayment(req, res));
 app.get('/api/payments/verification/status', authenticate, (req, res) => payment.getUserBadgeStatus(req, res));
 app.get('/api/admin/badges', authenticateAdmin, (req, res) => payment.getAdminBadgePayments(req, res));
