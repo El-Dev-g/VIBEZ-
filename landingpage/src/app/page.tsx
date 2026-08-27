@@ -103,26 +103,24 @@ export default function LandingPage() {
             </Link>
 
             {/* Desktop Navigation Links */}
-            <div className="hidden md:flex items-center gap-8 text-sm font-medium">
-              <a href="#features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Features</a>
-              <a href="#experience" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Experience</a>
+            <div className="hidden md:flex items-center gap-7 text-sm font-medium">
+              <Link href="/features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Features</Link>
+              <Link href="/faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">FAQ</Link>
+              <Link href="/security" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Security</Link>
+              <Link href="/download" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Download</Link>
               <Link href="/about" className="text-[#8696a0] hover:text-[#00a884] transition-colors">About Us</Link>
               <Link href="/contact" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Contact</Link>
-              <Link href="/privacy" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Privacy</Link>
-              <a href="#faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">FAQ</a>
             </div>
 
             {/* Call to Action Button */}
             <div className="hidden md:flex items-center gap-4">
-              <a 
-                href={downloadLink} 
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link 
+                href="/download"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all shadow-lg shadow-[#00a884]/20 hover:scale-105 active:scale-95"
               >
                 <Download className="h-4 w-4" />
                 Download APK {config.appVersion ? `v${config.appVersion}` : ''}
-              </a>
+              </Link>
             </div>
 
             {/* Mobile Menu Button */}
@@ -140,21 +138,35 @@ export default function LandingPage() {
 
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#111b21] border-b border-[#202c33] py-4 px-4 space-y-3 animate-fade-in">
-            <a 
-              href="#features" 
+          <div className="md:hidden bg-[#111b21] border-b border-[#202c33] py-4 px-4 space-y-2 animate-fade-in">
+            <Link 
+              href="/features" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
               Features
-            </a>
-            <a 
-              href="#experience" 
+            </Link>
+            <Link 
+              href="/faq" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Experience
-            </a>
+              FAQ
+            </Link>
+            <Link 
+              href="/security" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
+            >
+              Security
+            </Link>
+            <Link 
+              href="/download" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-base font-medium text-[#00a884] hover:bg-[#202c33] font-bold transition-all"
+            >
+              Download Center
+            </Link>
             <Link 
               href="/about" 
               onClick={() => setMobileMenuOpen(false)}
@@ -176,24 +188,22 @@ export default function LandingPage() {
             >
               Privacy Policy
             </Link>
-            <a 
-              href="#faq" 
+            <Link 
+              href="/terms" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              FAQ
-            </a>
+              Terms of Service
+            </Link>
             <div className="pt-3 border-t border-[#202c33]">
-              <a 
-                href={downloadLink} 
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link 
+                href="/download"
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full text-center flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all"
               >
                 <Download className="h-4 w-4" />
                 Download APK {config.appVersion ? `v${config.appVersion}` : ''}
-              </a>
+              </Link>
             </div>
           </div>
         )}
@@ -917,14 +927,14 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-wrap justify-center items-center gap-6 text-xs font-medium">
-              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <Link href="/features" className="hover:text-white transition-colors">Features</Link>
+              <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
+              <Link href="/security" className="hover:text-white transition-colors">Security</Link>
+              <Link href="/download" className="hover:text-white transition-colors">Download</Link>
               <Link href="/about" className="hover:text-white transition-colors">About Us</Link>
               <Link href="/contact" className="hover:text-white transition-colors">Contact Support</Link>
               <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
-              <a href={downloadLink} target="_blank" rel="noopener noreferrer" className="text-[#00a884] hover:underline font-bold">
-                Download APK
-              </a>
             </div>
           </div>
 

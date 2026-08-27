@@ -18,3 +18,7 @@ local.properties
 debug.keystore
 release.jks
 release-keystore-base64.txt
+
+# Ensure Firebase Google Services config is always tracked and never ignored
+!google-services.json
+!app/google-services.json

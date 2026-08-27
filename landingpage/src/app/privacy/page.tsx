@@ -39,10 +39,24 @@ export default function PrivacyPage() {
               <span className="text-xl font-black tracking-tight text-white">{config.appName}</span>
             </Link>
 
-            <Link href="/" className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#8696a0] hover:text-white transition-colors">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Home
-            </Link>
+            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+              <Link href="/" className="text-[#8696a0] hover:text-white transition-colors">Home</Link>
+              <Link href="/features" className="text-[#8696a0] hover:text-white transition-colors">Features</Link>
+              <Link href="/faq" className="text-[#8696a0] hover:text-white transition-colors">FAQ</Link>
+              <Link href="/security" className="text-[#8696a0] hover:text-white transition-colors">Security</Link>
+              <Link href="/download" className="text-[#8696a0] hover:text-white transition-colors">Download</Link>
+              <Link href="/about" className="text-[#8696a0] hover:text-white transition-colors">About</Link>
+              <Link href="/contact" className="text-[#8696a0] hover:text-white transition-colors">Contact</Link>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Link 
+                href="/download"
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all shadow-md"
+              >
+                Download App
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -116,10 +130,15 @@ export default function PrivacyPage() {
       <footer className="bg-[#0b141a] border-t border-[#202c33] py-10 text-xs text-[#8696a0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>&copy; {new Date().getFullYear()} {config.appName}. All rights reserved.</p>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap gap-6">
             <Link href="/" className="hover:text-white">Home</Link>
+            <Link href="/features" className="hover:text-white">Features</Link>
+            <Link href="/faq" className="hover:text-white">FAQ</Link>
+            <Link href="/security" className="hover:text-white">Security</Link>
+            <Link href="/download" className="hover:text-white">Download</Link>
             <Link href="/about" className="hover:text-white">About</Link>
             <Link href="/contact" className="hover:text-white">Contact</Link>
+            <Link href="/privacy" className="hover:text-white">Privacy</Link>
             <Link href="/terms" className="hover:text-white">Terms</Link>
           </div>
         </div>

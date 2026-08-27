@@ -1,1 +1,4 @@
 /build
+
+# Always track Firebase config
+!google-services.json
