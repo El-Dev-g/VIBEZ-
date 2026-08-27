@@ -969,7 +969,6 @@ export default function LandingPage() {
           <div className="border-t border-[#202c33] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
             <p>&copy; {new Date().getFullYear()} {config.appName}. {t('footer.rights')}</p>
             <div className="flex items-center justify-center gap-4">
-              <LanguageSelector />
               <p className="text-[#8696a0]">{t('footer.tagline')}</p>
             </div>
           </div>

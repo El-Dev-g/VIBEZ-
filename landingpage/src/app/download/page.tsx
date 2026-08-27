@@ -570,7 +570,6 @@ export default function DownloadPage() {
             <Link href="/contact" className="hover:text-white">{t('footer.contact')}</Link>
             <Link href="/privacy" className="hover:text-white">{t('footer.privacy')}</Link>
             <Link href="/terms" className="hover:text-white">{t('footer.terms')}</Link>
-            <LanguageSelector />
           </div>
         </div>
       </footer>
