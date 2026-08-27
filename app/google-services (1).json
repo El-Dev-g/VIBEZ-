@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "31813758410",
+    "project_id": "vibez-506519",
+    "storage_bucket": "vibez-506519.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:31813758410:android:edb23c995d0612118ab333",
+        "android_client_info": {
+          "package_name": "com.aistudio.whatsappclone.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "31813758410-n9soef5q5g1eujtovrc2rt9q5812m54c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aistudio.whatsappclone.app",
+            "certificate_hash": "fac61745dc0903786fb9ede62a962b399f7348f0"
+          }
+        },
+        {
+          "client_id": "31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhyd85rt35h1pJ5ZOAgUVD4urCIHIR0aQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "31813758410-gjcpvvsmpo215bejap4hoi3d259lcn4r.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
