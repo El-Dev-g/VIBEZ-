@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Zap } from 'lucide-react';
+// import { Zap } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: (

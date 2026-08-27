@@ -6,8 +6,14 @@ import { updateSettings } from '../services/api';
 
 export default function BadgePriceEditor({ initialPrice }: { initialPrice: number }) {
   const router = useRouter();
-  const [activePrice, setActivePrice] = useState<number>(initialPrice ?? 3.00);
-  const [inputPrice, setInputPrice] = useState<number>(initialPrice ?? 3.00);
+  const [activePrice, setActivePrice] = useState<number>(() => {
+    const parsed = parseFloat(String(initialPrice));
+    return isNaN(parsed) ? 3.00 : parsed;
+  });
+  const [inputPrice, setInputPrice] = useState<number>(() => {
+    const parsed = parseFloat(String(initialPrice));
+    return isNaN(parsed) ? 3.00 : parsed;
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; isError: boolean } | null>(null);
@@ -18,17 +24,21 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (parsed.verificationBadgePrice !== undefined && !isNaN(parsed.verificationBadgePrice)) {
-            setActivePrice(parsed.verificationBadgePrice);
-            setInputPrice(parsed.verificationBadgePrice);
-            return;
+          if (parsed.verificationBadgePrice !== undefined) {
+            const p = parseFloat(String(parsed.verificationBadgePrice));
+            if (!isNaN(p)) {
+              setActivePrice(p);
+              setInputPrice(p);
+              return;
+            }
           }
         } catch (e) {}
       }
     }
-    if (typeof initialPrice === 'number' && !isNaN(initialPrice)) {
-      setActivePrice(initialPrice);
-      setInputPrice(initialPrice);
+    const p = parseFloat(String(initialPrice));
+    if (!isNaN(p)) {
+      setActivePrice(p);
+      setInputPrice(p);
     }
   }, [initialPrice]);
 
@@ -129,7 +139,7 @@ export default function BadgePriceEditor({ initialPrice }: { initialPrice: numbe
               <div className="text-right">
                 <span className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-1">Active Unit Cost</span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-white tracking-tighter">${activePrice.toFixed(2)}</span>
+                  <span className="text-5xl font-black text-white tracking-tighter">${Number(activePrice || 0).toFixed(2)}</span>
                   <span className="text-xs font-black text-emerald-500 uppercase tracking-widest">USD</span>
                 </div>
               </div>

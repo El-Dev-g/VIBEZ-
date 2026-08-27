@@ -189,7 +189,10 @@ export const fetchAdminSessions = async (): Promise<AdminSession[]> => {
       headers: getAdminHeaders(),
       cache: 'no-store'
     });
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    }
   } catch (error) {
     console.error(error);
   }
@@ -217,12 +220,13 @@ export const fetchAuditLogs = async (): Promise<AuditLog[]> => {
     });
     if (!res.ok) throw new Error('Failed to fetch logs');
     const data = await res.json();
+    if (!Array.isArray(data)) return [];
     return data.map((l: any) => ({
-      id: l.id,
-      adminEmail: l.adminEmail,
-      action: l.action,
-      target: l.target,
-      timestamp: new Date(l.timestamp).toLocaleString()
+      id: l.id || Math.random().toString(36).substr(2, 9),
+      adminEmail: l.adminEmail || 'Unknown',
+      action: l.action || 'Unknown Action',
+      target: l.target || 'N/A',
+      timestamp: l.timestamp ? new Date(l.timestamp).toLocaleString() : 'Recent'
     }));
   } catch (error) {
     console.error(error);
@@ -328,13 +332,14 @@ export const fetchReports = async (): Promise<Report[]> => {
     });
     if (!res.ok) throw new Error('Failed to fetch reports');
     const data = await res.json();
+    if (!Array.isArray(data)) return [];
     return data.map((r: any) => ({
       id: r.id,
       reporterName: r.reporterName || 'Unknown',
       reportedUserName: r.reportedUserName || 'Unknown',
       reason: r.reason,
-      status: r.status.charAt(0) + r.status.slice(1).toLowerCase(),
-      timestamp: new Date(r.createdAt).toLocaleString()
+      status: r.status ? r.status.charAt(0) + r.status.slice(1).toLowerCase() : 'Pending',
+      timestamp: r.createdAt ? new Date(r.createdAt).toLocaleString() : 'Recent'
     }));
   } catch (error) {
     console.error(error);
@@ -553,10 +558,11 @@ export const fetchBadgePayments = async (): Promise<BadgeSummary> => {
     });
     if (!res.ok) throw new Error('Failed to fetch badge payments');
     const data = await res.json();
+    const payments = Array.isArray(data.payments) ? data.payments : [];
     return {
-      payments: data.payments.map((p: any) => ({
+      payments: payments.map((p: any) => ({
         ...p,
-        createdAt: new Date(p.createdAt).toLocaleString()
+        createdAt: p.createdAt ? new Date(p.createdAt).toLocaleString() : 'Recent'
       })),
       totalRevenue: data.totalRevenue || 0,
       totalPurchases: data.totalPurchases || 0,
@@ -587,9 +593,10 @@ export const fetchBroadcasts = async (): Promise<BroadcastItem[]> => {
     });
     if (!res.ok) throw new Error('Failed to fetch broadcasts');
     const data = await res.json();
+    if (!Array.isArray(data)) return [];
     return data.map((item: any) => ({
       ...item,
-      sentAt: new Date(item.sentAt).toLocaleString()
+      sentAt: item.sentAt ? new Date(item.sentAt).toLocaleString() : 'Recent'
     }));
   } catch (error) {
     console.error(error);

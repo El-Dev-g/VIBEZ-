@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardShell from './DashboardShell';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { usePathname } from 'next/navigation';
-import { Zap } from 'lucide-react';
+// import { Zap } from 'lucide-react';
 
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -16,7 +16,7 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen w-screen items-center justify-center bg-[#0b1120]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#008069] to-[#25d366] flex items-center justify-center shadow-2xl shadow-emerald-500/30 animate-pulse">
-            <Zap className="text-white w-8 h-8 fill-white/20" />
+            <span className="text-white text-3xl">⚡</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]"></div>
@@ -58,13 +58,13 @@ export default function ClientLayout({
     setIsMounted(true);
   }, []);
 
-  if (!isMounted) {
-    return <div className="h-screen bg-gray-50">{children}</div>;
-  }
-
   return (
     <AuthProvider>
-      <AuthenticatedContent>{children}</AuthenticatedContent>
+      {!isMounted ? (
+        <div className="h-screen bg-gray-50">{children}</div>
+      ) : (
+        <AuthenticatedContent>{children}</AuthenticatedContent>
+      )}
     </AuthProvider>
   );
 }

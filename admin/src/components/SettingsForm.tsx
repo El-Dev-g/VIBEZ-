@@ -41,7 +41,7 @@ export default function SettingsForm({ initialSettings }: SettingsFormProps) {
       setSettings(prev => ({ ...prev, ...result }));
       const priceStr = typeof result.verificationBadgePrice === 'number'
         ? result.verificationBadgePrice.toFixed(2)
-        : (settings.verificationBadgePrice ?? 3.00).toFixed(2);
+        : Number(settings.verificationBadgePrice ?? 3.00).toFixed(2);
       setToast({ text: `Protocol updated: Verification set to $${priceStr}`, isError: false });
       router.refresh();
       setTimeout(() => setToast(null), 4000);

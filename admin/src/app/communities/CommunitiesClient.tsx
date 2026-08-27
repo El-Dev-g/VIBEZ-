@@ -1,0 +1,271 @@
+'use client';
+
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect } from 'react';
+import { fetchAdminCommunities, createOfficialCommunity, AdminCommunityItem, deleteCommunity, toggleOfficialStatus } from '../../services/api';
+
+export default function CommunitiesPage() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [toast, setToast] = useState<{ text: string; isError: boolean } | null>(null);
+  const [communities, setCommunities] = useState<AdminCommunityItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [newCommunity, setNewCommunity] = useState({ name: '', description: '' });
+  const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    loadCommunities();
+  }, []);
+
+  const loadCommunities = async () => {
+    setIsLoading(true);
+    const data = await fetchAdminCommunities();
+    setCommunities(data || []);
+    setIsLoading(false);
+  };
+
+  const showToast = (text: string, isError = false) => {
+    setToast({ text, isError });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleCreate = async () => {
+    if (!newCommunity.name) return;
+    setIsCreating(true);
+    const result = await createOfficialCommunity(newCommunity.name, newCommunity.description);
+    if (result) {
+      showToast('Official Community created successfully!');
+      setShowModal(false);
+      setNewCommunity({ name: '', description: '' });
+      loadCommunities();
+    } else {
+      showToast('Failed to create community.', true);
+    }
+    setIsCreating(false);
+  };
+
+  const handleToggleOfficial = async (id: string, currentStatus: boolean) => {
+    const success = await toggleOfficialStatus(id, !currentStatus);
+    if (success) {
+      showToast(`Community classification updated.`);
+      loadCommunities();
+    } else {
+      showToast('Update failed.', true);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be reversed.`)) return;
+    
+    const success = await deleteCommunity(id);
+    if (success) {
+      showToast('Community purged from system.');
+      loadCommunities();
+    } else {
+      showToast('Failed to delete community.', true);
+    }
+  };
+
+  const filtered = communities.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  return (
+    <div className="space-y-10 animate-fadeIn">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-4xl font-black text-slate-900 tracking-tight">Communities</h2>
+          <p className="text-slate-500 font-bold mt-1">Oversee public channels, member limits, and group moderation.</p>
+        </div>
+        <button 
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-4 text-sm font-black text-white hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Create Official Community
+        </button>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 p-8 space-y-6 animate-scaleIn">
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Create Official Community</h3>
+              <p className="text-slate-500 font-bold text-sm mt-1">Launch a new system-verified community for all citizens.</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Community Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. VIBEZ Official Support"
+                  value={newCommunity.name}
+                  onChange={(e) => setNewCommunity({ ...newCommunity, name: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Mission Statement</label>
+                <textarea
+                  placeholder="What is the purpose of this community?"
+                  value={newCommunity.description}
+                  onChange={(e) => setNewCommunity({ ...newCommunity, description: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 transition-all min-h-[120px] resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-4 bg-slate-50 text-slate-400 hover:bg-slate-100 font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all"
+              >
+                Abort
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={isCreating || !newCommunity.name}
+                className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50"
+              >
+                {isCreating ? 'Synchronizing...' : 'Initialize Community'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className={`p-4 rounded-2xl text-sm font-black border animate-fadeIn ${
+          toast.isError ? 'bg-red-50 text-red-700 border-red-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+        }`}>
+          {toast.text}
+        </div>
+      )}
+
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Total Communities" value={communities.length} icon="🌐" color="bg-blue-500" />
+        <StatCard title="Active Channels" value={communities.reduce((acc, c) => acc + (c.channels || 0), 0)} icon="📺" color="bg-purple-500" />
+        <StatCard title="Global Members" value={(communities || []).reduce((acc, c) => acc + (c.members || 0), 0).toLocaleString()} icon="👥" color="bg-emerald-500" />
+        <StatCard title="Group Limit" value="1,024" icon="🛡️" color="bg-slate-700" />
+      </div>
+
+      {/* Filter and Table Container */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative flex-1 group max-w-xl">
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search communities by name or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-sm"
+            />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Community Name</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Classification</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Pop. Size</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Architecture</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Operational Status</th>
+                  <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Commands</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-20 text-center">
+                      <p className="text-slate-400 font-black uppercase tracking-widest text-xs">No active communities found.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((c) => (
+                    <tr key={c.id} className="group hover:bg-slate-50/50 transition-all duration-200">
+                      <td className="whitespace-nowrap px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 font-black text-xs border border-slate-200 group-hover:scale-110 transition-transform">
+                            {c.name?.charAt(0) || '?'}
+                          </div>
+                          <div className="text-sm font-black text-slate-900">{c.name}</div>
+                          {c.isOfficial && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase tracking-widest">Official</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-8 py-6">
+                        <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200">{c.category}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-8 py-6 text-sm font-black text-slate-900">{(c.members || 0).toLocaleString()}</td>
+                      <td className="whitespace-nowrap px-8 py-6 text-sm font-bold text-slate-500">{c.channels} Channels</td>
+                      <td className="whitespace-nowrap px-8 py-6">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${
+                          c.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${c.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-8 py-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleToggleOfficial(c.id, c.isOfficial || false)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                              c.isOfficial 
+                                ? 'bg-slate-900 text-white hover:bg-slate-700' 
+                                : 'bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white'
+                            }`}
+                          >
+                            {c.isOfficial ? 'Unmark System' : 'Mark System'}
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(c.id, c.name)}
+                            className="px-4 py-2 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                          >
+                            Purge
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon, color }: { title: string; value: string | number; icon: string; color: string }) {
+  return (
+    <div className="relative group overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/50">
+      <div className="flex items-center justify-between">
+        <div className={`w-12 h-12 rounded-2xl ${color} flex items-center justify-center text-white text-xl shadow-lg shadow-current/20 transition-transform group-hover:scale-110`}>
+          {icon}
+        </div>
+      </div>
+      <div className="mt-6">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{title}</h3>
+        <p className="mt-1 text-3xl font-black text-slate-900 tracking-tight">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
