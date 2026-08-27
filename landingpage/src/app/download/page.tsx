@@ -94,9 +94,9 @@ export default function DownloadPage() {
     }
   }, []);
 
-  const downloadLink = config.appDownloadUrl && config.appDownloadUrl.trim() !== ''
-    ? config.appDownloadUrl
-    : 'https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app';
+  // Determine active download target - No static fallback, strictly respect admin configuration
+  const hasDownloadUrl = Boolean(config.appDownloadUrl && config.appDownloadUrl.trim() !== '');
+  const downloadLink = hasDownloadUrl ? config.appDownloadUrl : '';
 
   const currentInfo = ANDROID_VERSIONS.find(v => v.version === selectedVersion) || ANDROID_VERSIONS[1];
 
@@ -146,15 +146,22 @@ export default function DownloadPage() {
 
             <div className="flex items-center gap-3">
               <LanguageSelector />
-              <a 
-                href={downloadLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] text-white transition-all shadow-md active:scale-95"
-              >
-                <Download className="h-3.5 w-3.5" />
-                {t('nav.downloadApk')}
-              </a>
+              {hasDownloadUrl ? (
+                <a 
+                  href={downloadLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] text-white transition-all shadow-md active:scale-95"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {t('nav.downloadApk')}
+                </a>
+              ) : (
+                <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#202c33] text-[#8696a0] border border-[#2a3942]">
+                  <Clock className="h-3.5 w-3.5 text-amber-400" />
+                  {t('hero.noAppAvailable') || 'No App Available'}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -201,16 +208,41 @@ export default function DownloadPage() {
                 </div>
               </div>
 
-              {/* Pulsating Download Button */}
-              <a 
-                href={downloadLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-download-pulse w-full py-4 px-8 rounded-2xl bg-[#00a884] text-white font-black text-base shadow-xl shadow-[#00a884]/30 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-              >
-                <Download className="h-5 w-5" />
-                {language === 'es' ? 'Descargar APK Directo Ahora' : 'Download Direct APK Now'}
-              </a>
+              {/* Download Action Area */}
+              {hasDownloadUrl ? (
+                <a 
+                  href={downloadLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-download-pulse w-full py-4 px-8 rounded-2xl bg-[#00a884] text-white font-black text-base shadow-xl shadow-[#00a884]/30 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                >
+                  <Download className="h-5 w-5" />
+                  {language === 'es' ? 'Descargar APK Directo Ahora' : 'Download Direct APK Now'}
+                </a>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-[#0b141a] border border-amber-500/30 flex items-start gap-3 text-left">
+                    <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-1">
+                      <div className="font-bold text-amber-300">
+                        {language === 'es' ? 'Descarga de APK Pendiente' : 'APK Release Pending'}
+                      </div>
+                      <p className="text-[#8696a0] leading-relaxed">
+                        {language === 'es' 
+                          ? 'El administrador aún no ha configurado el enlace de descarga del APK en el Panel de Administración. Vuelve a consultar pronto.' 
+                          : 'The administrator has not configured the APK download link in the Admin Panel yet. Please check back shortly.'}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    disabled
+                    className="w-full py-4 px-8 rounded-2xl bg-[#202c33] border border-[#2a3942] text-[#8696a0] font-bold text-base cursor-not-allowed flex items-center justify-center gap-2.5 opacity-80"
+                  >
+                    <Clock className="h-5 w-5 text-amber-400" />
+                    {language === 'es' ? 'No hay APK Disponible' : 'No App Available'}
+                  </button>
+                </div>
+              )}
 
               <div className="flex items-center justify-center gap-6 text-[11px] text-[#8696a0]">
                 <div className="flex items-center gap-1.5">
@@ -340,15 +372,22 @@ export default function DownloadPage() {
                 </div>
 
                 {currentInfo.supported ? (
-                  <a
-                    href={downloadLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-download-pulse shrink-0 self-start sm:self-center px-4 py-2.5 rounded-xl bg-[#00a884] text-white text-xs font-bold shadow-lg shadow-[#00a884]/20 flex items-center gap-2 active:scale-95"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    {language === 'es' ? 'Descargar APK' : 'Download APK'}
-                  </a>
+                  hasDownloadUrl ? (
+                    <a
+                      href={downloadLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-download-pulse shrink-0 self-start sm:self-center px-4 py-2.5 rounded-xl bg-[#00a884] text-white text-xs font-bold shadow-lg shadow-[#00a884]/20 flex items-center gap-2 active:scale-95"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      {language === 'es' ? 'Descargar APK' : 'Download APK'}
+                    </a>
+                  ) : (
+                    <div className="shrink-0 self-start sm:self-center px-3.5 py-2 rounded-xl bg-[#202c33] border border-[#2a3942] text-[#8696a0] text-xs font-semibold flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-amber-400" />
+                      {language === 'es' ? 'No Disponible' : 'Not Available Yet'}
+                    </div>
+                  )
                 ) : (
                   <div className="shrink-0 self-start sm:self-center px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5" />

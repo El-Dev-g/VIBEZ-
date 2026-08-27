@@ -84,10 +84,9 @@ export default function LandingPage() {
     setOpenFaq(openFaq === index ? null : index);
   };
 
-  // Determine active download target
-  const downloadLink = config.appDownloadUrl && config.appDownloadUrl.trim() !== ''
-    ? config.appDownloadUrl
-    : 'https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app';
+  // Determine active download target - No static fallback, strictly respect admin configuration
+  const hasDownloadUrl = Boolean(config.appDownloadUrl && config.appDownloadUrl.trim() !== '');
+  const downloadLink = hasDownloadUrl ? config.appDownloadUrl : '';
 
   return (
     <div className="min-h-screen bg-[#0b141a] text-[#e9edef] selection:bg-[#00a884] selection:text-white">
@@ -247,15 +246,25 @@ export default function LandingPage() {
 
               {/* Action Buttons with dynamic admin APK download link */}
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-                <a 
-                  href={downloadLink} 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-download-pulse w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 transition-all active:scale-95"
-                >
-                  <Download className="h-5 w-5" />
-                  Download APK for Android
-                </a>
+                {hasDownloadUrl ? (
+                  <a 
+                    href={downloadLink} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-download-pulse w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 transition-all active:scale-95"
+                  >
+                    <Download className="h-5 w-5" />
+                    {t('hero.downloadBtn') || 'Download APK for Android'}
+                  </a>
+                ) : (
+                  <Link 
+                    href="/download"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-[#8696a0] hover:text-white font-bold text-base transition-all"
+                  >
+                    <Clock className="h-5 w-5 text-amber-400" />
+                    {t('hero.noAppAvailable') || 'No App Available'}
+                  </Link>
+                )}
                 <a 
                   href="#experience" 
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-[#111b21] hover:bg-[#202c33] border border-[#202c33] text-white font-semibold text-base transition-all hover:-translate-y-0.5"
@@ -904,15 +913,25 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-            <a 
-              href={downloadLink} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="btn-download-pulse w-full text-center px-8 py-4 rounded-full bg-[#00a884] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 active:scale-95 transition-all flex items-center justify-center gap-2.5"
-            >
-              <Download className="h-5 w-5" />
-              Download APK Directly {config.appVersion ? `(v${config.appVersion})` : ''}
-            </a>
+            {hasDownloadUrl ? (
+              <a 
+                href={downloadLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="btn-download-pulse w-full text-center px-8 py-4 rounded-full bg-[#00a884] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 active:scale-95 transition-all flex items-center justify-center gap-2.5"
+              >
+                <Download className="h-5 w-5" />
+                {t('hero.downloadBtn') || 'Download APK Directly'} {config.appVersion ? `(v${config.appVersion})` : ''}
+              </a>
+            ) : (
+              <Link 
+                href="/download"
+                className="w-full text-center px-8 py-4 rounded-full bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-[#8696a0] hover:text-white font-bold text-base transition-all flex items-center justify-center gap-2.5"
+              >
+                <Clock className="h-5 w-5 text-amber-400" />
+                {t('hero.noAppAvailable') || 'No App Available'}
+              </Link>
+            )}
           </div>
 
           <p className="text-xs text-[#8696a0]">

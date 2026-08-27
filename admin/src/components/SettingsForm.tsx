@@ -4,9 +4,30 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SystemSettings, updateSettings } from '@/services/api';
 
-export default function SettingsForm({ initialSettings }: { initialSettings: SystemSettings }) {
+interface SettingsFormProps {
+  initialSettings?: SystemSettings | null;
+}
+
+const DEFAULT_FORM_SETTINGS: SystemSettings = {
+  allowNewRegistrations: true,
+  maintenanceMode: false,
+  maxGroupSize: 1024,
+  retentionDays: 90,
+  verificationBadgePrice: 3.00,
+  appDownloadUrl: '',
+  appVersion: '1.0.0',
+  appName: 'VIBEZ',
+  contactEmail: 'support@vibez.chat',
+  contactPhone: '+1 (800) 555-0199',
+  supportAddress: 'San Francisco, CA, USA'
+};
+
+export default function SettingsForm({ initialSettings }: SettingsFormProps) {
   const router = useRouter();
-  const [settings, setSettings] = useState<SystemSettings>(initialSettings);
+  const [settings, setSettings] = useState<SystemSettings>(() => ({
+    ...DEFAULT_FORM_SETTINGS,
+    ...(initialSettings || {})
+  }));
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ text: string; isError: boolean } | null>(null);
 
@@ -17,8 +38,11 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Sys
     setIsSaving(false);
 
     if (result) {
-      setSettings(result);
-      setToast({ text: `Protocol updated: Verification set to $${result.verificationBadgePrice.toFixed(2)}`, isError: false });
+      setSettings(prev => ({ ...prev, ...result }));
+      const priceStr = typeof result.verificationBadgePrice === 'number'
+        ? result.verificationBadgePrice.toFixed(2)
+        : (settings.verificationBadgePrice ?? 3.00).toFixed(2);
+      setToast({ text: `Protocol updated: Verification set to $${priceStr}`, isError: false });
       router.refresh();
       setTimeout(() => setToast(null), 4000);
     } else {

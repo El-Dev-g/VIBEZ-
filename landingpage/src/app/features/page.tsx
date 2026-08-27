@@ -51,9 +51,9 @@ export default function FeaturesPage() {
     });
   }, []);
 
-  const downloadLink = config.appDownloadUrl && config.appDownloadUrl.trim() !== ''
-    ? config.appDownloadUrl
-    : 'https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app';
+  // Determine active download target - No static fallback
+  const hasDownloadUrl = Boolean(config.appDownloadUrl && config.appDownloadUrl.trim() !== '');
+  const downloadLink = hasDownloadUrl ? config.appDownloadUrl : '';
 
   const featureList = [
     {
@@ -206,15 +206,25 @@ export default function FeaturesPage() {
 
             <div className="flex items-center gap-3">
               <LanguageSelector />
-              <a 
-                href={downloadLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] text-white transition-all shadow-md active:scale-95"
-              >
-                <Download className="h-3.5 w-3.5" />
-                {t('nav.downloadApk')}
-              </a>
+              {hasDownloadUrl ? (
+                <a 
+                  href={downloadLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] text-white transition-all shadow-md active:scale-95"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {t('nav.downloadApk')}
+                </a>
+              ) : (
+                <Link 
+                  href="/download"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#202c33] text-[#8696a0] hover:text-white border border-[#2a3942] transition-colors"
+                >
+                  <Clock className="h-3.5 w-3.5 text-amber-400" />
+                  {t('hero.noAppAvailable') || 'No App Available'}
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -321,15 +331,25 @@ export default function FeaturesPage() {
             Download the Android APK today and enjoy zero ads, crystal-clear calls, and private messaging.
           </p>
           <div className="pt-2">
-            <a 
-              href={downloadLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-sm shadow-xl shadow-[#00a884]/20 transition-all hover:scale-105"
-            >
-              <Download className="h-4 w-4" />
-              Download APK for Android {config.appVersion ? `(v${config.appVersion})` : ''}
-            </a>
+            {hasDownloadUrl ? (
+              <a 
+                href={downloadLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-download-pulse inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-sm shadow-xl shadow-[#00a884]/20 transition-all hover:scale-105"
+              >
+                <Download className="h-4 w-4" />
+                Download APK for Android {config.appVersion ? `(v${config.appVersion})` : ''}
+              </a>
+            ) : (
+              <Link 
+                href="/download"
+                className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] text-[#8696a0] hover:text-white font-bold text-sm transition-all"
+              >
+                <Clock className="h-4 w-4 text-amber-400" />
+                {t('hero.noAppAvailable') || 'No App Available'}
+              </Link>
+            )}
           </div>
         </div>
       </section>

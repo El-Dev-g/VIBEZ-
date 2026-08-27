@@ -16,16 +16,33 @@ import {
 } from '@/services/api';
 
 interface AdminSettingsDashboardProps {
-  initialSettings: SystemSettings;
+  initialSettings?: SystemSettings | null;
 }
+
+const DEFAULT_SETTINGS: SystemSettings = {
+  allowNewRegistrations: true,
+  maintenanceMode: false,
+  maxGroupSize: 1024,
+  retentionDays: 90,
+  verificationBadgePrice: 3.00,
+  appDownloadUrl: '',
+  appVersion: '1.0.0',
+  appName: 'VIBEZ',
+  contactEmail: 'support@vibez.chat',
+  contactPhone: '+1 (800) 555-0199',
+  supportAddress: 'San Francisco, CA, USA'
+};
 
 export default function AdminSettingsDashboard({ initialSettings }: AdminSettingsDashboardProps) {
   const router = useRouter();
   const { logout, refreshProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'notifications' | 'security' | 'logs' | 'logout'>('profile');
   
-  // Settings Tab state
-  const [settings, setSettings] = useState<SystemSettings>(initialSettings);
+  // Settings Tab state with reliable defaults
+  const [settings, setSettings] = useState<SystemSettings>(() => ({
+    ...DEFAULT_SETTINGS,
+    ...(initialSettings || {})
+  }));
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsToast, setSettingsToast] = useState<{ text: string; isError: boolean } | null>(null);
 
@@ -63,11 +80,21 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
 
   useEffect(() => {
+    if (initialSettings) {
+      setSettings(prev => ({
+        ...DEFAULT_SETTINGS,
+        ...prev,
+        ...initialSettings
+      }));
+    }
+  }, [initialSettings]);
+
+  useEffect(() => {
     async function loadLogs() {
       try {
         setIsLoadingLogs(true);
         const logs = await fetchAuditLogs();
-        setAuditLogs(logs);
+        setAuditLogs(logs || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -81,11 +108,11 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
         if (data) {
           setProfile({
             name: data.name || 'System Admin',
-            email: data.email,
-            role: data.role,
+            email: data.email || 'admin@vibez.app',
+            role: data.role || 'SuperAdmin',
             photo: data.photo || '',
           });
-          setIs2FaEnabled(data.twoFactorEnabled);
+          setIs2FaEnabled(Boolean(data.twoFactorEnabled));
         }
       } catch (err) {
         console.error('Error loading admin profile:', err);
@@ -121,8 +148,11 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
     setIsSavingSettings(false);
 
     if (result) {
-      setSettings(result);
-      setSettingsToast({ text: `System parameters updated: Verification priced at $${result.verificationBadgePrice.toFixed(2)}`, isError: false });
+      setSettings(prev => ({ ...prev, ...result }));
+      const priceStr = typeof result.verificationBadgePrice === 'number'
+        ? result.verificationBadgePrice.toFixed(2)
+        : (settings.verificationBadgePrice ?? 3.00).toFixed(2);
+      setSettingsToast({ text: `System parameters updated: Verification priced at $${priceStr}`, isError: false });
       router.refresh();
       setTimeout(() => setSettingsToast(null), 4000);
     } else {
@@ -401,14 +431,14 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSettings({ ...settings, allowNewRegistrations: !settings.allowNewRegistrations })}
+                    onClick={() => setSettings({ ...settings, allowNewRegistrations: !settings?.allowNewRegistrations })}
                     className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${
-                      settings.allowNewRegistrations ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'
+                      settings?.allowNewRegistrations ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'
                     }`}
                   >
                     <div
                       className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
-                        settings.allowNewRegistrations ? 'translate-x-6' : 'translate-x-0'
+                        settings?.allowNewRegistrations ? 'translate-x-6' : 'translate-x-0'
                       }`}
                     />
                   </button>
@@ -422,14 +452,14 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })}
+                    onClick={() => setSettings({ ...settings, maintenanceMode: !settings?.maintenanceMode })}
                     className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${
-                      settings.maintenanceMode ? 'bg-amber-500 shadow-lg shadow-amber-500/30' : 'bg-slate-300'
+                      settings?.maintenanceMode ? 'bg-amber-500 shadow-lg shadow-amber-500/30' : 'bg-slate-300'
                     }`}
                   >
                     <div
                       className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
-                        settings.maintenanceMode ? 'translate-x-6' : 'translate-x-0'
+                        settings?.maintenanceMode ? 'translate-x-6' : 'translate-x-0'
                       }`}
                     />
                   </button>
@@ -444,7 +474,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                     type="number"
                     step="0.01"
                     min="0.50"
-                    value={settings.verificationBadgePrice}
+                    value={settings?.verificationBadgePrice ?? 3.00}
                     onChange={(e) => setSettings({ ...settings, verificationBadgePrice: parseFloat(e.target.value) || 0 })}
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
                   />
@@ -454,7 +484,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Max Group Size</label>
                   <input
                     type="number"
-                    value={settings.maxGroupSize}
+                    value={settings?.maxGroupSize ?? 1024}
                     onChange={(e) => setSettings({ ...settings, maxGroupSize: parseInt(e.target.value) || 1024 })}
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
                   />
@@ -464,7 +494,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Data Retention (Days)</label>
                   <input
                     type="number"
-                    value={settings.retentionDays}
+                    value={settings?.retentionDays ?? 90}
                     onChange={(e) => setSettings({ ...settings, retentionDays: parseInt(e.target.value) || 90 })}
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
                   />

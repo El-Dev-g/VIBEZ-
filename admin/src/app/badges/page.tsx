@@ -4,7 +4,14 @@ import BadgePriceEditor from '@/components/BadgePriceEditor';
 export const dynamic = 'force-dynamic';
 
 export default async function BadgesPage() {
-  const data = await fetchBadgePayments();
+  const rawData = await fetchBadgePayments();
+  const data = {
+    verificationBadgePrice: rawData?.verificationBadgePrice ?? 3.00,
+    totalRevenue: rawData?.totalRevenue ?? 0,
+    totalPurchases: rawData?.totalPurchases ?? 0,
+    verifiedUsersCount: rawData?.verifiedUsersCount ?? 0,
+    payments: rawData?.payments || []
+  };
 
   return (
     <div className="space-y-10 animate-fadeIn">
@@ -22,9 +29,9 @@ export default async function BadgesPage() {
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <RevenueCard title="Total Badge Revenue" value={`$${data.totalRevenue.toFixed(2)}`} label="Verification Sales" icon="💰" color="bg-emerald-500" />
-        <RevenueCard title="Total Purchases" value={data.totalPurchases} label="Successful Transactions" icon="💳" color="bg-blue-500" />
-        <RevenueCard title="Verified Citizens" value={data.verifiedUsersCount} label="Active Green Badges" icon="✅" color="bg-purple-500" />
+        <RevenueCard title="Total Badge Revenue" value={`$${(data.totalRevenue || 0).toFixed(2)}`} label="Verification Sales" icon="💰" color="bg-emerald-500" />
+        <RevenueCard title="Total Purchases" value={data.totalPurchases || 0} label="Successful Transactions" icon="💳" color="bg-blue-500" />
+        <RevenueCard title="Verified Citizens" value={data.verifiedUsersCount || 0} label="Active Green Badges" icon="✅" color="bg-purple-500" />
       </div>
 
       {/* Transaction History Section */}
@@ -40,7 +47,7 @@ export default async function BadgesPage() {
         </div>
 
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
-          {data.payments.length === 0 ? (
+          {(data.payments || []).length === 0 ? (
             <div className="p-20 text-center flex flex-col items-center gap-4">
               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -63,7 +70,7 @@ export default async function BadgesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white text-sm">
-                  {data.payments.map((p) => (
+                  {(data.payments || []).map((p) => (
                     <tr key={p.id} className="group hover:bg-slate-50/50 transition-all duration-200">
                       <td className="px-8 py-5 whitespace-nowrap">
                         <div className="flex items-center gap-4">
@@ -80,20 +87,20 @@ export default async function BadgesPage() {
                         </div>
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap font-black text-slate-900">
-                        ${p.amount.toFixed(2)} <span className="text-[10px] text-slate-400 uppercase tracking-widest">{p.currency}</span>
+                        ${(p.amount || 0).toFixed(2)} <span className="text-[10px] text-slate-400 uppercase tracking-widest">{p.currency || 'USD'}</span>
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap">
                         <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                          {p.paymentProvider}
+                          {p.paymentProvider || 'Direct'}
                         </span>
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap font-mono text-[10px] font-bold text-slate-400 tracking-tighter">
-                        {p.transactionId}
+                        {p.transactionId || p.id}
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-wider border border-emerald-100">
                           <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                          {p.status}
+                          {p.status || 'Completed'}
                         </span>
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">

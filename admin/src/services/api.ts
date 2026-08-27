@@ -55,17 +55,6 @@ export const getAdminHeaders = (): Record<string, string> => {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-  } else {
-    try {
-      const { cookies } = require('next/headers');
-      const cookieStore = cookies();
-      const token = cookieStore.get('admin_token')?.value;
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    } catch {
-      // Out of request context
-    }
   }
   return headers;
 };

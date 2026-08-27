@@ -15,7 +15,8 @@ import {
   Lock, 
   Users, 
   ArrowRight,
-  Mail
+  Mail,
+  Clock
 } from 'lucide-react';
 import { fetchPublicAppConfig, PublicAppConfig } from '../../lib/api';
 import { useLanguage, LanguageSelector } from '../../lib/LanguageContext';
@@ -49,9 +50,9 @@ export default function FaqPage() {
     });
   }, []);
 
-  const downloadLink = config.appDownloadUrl && config.appDownloadUrl.trim() !== ''
-    ? config.appDownloadUrl
-    : 'https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app';
+  // Determine active download target - No static fallback
+  const hasDownloadUrl = Boolean(config.appDownloadUrl && config.appDownloadUrl.trim() !== '');
+  const downloadLink = hasDownloadUrl ? config.appDownloadUrl : '';
 
   const faqs: FaqItem[] = [
     {
@@ -157,15 +158,25 @@ export default function FaqPage() {
 
             <div className="flex items-center gap-3">
               <LanguageSelector />
-              <a 
-                href={downloadLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] text-white transition-all shadow-md active:scale-95"
-              >
-                <Download className="h-3.5 w-3.5" />
-                {t('nav.downloadApk')}
-              </a>
+              {hasDownloadUrl ? (
+                <a 
+                  href={downloadLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] text-white transition-all shadow-md active:scale-95"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {t('nav.downloadApk')}
+                </a>
+              ) : (
+                <Link 
+                  href="/download"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#202c33] text-[#8696a0] hover:text-white border border-[#2a3942] transition-colors"
+                >
+                  <Clock className="h-3.5 w-3.5 text-amber-400" />
+                  {t('hero.noAppAvailable') || 'No App Available'}
+                </Link>
+              )}
             </div>
           </div>
         </div>

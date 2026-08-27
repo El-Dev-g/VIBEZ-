@@ -4,7 +4,12 @@ import AdminSettingsDashboard from '@/components/AdminSettingsDashboard';
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const settings = await fetchSettings();
+  let settings = null;
+  try {
+    settings = await fetchSettings();
+  } catch (error) {
+    console.error('SettingsPage fetchSettings error:', error);
+  }
 
   return (
     <AdminSettingsDashboard initialSettings={settings} />

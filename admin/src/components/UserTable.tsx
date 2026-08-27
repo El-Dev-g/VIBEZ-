@@ -4,11 +4,11 @@ import { User, UserDetails, banUser, unbanUser, deleteUser, fetchUserById } from
 import { useState } from 'react';
 
 interface UserTableProps {
-  initialUsers: User[];
+  initialUsers?: User[] | null;
 }
 
 export default function UserTable({ initialUsers }: UserTableProps) {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<User[]>(initialUsers || []);
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
   const [loadingUser, setLoadingUser] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
