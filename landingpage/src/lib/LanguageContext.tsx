@@ -9,7 +9,7 @@ export type Language = 'en' | 'es' | 'fr' | 'de' | 'pt' | 'ar' | 'it' | 'ru'
 export interface LanguageContextType {
   language: Language
   setLanguage: (lang: Language) => void
-  t: (path: string, fallback?: string) => string
+  t: (path: string, variablesOrFallback?: Record<string, any> | string, fallback?: string) => string
   dict: typeof translationsData.en
 }
 
@@ -56,9 +56,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const dict = translationsData[language] || translationsData.en
 
-  const t = (path: string, fallback = ''): string => {
+  const t = (path: string, variablesOrFallback?: Record<string, any> | string, fallback = ''): string => {
     const keys = path.split('.')
     let current: any = dict
+    
+    const variables = typeof variablesOrFallback === 'object' ? variablesOrFallback : undefined
+    const actualFallback = typeof variablesOrFallback === 'string' ? variablesOrFallback : fallback
+
+    let result = ''
+
     for (const key of keys) {
       if (current && typeof current === 'object' && key in current) {
         current = current[key]
@@ -69,13 +75,29 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           if (fallbackCurrent && typeof fallbackCurrent === 'object' && fbKey in fallbackCurrent) {
             fallbackCurrent = fallbackCurrent[fbKey]
           } else {
-            return fallback || path
+            result = actualFallback || path
+            break
           }
         }
-        return typeof fallbackCurrent === 'string' ? fallbackCurrent : (fallback || path)
+        if (!result) {
+          result = typeof fallbackCurrent === 'string' ? fallbackCurrent : (actualFallback || path)
+        }
+        break
       }
     }
-    return typeof current === 'string' ? current : (fallback || path)
+
+    if (!result) {
+      result = typeof current === 'string' ? current : (actualFallback || path)
+    }
+
+    // Interpolate variables
+    if (variables) {
+      Object.entries(variables).forEach(([key, value]) => {
+        result = result.replace(new RegExp(`{${key}}`, 'g'), String(value))
+      })
+    }
+
+    return result
   }
 
   return (

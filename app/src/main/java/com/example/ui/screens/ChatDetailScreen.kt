@@ -133,6 +133,7 @@ fun ChatDetailScreen(
     isTyping: Boolean = false,
     customWallpaper: String? = null,
     wallpaperDimming: Float = 0.15f,
+    isAdmin: Boolean = false,
     onBackClick: () -> Unit,
     onContactInfoClick: () -> Unit,
     onWallpaperClick: () -> Unit = {},
@@ -1021,7 +1022,7 @@ fun ChatDetailScreen(
                 }
 
                 // Chat Input Bar
-                if (chat.isOfficial && !chat.allowComments) {
+                if (chat != null && chat.isOfficial && !chat.allowComments && !isAdmin) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

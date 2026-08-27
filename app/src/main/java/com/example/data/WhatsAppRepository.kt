@@ -154,15 +154,22 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     fun getMessagesFlow(chatId: String): Flow<List<MessageEntity>> = MutableStateFlow(_currentChatMessages.value[chatId] ?: emptyList())
 
+    fun addLocalMessage(message: MessageEntity) {
+        val currentList = _currentChatMessages.value[message.chatId] ?: emptyList()
+        val newList = (currentList + message).distinctBy { it.id }
+        _currentChatMessages.value = _currentChatMessages.value + (message.chatId to newList)
+    }
+
     suspend fun sendMessage(
         chatId: String,
         senderId: String,
         receiverId: String?,
         content: String,
         type: String = "TEXT",
-        token: String
+        token: String,
+        id: String? = null
     ) {
-        socketManager?.sendMessage(chatId, senderId, receiverId, content, type)
+        socketManager?.sendMessage(chatId, senderId, receiverId, content, type, id = id)
     }
 
     private fun parseMessageJson(json: JSONObject): MessageDto {
@@ -390,6 +397,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     suspend fun getCommunityChats(communityId: String, token: String): List<ChatEntity> {
         return try {
             val dtos = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
+            val community = _allCommunities.value.find { it.id == communityId }
             val entities = dtos.map { dto ->
                 ChatEntity(
                     id = dto.id,
@@ -399,7 +407,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
                     unreadCount = 0,
                     isGroup = dto.isGroup,
-                    isOfficial = dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
+                    isOfficial = dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true,
+                    allowComments = community?.allowComments ?: true
                 )
             }
             // Cache these chats so they are available in the global chat list for navigation

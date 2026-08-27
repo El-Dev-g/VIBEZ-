@@ -42,8 +42,9 @@ class SocketManager(private val userId: String) {
         socket?.emit("join_chat", chatId)
     }
 
-    fun sendMessage(chatId: String, senderId: String, receiverId: String?, content: String, type: String, mediaUrl: String? = null, duration: Int? = null) {
+    fun sendMessage(chatId: String, senderId: String, receiverId: String?, content: String, type: String, mediaUrl: String? = null, duration: Int? = null, id: String? = null) {
         val data = JSONObject().apply {
+            put("id", id ?: java.util.UUID.randomUUID().toString())
             put("chatId", chatId)
             put("senderId", senderId)
             put("receiverId", receiverId)

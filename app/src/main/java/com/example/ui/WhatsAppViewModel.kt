@@ -515,14 +515,32 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         voiceDurationSeconds: Int = 0,
         replyToMessageId: String? = null
     ) {
+        val tempId = java.util.UUID.randomUUID().toString()
+        val senderId = authManager.getUserId() ?: "ME"
+        
+        // Optimistic UI: Add message locally immediately
+        val localMessage = com.example.data.MessageEntity(
+            id = tempId,
+            chatId = chatId,
+            senderId = senderId,
+            content = content,
+            timestamp = System.currentTimeMillis(),
+            status = "SENDING",
+            messageType = messageType,
+            mediaUrl = mediaUrl,
+            voiceDurationSeconds = voiceDurationSeconds
+        )
+        repository.addLocalMessage(localMessage)
+
         viewModelScope.launch {
             repository.sendMessage(
                 chatId = chatId,
-                senderId = authManager.getUserId() ?: "ME",
-                receiverId = null, // Backend can infer or we pass it
+                senderId = senderId,
+                receiverId = null,
                 content = content,
                 type = messageType,
-                token = authManager.getAuthToken() ?: ""
+                token = authManager.getAuthToken() ?: "",
+                id = tempId
             )
 
             // Trigger typing indicator animation then auto-reply

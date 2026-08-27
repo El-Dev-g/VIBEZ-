@@ -530,6 +530,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
             val contact = chat?.let { c -> contacts.firstOrNull { it.id == c.contactId } }
 
+            val currentUserId = viewModel.authManager.getUserId() ?: ""
+            val matchingCommunity = communities.firstOrNull {
+                it.name.equals(chat?.contactName, ignoreCase = true) ||
+                chat?.contactName?.contains(it.name, ignoreCase = true) == true ||
+                (chat?.isOfficial == true && it.isOfficial)
+            }
+            val isAdmin = matchingCommunity?.ownerId == currentUserId
+
             ChatDetailScreen(
                 chat = chat,
                 contact = contact,
@@ -538,6 +546,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 isTyping = (typingChatId == chatId),
                 customWallpaper = customWallpaper,
                 wallpaperDimming = initialDimming,
+                isAdmin = isAdmin,
                 onBackClick = { navController.popBackStack() },
                 onContactInfoClick = {
                     if (chat != null) {
