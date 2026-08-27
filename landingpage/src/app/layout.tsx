@@ -1,6 +1,8 @@
 import './globals.css'
 import React from 'react'
 import { LanguageProvider } from '@/lib/LanguageContext'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 
 export const metadata = {
   title: 'VIBEZ - Secure, Next-Gen Communication Suite',
@@ -17,9 +19,15 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className="antialiased">
+      <body className="antialiased bg-[#0b141a]">
         <LanguageProvider>
-          {children}
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-grow">
+              {children}
+            </main>
+            <Footer />
+          </div>
         </LanguageProvider>
       </body>
     </html>

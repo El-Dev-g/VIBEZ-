@@ -32,7 +32,6 @@ import { useLanguage, LanguageSelector } from '../lib/LanguageContext';
 
 export default function LandingPage() {
   const { t, dict, language } = useLanguage();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'chats' | 'calls' | 'status' | 'privacy'>('chats');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -89,134 +88,8 @@ export default function LandingPage() {
   const downloadLink = hasDownloadUrl ? config.appDownloadUrl : '';
 
   return (
-    <div className="min-h-screen bg-[#0b141a] text-[#e9edef] selection:bg-[#00a884] selection:text-white">
+    <div className="bg-[#0b141a] text-[#e9edef] selection:bg-[#00a884] selection:text-white">
       
-      {/* 1. Navigation Header */}
-      <nav className="sticky top-0 z-50 backdrop-blur-md bg-[#0b141a]/85 border-b border-[#202c33] transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-lg shadow-[#00a884]/15 flex items-center justify-center">
-                <div className="h-full w-full rounded-[10px] bg-[#0b141a] flex items-center justify-center">
-                  <MessageSquare className="h-5 w-5 text-[#00a884]" />
-                </div>
-              </div>
-              <span className="text-2xl font-black tracking-tight text-white">
-                {config.appName}
-              </span>
-            </Link>
-
-            {/* Desktop Navigation Links */}
-            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-              <Link href="/features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.features')}</Link>
-              <Link href="/faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.faq')}</Link>
-              <Link href="/security" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.security')}</Link>
-              <Link href="/download" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.download')}</Link>
-              <Link href="/about" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.about')}</Link>
-              <Link href="/contact" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.contact')}</Link>
-            </div>
-
-            {/* Call to Action Button & Language Selector */}
-            <div className="hidden md:flex items-center gap-3">
-              <LanguageSelector />
-              <Link 
-                href="/download"
-                className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-[#00a884] text-white transition-all shadow-lg shadow-[#00a884]/20 active:scale-95"
-              >
-                <Download className="h-4 w-4" />
-                {t('nav.downloadApk')} {config.appVersion ? `v${config.appVersion}` : ''}
-              </Link>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center gap-2">
-              <LanguageSelector />
-              <button 
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg hover:bg-[#202c33] text-[#8696a0] hover:text-white transition-colors"
-                aria-label="Toggle menu"
-              >
-                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu Dropdown */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-[#111b21] border-b border-[#202c33] py-4 px-4 space-y-2 animate-fade-in">
-            <Link 
-              href="/features" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
-            >
-              {t('nav.features')}
-            </Link>
-            <Link 
-              href="/faq" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
-            >
-              {t('nav.faq')}
-            </Link>
-            <Link 
-              href="/security" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
-            >
-              {t('nav.security')}
-            </Link>
-            <Link 
-              href="/download" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-base font-medium text-[#00a884] hover:bg-[#202c33] font-bold transition-all"
-            >
-              {t('nav.download')}
-            </Link>
-            <Link 
-              href="/about" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
-            >
-              {t('nav.about')}
-            </Link>
-            <Link 
-              href="/contact" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
-            >
-              {t('nav.contact')}
-            </Link>
-            <Link 
-              href="/privacy" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
-            >
-              {t('nav.privacy')}
-            </Link>
-            <Link 
-              href="/terms" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
-            >
-              {t('nav.terms')}
-            </Link>
-            <div className="pt-3 border-t border-[#202c33]">
-              <Link 
-                href="/download"
-                onClick={() => setMobileMenuOpen(false)}
-                className="btn-download-pulse w-full text-center flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-bold bg-[#00a884] text-white transition-all shadow-lg shadow-[#00a884]/20 active:scale-95"
-              >
-                <Download className="h-4 w-4" />
-                {t('nav.downloadApk')} {config.appVersion ? `v${config.appVersion}` : ''}
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
-
       {/* 2. Hero Section */}
       <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-32">
         {/* Glow ambient background effects */}
@@ -939,42 +812,6 @@ export default function LandingPage() {
           </p>
         </div>
       </section>
-
-      {/* 8. User-Friendly Footer */}
-      <footer className="bg-[#0b141a] border-t border-[#202c33] py-12 text-xs text-[#8696a0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 flex items-center justify-center">
-                <div className="h-full w-full rounded-[6px] bg-[#0b141a] flex items-center justify-center">
-                  <MessageSquare className="h-4 w-4 text-[#00a884]" />
-                </div>
-              </div>
-              <span className="text-base font-black tracking-tight text-white">{config.appName}</span>
-            </div>
-
-            <div className="flex flex-wrap justify-center items-center gap-6 text-xs font-medium">
-              <Link href="/features" className="hover:text-white transition-colors">{t('footer.features')}</Link>
-              <Link href="/faq" className="hover:text-white transition-colors">{t('footer.faq')}</Link>
-              <Link href="/security" className="hover:text-white transition-colors">{t('footer.security')}</Link>
-              <Link href="/download" className="hover:text-white transition-colors">{t('footer.download')}</Link>
-              <Link href="/about" className="hover:text-white transition-colors">{t('footer.about')}</Link>
-              <Link href="/contact" className="hover:text-white transition-colors">{t('footer.contact')}</Link>
-              <Link href="/privacy" className="hover:text-white transition-colors">{t('footer.privacy')}</Link>
-              <Link href="/terms" className="hover:text-white transition-colors">{t('footer.terms')}</Link>
-            </div>
-          </div>
-
-          <div className="border-t border-[#202c33] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-            <p>&copy; {new Date().getFullYear()} {config.appName}. {t('footer.rights')}</p>
-            <div className="flex items-center justify-center gap-4">
-              <p className="text-[#8696a0]">{t('footer.tagline')}</p>
-            </div>
-          </div>
-
-        </div>
-      </footer>
 
     </div>
   );
