@@ -1,5 +1,6 @@
 import './globals.css'
 import React from 'react'
+import { LanguageProvider } from '@/lib/LanguageContext'
 
 export const metadata = {
   title: 'VIBEZ - Secure, Next-Gen Communication Suite',
@@ -16,7 +17,11 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
+      </body>
     </html>
   )
 }

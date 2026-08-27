@@ -28,8 +28,10 @@ import {
   CheckCheck
 } from 'lucide-react';
 import { fetchPublicAppConfig, PublicAppConfig } from '../../lib/api';
+import { useLanguage, LanguageSelector } from '../../lib/LanguageContext';
 
 export default function FeaturesPage() {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<PublicAppConfig>({
     appName: 'VIBEZ',
     appVersion: '1.0.0',
@@ -194,23 +196,24 @@ export default function FeaturesPage() {
             </Link>
 
             <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-              <Link href="/" className="text-[#8696a0] hover:text-white transition-colors">Home</Link>
-              <Link href="/features" className="text-[#00a884] font-bold">Features</Link>
-              <Link href="/faq" className="text-[#8696a0] hover:text-white transition-colors">FAQ</Link>
-              <Link href="/security" className="text-[#8696a0] hover:text-white transition-colors">Security</Link>
-              <Link href="/about" className="text-[#8696a0] hover:text-white transition-colors">About</Link>
-              <Link href="/contact" className="text-[#8696a0] hover:text-white transition-colors">Contact</Link>
+              <Link href="/" className="text-[#8696a0] hover:text-white transition-colors">{t('nav.home') || 'Home'}</Link>
+              <Link href="/features" className="text-[#00a884] font-bold">{t('nav.features')}</Link>
+              <Link href="/faq" className="text-[#8696a0] hover:text-white transition-colors">{t('nav.faq')}</Link>
+              <Link href="/security" className="text-[#8696a0] hover:text-white transition-colors">{t('nav.security')}</Link>
+              <Link href="/about" className="text-[#8696a0] hover:text-white transition-colors">{t('nav.about')}</Link>
+              <Link href="/contact" className="text-[#8696a0] hover:text-white transition-colors">{t('nav.contact')}</Link>
             </div>
 
             <div className="flex items-center gap-3">
+              <LanguageSelector />
               <a 
                 href={downloadLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all shadow-md hover:scale-105"
+                className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-[#00a884] text-white transition-all shadow-md active:scale-95"
               >
                 <Download className="h-3.5 w-3.5" />
-                Download APK
+                {t('nav.downloadApk')}
               </a>
             </div>
           </div>
@@ -334,16 +337,17 @@ export default function FeaturesPage() {
       {/* Footer */}
       <footer className="bg-[#0b141a] border-t border-[#202c33] py-10 text-xs text-[#8696a0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>&copy; {new Date().getFullYear()} {config.appName}. All rights reserved.</p>
-          <div className="flex flex-wrap gap-6">
-            <Link href="/" className="hover:text-white">Home</Link>
-            <Link href="/features" className="hover:text-white">Features</Link>
-            <Link href="/faq" className="hover:text-white">FAQ</Link>
-            <Link href="/security" className="hover:text-white">Security</Link>
-            <Link href="/about" className="hover:text-white">About</Link>
-            <Link href="/contact" className="hover:text-white">Contact</Link>
-            <Link href="/privacy" className="hover:text-white">Privacy</Link>
-            <Link href="/terms" className="hover:text-white">Terms</Link>
+          <p>&copy; {new Date().getFullYear()} {config.appName}. {t('footer.rights')}</p>
+          <div className="flex flex-wrap items-center gap-6">
+            <Link href="/" className="hover:text-white">{t('nav.home') || 'Home'}</Link>
+            <Link href="/features" className="hover:text-white">{t('footer.features')}</Link>
+            <Link href="/faq" className="hover:text-white">{t('footer.faq')}</Link>
+            <Link href="/security" className="hover:text-white">{t('footer.security')}</Link>
+            <Link href="/about" className="hover:text-white">{t('footer.about')}</Link>
+            <Link href="/contact" className="hover:text-white">{t('footer.contact')}</Link>
+            <Link href="/privacy" className="hover:text-white">{t('footer.privacy')}</Link>
+            <Link href="/terms" className="hover:text-white">{t('footer.terms')}</Link>
+            <LanguageSelector />
           </div>
         </div>
       </footer>

@@ -28,8 +28,10 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { fetchPublicAppConfig, PublicAppConfig } from '../lib/api';
+import { useLanguage, LanguageSelector } from '../lib/LanguageContext';
 
 export default function LandingPage() {
+  const { t, dict, language } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'chats' | 'calls' | 'status' | 'privacy'>('chats');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -49,13 +51,18 @@ export default function LandingPage() {
   // Dynamic typing animation in mock chat
   const [typedText, setTypedText] = useState('');
   const [typingIndex, setTypingIndex] = useState(0);
-  const fullText = "Are we still on for the video call tonight?";
+  const fullText = language === 'es' ? '¿Seguimos en pie para la videollamada hoy?' : 'Are we still on for the video call tonight?';
 
   useEffect(() => {
     fetchPublicAppConfig().then(data => {
       if (data) setConfig(data);
     });
   }, []);
+
+  useEffect(() => {
+    setTypedText('');
+    setTypingIndex(0);
+  }, [language]);
 
   useEffect(() => {
     if (typingIndex < fullText.length) {
@@ -71,7 +78,7 @@ export default function LandingPage() {
       }, 4000);
       return () => clearTimeout(resetTimeout);
     }
-  }, [typingIndex]);
+  }, [typingIndex, fullText]);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -103,28 +110,30 @@ export default function LandingPage() {
             </Link>
 
             {/* Desktop Navigation Links */}
-            <div className="hidden md:flex items-center gap-7 text-sm font-medium">
-              <Link href="/features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Features</Link>
-              <Link href="/faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">FAQ</Link>
-              <Link href="/security" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Security</Link>
-              <Link href="/download" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Download</Link>
-              <Link href="/about" className="text-[#8696a0] hover:text-[#00a884] transition-colors">About Us</Link>
-              <Link href="/contact" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Contact</Link>
+            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+              <Link href="/features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.features')}</Link>
+              <Link href="/faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.faq')}</Link>
+              <Link href="/security" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.security')}</Link>
+              <Link href="/download" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.download')}</Link>
+              <Link href="/about" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.about')}</Link>
+              <Link href="/contact" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.contact')}</Link>
             </div>
 
-            {/* Call to Action Button */}
-            <div className="hidden md:flex items-center gap-4">
+            {/* Call to Action Button & Language Selector */}
+            <div className="hidden md:flex items-center gap-3">
+              <LanguageSelector />
               <Link 
                 href="/download"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all shadow-lg shadow-[#00a884]/20 hover:scale-105 active:scale-95"
+                className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-[#00a884] text-white transition-all shadow-lg shadow-[#00a884]/20 active:scale-95"
               >
                 <Download className="h-4 w-4" />
-                Download APK {config.appVersion ? `v${config.appVersion}` : ''}
+                {t('nav.downloadApk')} {config.appVersion ? `v${config.appVersion}` : ''}
               </Link>
             </div>
 
             {/* Mobile Menu Button */}
-            <div className="md:hidden">
+            <div className="md:hidden flex items-center gap-2">
+              <LanguageSelector />
               <button 
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-2 rounded-lg hover:bg-[#202c33] text-[#8696a0] hover:text-white transition-colors"
@@ -144,65 +153,65 @@ export default function LandingPage() {
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Features
+              {t('nav.features')}
             </Link>
             <Link 
               href="/faq" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              FAQ
+              {t('nav.faq')}
             </Link>
             <Link 
               href="/security" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Security
+              {t('nav.security')}
             </Link>
             <Link 
               href="/download" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#00a884] hover:bg-[#202c33] font-bold transition-all"
             >
-              Download Center
+              {t('nav.download')}
             </Link>
             <Link 
               href="/about" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              About Us
+              {t('nav.about')}
             </Link>
             <Link 
               href="/contact" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Contact
+              {t('nav.contact')}
             </Link>
             <Link 
               href="/privacy" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Privacy Policy
+              {t('nav.privacy')}
             </Link>
             <Link 
               href="/terms" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Terms of Service
+              {t('nav.terms')}
             </Link>
             <div className="pt-3 border-t border-[#202c33]">
               <Link 
                 href="/download"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-center flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all"
+                className="btn-download-pulse w-full text-center flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-bold bg-[#00a884] text-white transition-all shadow-lg shadow-[#00a884]/20 active:scale-95"
               >
                 <Download className="h-4 w-4" />
-                Download APK {config.appVersion ? `v${config.appVersion}` : ''}
+                {t('nav.downloadApk')} {config.appVersion ? `v${config.appVersion}` : ''}
               </Link>
             </div>
           </div>
@@ -242,7 +251,7 @@ export default function LandingPage() {
                   href={downloadLink} 
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 hover:-translate-y-0.5 transition-all active:translate-y-0"
+                  className="btn-download-pulse w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 transition-all active:scale-95"
                 >
                   <Download className="h-5 w-5" />
                   Download APK for Android
@@ -899,7 +908,7 @@ export default function LandingPage() {
               href={downloadLink} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="w-full text-center px-8 py-4 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2.5"
+              className="btn-download-pulse w-full text-center px-8 py-4 rounded-full bg-[#00a884] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 active:scale-95 transition-all flex items-center justify-center gap-2.5"
             >
               <Download className="h-5 w-5" />
               Download APK Directly {config.appVersion ? `(v${config.appVersion})` : ''}
@@ -927,20 +936,23 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-wrap justify-center items-center gap-6 text-xs font-medium">
-              <Link href="/features" className="hover:text-white transition-colors">Features</Link>
-              <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
-              <Link href="/security" className="hover:text-white transition-colors">Security</Link>
-              <Link href="/download" className="hover:text-white transition-colors">Download</Link>
-              <Link href="/about" className="hover:text-white transition-colors">About Us</Link>
-              <Link href="/contact" className="hover:text-white transition-colors">Contact Support</Link>
-              <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-              <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+              <Link href="/features" className="hover:text-white transition-colors">{t('footer.features')}</Link>
+              <Link href="/faq" className="hover:text-white transition-colors">{t('footer.faq')}</Link>
+              <Link href="/security" className="hover:text-white transition-colors">{t('footer.security')}</Link>
+              <Link href="/download" className="hover:text-white transition-colors">{t('footer.download')}</Link>
+              <Link href="/about" className="hover:text-white transition-colors">{t('footer.about')}</Link>
+              <Link href="/contact" className="hover:text-white transition-colors">{t('footer.contact')}</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">{t('footer.privacy')}</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">{t('footer.terms')}</Link>
             </div>
           </div>
 
           <div className="border-t border-[#202c33] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-            <p>&copy; {new Date().getFullYear()} {config.appName}. Simple, secure messaging for everyone.</p>
-            <p className="text-[#8696a0]">Fast • Private • Free</p>
+            <p>&copy; {new Date().getFullYear()} {config.appName}. {t('footer.rights')}</p>
+            <div className="flex items-center justify-center gap-4">
+              <LanguageSelector />
+              <p className="text-[#8696a0]">{t('footer.tagline')}</p>
+            </div>
           </div>
 
         </div>
