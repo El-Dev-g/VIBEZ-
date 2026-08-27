@@ -55,9 +55,14 @@ jobs:
           cache-disabled: false
 
       - name: Prepare Firebase Config (google-services.json)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          if [ ! -f "app/google-services.json" ]; then
-            echo "google-services.json is missing on checkout. Generating a fallback placeholder configuration..."
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "Injecting google-services.json from GitHub Secrets (GOOGLE_SERVICES_JSON)..."
+            echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          elif [ ! -f "app/google-services.json" ]; then
+            echo "google-services.json is missing on checkout and no secret provided. Generating fallback placeholder..."
             PACKAGE_NAME=$(grep -oP 'applicationId\s*=\s*"\K[^"]+' app/build.gradle.kts || echo "com.aistudio.whatsappclone.app")
             echo "Detected application ID: $PACKAGE_NAME"
             echo '{
@@ -86,7 +91,7 @@ jobs:
               "configuration_version": "1"
             }' > app/google-services.json
           else
-            echo "google-services.json already exists!"
+            echo "google-services.json already exists in workspace!"
           fi
 
       - name: Prepare Keystore (Release Mode)
