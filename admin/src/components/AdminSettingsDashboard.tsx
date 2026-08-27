@@ -90,6 +90,24 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
   }, [initialSettings]);
 
   useEffect(() => {
+    async function loadLiveSettings() {
+      try {
+        const live = await fetchSettings();
+        if (live) {
+          setSettings(prev => ({
+            ...DEFAULT_SETTINGS,
+            ...prev,
+            ...live
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching live settings:', err);
+      }
+    }
+    loadLiveSettings();
+  }, []);
+
+  useEffect(() => {
     async function loadLogs() {
       try {
         setIsLoadingLogs(true);
@@ -227,7 +245,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto">
+    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto pb-28">
       <div>
         <h2 className="text-4xl font-black text-slate-900 tracking-tight">System & Account Control</h2>
         <p className="text-slate-500 font-bold mt-1">Manage global system options, administrative credentials, notifications, and audit logging.</p>
@@ -610,11 +628,14 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                 </div>
               )}
 
-              <div className="flex justify-end pt-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100">
+                <p className="text-xs font-bold text-slate-400">
+                  Changes take effect immediately across all client applications.
+                </p>
                 <button
                   onClick={handleSaveSettings}
                   disabled={isSavingSettings}
-                  className="px-8 py-4 bg-slate-900 hover:bg-black text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-slate-900/20 active:scale-95 disabled:opacity-50"
+                  className="w-full sm:w-auto px-8 py-4 bg-slate-900 hover:bg-black text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-slate-900/20 active:scale-95 disabled:opacity-50"
                 >
                   {isSavingSettings ? 'Applying...' : 'Apply settings'}
                 </button>

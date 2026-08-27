@@ -1,25 +1,54 @@
-import { fetchBadgePayments } from '@/services/api';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { fetchBadgePayments, BadgeSummary } from '@/services/api';
 import BadgePriceEditor from '@/components/BadgePriceEditor';
 
-export const dynamic = 'force-dynamic';
+export default function BadgesPage() {
+  const [data, setData] = useState<BadgeSummary>({
+    verificationBadgePrice: 3.00,
+    totalRevenue: 0,
+    totalPurchases: 0,
+    verifiedUsersCount: 0,
+    payments: []
+  });
+  const [loading, setLoading] = useState(true);
 
-export default async function BadgesPage() {
-  const rawData = await fetchBadgePayments();
-  const data = {
-    verificationBadgePrice: rawData?.verificationBadgePrice ?? 3.00,
-    totalRevenue: rawData?.totalRevenue ?? 0,
-    totalPurchases: rawData?.totalPurchases ?? 0,
-    verifiedUsersCount: rawData?.verifiedUsersCount ?? 0,
-    payments: rawData?.payments || []
+  const loadBadgeData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchBadgePayments();
+      if (res) {
+        setData(res);
+      }
+    } catch (err) {
+      console.error('Failed to fetch badge telemetry:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    loadBadgeData();
+  }, []);
+
   return (
-    <div className="space-y-10 animate-fadeIn">
+    <div className="space-y-10 animate-fadeIn pb-24">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-4xl font-black text-slate-900 tracking-tight">Badges & Revenue</h2>
           <p className="text-slate-500 font-bold mt-1">Monitor green verification subscriptions and dynamic pricing.</p>
         </div>
+        <button
+          onClick={loadBadgeData}
+          disabled={loading}
+          className="self-start flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-700 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+        >
+          <svg className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-500' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {loading ? 'Refreshing...' : 'Refresh Feed'}
+        </button>
       </div>
 
       {/* Price Editor Container */}
@@ -29,9 +58,27 @@ export default async function BadgesPage() {
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <RevenueCard title="Total Badge Revenue" value={`$${(data.totalRevenue || 0).toFixed(2)}`} label="Verification Sales" icon="💰" color="bg-emerald-500" />
-        <RevenueCard title="Total Purchases" value={data.totalPurchases || 0} label="Successful Transactions" icon="💳" color="bg-blue-500" />
-        <RevenueCard title="Verified Citizens" value={data.verifiedUsersCount || 0} label="Active Green Badges" icon="✅" color="bg-purple-500" />
+        <RevenueCard 
+          title="Total Badge Revenue" 
+          value={loading ? '...' : `$${(data.totalRevenue || 0).toFixed(2)}`} 
+          label="Verification Sales" 
+          icon="💰" 
+          color="bg-emerald-500" 
+        />
+        <RevenueCard 
+          title="Total Purchases" 
+          value={loading ? '...' : (data.totalPurchases || 0)} 
+          label="Successful Transactions" 
+          icon="💳" 
+          color="bg-blue-500" 
+        />
+        <RevenueCard 
+          title="Verified Citizens" 
+          value={loading ? '...' : (data.verifiedUsersCount || 0)} 
+          label="Active Green Badges" 
+          icon="✅" 
+          color="bg-purple-500" 
+        />
       </div>
 
       {/* Transaction History Section */}
@@ -117,6 +164,26 @@ export default async function BadgesPage() {
     </div>
   );
 }
+
+function RevenueCard({ title, value, label, icon, color }: { title: string; value: string | number; label: string; icon: string; color: string }) {
+  return (
+    <div className="relative group overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/50">
+      <div className="flex items-center justify-between">
+        <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center text-white text-2xl shadow-lg shadow-current/20 transition-transform group-hover:scale-110`}>
+          {icon}
+        </div>
+      </div>
+      <div className="mt-8">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">{title}</h3>
+        <p className="mt-2 text-4xl font-black text-slate-900 tracking-tight">
+          {value}
+        </p>
+        <p className="mt-2 text-xs font-bold text-slate-500">{label}</p>
+      </div>
+    </div>
+  );
+}
+
 
 function RevenueCard({ title, value, label, icon, color }: { title: string; value: string | number; label: string; icon: string; color: string }) {
   return (
