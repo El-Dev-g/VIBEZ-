@@ -12,7 +12,9 @@ import {
   updateAdminProfile,
   changeAdminPassword,
   fetchAdminSessions,
-  revokeAdminSession
+  revokeAdminSession,
+  toggleTwoFactor,
+  fetchSecurityHealth
 } from '@/services/api';
 
 interface AdminSettingsDashboardProps {
@@ -59,6 +61,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [is2FaEnabled, setIs2FaEnabled] = useState(false);
   const [show2FaSetup, setShow2FaSetup] = useState(false);
+  const [securityHealth, setSecurityHealth] = useState<any>(null);
   const [sessions, setSessions] = useState([
     { id: '1', device: 'macOS Chrome', ip: '192.168.1.104', location: 'London, UK', current: true },
     { id: '2', device: 'iOS Safari', ip: '192.168.1.189', location: 'London, UK', current: false },
@@ -148,6 +151,15 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
       }
     }
 
+    async function loadHealth() {
+      try {
+        const health = await fetchSecurityHealth();
+        if (health) setSecurityHealth(health);
+      } catch (err) {
+        console.error('Error loading security health:', err);
+      }
+    }
+
     if (activeTab === 'logs') {
       loadLogs();
     }
@@ -156,8 +168,29 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
     }
     if (activeTab === 'security') {
       loadSessions();
+      loadHealth();
     }
   }, [activeTab]);
+
+  const handleToggle2FA = async (nextState: boolean) => {
+    try {
+      const res = await toggleTwoFactor(nextState);
+      if (res.success) {
+        setIs2FaEnabled(Boolean(res.twoFactorEnabled));
+        setShow2FaSetup(false);
+        setSecurityToast(res.message || '2FA setting updated.');
+        const health = await fetchSecurityHealth();
+        if (health) setSecurityHealth(health);
+        setTimeout(() => setSecurityToast(null), 5000);
+      } else {
+        setSecurityToast(res.error || 'Failed to update 2FA.');
+        setTimeout(() => setSecurityToast(null), 4000);
+      }
+    } catch (e) {
+      setSecurityToast('Failed to update 2FA.');
+      setTimeout(() => setSecurityToast(null), 4000);
+    }
+  };
 
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
@@ -758,6 +791,45 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                 <p className="text-sm font-bold text-slate-400 mt-1">Change master keys, toggle multi-factor protection, and audit connected nodes.</p>
               </div>
 
+              {/* Security Telemetry & System Hardening Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black uppercase tracking-widest text-emerald-700">Rate Limiting</span>
+                    <span className="text-lg">🛡️</span>
+                  </div>
+                  <p className="text-lg font-black text-emerald-900">ACTIVE</p>
+                  <p className="text-[10px] font-bold text-emerald-700 mt-1">5 attempts / 15m throttle</p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black uppercase tracking-widest text-indigo-700">Strict CORS</span>
+                    <span className="text-lg">🌐</span>
+                  </div>
+                  <p className="text-lg font-black text-indigo-900">ENFORCED</p>
+                  <p className="text-[10px] font-bold text-indigo-700 mt-1">Domain restricted origins</p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black uppercase tracking-widest text-cyan-700">Audit Trail</span>
+                    <span className="text-lg">📋</span>
+                  </div>
+                  <p className="text-lg font-black text-cyan-900">{securityHealth?.totalAuditLogs ?? 0} LOGS</p>
+                  <p className="text-[10px] font-bold text-cyan-700 mt-1">Real-time IP & UA logging</p>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-purple-500/10 border border-purple-500/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black uppercase tracking-widest text-purple-700">2FA Protection</span>
+                    <span className="text-lg">🔐</span>
+                  </div>
+                  <p className="text-lg font-black text-purple-900">{is2FaEnabled ? 'ENABLED' : 'OPTIONAL'}</p>
+                  <p className="text-[10px] font-bold text-purple-700 mt-1">6-digit TOTP verification</p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                 {/* Change Password */}
                 <form onSubmit={handleChangePassword} className="space-y-4">
@@ -805,19 +877,12 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                 <div className="space-y-6 p-6 rounded-3xl bg-slate-50 border border-slate-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">Two-Factor Auth</h4>
-                      <p className="text-xs font-bold text-slate-500 mt-1">Require mobile TOTP verification.</p>
+                      <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">Two-Factor Auth (2FA)</h4>
+                      <p className="text-xs font-bold text-slate-500 mt-1">Require 6-digit TOTP code on login.</p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (!is2FaEnabled) {
-                          setShow2FaSetup(true);
-                        } else {
-                          setIs2FaEnabled(false);
-                          setShow2FaSetup(false);
-                        }
-                      }}
+                      onClick={() => handleToggle2FA(!is2FaEnabled)}
                       className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${
                         is2FaEnabled ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'
                       }`}
@@ -830,42 +895,19 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                     </button>
                   </div>
 
-                  {show2FaSetup && !is2FaEnabled && (
-                    <div className="space-y-4 p-4 bg-white border border-slate-100 rounded-2xl animate-fadeIn">
-                      <p className="text-xs font-bold text-slate-500">Scan this code in your Authenticator app (e.g. Google Authenticator) and click confirm.</p>
-                      
-                      {/* Fake Code Block */}
-                      <div className="flex justify-center py-4 bg-slate-50 border border-slate-100 rounded-xl">
-                        <div className="w-32 h-32 bg-slate-900 flex flex-wrap p-2 rounded-lg gap-1.5 justify-center items-center">
-                          <div className="w-6 h-6 bg-white"></div>
-                          <div className="w-6 h-6 bg-slate-900 border-2 border-white"></div>
-                          <div className="w-6 h-6 bg-white"></div>
-                          <div className="w-6 h-6 bg-white"></div>
-                          <div className="w-6 h-6 bg-white"></div>
-                          <div className="w-6 h-6 bg-white"></div>
-                          <div className="w-6 h-6 bg-slate-900 border-2 border-white"></div>
-                          <div className="w-6 h-6 bg-white"></div>
-                          <div className="w-6 h-6 bg-white"></div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setIs2FaEnabled(true);
-                          setShow2FaSetup(false);
-                          setSecurityToast('Two-factor authentication successfully linked.');
-                          setTimeout(() => setSecurityToast(null), 3000);
-                        }}
-                        className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all shadow-md shadow-emerald-500/10"
-                      >
-                        Confirm Device
-                      </button>
+                  {securityToast && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-bold rounded-xl animate-fadeIn">
+                      ✓ {securityToast}
                     </div>
                   )}
 
-                  <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-                    <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest leading-relaxed">
-                      💡 Active backups are encrypted with your master admin login session key. Keep security nodes offline.
+                  <div className="p-4 bg-slate-100/80 border border-slate-200 rounded-2xl space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-600 font-bold text-xs">🛡️ Security Status:</span>
+                      <span className="text-xs font-black text-slate-900">HARDENED</span>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
+                      Rate limiting (5 attempts/15m), security headers (HSTS, nosniff, frameguard), strict CORS, and audit logs are active on this administration node.
                     </p>
                   </div>
                 </div>

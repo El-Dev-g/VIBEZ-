@@ -10,6 +10,8 @@ import { useAuth } from '@/context/AuthContext';
 function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [show2FA, setShow2FA] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -22,7 +24,7 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const res = await loginAdmin(email.trim(), password.trim());
+      const res = await loginAdmin(email.trim(), password.trim(), show2FA ? twoFactorCode.trim() : undefined);
       if (res && res.token && res.id) {
         login({
           id: res.id,
@@ -33,8 +35,11 @@ function LoginForm() {
         });
         const redirectUrl = (searchParams && searchParams.get('redirect')) ? searchParams.get('redirect')! : '/';
         router.push(redirectUrl);
+      } else if (res?.requires2FA) {
+        setShow2FA(true);
+        setError('Two-Factor Authentication Required: Please enter your 6-digit 2FA code.');
       } else {
-        setError(res?.error || 'Access Denied: You do not have administrator permissions. Regular users cannot access this portal.');
+        setError(res?.error || 'Access Denied: You do not have administrator permissions.');
       }
     } catch (err: any) {
       setError(err?.message || 'An error occurred during authentication. Access is strictly restricted.');
@@ -91,6 +96,23 @@ function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+
+              {show2FA && (
+                <div className="animate-fadeIn">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2 flex items-center gap-2">
+                    <span>🛡️</span> 6-Digit 2FA Authentication Code
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    required
+                    className="w-full px-4 py-3.5 bg-[#0b1120] border border-emerald-500/50 rounded-xl text-center text-lg font-mono font-bold text-emerald-400 placeholder-slate-600 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30 transition-all tracking-[0.3em]"
+                    placeholder="123456"
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             {error && (

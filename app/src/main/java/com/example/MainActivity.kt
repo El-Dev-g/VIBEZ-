@@ -358,14 +358,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         composable(
             route = "phone_identity_setup?email={email}&name={name}&avatar={avatar}&idToken={idToken}",
             arguments = listOf(
-                navArgument("email") { defaultValue = "user@gmail.com" },
-                navArgument("name") { defaultValue = "VIBEZ User" },
+                navArgument("email") { defaultValue = "" },
+                navArgument("name") { defaultValue = "" },
                 navArgument("avatar") { defaultValue = "" },
                 navArgument("idToken") { defaultValue = "" }
             )
         ) { backStackEntry ->
-            val rawEmail = backStackEntry.arguments?.getString("email") ?: "user@gmail.com"
-            val rawName = backStackEntry.arguments?.getString("name") ?: "VIBEZ User"
+            val rawEmail = backStackEntry.arguments?.getString("email") ?: ""
+            val rawName = backStackEntry.arguments?.getString("name") ?: ""
             val rawAvatar = backStackEntry.arguments?.getString("avatar") ?: ""
             val rawToken = backStackEntry.arguments?.getString("idToken") ?: ""
 

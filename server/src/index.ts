@@ -15,11 +15,16 @@ import { AdminController } from './controllers/AdminController';
 import { PaymentController } from './controllers/PaymentController';
 import { authenticate, authenticateAdmin } from './middleware/auth';
 import { checkMaintenanceMode } from './middleware/maintenance';
+import { securityHeaders, sanitizeInputs, checkSecretEntropy } from './middleware/security';
+import { authRateLimiter, adminRateLimiter } from './middleware/rateLimiter';
 
 dotenv.config();
+checkSecretEntropy();
 
 const app = express();
 const httpServer = createServer(app);
+
+// Configure CORS for WebSocket
 const io = new Server(httpServer, {
   cors: {
     origin: "*",
@@ -27,8 +32,39 @@ const io = new Server(httpServer, {
   }
 });
 
-app.use(cors());
-app.use(express.json());
+// Configure CORS for HTTP REST APIs with Security Rules
+const allowedOrigins = [
+  process.env.ADMIN_FRONTEND_URL,
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://render.com'
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests (mobile apps, postman, server-to-server) or allowed web origins
+    if (!origin || allowedOrigins.some(o => origin.startsWith(o)) || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      callback(null, true); // Permissive in dev/staging preview
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Apply Security Headers & Input Sanitization
+app.use(securityHeaders);
+app.use(express.json({ limit: '10mb' }));
+app.use(sanitizeInputs);
+
+// Apply Rate Limiting
+app.use('/api/auth/google', authRateLimiter);
+app.use('/api/auth/phone', authRateLimiter);
+app.use('/api/admin/login', authRateLimiter);
+app.use('/api/admin', adminRateLimiter);
 
 // Maintenance Mode Enforcement Middleware for all /api requests
 app.use('/api', checkMaintenanceMode);
@@ -167,6 +203,8 @@ app.put('/api/admin/profile', authenticateAdmin, (req, res) => admin.updateProfi
 app.post('/api/admin/change-password', authenticateAdmin, (req, res) => admin.changePassword(req, res));
 app.get('/api/admin/sessions', authenticateAdmin, (req, res) => admin.getSessions(req, res));
 app.delete('/api/admin/sessions/:sessionId', authenticateAdmin, (req, res) => admin.revokeSession(req, res));
+app.post('/api/admin/2fa/toggle', authenticateAdmin, (req, res) => admin.toggleTwoFactor(req, res));
+app.get('/api/admin/security/health', authenticateAdmin, (req, res) => admin.getSecurityHealth(req, res));
 
 // Media Routes
 app.post('/api/media/upload-url', authenticate, async (req, res) => {

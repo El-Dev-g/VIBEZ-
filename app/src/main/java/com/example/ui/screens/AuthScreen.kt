@@ -628,19 +628,15 @@ fun AuthScreen(
                                 scope.launch {
                                     isSigningIn = true
                                     try {
-                                        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isEmpty() || BuildConfig.GOOGLE_WEB_CLIENT_ID == "your-google-web-client-id.apps.googleusercontent.com") {
-                                            isSigningIn = false
-                                            if (onNavigateToPhoneIdentity != null) {
-                                                onNavigateToPhoneIdentity("user@gmail.com", "VIBEZ User", null, null)
-                                            } else if (onGoogleAuthSuccess != null) {
-                                                onGoogleAuthSuccess("user@gmail.com", "VIBEZ User", null, null, null)
-                                            }
-                                            return@launch
+                                        val clientId = if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotEmpty() && BuildConfig.GOOGLE_WEB_CLIENT_ID != "your-google-web-client-id.apps.googleusercontent.com") {
+                                            BuildConfig.GOOGLE_WEB_CLIENT_ID
+                                        } else {
+                                            "31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com"
                                         }
 
                                         val googleIdOption = GetGoogleIdOption.Builder()
                                             .setFilterByAuthorizedAccounts(false)
-                                            .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                                            .setServerClientId(clientId)
                                             .setAutoSelectEnabled(false)
                                             .build()
 
@@ -681,18 +677,17 @@ fun AuthScreen(
                                                 val firebaseCredential = GoogleAuthProvider.getCredential(rawIdToken, null)
                                                 auth.signInWithCredential(firebaseCredential)
                                                     .addOnCompleteListener { firebaseTask ->
+                                                        isSigningIn = false
                                                         if (firebaseTask.isSuccessful) {
                                                             val firebaseUser = auth.currentUser
                                                             firebaseUser?.getIdToken(false)?.addOnCompleteListener { tokenTask ->
                                                                 val firebaseIdToken = if (tokenTask.isSuccessful) tokenTask.result?.token else rawIdToken
-                                                                isSigningIn = false
                                                                 if (onNavigateToPhoneIdentity != null) {
                                                                     onNavigateToPhoneIdentity(email, name, avatar, firebaseIdToken)
                                                                 } else if (onGoogleAuthSuccess != null) {
                                                                     onGoogleAuthSuccess(email, name, avatar, null, firebaseIdToken)
                                                                 }
                                                             } ?: run {
-                                                                isSigningIn = false
                                                                 if (onNavigateToPhoneIdentity != null) {
                                                                     onNavigateToPhoneIdentity(email, name, avatar, rawIdToken)
                                                                 } else if (onGoogleAuthSuccess != null) {
@@ -700,12 +695,8 @@ fun AuthScreen(
                                                                 }
                                                             }
                                                         } else {
-                                                            isSigningIn = false
-                                                            if (onNavigateToPhoneIdentity != null) {
-                                                                onNavigateToPhoneIdentity(email, name, avatar, rawIdToken)
-                                                            } else if (onGoogleAuthSuccess != null) {
-                                                                onGoogleAuthSuccess(email, name, avatar, null, rawIdToken)
-                                                            }
+                                                            val exc = firebaseTask.exception
+                                                            errorMessage = "Firebase Google Sign-In error: ${exc?.localizedMessage ?: "Could not complete Firebase authentication."}"
                                                         }
                                                     }
                                             } else {
@@ -718,11 +709,7 @@ fun AuthScreen(
                                             }
                                         } else {
                                             isSigningIn = false
-                                            if (onNavigateToPhoneIdentity != null) {
-                                                onNavigateToPhoneIdentity("user@gmail.com", "VIBEZ User", null, null)
-                                            } else if (onGoogleAuthSuccess != null) {
-                                                onGoogleAuthSuccess("user@gmail.com", "VIBEZ User", null, null, null)
-                                            }
+                                            errorMessage = "Could not extract Google credential from system response."
                                         }
                                     } catch (e: GetCredentialCancellationException) {
                                         // User dismissed or cancelled the Google chooser dialog
@@ -730,22 +717,15 @@ fun AuthScreen(
                                     } catch (e: GetCredentialCustomException) {
                                         isSigningIn = false
                                         e.printStackTrace()
-                                        if (onNavigateToPhoneIdentity != null) {
-                                            onNavigateToPhoneIdentity("user@gmail.com", "VIBEZ User", null, null)
-                                        } else if (onGoogleAuthSuccess != null) {
-                                            onGoogleAuthSuccess("user@gmail.com", "VIBEZ User", null, null, null)
-                                        }
+                                        errorMessage = "Google Sign-In service error: ${e.message ?: "Authentication failed"}"
                                     } catch (e: GetCredentialException) {
                                         isSigningIn = false
                                         e.printStackTrace()
-                                        if (onNavigateToPhoneIdentity != null) {
-                                            onNavigateToPhoneIdentity("user@gmail.com", "VIBEZ User", null, null)
-                                        } else if (onGoogleAuthSuccess != null) {
-                                            onGoogleAuthSuccess("user@gmail.com", "VIBEZ User", null, null, null)
-                                        }
+                                        errorMessage = "Google Sign-In: ${e.message ?: "No credentials available on device."}"
                                     } catch (e: Exception) {
                                         isSigningIn = false
                                         e.printStackTrace()
+                                        errorMessage = "An unexpected error occurred: ${e.message ?: "Unknown error"}"
                                     } finally {
                                         // Guarantee loading spinner resets
                                         if (isSigningIn) {

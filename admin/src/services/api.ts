@@ -38,6 +38,8 @@ export interface LoginResponse {
   name?: string;
   role?: string;
   token?: string;
+  twoFactorEnabled?: boolean;
+  requires2FA?: boolean;
   error?: string;
 }
 
@@ -73,23 +75,51 @@ export const getAdminHeaders = (): Record<string, string> => {
   return headers;
 };
 
-export const loginAdmin = async (email: string, password: string): Promise<LoginResponse | null> => {
+export const loginAdmin = async (email: string, password: string, twoFactorCode?: string): Promise<LoginResponse | null> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, twoFactorCode })
     });
     const data = await res.json();
     if (!res.ok) {
       return { 
-        error: data.error || 'Access Denied: You do not have administrator permissions. Regular users are forbidden from accessing the administration gate.' 
+        error: data.error || 'Access Denied: You do not have administrator permissions.',
+        requires2FA: data.requires2FA || false
       };
     }
     return data;
   } catch (error) {
     console.error(error);
     return { error: 'Unable to connect to authorization server. Please try again.' };
+  }
+};
+
+export const toggleTwoFactor = async (enabled: boolean): Promise<{ success?: boolean; twoFactorEnabled?: boolean; message?: string; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/2fa/toggle`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ enabled })
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || 'Failed to update 2FA status' };
+    return data;
+  } catch (e: any) {
+    return { error: 'Failed to update 2FA status' };
+  }
+};
+
+export const fetchSecurityHealth = async (): Promise<any> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/security/health`, {
+      headers: getAdminHeaders()
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
   }
 };
 
