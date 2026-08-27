@@ -787,6 +787,15 @@ export class AdminController {
           }
         }
       });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: (req as any).user?.email || 'system',
+          action: 'CREATE_OFFICIAL_POST',
+          target: `Post:${post.id} Type:${type || 'TEXT'}`
+        }
+      });
+
       res.json(post);
     } catch (error) {
       res.status(500).json({ error: 'Failed to create official post' });
@@ -804,15 +813,110 @@ export class AdminController {
               id: true,
               name: true,
               phoneNumber: true,
+              googleEmail: true,
               avatarUrl: true,
               isBanned: true
             }
           }
         }
       });
-      res.json(members.map(m => ({ ...m.user, role: m.role })));
+      res.json(members.map(m => ({
+        ...m.user,
+        status: m.user.isBanned ? 'Banned' : 'Active',
+        role: m.role || 'MEMBER',
+        memberId: m.id
+      })));
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch members' });
+    }
+  }
+
+  async updateCommunityMemberRole(req: Request, res: Response) {
+    try {
+      const { communityId, userId } = req.params;
+      const { role } = req.body;
+
+      const validRoles = ['ADMIN', 'MODERATOR', 'CONTENT_ADMIN', 'MEMBER'];
+      const targetRole = validRoles.includes(role) ? role : 'MEMBER';
+
+      const existing = await prisma.communityMember.findFirst({
+        where: { communityId, userId }
+      });
+
+      if (existing) {
+        await prisma.communityMember.update({
+          where: { id: existing.id },
+          data: { role: targetRole }
+        });
+      } else {
+        await prisma.communityMember.create({
+          data: {
+            communityId,
+            userId,
+            role: targetRole
+          }
+        });
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: (req as any).user?.email || 'system',
+          action: 'UPDATE_MEMBER_ROLE',
+          target: `User:${userId} Community:${communityId} Role:${targetRole}`
+        }
+      });
+
+      res.json({ success: true, userId, role: targetRole });
+    } catch (error) {
+      console.error('Error updating member role:', error);
+      res.status(500).json({ error: 'Failed to update member role' });
+    }
+  }
+
+  async addCommunityMember(req: Request, res: Response) {
+    try {
+      const { communityId } = req.params;
+      const { userId, role } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+
+      const validRoles = ['ADMIN', 'MODERATOR', 'CONTENT_ADMIN', 'MEMBER'];
+      const targetRole = validRoles.includes(role) ? role : 'MEMBER';
+
+      const existing = await prisma.communityMember.findFirst({
+        where: { communityId, userId }
+      });
+
+      let member;
+      if (existing) {
+        member = await prisma.communityMember.update({
+          where: { id: existing.id },
+          data: { role: targetRole }
+        });
+      } else {
+        member = await prisma.communityMember.create({
+          data: {
+            communityId,
+            userId,
+            role: targetRole
+          }
+        });
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: (req as any).user?.email || 'system',
+          action: 'ADD_COMMUNITY_MEMBER',
+          target: `User:${userId} Community:${communityId} Role:${targetRole}`
+        }
+      });
+
+      res.json({ success: true, member });
+    } catch (error) {
+      console.error('Error adding community member:', error);
+      res.status(500).json({ error: 'Failed to add community member' });
     }
   }
 

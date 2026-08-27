@@ -751,6 +751,34 @@ export const fetchOfficialCommunityMembers = async (communityId: string): Promis
   return [];
 };
 
+export const updateCommunityMemberRole = async (communityId: string, userId: string, role: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/members/${userId}/role`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ role })
+    });
+    return res.ok;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
+export const addCommunityMember = async (communityId: string, userId: string, role: string = 'MEMBER'): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}/members`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ userId, role })
+    });
+    return res.ok;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
 export const flagUserInCommunity = async (userId: string, isFlagged: boolean): Promise<boolean> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/flag`, {
