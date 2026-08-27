@@ -569,7 +569,7 @@
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3500);
         
-        const res = await fetch('/api/health', { signal: controller.signal }).catch(() => null);
+        const res = await fetch('https://vibez-n5h1.onrender.com/health', { signal: controller.signal }).catch(() => null);
         clearTimeout(timeoutId);
 
         const endTime = performance.now();
