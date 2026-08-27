@@ -6,84 +6,93 @@ import {
   ShieldCheck, 
   Users, 
   Smartphone, 
-  Settings, 
   Download, 
   Lock, 
   ArrowRight, 
   CheckCheck, 
   Menu, 
   X,
-  Server,
-  Key,
-  Flame,
-  Activity,
-  Trash2,
+  Phone,
+  Video,
+  Mic,
+  Camera,
+  Smile,
+  Sparkles,
+  ChevronDown,
+  Clock,
+  Heart,
+  Moon,
+  Image as ImageIcon,
   Check
 } from 'lucide-react';
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'app' | 'admin'>('app');
+  const [activeTab, setActiveTab] = useState<'chats' | 'calls' | 'status' | 'privacy'>('chats');
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // Dynamic typing animation in mock chat
   const [typedText, setTypedText] = useState('');
   const [typingIndex, setTypingIndex] = useState(0);
-  const fullText = "Hey there! Have you tested our new secure calling system?";
+  const fullText = "Are we still on for the video call tonight?";
 
   useEffect(() => {
     if (typingIndex < fullText.length) {
       const timeout = setTimeout(() => {
         setTypedText(prev => prev + fullText[typingIndex]);
         setTypingIndex(prev => prev + 1);
-      }, 50);
+      }, 45);
       return () => clearTimeout(timeout);
     } else {
       const resetTimeout = setTimeout(() => {
         setTypedText('');
         setTypingIndex(0);
-      }, 5000);
+      }, 4000);
       return () => clearTimeout(resetTimeout);
     }
   }, [typingIndex]);
 
+  const toggleFaq = (index: number) => {
+    setOpenFaq(openFaq === index ? null : index);
+  };
+
   return (
     <div className="min-h-screen bg-[#0b141a] text-[#e9edef] selection:bg-[#00a884] selection:text-white">
-      {/* Navigation Header */}
-      <nav className="sticky top-0 z-50 backdrop-blur-md bg-[#0b141a]/80 border-b border-[#202c33] transition-all">
+      
+      {/* 1. Navigation Header */}
+      <nav className="sticky top-0 z-50 backdrop-blur-md bg-[#0b141a]/85 border-b border-[#202c33] transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-lg shadow-[#00a884]/10 flex items-center justify-center">
+            
+            {/* Logo */}
+            <div className="flex items-center gap-2.5">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-lg shadow-[#00a884]/15 flex items-center justify-center">
                 <div className="h-full w-full rounded-[10px] bg-[#0b141a] flex items-center justify-center">
                   <MessageSquare className="h-5 w-5 text-[#00a884]" />
                 </div>
               </div>
-              <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-[#e9edef] to-[#00a884] bg-clip-text text-transparent">
+              <span className="text-2xl font-black tracking-tight text-white">
                 VIBEZ
               </span>
             </div>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-sm font-medium text-[#8696a0] hover:text-[#00a884] transition-colors">Features</a>
-              <a href="#preview" className="text-sm font-medium text-[#8696a0] hover:text-[#00a884] transition-colors">Live Preview</a>
-              <a href="#architecture" className="text-sm font-medium text-[#8696a0] hover:text-[#00a884] transition-colors">Architecture</a>
-              <a href="#admin" className="text-sm font-medium text-[#8696a0] hover:text-[#00a884] transition-colors">Admin Panel</a>
+            {/* Desktop Navigation Links */}
+            <div className="hidden md:flex items-center gap-8 text-sm font-medium">
+              <a href="#features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Features</a>
+              <a href="#experience" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Experience</a>
+              <a href="#privacy" className="text-[#8696a0] hover:text-[#00a884] transition-colors">Privacy & Security</a>
+              <a href="#how-it-works" className="text-[#8696a0] hover:text-[#00a884] transition-colors">How It Works</a>
+              <a href="#faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">FAQ</a>
             </div>
 
+            {/* Call to Action Button */}
             <div className="hidden md:flex items-center gap-4">
               <a 
-                href="https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-lg text-sm font-semibold border border-[#202c33] hover:bg-[#202c33] hover:text-white transition-all"
-              >
-                Launch Console
-              </a>
-              <a 
                 href="#download" 
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#00a884] hover:bg-[#008f72] text-white transition-all shadow-md shadow-[#00a884]/20"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all shadow-lg shadow-[#00a884]/20 hover:scale-105 active:scale-95"
               >
                 <Download className="h-4 w-4" />
-                Download APK
+                Get App
               </a>
             </div>
 
@@ -92,6 +101,7 @@ export default function LandingPage() {
               <button 
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-2 rounded-lg hover:bg-[#202c33] text-[#8696a0] hover:text-white transition-colors"
+                aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
@@ -99,9 +109,9 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Mobile Menu Drawer */}
+        {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#111b21] border-b border-[#202c33] py-4 px-4 space-y-3">
+          <div className="md:hidden bg-[#111b21] border-b border-[#202c33] py-4 px-4 space-y-3 animate-fade-in">
             <a 
               href="#features" 
               onClick={() => setMobileMenuOpen(false)}
@@ -110,171 +120,187 @@ export default function LandingPage() {
               Features
             </a>
             <a 
-              href="#preview" 
+              href="#experience" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Live Preview
+              Experience
             </a>
             <a 
-              href="#architecture" 
+              href="#privacy" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Architecture
+              Privacy & Security
             </a>
             <a 
-              href="#admin" 
+              href="#how-it-works" 
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
             >
-              Admin Panel
+              How It Works
             </a>
-            <div className="pt-4 flex flex-col gap-3 border-t border-[#202c33]">
-              <a 
-                href="https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-full text-center px-4 py-2.5 rounded-lg text-sm font-semibold border border-[#202c33] hover:bg-[#202c33] transition-all"
-              >
-                Launch Console
-              </a>
+            <a 
+              href="#faq" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-base font-medium text-[#8696a0] hover:bg-[#202c33] hover:text-white transition-all"
+            >
+              FAQ
+            </a>
+            <div className="pt-3 border-t border-[#202c33]">
               <a 
                 href="#download" 
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-center flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#00a884] hover:bg-[#008f72] text-white transition-all"
+                className="w-full text-center flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-bold bg-[#00a884] hover:bg-[#008f72] text-white transition-all"
               >
                 <Download className="h-4 w-4" />
-                Download APK
+                Download APK for Android
               </a>
             </div>
           </div>
         )}
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 pb-24 lg:pt-24 lg:pb-32">
-        {/* Background Decorative Gradients */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/10 blur-[120px] rounded-full -z-10" />
-        <div className="absolute bottom-10 left-10 w-[300px] h-[300px] bg-[#53bdeb]/10 blur-[100px] rounded-full -z-10" />
+      {/* 2. Hero Section */}
+      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-32">
+        {/* Glow ambient background effects */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 blur-[140px] rounded-full -z-10" />
+        <div className="absolute bottom-10 left-10 w-[350px] h-[350px] bg-[#53bdeb]/10 blur-[120px] rounded-full -z-10" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
             
-            {/* Left Column: Hero Text */}
-            <div className="lg:col-span-7 space-y-8 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111b21] border border-[#202c33] text-[#00a884] text-xs font-semibold">
-                <ShieldCheck className="h-4 w-4" />
-                Secure Android Release Available Now
+            {/* Left Column: Heading & Value Proposition */}
+            <div className="lg:col-span-7 space-y-7 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#111b21] border border-[#202c33] text-[#00a884] text-xs font-bold tracking-wide">
+                <Sparkles className="h-4 w-4" />
+                Next-Gen Secure Messenger
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
-                Connect Intuitively. <br />
-                <span className="bg-gradient-to-r from-[#00a884] to-[#53bdeb] bg-clip-text text-transparent">
-                  Chat Privately.
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15]">
+                Simple. Reliable. <br />
+                <span className="bg-gradient-to-r from-[#00a884] via-[#25d366] to-[#53bdeb] bg-clip-text text-transparent">
+                  Private Conversations.
                 </span>
               </h1>
 
-              <p className="text-base sm:text-lg text-[#8696a0] max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
-                Experience **VIBEZ**, a professional communication ecosystem crafted to deliver high-performance messaging, seamless media exchange, absolute data protection, and unified Google + Phone verification.
+              <p className="text-base sm:text-lg text-[#8696a0] max-w-xl mx-auto lg:mx-0 font-normal leading-relaxed">
+                Connect seamlessly with the people who matter most. Enjoy lightning-fast messaging, crystal-clear voice & video calls, full-quality media sharing, and expressive status updates.
               </p>
 
+              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                 <a 
                   href="#download" 
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#00a884] hover:bg-[#008f72] text-white font-semibold shadow-xl shadow-[#00a884]/20 hover:-translate-y-0.5 transition-all"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 hover:-translate-y-0.5 transition-all active:translate-y-0"
                 >
                   <Download className="h-5 w-5" />
-                  Install App APK
+                  Download for Android
                 </a>
                 <a 
-                  href="#preview" 
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#111b21] hover:bg-[#202c33] border border-[#202c33] text-white font-semibold transition-all hover:-translate-y-0.5"
+                  href="#experience" 
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-[#111b21] hover:bg-[#202c33] border border-[#202c33] text-white font-semibold text-base transition-all hover:-translate-y-0.5"
                 >
-                  Interactive Demo
-                  <ArrowRight className="h-5 w-5 text-[#8696a0]" />
+                  See How It Looks
+                  <ArrowRight className="h-4 w-4 text-[#8696a0]" />
                 </a>
               </div>
 
-              {/* Trust Badges */}
-              <div className="pt-4 grid grid-cols-3 gap-4 max-w-md mx-auto lg:mx-0 text-center lg:text-left border-t border-[#202c33]">
+              {/* Key Features Quick Scannable Row */}
+              <div className="pt-6 grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0 text-center lg:text-left border-t border-[#202c33]">
                 <div>
-                  <div className="text-xl sm:text-2xl font-bold text-white">100%</div>
-                  <div className="text-xs text-[#8696a0]">Secure Channels</div>
+                  <div className="text-2xl font-extrabold text-white">Free</div>
+                  <div className="text-xs text-[#8696a0] mt-0.5">Calls & Messages</div>
                 </div>
                 <div>
-                  <div className="text-xl sm:text-2xl font-bold text-white">Prisma</div>
-                  <div className="text-xs text-[#8696a0]">ORM Persistence</div>
+                  <div className="text-2xl font-extrabold text-white">HD</div>
+                  <div className="text-xs text-[#8696a0] mt-0.5">Photos & Videos</div>
                 </div>
                 <div>
-                  <div className="text-xl sm:text-2xl font-bold text-white">M3</div>
-                  <div className="text-xs text-[#8696a0]">Material Design</div>
+                  <div className="text-2xl font-extrabold text-white">100%</div>
+                  <div className="text-xs text-[#8696a0] mt-0.5">Private & Secure</div>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Dynamic Mobile Preview mockup */}
+            {/* Right Column: Interactive Smartphone Device Mockup */}
             <div className="lg:col-span-5 flex justify-center">
-              <div className="relative w-[310px] h-[620px] rounded-[48px] bg-black p-3.5 border-[6px] border-[#202c33] shadow-2xl shadow-[#00a884]/10 overflow-hidden">
-                {/* Speaker Grill / Dynamic Island */}
+              <div className="relative w-[315px] h-[630px] rounded-[48px] bg-black p-3.5 border-[6px] border-[#202c33] shadow-2xl shadow-[#00a884]/15 overflow-hidden">
+                
+                {/* Speaker Grill / Camera Island */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl z-20 flex items-center justify-center">
                   <div className="w-12 h-1.5 bg-[#202c33] rounded-full" />
                 </div>
 
-                {/* Simulated Screen Body */}
+                {/* Simulated Screen Interface */}
                 <div className="h-full w-full bg-[#0b141a] rounded-[36px] flex flex-col justify-between overflow-hidden relative">
-                  {/* Mock Screen Header */}
-                  <div className="bg-[#111b21] pt-8 pb-3 px-4 border-b border-[#202c33] flex items-center justify-between">
+                  
+                  {/* Chat Top Header */}
+                  <div className="bg-[#111b21] pt-8 pb-3 px-3.5 border-b border-[#202c33] flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="h-8 w-8 rounded-full bg-[#00a884] flex items-center justify-center font-bold text-sm text-white">
-                        V
+                      <div className="relative">
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-[#00a884] to-emerald-400 flex items-center justify-center font-bold text-sm text-white">
+                          S
+                        </div>
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#00a884] border-2 border-[#111b21]" />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-white">VIBEZ Support</div>
-                        <div className="text-[10px] text-[#00a884] flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 bg-[#00a884] rounded-full animate-pulse" />
-                          Online
-                        </div>
+                        <div className="text-xs font-bold text-white leading-tight">Sarah Jenkins</div>
+                        <div className="text-[10px] text-[#00a884]">online</div>
                       </div>
                     </div>
-                    <div className="flex gap-3 text-[#8696a0]">
-                      <span className="text-[10px] bg-[#202c33] px-1.5 py-0.5 rounded text-white">v1.2</span>
+                    
+                    {/* Action buttons on header */}
+                    <div className="flex items-center gap-3 text-[#8696a0]">
+                      <button className="p-1 hover:text-white transition-colors" aria-label="Video call">
+                        <Video className="h-4 w-4" />
+                      </button>
+                      <button className="p-1 hover:text-white transition-colors" aria-label="Voice call">
+                        <Phone className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
 
-                  {/* Mock Chat Canvas */}
-                  <div className="flex-1 p-3 space-y-3 overflow-y-auto text-xs bg-[radial-gradient(#111b21_1px,transparent_1px)] [background-size:16px_16px]">
+                  {/* Chat Bubble Scroll Area */}
+                  <div className="flex-1 p-3.5 space-y-3 overflow-y-auto text-xs bg-[radial-gradient(#111b21_1px,transparent_1px)] [background-size:16px_16px]">
                     
-                    {/* Welcome System Note */}
-                    <div className="text-center my-2">
-                      <span className="bg-[#111b21] text-[#8696a0] text-[9px] px-2.5 py-1 rounded-md border border-[#202c33]">
-                        🔒 Messages are securely processed through your private backend
+                    {/* Privacy Tag */}
+                    <div className="text-center my-1">
+                      <span className="inline-flex items-center gap-1 bg-[#111b21] text-[#8696a0] text-[9px] px-2.5 py-1 rounded-full border border-[#202c33]">
+                        <Lock className="h-2.5 w-2.5 text-[#00a884]" />
+                        Messages are private and secured
                       </span>
                     </div>
 
                     {/* Received Message */}
                     <div className="flex justify-start max-w-[85%]">
-                      <div className="bg-[#111b21] text-[#e9edef] p-2.5 rounded-r-xl rounded-bl-xl border border-[#202c33] space-y-1">
-                        <p>Welcome! Thank you for downloading the VIBEZ production client. Let's configure your profile.</p>
-                        <span className="block text-[8px] text-right text-[#8696a0]">11:24 AM</span>
+                      <div className="bg-[#111b21] text-[#e9edef] p-3 rounded-2xl rounded-tl-sm border border-[#202c33] space-y-1 shadow-sm">
+                        <p>Hey! Check out this snapshot from the trip today 🌴</p>
+                        <div className="h-24 w-full bg-gradient-to-tr from-emerald-800/40 to-teal-900/60 rounded-lg flex items-center justify-center my-1 border border-[#202c33]">
+                          <div className="flex items-center gap-1.5 text-[10px] text-emerald-300 font-medium">
+                            <ImageIcon className="h-3.5 w-3.5" />
+                            Sunset_Coast.jpg (HD)
+                          </div>
+                        </div>
+                        <span className="block text-[9px] text-right text-[#8696a0]">4:20 PM</span>
                       </div>
                     </div>
 
                     {/* Sent Message */}
                     <div className="flex justify-end ml-auto max-w-[85%]">
-                      <div className="bg-[#005c4b] text-white p-2.5 rounded-l-xl rounded-br-xl space-y-1 shadow-sm">
-                        <p>Perfect! Can I secure my registration with phone SMS verification?</p>
-                        <div className="flex items-center justify-end gap-1 text-[8px] text-[#8696a0]">
-                          <span>11:25 AM</span>
-                          <CheckCheck className="h-3 w-3 text-[#53bdeb]" />
+                      <div className="bg-[#005c4b] text-white p-3 rounded-2xl rounded-tr-sm space-y-1 shadow-sm">
+                        <p>That looks incredible! 😍 Loved the photo quality!</p>
+                        <div className="flex items-center justify-end gap-1 text-[9px] text-[#8696a0]">
+                          <span className="text-white/70">4:21 PM</span>
+                          <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
                         </div>
                       </div>
                     </div>
 
-                    {/* Typing Animation/Dynamic Input */}
+                    {/* Live typing message demo */}
                     {typedText && (
                       <div className="flex justify-start max-w-[85%] animate-fade-in">
-                        <div className="bg-[#111b21] text-[#e9edef] p-2.5 rounded-r-xl rounded-bl-xl border border-[#202c33] space-y-1">
+                        <div className="bg-[#111b21] text-[#e9edef] p-3 rounded-2xl rounded-tl-sm border border-[#202c33] space-y-1 shadow-sm">
                           <p className="border-r-2 border-[#00a884] pr-1">{typedText}</p>
                           <span className="block text-[8px] text-right text-[#8696a0]">Typing...</span>
                         </div>
@@ -282,15 +308,22 @@ export default function LandingPage() {
                     )}
                   </div>
 
-                  {/* Mock Input Bar */}
-                  <div className="bg-[#111b21] p-2 border-t border-[#202c33] flex items-center gap-2">
-                    <div className="flex-1 bg-[#2a3942] rounded-lg px-3 py-1.5 text-[10px] text-[#8696a0] flex items-center justify-between">
-                      <span>Message...</span>
+                  {/* Message Input Bottom Bar */}
+                  <div className="bg-[#111b21] p-2.5 border-t border-[#202c33] flex items-center gap-2">
+                    <button className="text-[#8696a0] hover:text-white" aria-label="Add emoji">
+                      <Smile className="h-5 w-5" />
+                    </button>
+                    <div className="flex-1 bg-[#2a3942] rounded-full px-3.5 py-1.5 text-xs text-[#8696a0] flex items-center justify-between">
+                      <span>Type a message...</span>
+                      <button className="text-[#8696a0] hover:text-white" aria-label="Attach file">
+                        <Camera className="h-4 w-4" />
+                      </button>
                     </div>
-                    <div className="h-8 w-8 rounded-full bg-[#00a884] flex items-center justify-center text-white">
-                      <ArrowRight className="h-4 w-4" />
-                    </div>
+                    <button className="h-8 w-8 rounded-full bg-[#00a884] flex items-center justify-center text-white shrink-0 hover:scale-105 transition-transform" aria-label="Send audio">
+                      <Mic className="h-4 w-4" />
+                    </button>
                   </div>
+
                 </div>
               </div>
             </div>
@@ -299,135 +332,157 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Feature Showcase Grid */}
+      {/* 3. Core User Features Grid */}
       <section id="features" className="py-20 bg-[#111b21] border-y border-[#202c33]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-            <h2 className="text-3xl font-extrabold sm:text-4xl">
-              Engineered for Speed. Built for Integrity.
+          
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+              Everything You Need in a Chat App
             </h2>
             <p className="text-base text-[#8696a0]">
-              Every module, view, and line of code has been crafted to satisfy high production standards, avoiding mock data loops.
+              Crafted with care to give you the most fluid, enjoyable, and private communication experience on your phone.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Feature 1 */}
+            
+            {/* Feature 1: Private Chats */}
             <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] hover:border-[#00a884]/50 transition-all group">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-[#00a884]/20 to-emerald-500/10 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
-                <Key className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
+                <Lock className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Dual-Identity Binding</h3>
+              <h3 className="text-lg font-bold text-white mb-2">Private & Confidential</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Binds Google Credentials and Phone SMS verification into a single unified record within your database for absolute validation.
+                Your personal chats and calls stay strictly between you and the person you're communicating with.
               </p>
             </div>
 
-            {/* Feature 2 */}
+            {/* Feature 2: Voice & Video Calls */}
             <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] hover:border-[#00a884]/50 transition-all group">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-[#00a884]/20 to-emerald-500/10 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
-                <ShieldCheck className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
+                <Video className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Secure Data Sandbox</h3>
+              <h3 className="text-lg font-bold text-white mb-2">Crystal-Clear Calls</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Leverages local Room persistence coupled with secure backend API queries to protect communication threads from external telemetry.
+                Make high-quality 1-on-1 voice and video calls with friends and family worldwide for free.
               </p>
             </div>
 
-            {/* Feature 3 */}
+            {/* Feature 3: Group Chats */}
             <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] hover:border-[#00a884]/50 transition-all group">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-[#00a884]/20 to-emerald-500/10 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
-                <Server className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
+                <Users className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Real PostgreSQL Engine</h3>
+              <h3 className="text-lg font-bold text-white mb-2">Stay Connected in Groups</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                No mock mockups. Backed by Express, TypeScript, Prisma, and PostgreSQL supporting transaction cascades and instant socket response.
+                Share messages, photos, and videos across family circles, project teams, and friend circles with ease.
               </p>
             </div>
 
-            {/* Feature 4 */}
+            {/* Feature 4: Full HD Media */}
             <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] hover:border-[#00a884]/50 transition-all group">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-[#00a884]/20 to-emerald-500/10 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
-                <Smartphone className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
+                <Camera className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Edge-to-Edge Design</h3>
+              <h3 className="text-lg font-bold text-white mb-2">High Quality Photos & Video</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Features Material Design 3 guidelines on Android including fluid animations, native window insets, dark mode layouts, and custom icons.
+                Send images and videos without heavy compression so memories stay crisp and vibrant.
               </p>
             </div>
 
-            {/* Feature 5 */}
+            {/* Feature 5: Status Stories */}
             <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] hover:border-[#00a884]/50 transition-all group">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-[#00a884]/20 to-emerald-500/10 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
-                <Flame className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
+                <Clock className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Manual Build Pipeline</h3>
+              <h3 className="text-lg font-bold text-white mb-2">24-Hour Status Updates</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                Features GitHub Action workflows setup with manual dispatch toggles for APK, signed bundles (.aab), backend, or admin dashboards.
+                Share text, photo, and video moments that your contacts can see and that automatically disappear after 24 hours.
               </p>
             </div>
 
-            {/* Feature 6 */}
+            {/* Feature 6: Eye-Comfort Dark Mode */}
             <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] hover:border-[#00a884]/50 transition-all group">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-[#00a884]/20 to-emerald-500/10 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
-                <Trash2 className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-xl bg-[#00a884]/15 flex items-center justify-center text-[#00a884] mb-6 group-hover:scale-110 transition-transform">
+                <Moon className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Purge Data Cascades</h3>
+              <h3 className="text-lg font-bold text-white mb-2">Comfortable Dark Mode</h3>
               <p className="text-sm text-[#8696a0] leading-relaxed">
-                GDPR-ready control. Our administrative panel features full database cascades that safely delete chats, messages, and files on user purge.
+                Sleek dark theme optimized for eye comfort at night and battery conservation on OLED screens.
               </p>
             </div>
+
           </div>
         </div>
       </section>
 
-      {/* Interactive Switchboard: App vs Dashboard */}
-      <section id="preview" className="py-20 relative">
+      {/* 4. Interactive User Experience Showcase */}
+      <section id="experience" className="py-20 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
           <div className="text-center max-w-2xl mx-auto mb-12 space-y-4">
-            <h2 className="text-3xl font-extrabold text-white">Explore the Architecture</h2>
+            <h2 className="text-3xl font-extrabold text-white">Experience VIBEZ on Your Phone</h2>
             <p className="text-sm text-[#8696a0]">
-              Toggle between the Android Mobile Experience and the Control Administration Center to see how data synchronizes.
+              Select a view below to preview the intuitive screens built for everyday use.
             </p>
 
-            {/* Tabs Trigger Switcher */}
-            <div className="inline-flex bg-[#111b21] p-1 rounded-xl border border-[#202c33] gap-1">
+            {/* Tabs for End Users */}
+            <div className="inline-flex bg-[#111b21] p-1.5 rounded-2xl border border-[#202c33] gap-1 flex-wrap justify-center">
               <button 
-                onClick={() => setActiveTab('app')}
-                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'app' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
+                onClick={() => setActiveTab('chats')}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'chats' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
               >
-                <Smartphone className="h-4 w-4" />
-                Android App Client
+                <MessageSquare className="h-4 w-4" />
+                Chats & Groups
               </button>
               <button 
-                onClick={() => setActiveTab('admin')}
-                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'admin' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
+                onClick={() => setActiveTab('calls')}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'calls' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
               >
-                <Settings className="h-4 w-4" />
-                Administrative Panel
+                <Phone className="h-4 w-4" />
+                Voice & Video
+              </button>
+              <button 
+                onClick={() => setActiveTab('status')}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'status' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
+              >
+                <Clock className="h-4 w-4" />
+                Status Stories
+              </button>
+              <button 
+                onClick={() => setActiveTab('privacy')}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'privacy' ? 'bg-[#00a884] text-white shadow-md' : 'text-[#8696a0] hover:text-white'}`}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Privacy & Lock
               </button>
             </div>
           </div>
 
-          {/* Visual Dynamic Preview Showcase */}
-          <div className="bg-[#111b21] rounded-3xl border border-[#202c33] p-6 lg:p-10 shadow-2xl relative overflow-hidden">
-            {activeTab === 'app' ? (
+          {/* Interactive Card Presentation */}
+          <div className="bg-[#111b21] rounded-3xl border border-[#202c33] p-6 lg:p-12 shadow-2xl relative overflow-hidden">
+            
+            {/* Tab 1: Chats */}
+            {activeTab === 'chats' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-fade-in">
                 <div className="lg:col-span-6 space-y-6">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#00a884] bg-[#00a884]/10 px-3 py-1 rounded-full">
-                    Material Design 3 Client
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#00a884] bg-[#00a884]/15 px-3.5 py-1.5 rounded-full">
+                    Instant Messaging
                   </span>
-                  <h3 className="text-2xl lg:text-3xl font-extrabold text-white">Stunning Native Jetpack Compose Interface</h3>
+                  <h3 className="text-2xl lg:text-3xl font-extrabold text-white">
+                    Conversations Made Effortless
+                  </h3>
                   <p className="text-[#8696a0] text-sm leading-relaxed">
-                    Designed entirely with Kotlin and Jetpack Compose to follow Material 3 standards. It features smooth sheet transitions, adaptive edge-to-edge screens, a fully-featured country code selector, and custom user avatar generation.
+                    Chat one-on-one or organize conversations in clean group channels. Enjoy instant message delivery, real-time typing indicators, read receipts, and expressive emoji reactions.
                   </p>
                   
                   <div className="space-y-3.5">
                     {[
-                      "Reactive status flags (Typing, Sent, Delivered, Read)",
-                      "Local cache validation via Room database architecture",
-                      "Dynamic system permission requests with runtime compliance checks",
-                      "Optimized light/dark theme schemes matching device preferences"
+                      "Instant delivery ticks (Sent, Delivered, Read)",
+                      "Voice notes with interactive audio seek waveforms",
+                      "Rich photo & video sharing with captions",
+                      "Quick pin & archive to organize important conversations"
                     ].map((feat, i) => (
                       <div key={i} className="flex items-center gap-3">
                         <div className="h-5 w-5 rounded-full bg-[#00a884]/20 flex items-center justify-center text-[#00a884]">
@@ -439,65 +494,61 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="lg:col-span-6 flex justify-center bg-[#0b141a] rounded-2xl p-6 border border-[#202c33] relative">
-                  <div className="w-full max-w-md space-y-6">
-                    {/* Header bar simulated */}
-                    <div className="flex items-center justify-between pb-4 border-b border-[#202c33]">
+                <div className="lg:col-span-6 bg-[#0b141a] rounded-2xl p-5 border border-[#202c33] space-y-3">
+                  <div className="text-xs font-bold text-white pb-3 border-b border-[#202c33] flex justify-between items-center">
+                    <span>Recent Chats</span>
+                    <span className="text-[#00a884] text-[11px] font-semibold">New Chat +</span>
+                  </div>
+
+                  {[
+                    { name: "Family Circle 🏡", msg: "Mom: Dinner is at 7 tonight!", time: "5:12 PM", unread: 2, avatar: "F" },
+                    { name: "Sarah Jenkins", msg: "Loved the photo quality!", time: "4:21 PM", unread: 0, avatar: "S" },
+                    { name: "David K.", msg: "Let's catch up tomorrow morning", time: "Yesterday", unread: 0, avatar: "D" },
+                  ].map((chat, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#111b21] transition-colors border border-transparent hover:border-[#202c33]">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-[#00a884] to-emerald-500 flex items-center justify-center font-bold text-white">
-                          A
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-[#00a884] to-emerald-500 flex items-center justify-center font-bold text-white text-sm">
+                          {chat.avatar}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-white">Austin (Developer)</div>
-                          <div className="text-xs text-[#00a884]">Linking complete...</div>
+                          <div className="text-sm font-bold text-white">{chat.name}</div>
+                          <div className="text-xs text-[#8696a0]">{chat.msg}</div>
                         </div>
                       </div>
-                      <span className="text-[10px] bg-[#202c33] px-2 py-0.5 rounded text-[#8696a0]">Connected</span>
-                    </div>
-
-                    {/* Step wizard simulation */}
-                    <div className="bg-[#111b21] p-4 rounded-xl border border-[#202c33] space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-[#8696a0]">Identity Registration Verification</span>
-                        <span className="text-xs text-[#00a884] font-medium">Step 2 of 2</span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-[10px] text-[#8696a0] uppercase tracking-wider font-bold">Verification OTP Code</label>
-                        <div className="grid grid-cols-6 gap-2">
-                          {[1, 2, 3, 4, 5, 6].map((num) => (
-                            <div key={num} className="h-10 rounded-lg bg-[#0b141a] border border-[#202c33] flex items-center justify-center text-sm font-bold text-[#00a884]">
-                              {num}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="p-2.5 rounded bg-emerald-500/10 border border-[#00a884]/30 text-xs text-[#00a884] flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 shrink-0" />
-                        <span>Phone number bound successfully to your Google account session!</span>
+                      <div className="text-right space-y-1">
+                        <div className="text-[10px] text-[#8696a0]">{chat.time}</div>
+                        {chat.unread > 0 && (
+                          <span className="inline-block bg-[#00a884] text-white font-bold text-[10px] h-4 min-w-4 px-1 rounded-full text-center">
+                            {chat.unread}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-            ) : (
+            )}
+
+            {/* Tab 2: Calls */}
+            {activeTab === 'calls' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-fade-in">
                 <div className="lg:col-span-6 space-y-6">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#53bdeb] bg-[#53bdeb]/10 px-3 py-1 rounded-full">
-                    Control Center
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#53bdeb] bg-[#53bdeb]/15 px-3.5 py-1.5 rounded-full">
+                    HD Voice & Video
                   </span>
-                  <h3 className="text-2xl lg:text-3xl font-extrabold text-white">Administrative Portal Terminal</h3>
+                  <h3 className="text-2xl lg:text-3xl font-extrabold text-white">
+                    Feel Like You're in the Same Room
+                  </h3>
                   <p className="text-[#8696a0] text-sm leading-relaxed">
-                    Designed with Next.js, featuring a robust, authenticated dashboard that interfaces with backend Prisma schemas. It grants administrators immediate user list insights, system metrics, and secure, cascading account purges.
+                    Experience crystal-clear audio and sharp video calls with minimal data usage. Whether catching up with family or calling across the globe, VIBEZ connects you reliably.
                   </p>
                   
                   <div className="space-y-3.5">
                     {[
-                      "Cascading data purging for secure, structural account cleanup",
-                      "Prisma transaction integration preventing orphan database nodes",
-                      "Aggregated real-time metrics for connected users and storage charts",
-                      "Protected routes using administrative tokens and cookie validation"
+                      "Optimized for low-bandwidth networks (2G, 3G, 4G, 5G & Wi-Fi)",
+                      "Seamless camera flipping and microphone muting",
+                      "Call history log with quick redial shortcuts",
+                      "Zero cost international calling over the internet"
                     ].map((feat, i) => (
                       <div key={i} className="flex items-center gap-3">
                         <div className="h-5 w-5 rounded-full bg-[#53bdeb]/20 flex items-center justify-center text-[#53bdeb]">
@@ -509,239 +560,338 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="lg:col-span-6 bg-[#0b141a] rounded-2xl p-6 border border-[#202c33] space-y-6">
-                  <div className="flex items-center justify-between pb-4 border-b border-[#202c33]">
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-[#53bdeb]" />
-                      <span className="text-sm font-bold text-white">System Monitor</span>
+                <div className="lg:col-span-6 bg-[#0b141a] rounded-2xl p-6 border border-[#202c33] text-center space-y-5">
+                  <div className="h-20 w-20 rounded-full bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 mx-auto animate-pulse">
+                    <div className="h-full w-full rounded-full bg-[#111b21] flex items-center justify-center text-xl font-bold text-white">
+                      SJ
                     </div>
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#53bdeb]/10 text-[#53bdeb] font-semibold flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 bg-[#53bdeb] rounded-full animate-pulse" />
-                      Live
-                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-white">Sarah Jenkins</h4>
+                    <p className="text-xs text-[#00a884] font-medium mt-0.5">Calling... (HD Audio)</p>
                   </div>
 
-                  {/* Simulated Admin table with user purge */}
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="bg-[#111b21] p-3 rounded-xl border border-[#202c33]">
-                        <div className="text-xs text-[#8696a0]">Total Users</div>
-                        <div className="text-xl font-black text-white">1,420</div>
-                      </div>
-                      <div className="bg-[#111b21] p-3 rounded-xl border border-[#202c33]">
-                        <div className="text-xs text-[#8696a0]">Purges</div>
-                        <div className="text-xl font-black text-emerald-500">24</div>
-                      </div>
-                      <div className="bg-[#111b21] p-3 rounded-xl border border-[#202c33]">
-                        <div className="text-xs text-[#8696a0]">Database Sockets</div>
-                        <div className="text-xl font-black text-[#53bdeb]">Active</div>
-                      </div>
+                  <div className="flex items-center justify-center gap-6 pt-4">
+                    <div className="h-12 w-12 rounded-full bg-[#202c33] flex items-center justify-center text-[#8696a0]">
+                      <Mic className="h-5 w-5" />
                     </div>
-
-                    <div className="bg-[#111b21] rounded-xl border border-[#202c33] overflow-hidden text-xs">
-                      <div className="bg-[#202c33] p-2.5 grid grid-cols-12 font-bold text-white text-[10px] uppercase tracking-wider">
-                        <div className="col-span-5">User Account</div>
-                        <div className="col-span-4">Status</div>
-                        <div className="col-span-3 text-right">Admin Controls</div>
-                      </div>
-                      <div className="p-2.5 grid grid-cols-12 border-b border-[#202c33] items-center">
-                        <div className="col-span-5 font-bold text-white">GhanaianTester</div>
-                        <div className="col-span-4 text-emerald-500 font-semibold">Verified</div>
-                        <div className="col-span-3 text-right">
-                          <button className="bg-red-500/10 text-red-500 hover:bg-red-500/20 px-2 py-1 rounded font-bold transition-all flex items-center gap-1 ml-auto">
-                            <Trash2 className="h-3 w-3" />
-                            Purge
-                          </button>
-                        </div>
-                      </div>
-                      <div className="p-2.5 grid grid-cols-12 items-center">
-                        <div className="col-span-5 font-bold text-white">VibezChef</div>
-                        <div className="col-span-4 text-yellow-500 font-semibold">Pending Phone</div>
-                        <div className="col-span-3 text-right">
-                          <button className="bg-red-500/10 text-red-500 hover:bg-red-500/20 px-2 py-1 rounded font-bold transition-all flex items-center gap-1 ml-auto">
-                            <Trash2 className="h-3 w-3" />
-                            Purge
-                          </button>
-                        </div>
-                      </div>
+                    <div className="h-14 w-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30">
+                      <Phone className="h-6 w-6 rotate-[135deg]" />
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-[#202c33] flex items-center justify-center text-[#8696a0]">
+                      <Video className="h-5 w-5" />
                     </div>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Tab 3: Status */}
+            {activeTab === 'status' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-fade-in">
+                <div className="lg:col-span-6 space-y-6">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#00a884] bg-[#00a884]/15 px-3.5 py-1.5 rounded-full">
+                    Moments & Stories
+                  </span>
+                  <h3 className="text-2xl lg:text-3xl font-extrabold text-white">
+                    Share Moments with Status Updates
+                  </h3>
+                  <p className="text-[#8696a0] text-sm leading-relaxed">
+                    Share what's on your mind using quick status stories. Post text updates, photos, or short clips that disappear automatically after 24 hours.
+                  </p>
+                  
+                  <div className="space-y-3.5">
+                    {[
+                      "24-hour disappearing updates for privacy and simplicity",
+                      "View counters so you know which contacts saw your update",
+                      "Custom privacy options to select who can view each status",
+                      "Reply directly to any friend's status in a private chat"
+                    ].map((feat, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="h-5 w-5 rounded-full bg-[#00a884]/20 flex items-center justify-center text-[#00a884]">
+                          <Check className="h-3 w-3" />
+                        </div>
+                        <span className="text-sm text-[#e9edef]">{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-6 bg-[#0b141a] rounded-2xl p-5 border border-[#202c33] space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-[#202c33]">
+                    <div className="relative">
+                      <div className="h-12 w-12 rounded-full bg-[#202c33] flex items-center justify-center font-bold text-white text-sm">
+                        You
+                      </div>
+                      <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-[#00a884] text-white flex items-center justify-center text-[10px] font-bold">+</span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-white">My Status</div>
+                      <div className="text-xs text-[#8696a0]">Tap to add status update</div>
+                    </div>
+                  </div>
+
+                  <div className="text-xs font-bold text-[#8696a0] pt-1">Recent Updates</div>
+
+                  {[
+                    { name: "Michael Chen", time: "14 minutes ago", color: "from-purple-500 to-indigo-600" },
+                    { name: "Emma Watson", time: "42 minutes ago", color: "from-amber-400 to-orange-500" },
+                  ].map((st, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#111b21]">
+                      <div className={`h-11 w-11 rounded-full bg-gradient-to-tr ${st.color} p-0.5`}>
+                        <div className="h-full w-full rounded-full bg-[#0b141a] flex items-center justify-center text-xs font-bold text-white">
+                          {st.name[0]}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">{st.name}</div>
+                        <div className="text-xs text-[#8696a0]">{st.time}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: Privacy */}
+            {activeTab === 'privacy' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-fade-in">
+                <div className="lg:col-span-6 space-y-6">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#00a884] bg-[#00a884]/15 px-3.5 py-1.5 rounded-full">
+                    Peace of Mind
+                  </span>
+                  <h3 className="text-2xl lg:text-3xl font-extrabold text-white">
+                    Built from the Ground Up for Your Privacy
+                  </h3>
+                  <p className="text-[#8696a0] text-sm leading-relaxed">
+                    We believe your personal messages and phone calls should always remain yours. You are always in control of your data, profile visibility, and contact permissions.
+                  </p>
+                  
+                  <div className="space-y-3.5">
+                    {[
+                      "App Lock with Fingerprint / Biometric authentication",
+                      "Control who can see your Last Seen, Status, and Profile Photo",
+                      "Block unwanted contacts or report spam with a single tap",
+                      "Zero third-party tracking or targeted ad networks"
+                    ].map((feat, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="h-5 w-5 rounded-full bg-[#00a884]/20 flex items-center justify-center text-[#00a884]">
+                          <Check className="h-3 w-3" />
+                        </div>
+                        <span className="text-sm text-[#e9edef]">{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-6 bg-[#0b141a] rounded-2xl p-6 border border-[#202c33] space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-[#202c33]">
+                    <div className="h-10 w-10 rounded-full bg-[#00a884]/15 flex items-center justify-center text-[#00a884]">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Privacy Controls</h4>
+                      <p className="text-xs text-[#8696a0]">Customize your preferences</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    {[
+                      { label: "Last Seen & Online", value: "My Contacts" },
+                      { label: "Profile Photo", value: "Everyone" },
+                      { label: "Read Receipts", value: "Enabled" },
+                      { label: "Fingerprint App Lock", value: "Active" },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-2.5 rounded-lg bg-[#111b21] border border-[#202c33]">
+                        <span className="text-[#e9edef] font-medium">{item.label}</span>
+                        <span className="text-[#00a884] font-semibold">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </section>
 
-      {/* Database & Architecture Layer */}
-      <section id="architecture" className="py-20 bg-[#111b21] border-t border-[#202c33]">
+      {/* 5. How It Works (3 Simple Steps for Users) */}
+      <section id="how-it-works" className="py-20 bg-[#111b21] border-y border-[#202c33]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+              Get Started in 3 Simple Steps
+            </h2>
+            <p className="text-base text-[#8696a0]">
+              Starting your conversation on VIBEZ takes less than a minute.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             
-            <div className="lg:col-span-5 space-y-6">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0b141a] border border-[#202c33] text-[#00a884] text-xs font-bold">
-                <Server className="h-3.5 w-3.5" />
-                No Placeholders
+            {/* Step 1 */}
+            <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] text-center space-y-4 relative">
+              <div className="h-12 w-12 rounded-full bg-[#00a884] text-white font-extrabold text-lg flex items-center justify-center mx-auto shadow-lg shadow-[#00a884]/20">
+                1
               </div>
-              <h2 className="text-3xl font-extrabold text-white leading-tight">
-                Solid Prisma-Schema PostgreSQL Foundation
-              </h2>
-              <p className="text-sm text-[#8696a0] leading-relaxed">
-                We believe in absolute code integrity. Instead of relying on volatile arrays, memory storage, or mocks, VIBEZ connects directly to a live PostgreSQL relational instance managed via Prisma ORM schemas.
+              <h3 className="text-lg font-bold text-white">Download the App</h3>
+              <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
+                Download and install the lightweight APK directly onto your Android device or tablet.
               </p>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#0b141a] p-4 rounded-xl border border-[#202c33]">
-                  <div className="text-lg font-bold text-white">Prisma Client</div>
-                  <div className="text-xs text-[#8696a0]">Auto-generated database models</div>
-                </div>
-                <div className="bg-[#0b141a] p-4 rounded-xl border border-[#202c33]">
-                  <div className="text-lg font-bold text-white">Full Cascades</div>
-                  <div className="text-xs text-[#8696a0]">Safe automatic database cleaning</div>
-                </div>
-              </div>
             </div>
 
-            <div className="lg:col-span-7 bg-[#0b141a] p-5 rounded-2xl border border-[#202c33] font-mono text-xs overflow-x-auto text-[#00a884] max-h-[400px] overflow-y-auto shadow-2xl">
-              <div className="flex items-center justify-between pb-3 border-b border-[#202c33] text-[#8696a0] mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center font-bold text-[8px]">×</span>
-                  <span className="h-3 w-3 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center font-bold text-[8px]">-</span>
-                  <span className="h-3 w-3 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center font-bold text-[8px]">+</span>
-                  <span className="ml-2 text-[10px]">schema.prisma</span>
-                </div>
-                <span className="text-[10px] bg-[#111b21] px-2 py-0.5 rounded text-white">Prisma v5.x</span>
+            {/* Step 2 */}
+            <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] text-center space-y-4 relative">
+              <div className="h-12 w-12 rounded-full bg-[#00a884] text-white font-extrabold text-lg flex items-center justify-center mx-auto shadow-lg shadow-[#00a884]/20">
+                2
               </div>
+              <h3 className="text-lg font-bold text-white">Verify Phone Number</h3>
+              <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
+                Enter your mobile number and confirm with a fast, secure one-time verification code.
+              </p>
+            </div>
 
-              <pre className="text-left text-[11px] leading-relaxed text-[#e9edef] opacity-90">
-{`datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-model User {
-  id            String    @id @default(uuid())
-  email         String?   @unique
-  phone         String?   @unique
-  displayName   String?
-  avatarUrl     String?
-  bio           String?   @default("Available")
-  role          String    @default("USER") // ADMIN, USER, CHEF
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Cascading Relations
-  messages      Message[] @relation("UserMessages")
-  chats         Chat[]    @relation("UserChats")
-}
-
-model Chat {
-  id        String    @id @default(uuid())
-  isGroup   Boolean   @default(false)
-  name      String?
-  createdAt DateTime  @default(now())
-  
-  // Relations
-  members   User[]    @relation("UserChats")
-  messages  Message[] @relation("ChatMessages")
-}
-
-model Message {
-  id        String   @id @default(uuid())
-  text      String
-  mediaUrl  String?
-  createdAt DateTime @default(now())
-
-  // Relations
-  senderId  String
-  sender    User     @relation("UserMessages", fields: [senderId], onDelete: Cascade)
-  chatId    String
-  chat      Chat     @relation("ChatMessages", fields: [chatId], onDelete: Cascade)
-}`}
-              </pre>
+            {/* Step 3 */}
+            <div className="bg-[#0b141a] p-8 rounded-2xl border border-[#202c33] text-center space-y-4 relative">
+              <div className="h-12 w-12 rounded-full bg-[#00a884] text-white font-extrabold text-lg flex items-center justify-center mx-auto shadow-lg shadow-[#00a884]/20">
+                3
+              </div>
+              <h3 className="text-lg font-bold text-white">Start Chatting & Calling</h3>
+              <p className="text-xs sm:text-sm text-[#8696a0] leading-relaxed">
+                Add contacts, start sending text or audio messages, and enjoy crystal-clear voice and video calls.
+              </p>
             </div>
 
           </div>
         </div>
       </section>
 
-      {/* APK Installation / Downloads Section */}
-      <section id="download" className="py-24 relative overflow-hidden">
-        {/* Background Decorative Gradient */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-[#00a884]/10 to-[#53bdeb]/10 blur-[130px] rounded-full -z-10" />
+      {/* 6. FAQ Section (End-User Focused) */}
+      <section id="faq" className="py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
+            <h2 className="text-3xl font-extrabold text-white">Frequently Asked Questions</h2>
+            <p className="text-sm text-[#8696a0]">
+              Everything you need to know about using VIBEZ on your phone.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              {
+                q: "Is VIBEZ free to use for calls and messages?",
+                a: "Yes! VIBEZ uses your phone's internet connection (Wi-Fi or cellular data) to send messages and make calls, so you don't have to pay standard SMS or cellular voice fees."
+              },
+              {
+                q: "How do I add friends on VIBEZ?",
+                a: "Simply tap the 'New Chat' button inside the app and choose a contact from your address book who is on VIBEZ, or invite them directly using your personalized invite link."
+              },
+              {
+                q: "Are my photos and videos shared in high quality?",
+                a: "Yes. VIBEZ is designed to preserve your media quality so that photos and videos remain clear when shared with your contacts."
+              },
+              {
+                q: "What devices are supported?",
+                a: "VIBEZ runs on Android phones and tablets running Android 8.0 and above, with responsive design support for foldables and tablets."
+              },
+              {
+                q: "How does VIBEZ protect my privacy?",
+                a: "VIBEZ ensures that your conversations stay private. We do not sell your personal data or show invasive third-party ad trackers."
+              }
+            ].map((faq, index) => (
+              <div 
+                key={index} 
+                className="bg-[#111b21] rounded-2xl border border-[#202c33] overflow-hidden transition-all"
+              >
+                <button
+                  onClick={() => toggleFaq(index)}
+                  className="w-full p-5 text-left flex items-center justify-between gap-4 focus:outline-none"
+                >
+                  <span className="text-sm sm:text-base font-bold text-white">{faq.q}</span>
+                  <ChevronDown className={`h-5 w-5 text-[#8696a0] shrink-0 transition-transform ${openFaq === index ? 'rotate-180 text-[#00a884]' : ''}`} />
+                </button>
+                {openFaq === index && (
+                  <div className="px-5 pb-5 text-xs sm:text-sm text-[#8696a0] leading-relaxed border-t border-[#202c33]/50 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* 7. Download App Banner (CTA) */}
+      <section id="download" className="py-24 relative overflow-hidden bg-[#111b21] border-t border-[#202c33]">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-[#00a884]/15 to-[#53bdeb]/15 blur-[140px] rounded-full -z-10" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          <div className="inline-flex h-16 w-16 rounded-3xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-xl shadow-[#00a884]/20 items-center justify-center mx-auto mb-4">
+          
+          <div className="inline-flex h-16 w-16 rounded-3xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 shadow-xl shadow-[#00a884]/20 items-center justify-center mx-auto">
             <div className="h-full w-full rounded-[22px] bg-[#0b141a] flex items-center justify-center">
               <Download className="h-8 w-8 text-[#00a884]" />
             </div>
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-            Download the Stable Android Package
+            Ready to Experience VIBEZ?
           </h2>
-          <p className="text-base text-[#8696a0] max-w-2xl mx-auto leading-relaxed">
-            Get the production client directly onto your mobile device or emulator. Features absolute local speed and Material Design compliance.
+          <p className="text-base text-[#8696a0] max-w-xl mx-auto leading-relaxed">
+            Download the Android app today and stay closer to friends and family with fast, private messaging and calls.
           </p>
-
-          <div className="bg-[#111b21] p-6 rounded-2xl border border-[#202c33] max-w-lg mx-auto space-y-4 text-left">
-            <h4 className="text-sm font-bold text-white flex items-center gap-2">
-              <ShieldCheck className="h-4.5 w-4.5 text-[#00a884]" />
-              Android Verification Signatures
-            </h4>
-            <div className="space-y-3 text-xs text-[#8696a0]">
-              <div className="flex justify-between border-b border-[#202c33] pb-2">
-                <span>File Name:</span>
-                <span className="font-mono text-white font-semibold">app-debug.apk / app-release.apk</span>
-              </div>
-              <div className="flex justify-between border-b border-[#202c33] pb-2">
-                <span>Minimum OS:</span>
-                <span className="font-mono text-white font-semibold">Android 8.0 (API Level 26)</span>
-              </div>
-              <div className="flex justify-between pb-1">
-                <span>Signature Checksum:</span>
-                <span className="font-mono text-white font-semibold">SHA-256 Verified</span>
-              </div>
-            </div>
-          </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
             <a 
               href="https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app"
               target="_blank" 
               rel="noopener noreferrer"
-              className="w-full text-center px-6 py-4 rounded-xl bg-[#00a884] hover:bg-[#008f72] text-white font-bold shadow-xl shadow-[#00a884]/20 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+              className="w-full text-center px-8 py-4 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white font-bold text-base shadow-xl shadow-[#00a884]/25 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2.5"
             >
               <Download className="h-5 w-5" />
               Download APK Directly
             </a>
           </div>
+
+          <p className="text-xs text-[#8696a0]">
+            Compatible with all Android devices running Android 8.0 or newer.
+          </p>
         </div>
       </section>
 
-      {/* Elegant Professional Footer */}
+      {/* 8. User-Friendly Footer */}
       <footer className="bg-[#0b141a] border-t border-[#202c33] py-12 text-xs text-[#8696a0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 flex items-center justify-center">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-[#00a884] to-[#53bdeb] p-0.5 flex items-center justify-center">
                 <div className="h-full w-full rounded-[6px] bg-[#0b141a] flex items-center justify-center">
                   <MessageSquare className="h-4 w-4 text-[#00a884]" />
                 </div>
               </div>
-              <span className="text-sm font-black tracking-tight text-white">VIBEZ</span>
+              <span className="text-base font-black tracking-tight text-white">VIBEZ</span>
             </div>
 
-            <p className="text-center md:text-right">
-              &copy; 2026 VIBEZ. All rights reserved. Secure Communication Sandbox Platform.
-            </p>
+            <div className="flex items-center gap-6 text-xs">
+              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <a href="#privacy" className="hover:text-white transition-colors">Privacy</a>
+              <a href="#faq" className="hover:text-white transition-colors">Help & FAQ</a>
+              <a href="#download" className="hover:text-white transition-colors">Download</a>
+            </div>
           </div>
+
+          <div className="border-t border-[#202c33] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <p>&copy; {new Date().getFullYear()} VIBEZ. Simple, secure messaging for everyone.</p>
+            <p className="text-[#8696a0]">Fast • Private • Free</p>
+          </div>
+
         </div>
       </footer>
+
     </div>
   );
 }
