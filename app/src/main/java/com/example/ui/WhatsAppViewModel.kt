@@ -887,4 +887,25 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+    fun reportUser(reportedUserId: String, reason: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken()
+            if (token.isNullOrBlank()) {
+                onResult(false, "User not authenticated")
+                return@launch
+            }
+            try {
+                val response = repository.reportUser(token, reportedUserId, reason)
+                if (response.success) {
+                    onResult(true, "Thank you for your report. Our team will review this user shortly.")
+                } else {
+                    onResult(false, response.message ?: "Failed to file report")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onResult(false, e.message ?: "Network error. Please try again.")
+            }
+        }
+    }
 }

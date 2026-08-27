@@ -165,4 +165,10 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: CreatePaymentRequest
     ): CreatePaymentResponse
+
+    @POST("api/users/report")
+    suspend fun reportUser(
+        @Header("Authorization") token: String,
+        @Body request: ReportUserRequest
+    ): ReportUserResponse
 }

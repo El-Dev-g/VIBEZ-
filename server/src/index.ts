@@ -113,6 +113,7 @@ app.post('/api/users/change-phone/request', authenticate, (req, res) => user.req
 app.post('/api/users/change-phone/verify', authenticate, (req, res) => user.verifyPhoneChange(req, res));
 app.get('/api/users/settings', authenticate, (req, res) => user.getSettings(req, res));
 app.put('/api/users/settings', authenticate, (req, res) => user.updateSettings(req, res));
+app.post('/api/users/report', authenticate, (req, res) => user.reportUser(req, res));
 
 // Chat Routes
 app.get('/api/chats', authenticate, (req, res) => chat.getChats(req, res));

@@ -634,4 +634,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     suspend fun createPayment(token: String, request: CreatePaymentRequest): CreatePaymentResponse {
         return NetworkClient.apiService.createPayment("Bearer $token", request)
     }
+
+    suspend fun reportUser(token: String, reportedUserId: String, reason: String): ReportUserResponse {
+        return NetworkClient.apiService.reportUser("Bearer $token", ReportUserRequest(reportedUserId, reason))
+    }
 }

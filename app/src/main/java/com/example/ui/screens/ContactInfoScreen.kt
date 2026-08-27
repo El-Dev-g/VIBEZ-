@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
@@ -82,7 +83,8 @@ fun ContactInfoScreen(
     onAllMediaClick: () -> Unit = {},
     onToggleMuteChat: (String) -> Unit = {},
     onClearChatClick: () -> Unit,
-    onDeleteChatClick: () -> Unit
+    onDeleteChatClick: () -> Unit,
+    onReportClick: (String, String) -> Unit = { _, _ -> }
 ) {
     var isMuted by remember { mutableStateOf(chat?.isMuted == true) }
 
@@ -426,6 +428,22 @@ fun ContactInfoScreen(
                             Icon(imageVector = Icons.Default.Block, contentDescription = "Block", tint = Color.Red)
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(text = "Block contact", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val targetId = chat?.contactId ?: contact?.id ?: ""
+                                    val targetName = chat?.contactName ?: contact?.name ?: "User"
+                                    onReportClick(targetId, targetName)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.Warning, contentDescription = "Report", tint = Color.Red)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(text = "Report contact", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

@@ -100,6 +100,7 @@ import com.example.ui.screens.ChangePhoneNumberScreen
 import com.example.ui.screens.MaintenanceScreen
 import com.example.ui.screens.WallpaperSettingsScreen
 import com.example.ui.screens.SystemBroadcastsScreen
+import com.example.ui.screens.ReportUserScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -855,7 +856,31 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onDeleteChatClick = {
                     viewModel.deleteChat(chatId)
                     navController.popBackStack("main", false)
+                },
+                onReportClick = { reportedId, reportedName ->
+                    val encodedName = java.net.URLEncoder.encode(reportedName, "UTF-8")
+                    navController.navigate("report_user/$reportedId/$encodedName")
                 }
+            )
+        }
+
+        // 8b. Report User Screen
+        composable(
+            route = "report_user/{userId}/{userName}",
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("userName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val rawUserName = backStackEntry.arguments?.getString("userName") ?: ""
+            val userName = java.net.URLDecoder.decode(rawUserName, "UTF-8")
+
+            ReportUserScreen(
+                reportedUserId = userId,
+                reportedUserName = userName,
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
 

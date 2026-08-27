@@ -256,4 +256,29 @@ export class UserController {
       res.status(500).json({ error: 'Failed to update settings' });
     }
   }
+
+  async reportUser(req: AuthRequest, res: Response) {
+    try {
+      const reporterId = req.user?.id as string;
+      const { reportedUserId, reason } = req.body;
+
+      if (!reportedUserId || !reason) {
+        return res.status(400).json({ error: 'Reported user ID and reason are required.' });
+      }
+
+      const report = await prisma.report.create({
+        data: {
+          reporterId,
+          reportedUserId,
+          reason: String(reason).trim(),
+          status: 'PENDING'
+        }
+      });
+
+      res.json({ success: true, report });
+    } catch (error) {
+      console.error('Failed to create user report:', error);
+      res.status(500).json({ error: 'Failed to file user report' });
+    }
+  }
 }

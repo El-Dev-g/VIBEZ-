@@ -277,3 +277,15 @@ data class CreatePaymentResponse(
     val message: String
 )
 
+@JsonClass(generateAdapter = true)
+data class ReportUserRequest(
+    val reportedUserId: String,
+    val reason: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ReportUserResponse(
+    val success: Boolean,
+    val message: String? = null
+)
+
