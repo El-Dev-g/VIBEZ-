@@ -40,8 +40,17 @@ All backend variables are configured directly in your **Render Web Service Dashb
 | `JWT_SECRET` | Secret key for signing backend session JWTs | `your-strong-production-jwt-secret` |
 | `PORT` | Server listening port | `10000` (or `3000`) |
 | `GOOGLE_CLIENT_ID` | OAuth Web Client ID for validating Google tokens | `31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com` |
+| `ADMIN_FRONTEND_URL` | Explicit origin of the admin panel for CORS protection | `https://your-admin-service.onrender.com` |
+| `FRONTEND_URL` | Explicit origin of the web client for CORS protection | `https://your-client-app.onrender.com` |
+| `ADMIN_EMAIL` | Initial master administrator email used for seeding | `admin@vibez.com` |
+| `ADMIN_PASSWORD` | Initial master administrator password used for seeding | `your-secure-admin-password` |
 
-### 2. Cloudflare R2 Media Storage *(Optional)*
+### 2. Next.js Admin Variables (`/admin`)
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | Production URL pointing to your deployed backend API | `https://vibez-n5h1.onrender.com/api` |
+
+### 3. Cloudflare R2 Media Storage *(Optional)*
 | Variable | Description |
 | :--- | :--- |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account Identifier |

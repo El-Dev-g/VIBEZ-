@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { fetchStorageStats, purgeStorageCache } from '@/services/api';
+import { fetchStorageStats, purgeStorageCache } from '../../services/api';
 
 export default function StoragePage() {
   const [toast, setToast] = useState<string | null>(null);

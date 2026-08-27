@@ -24,6 +24,10 @@ PORT=10000
 DATABASE_URL="postgresql://user:password@host:port/dbname?sslmode=require"
 JWT_SECRET="your-production-jwt-secret-key"
 GOOGLE_CLIENT_ID="31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com"
+ADMIN_FRONTEND_URL="https://your-admin-service.onrender.com"
+FRONTEND_URL="https://your-client-app.onrender.com"
+ADMIN_EMAIL="admin@vibez.com"
+ADMIN_PASSWORD="your-secure-admin-password"
 ```
 
 #### Optional: Cloudflare R2 Media Storage

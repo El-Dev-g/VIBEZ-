@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import PaymentSettings from '@/components/PaymentSettings';
-import TransactionList from '@/components/TransactionList';
-import RevenueChart from '@/components/RevenueChart';
-import { fetchPaymentTransactions, fetchPaymentProviders, fetchBadgePayments } from '@/services/api';
+import PaymentSettings from '../../components/PaymentSettings';
+import TransactionList from '../../components/TransactionList';
+import RevenueChart from '../../components/RevenueChart';
+import { fetchPaymentTransactions, fetchPaymentProviders, fetchBadgePayments } from '../../services/api';
 
 export default function PaymentsPage() {
   const [activeTab, setActiveTab] = useState<'transactions' | 'config'>('transactions');
