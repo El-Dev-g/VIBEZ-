@@ -54,17 +54,55 @@ jobs:
         with:
           cache-disabled: false
 
+      - name: Prepare Firebase Config (google-services.json)
+        run: |
+          if [ ! -f "app/google-services.json" ]; then
+            echo "google-services.json is missing on checkout. Generating a fallback placeholder configuration..."
+            PACKAGE_NAME=$(grep -oP 'applicationId\s*=\s*"\K[^"]+' app/build.gradle.kts || echo "com.aistudio.whatsappclone.app")
+            echo "Detected application ID: $PACKAGE_NAME"
+            echo '{
+              "project_info": {
+                "project_number": "123456789",
+                "project_id": "mock-project-id",
+                "storage_bucket": "mock-bucket.appspot.com"
+              },
+              "client": [
+                {
+                  "client_info": {
+                    "mobilesdk_app_id": "1:123456789:android:123456789",
+                    "android_client_info": {
+                      "package_name": "'"$PACKAGE_NAME"'"
+                    }
+                  },
+                  "oauth_client": [],
+                  "api_key": [
+                    {
+                      "current_key": "mock_api_key_value"
+                    }
+                  ],
+                  "services": {}
+                }
+              ],
+              "configuration_version": "1"
+            }' > app/google-services.json
+          else
+            echo "google-services.json already exists!"
+          fi
+
       - name: Prepare Keystore (Release Mode)
         if: ${{ inputs.android_build_type != 'debug_apk' }}
         run: |
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
             echo "Decoding release keystore from secrets..."
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
+            echo "USING_CUSTOM_SECRETS=true" >> $GITHUB_ENV
           else
             echo "No custom keystore secret provided. Creating a temporary keystore for building a signed package..."
             keytool -genkey -v -keystore my-upload-key.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Vibez, O=AI Studio, C=US" -storepass "temporarypassword" -keypass "temporarypassword"
             echo "TEMP_STORE_PASSWORD=temporarypassword" >> $GITHUB_ENV
             echo "TEMP_KEY_PASSWORD=temporarypassword" >> $GITHUB_ENV
+            echo "TEMP_KEY_ALIAS=upload" >> $GITHUB_ENV
+            echo "USING_CUSTOM_SECRETS=false" >> $GITHUB_ENV
           fi
 
       - name: Build Android Package (Debug APK)
@@ -77,6 +115,7 @@ jobs:
           KEYSTORE_PATH: "my-upload-key.jks"
           STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || env.TEMP_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || env.TEMP_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || env.TEMP_KEY_ALIAS || 'vibez-key' }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
       - name: Build Android Package (Release AAB Bundle)
@@ -85,6 +124,7 @@ jobs:
           KEYSTORE_PATH: "my-upload-key.jks"
           STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || env.TEMP_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || env.TEMP_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || env.TEMP_KEY_ALIAS || 'vibez-key' }}
         run: ./gradlew :app:bundleRelease --stacktrace
 
       - name: Upload Debug APK Artifact
