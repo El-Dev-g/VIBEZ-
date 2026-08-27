@@ -134,7 +134,7 @@ fun AuthScreen(
         if (auth == null) {
             // Safe fallback if Firebase is not initialized
             isSigningIn = false
-            onAuthSuccess(phoneNumber.trim(), phoneName.trim().ifBlank { phoneNumber.trim() }, "Hey there! I am using VIBEZ.", null)
+            onAuthSuccess(phoneNumber.trim(), phoneName.trim(), "Hey there! I am using VIBEZ.", null)
             return
         }
 
@@ -146,11 +146,11 @@ fun AuthScreen(
                         isSigningIn = false
                         val idToken = if (tokenTask.isSuccessful) tokenTask.result.token else null
                         val finalPhone = user.phoneNumber?.ifBlank { phoneNumber.trim() } ?: phoneNumber.trim()
-                        val finalName = phoneName.trim().ifBlank { finalPhone }
+                        val finalName = phoneName.trim()
                         onAuthSuccess(finalPhone, finalName, "Hey there! I am using VIBEZ.", idToken)
                     } ?: run {
                         isSigningIn = false
-                        onAuthSuccess(phoneNumber.trim(), phoneName.trim().ifBlank { phoneNumber.trim() }, "Hey there! I am using VIBEZ.", null)
+                        onAuthSuccess(phoneNumber.trim(), phoneName.trim(), "Hey there! I am using VIBEZ.", null)
                     }
                 } else {
                     isSigningIn = false
@@ -538,7 +538,7 @@ fun AuthScreen(
                                             isSigningIn = false
                                             onAuthSuccess(
                                                 phoneNumber.trim(),
-                                                phoneName.trim().ifBlank { phoneNumber.trim() },
+                                                phoneName.trim(),
                                                 "Hey there! I am using VIBEZ.",
                                                 "mock_firebase_id_token_${System.currentTimeMillis()}"
                                             )

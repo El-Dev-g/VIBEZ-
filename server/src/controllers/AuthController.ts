@@ -26,10 +26,14 @@ export class AuthController {
           return res.status(403).json({ error: 'New user registrations are currently disabled by system administrator.' });
         }
 
+        const initialName = (name && typeof name === 'string' && name.trim().length > 0 && name.trim() !== cleanPhone)
+          ? name.trim()
+          : cleanPhone;
+
         user = await prisma.user.create({
           data: {
             phoneNumber: cleanPhone,
-            name: name?.trim() || cleanPhone,
+            name: initialName,
             about: about?.trim() || 'Hey there! I am using VIBEZ.',
             avatarUrl: avatarUrl || null,
             authProvider: 'PHONE',
@@ -41,12 +45,34 @@ export class AuthController {
           return res.status(403).json({ error: 'Your account has been suspended by system administrator.' });
         }
 
+        // Preserve existing user name if client provides empty string, phone number, or placeholder
+        let updatedName = user.name;
+        if (name && typeof name === 'string') {
+          const trimmed = name.trim();
+          if (trimmed.length > 0 && trimmed !== cleanPhone && trimmed !== user.phoneNumber) {
+            updatedName = trimmed;
+          }
+        }
+
+        // Preserve existing about if client sends default placeholder and user already had customized about
+        let updatedAbout = user.about;
+        if (about && typeof about === 'string') {
+          const trimmedAbout = about.trim();
+          if (trimmedAbout.length > 0) {
+            if (user.about && user.about !== 'Hey there! I am using VIBEZ.' && trimmedAbout === 'Hey there! I am using VIBEZ.') {
+              updatedAbout = user.about;
+            } else {
+              updatedAbout = trimmedAbout;
+            }
+          }
+        }
+
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
             lastSeen: new Date(),
-            name: name?.trim() || user.name,
-            about: about?.trim() || user.about,
+            name: updatedName,
+            about: updatedAbout || 'Hey there! I am using VIBEZ.',
             avatarUrl: avatarUrl || user.avatarUrl
           }
         });
@@ -147,7 +173,7 @@ export class AuthController {
         const updateData: any = {
           lastSeen: new Date(),
           avatarUrl: verifiedAvatar || user.avatarUrl,
-          name: verifiedName || user.name
+          name: (verifiedName && verifiedName.trim().length > 0 && verifiedName !== 'New User') ? verifiedName.trim() : user.name
         };
 
         if (verifiedEmail) {
