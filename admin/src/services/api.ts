@@ -1,12 +1,14 @@
 const getApiBaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
   if (typeof window !== 'undefined') {
+    // In browser, relative /api is routed seamlessly through Next.js proxy rewrite
     return '/api';
   }
-  const port = process.env.PORT || '8000';
-  return `http://127.0.0.1:${port}/api`;
+  const raw = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://vibez-n5h1.onrender.com';
+  let url = raw.trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  return url.endsWith('/api') ? url : `${url.replace(/\/$/, '')}/api`;
 };
 
 export interface User {

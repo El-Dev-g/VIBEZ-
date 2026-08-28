@@ -469,29 +469,49 @@ export class AdminController {
         return res.status(404).json({ error: 'Inquiry not found.' });
       }
 
-      // Send branded email via Nodemailer
-      const emailResult = await emailService.sendSupportResponse({
-        to: inquiry.email,
-        recipientName: inquiry.name,
-        ticketId: inquiry.id.substring(0, 8).toUpperCase(),
-        originalSubject: inquiry.subject,
-        originalMessage: inquiry.message,
-        responseMessage: responseMessage.trim(),
-        agentName: agentName || 'VIBEZ Support Team',
-        agentTitle: agentTitle || 'Customer Experience & Success',
-      });
-
-      // Update inquiry status to RESOLVED
+      // Update inquiry status to RESOLVED in database
       await (prisma as any).contactInquiry.update({
         where: { id },
         data: { status: 'RESOLVED' }
       });
 
+      // Send branded email via Nodemailer safely
+      let emailResult = { success: false, error: 'Email delivery not configured' };
+      try {
+        emailResult = await emailService.sendSupportResponse({
+          to: inquiry.email,
+          recipientName: inquiry.name,
+          ticketId: inquiry.id.substring(0, 8).toUpperCase(),
+          originalSubject: inquiry.subject,
+          originalMessage: inquiry.message,
+          responseMessage: responseMessage.trim(),
+          agentName: agentName || 'VIBEZ Support Team',
+          agentTitle: agentTitle || 'Customer Experience & Success',
+        });
+      } catch (mailErr: any) {
+        console.error('[AdminController] Nodemailer dispatch error:', mailErr);
+        emailResult = { success: false, error: mailErr?.message || 'SMTP delivery failed' };
+      }
+
+      // Log in audit log
+      try {
+        const adminEmail = (req as any).admin?.email || (req as any).user?.email || agentName || 'system';
+        await prisma.auditLog.create({
+          data: {
+            adminEmail,
+            action: 'REPLY_SUPPORT_INQUIRY',
+            target: `Inquiry:${inquiry.id} (${inquiry.email})`
+          }
+        });
+      } catch (logErr) {}
+
       res.json({
         success: true,
-        message: 'Support response sent successfully!',
+        message: emailResult.success
+          ? 'Support response dispatched successfully via Nodemailer!'
+          : 'Response recorded and inquiry resolved. (Note: Email delivery failed or SMTP not configured).',
         emailDispatched: emailResult.success,
-        error: emailResult.error
+        error: emailResult.success ? undefined : emailResult.error
       });
     } catch (error: any) {
       console.error('Reply inquiry error:', error);

@@ -50,6 +50,9 @@ class EmailService {
           user: this.user,
           pass: this.pass.replace(/\s+/g, ''), // Strip spaces from App Password if formatted
         },
+        connectionTimeout: 8000, // 8 seconds timeout
+        greetingTimeout: 8000,
+        socketTimeout: 10000,
       });
     }
 
@@ -66,13 +69,20 @@ class EmailService {
     }
 
     try {
-      await transporter.sendMail({
+      const sendPromise = transporter.sendMail({
         from: `"${this.fromName}" <${this.user}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text || options.html.replace(/<[^>]*>?/gm, ''),
       });
+
+      // 10s strict timeout to prevent hung HTTP requests
+      const timeoutPromise = new Promise<{ success: boolean; error: string }>((_, reject) =>
+        setTimeout(() => reject(new Error('SMTP connection timed out after 10 seconds.')), 10000)
+      );
+
+      await Promise.race([sendPromise, timeoutPromise]);
       console.log(`[EmailService] Email successfully delivered to ${options.to}`);
       return { success: true };
     } catch (error: any) {

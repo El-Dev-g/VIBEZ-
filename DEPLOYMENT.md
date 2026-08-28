@@ -68,7 +68,7 @@ The VIBEZ backend is a Node.js/Express service utilizing Prisma ORM with WebSock
    - **Name**: `vibez-developer-hub`
    - **Root Directory**: `developer`
    - **Runtime**: `Node`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm install --include=dev && npm run build`
    - **Start Command**: `npm start`
 4. Add Environment Variables:
    ```env
@@ -86,7 +86,7 @@ The VIBEZ backend is a Node.js/Express service utilizing Prisma ORM with WebSock
    - **Name**: `vibez-admin`
    - **Root Directory**: `admin`
    - **Runtime**: `Node`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm install --include=dev && npm run build`
    - **Start Command**: `npm start`
 3. Add Environment Variable:
    ```env
