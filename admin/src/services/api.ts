@@ -923,3 +923,26 @@ export const fetchPaymentTransactions = async (): Promise<PaymentTransaction[]> 
   return [];
 };
 
+export interface ContactInquiry {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: string;
+  createdAt: string;
+}
+
+export const fetchContactInquiries = async (): Promise<ContactInquiry[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/inquiries`, { 
+      headers: getAdminHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+  return [];
+};
+
