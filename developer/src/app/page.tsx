@@ -269,7 +269,7 @@ print("Response:", res.json())`
         </div>
       </section>
 
-      {/* Enterprise Architecture Footer Banner */}
+      {/* Enterprise Architecture Banner */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1.5">
@@ -277,7 +277,7 @@ print("Response:", res.json())`
               Enterprise Infrastructure
             </div>
             <h3 className="text-lg font-bold text-white">
-              Powered by PRIGID GROUP High-Availability Architecture
+              High-Availability Global API Architecture
             </h3>
             <p className="text-xs text-slate-400 max-w-xl">
               Node.js microservices, PostgreSQL storage, Redis Pub/Sub, and Socket.IO real-time clusters.

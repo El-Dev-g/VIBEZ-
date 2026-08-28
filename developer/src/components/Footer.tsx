@@ -18,9 +18,6 @@ export const Footer: React.FC = () => {
             <p className="text-xs text-slate-500 leading-relaxed">
               Enterprise developer ecosystem, real-time communication APIs, WebSockets, and integration tooling.
             </p>
-            <p className="text-xs font-bold text-slate-400">
-              Powered by <span className="text-emerald-400 font-extrabold">PRIGID GROUP</span>
-            </p>
           </div>
 
           <div>
@@ -62,3 +59,4 @@ export const Footer: React.FC = () => {
     </footer>
   );
 };
+
