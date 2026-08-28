@@ -136,6 +136,16 @@ fun MaintenanceScreen(
                     Text("Check System Status", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Powered by PRIGID GROUP",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                letterSpacing = 0.5.sp
+            )
         }
     }
 }

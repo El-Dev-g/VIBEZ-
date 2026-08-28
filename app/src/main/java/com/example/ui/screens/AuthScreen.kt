@@ -804,6 +804,16 @@ fun AuthScreen(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Powered by PRIGID GROUP",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    letterSpacing = 0.5.sp
+                )
+
                 if (errorMessage != null) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),

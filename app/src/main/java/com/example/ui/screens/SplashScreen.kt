@@ -164,10 +164,11 @@ fun SplashScreen(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "VIBEZ ENGINE",
+                text = "PRIGID GROUP",
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = WhatsAppMinimalPrimary
+                fontWeight = FontWeight.ExtraBold,
+                color = WhatsAppMinimalPrimary,
+                letterSpacing = 1.sp
             )
         }
     }

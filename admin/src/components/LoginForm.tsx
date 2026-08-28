@@ -134,9 +134,12 @@ export default function LoginForm() {
             </div>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-800 text-center">
+          <div className="mt-6 pt-6 border-t border-slate-800 text-center space-y-2">
             <p className="text-[11px] font-bold text-slate-500">
               Default Node Credentials: <span className="text-slate-300 font-mono">admin@vibez.com</span> / <span className="text-slate-300 font-mono">adminpassword123</span>
+            </p>
+            <p className="text-[11px] font-bold text-slate-400">
+              Powered by <span className="text-emerald-400 font-black">PRIGID GROUP</span>
             </p>
           </div>
         </div>
