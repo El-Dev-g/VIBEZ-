@@ -43,6 +43,7 @@ model User {
   paymentTransactions PaymentTransaction[]
   officialPostReactions PostReaction[]
   officialPostComments  PostComment[]
+  developerAccount DeveloperAccount?
 }
 
 model Chat {
@@ -334,4 +335,109 @@ model PaymentTransaction {
 
   user User @relation(fields: [userId], references: [id])
 }
+
+// -------------------------------------------------------------
+// DEVELOPER ECOSYSTEM MODELS (Powered by PRIGID GROUP)
+// -------------------------------------------------------------
+
+model DeveloperAccount {
+  id                    String              @id @default(uuid())
+  userId                String              @unique
+  organizationName      String?
+  websiteUrl            String?
+  tier                  String              @default("FREE") // FREE, PRO, ENTERPRISE
+  status                String              @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_VERIFICATION
+  monthlyRequestLimit   Int                 @default(100000)
+  currentMonthRequests  Int                 @default(0)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeys               ApiKey[]
+  webhookEndpoints      WebhookEndpoint[]
+  applications          ServerApplication[]
+  developerLogs         DeveloperLog[]
+}
+
+model ApiKey {
+  id                    String              @id @default(uuid())
+  developerId           String
+  name                  String              // e.g., "Production Backend API Key"
+  keyPrefix             String              // e.g., "vbz_live_..."
+  keyHash               String              @unique // SHA-256 hash of the full secret key
+  scopes                String[]            @default(["messages:write", "rtc:signaling", "webhooks:manage"])
+  rateLimitRpm          Int                 @default(1200)
+  lastUsedAt            DateTime?
+  expiresAt             DateTime?
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  developer             DeveloperAccount    @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  logs                  DeveloperLog[]
+}
+
+model WebhookEndpoint {
+  id                    String              @id @default(uuid())
+  developerId           String
+  url                   String
+  description           String?
+  secretKey             String              // HMAC-SHA256 secret (whsec_...)
+  subscribedEvents      String[]            @default(["message.sent", "message.delivered", "call.initiated", "user.presence"])
+  isEnabled             Boolean             @default(true)
+  failureCount          Int                 @default(0)
+  lastTriggeredAt       DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  developer             DeveloperAccount    @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  deliveries            WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id                    String              @id @default(uuid())
+  endpointId            String
+  event                 String              // e.g., "message.delivered"
+  payload               Json
+  statusCode            Int?
+  responseBody          String?
+  latencyMs             Int?
+  status                String              @default("SUCCESS") // SUCCESS, FAILED, RETRYING
+  attemptCount          Int                 @default(1)
+  createdAt             DateTime            @default(now())
+
+  endpoint              WebhookEndpoint     @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+}
+
+model ServerApplication {
+  id                    String              @id @default(uuid())
+  developerId           String
+  appName               String
+  description           String?
+  clientId              String              @unique // vibez_client_...
+  clientSecretHash      String
+  allowedRedirectUris   String[]            @default([])
+  isProduction          Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  developer             DeveloperAccount    @relation(fields: [developerId], references: [id], onDelete: Cascade)
+}
+
+model DeveloperLog {
+  id                    String              @id @default(uuid())
+  developerId           String?
+  apiKeyId              String?
+  endpoint              String              // e.g., "/api/developer/messages/send"
+  method                String              // GET, POST, etc.
+  statusCode            Int
+  responseTimeMs        Int
+  ipAddress             String?
+  userAgent             String?
+  createdAt             DateTime            @default(now())
+
+  developer             DeveloperAccount?   @relation(fields: [developerId], references: [id], onDelete: SetNull)
+  apiKey                ApiKey?             @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+}
+
 

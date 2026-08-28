@@ -1,0 +1,81 @@
+# Render Infrastructure as Code (Blueprint)
+# Deploy VIBEZ Ecosystem on Render (https://render.com)
+# Powered by PRIGID GROUP
+
+databases:
+  - name: vibez-postgres
+    databaseName: vibez_db
+    user: vibez_user
+    plan: free
+    region: frankfurt # or oregon / ohio / singapore
+
+services:
+  # 1. Backend API & WebSocket Server
+  - type: web
+    name: vibez-server
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vibez-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: VIBEZ_WEBHOOK_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@vibez.com
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
+
+  # 2. Developer Hub & Server Codes Console
+  - type: web
+    name: vibez-developer-hub
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: developer
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: vibez-server
+          property: host
+      - key: CUSTOM_SERVER_URL
+        fromService:
+          type: web
+          name: vibez-server
+          property: host
+
+  # 3. Admin Dashboard
+  - type: web
+    name: vibez-admin
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: admin
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: vibez-server
+          property: host

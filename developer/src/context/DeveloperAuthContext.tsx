@@ -1,0 +1,375 @@
+'use client';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+export interface DeveloperUser {
+  id: string;
+  name: string;
+  email: string;
+  organization: string;
+  role: 'Owner' | 'Admin' | 'Developer' | 'Viewer';
+  primarySdk: 'Kotlin' | 'TypeScript' | 'Python' | 'Go';
+  avatar?: string;
+  createdAt: string;
+  hasCompletedOnboarding: boolean;
+}
+
+export interface DeveloperKey {
+  id: string;
+  name: string;
+  keyType: 'api_key' | 'client_secret';
+  keyPrefix: string;
+  maskedKey: string;
+  rawKey: string;
+  clientId?: string;
+  clientSecret?: string;
+  environment: 'sandbox' | 'production';
+  sdkTarget: 'Kotlin' | 'TypeScript' | 'Python' | 'Go' | 'Universal';
+  scopes: string[];
+  createdAt: string;
+  lastUsedAt: string;
+  requestsCount: number;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Admin' | 'Developer' | 'Viewer' | 'Billing';
+  status: 'active' | 'pending';
+  joinedAt: string;
+  avatar: string;
+}
+
+interface DeveloperAuthContextType {
+  user: DeveloperUser | null;
+  keys: DeveloperKey[];
+  members: TeamMember[];
+  login: (email: string, name?: string) => void;
+  register: (name: string, email: string, org: string, sdk: 'Kotlin' | 'TypeScript' | 'Python' | 'Go') => void;
+  logout: () => void;
+  completeOnboarding: (org: string, primarySdk: 'Kotlin' | 'TypeScript' | 'Python' | 'Go', projectName: string) => void;
+  createKey: (data: {
+    name: string;
+    keyType: 'api_key' | 'client_secret';
+    environment: 'sandbox' | 'production';
+    sdkTarget: 'Kotlin' | 'TypeScript' | 'Python' | 'Go' | 'Universal';
+    scopes: string[];
+  }) => DeveloperKey;
+  revokeKey: (id: string) => void;
+  inviteMember: (email: string, name: string, role: 'Admin' | 'Developer' | 'Viewer' | 'Billing') => void;
+  removeMember: (id: string) => void;
+}
+
+const DeveloperAuthContext = createContext<DeveloperAuthContextType | undefined>(undefined);
+
+const DEFAULT_USER: DeveloperUser = {
+  id: 'dev_usr_0192a',
+  name: 'Alex Rivera',
+  email: 'alex.rivera@prigid.com',
+  organization: 'Acme Mobile Labs',
+  role: 'Owner',
+  primarySdk: 'Kotlin',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  createdAt: '2026-08-20',
+  hasCompletedOnboarding: true,
+};
+
+const INITIAL_KEYS: DeveloperKey[] = [
+  {
+    id: 'key_live_01',
+    name: 'Android Mobile App Gateway',
+    keyType: 'api_key',
+    keyPrefix: 'vbz_live_kt_',
+    maskedKey: 'vbz_live_kt_••••••••••••••••••••94b2',
+    rawKey: 'vbz_live_kt_8f901ab38127498cbe0094b2',
+    environment: 'production',
+    sdkTarget: 'Kotlin',
+    scopes: ['messages:write', 'auth:otp', 'calls:signaling', 'status:publish'],
+    createdAt: '2026-08-25',
+    lastUsedAt: 'Just now',
+    requestsCount: 482910,
+  },
+  {
+    id: 'key_live_02',
+    name: 'Next.js Web Client Credentials',
+    keyType: 'client_secret',
+    keyPrefix: 'vbz_clt_ts_',
+    maskedKey: 'vbz_clt_ts_••••••••••••••••••••77a1',
+    rawKey: 'vbz_clt_ts_314ab89ecf001278ba6577a1',
+    clientId: 'vibez_app_ts_991823',
+    clientSecret: 'vbz_sec_99102834bfa810293817cc',
+    environment: 'production',
+    sdkTarget: 'TypeScript',
+    scopes: ['messages:read', 'messages:write', 'webhooks:subscribe'],
+    createdAt: '2026-08-26',
+    lastUsedAt: '2 mins ago',
+    requestsCount: 312840,
+  },
+  {
+    id: 'key_test_01',
+    name: 'Python Data Pipeline Bot',
+    keyType: 'api_key',
+    keyPrefix: 'vbz_test_py_',
+    maskedKey: 'vbz_test_py_••••••••••••••••••••12c4',
+    rawKey: 'vbz_test_py_77218390bbca890124fe12c4',
+    environment: 'sandbox',
+    sdkTarget: 'Python',
+    scopes: ['system:telemetry', 'channels:read'],
+    createdAt: '2026-08-27',
+    lastUsedAt: '12 mins ago',
+    requestsCount: 128450,
+  },
+  {
+    id: 'key_test_02',
+    name: 'Go Microservice Signaling Worker',
+    keyType: 'api_key',
+    keyPrefix: 'vbz_test_go_',
+    maskedKey: 'vbz_test_go_••••••••••••••••••••55d8',
+    rawKey: 'vbz_test_go_001928374a819bce890255d8',
+    environment: 'sandbox',
+    sdkTarget: 'Go',
+    scopes: ['calls:signaling', 'messages:broadcast'],
+    createdAt: '2026-08-28',
+    lastUsedAt: '1 hour ago',
+    requestsCount: 89400,
+  },
+];
+
+const INITIAL_MEMBERS: TeamMember[] = [
+  {
+    id: 'mem_01',
+    name: 'Alex Rivera',
+    email: 'alex.rivera@prigid.com',
+    role: 'Admin',
+    status: 'active',
+    joinedAt: '2026-08-20',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'mem_02',
+    name: 'Elena Rostova',
+    email: 'elena.rostova@prigid.com',
+    role: 'Developer',
+    status: 'active',
+    joinedAt: '2026-08-22',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'mem_03',
+    name: 'Marcus Chen',
+    email: 'marcus.chen@techcorp.io',
+    role: 'Developer',
+    status: 'active',
+    joinedAt: '2026-08-26',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'mem_04',
+    name: 'Devon Vance',
+    email: 'devon.vance@securitylead.net',
+    role: 'Viewer',
+    status: 'pending',
+    joinedAt: '2026-08-28',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+  }
+];
+
+export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<DeveloperUser | null>(null);
+  const [keys, setKeys] = useState<DeveloperKey[]>(INITIAL_KEYS);
+  const [members, setMembers] = useState<TeamMember[]>(INITIAL_MEMBERS);
+
+  useEffect(() => {
+    // Load from local storage
+    const savedUser = localStorage.getItem('vibez_dev_user');
+    const savedKeys = localStorage.getItem('vibez_dev_keys');
+    const savedMembers = localStorage.getItem('vibez_dev_members');
+
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        setUser(DEFAULT_USER);
+      }
+    } else {
+      // Default to standard logged-in user for immediate discovery, or start fresh
+      setUser(DEFAULT_USER);
+    }
+
+    if (savedKeys) {
+      try {
+        setKeys(JSON.parse(savedKeys));
+      } catch {
+        setKeys(INITIAL_KEYS);
+      }
+    }
+
+    if (savedMembers) {
+      try {
+        setMembers(JSON.parse(savedMembers));
+      } catch {
+        setMembers(INITIAL_MEMBERS);
+      }
+    }
+  }, []);
+
+  const login = (email: string, name?: string) => {
+    const existing = user && user.email === email ? user : {
+      id: `dev_${Date.now()}`,
+      name: name || email.split('@')[0].replace('.', ' '),
+      email,
+      organization: 'PRIGID Developer Org',
+      role: 'Admin' as const,
+      primarySdk: 'Kotlin' as const,
+      createdAt: new Date().toISOString().split('T')[0],
+      hasCompletedOnboarding: true,
+    };
+    setUser(existing);
+    localStorage.setItem('vibez_dev_user', JSON.stringify(existing));
+  };
+
+  const register = (name: string, email: string, org: string, sdk: 'Kotlin' | 'TypeScript' | 'Python' | 'Go') => {
+    const newUser: DeveloperUser = {
+      id: `dev_${Date.now()}`,
+      name,
+      email,
+      organization: org,
+      role: 'Owner',
+      primarySdk: sdk,
+      createdAt: new Date().toISOString().split('T')[0],
+      hasCompletedOnboarding: false, // will trigger onboarding flow
+    };
+    setUser(newUser);
+    localStorage.setItem('vibez_dev_user', JSON.stringify(newUser));
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('vibez_dev_user');
+  };
+
+  const completeOnboarding = (org: string, primarySdk: 'Kotlin' | 'TypeScript' | 'Python' | 'Go', projectName: string) => {
+    if (!user) return;
+    const updated: DeveloperUser = {
+      ...user,
+      organization: org,
+      primarySdk,
+      hasCompletedOnboarding: true,
+    };
+    setUser(updated);
+    localStorage.setItem('vibez_dev_user', JSON.stringify(updated));
+
+    // Generate initial sandbox key
+    const prefix = `vbz_sbx_${primarySdk.toLowerCase().substring(0, 2)}_`;
+    const rand = Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
+    const initialKey: DeveloperKey = {
+      id: `key_${Date.now()}`,
+      name: `${projectName} Sandbox Key`,
+      keyType: 'api_key',
+      keyPrefix: prefix,
+      maskedKey: `${prefix}••••••••••••••••••••${rand.slice(-4)}`,
+      rawKey: `${prefix}${rand}`,
+      environment: 'sandbox',
+      sdkTarget: primarySdk,
+      scopes: ['messages:write', 'auth:otp', 'system:telemetry'],
+      createdAt: new Date().toISOString().split('T')[0],
+      lastUsedAt: 'Never',
+      requestsCount: 0,
+    };
+    const updatedKeys = [initialKey, ...keys];
+    setKeys(updatedKeys);
+    localStorage.setItem('vibez_dev_keys', JSON.stringify(updatedKeys));
+  };
+
+  const createKey = (data: {
+    name: string;
+    keyType: 'api_key' | 'client_secret';
+    environment: 'sandbox' | 'production';
+    sdkTarget: 'Kotlin' | 'TypeScript' | 'Python' | 'Go' | 'Universal';
+    scopes: string[];
+  }) => {
+    const envPrefix = data.environment === 'production' ? 'live' : 'test';
+    const sdkPrefix = data.sdkTarget.toLowerCase().substring(0, 2);
+    const keyPrefix = data.keyType === 'client_secret' ? `vbz_clt_${sdkPrefix}_` : `vbz_${envPrefix}_${sdkPrefix}_`;
+    const randomHash = Math.random().toString(36).substring(2, 14) + Math.random().toString(36).substring(2, 14);
+    const rawKey = `${keyPrefix}${randomHash}`;
+
+    const newKey: DeveloperKey = {
+      id: `key_${Date.now()}`,
+      name: data.name,
+      keyType: data.keyType,
+      keyPrefix,
+      maskedKey: `${keyPrefix}••••••••••••••••••••${randomHash.slice(-4)}`,
+      rawKey,
+      clientId: data.keyType === 'client_secret' ? `vbz_client_${Math.random().toString(36).substring(2, 10)}` : undefined,
+      clientSecret: data.keyType === 'client_secret' ? `vbz_secret_${Math.random().toString(36).substring(2, 18)}` : undefined,
+      environment: data.environment,
+      sdkTarget: data.sdkTarget,
+      scopes: data.scopes,
+      createdAt: new Date().toISOString().split('T')[0],
+      lastUsedAt: 'Just created',
+      requestsCount: 0,
+    };
+
+    const updated = [newKey, ...keys];
+    setKeys(updated);
+    localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
+    return newKey;
+  };
+
+  const revokeKey = (id: string) => {
+    const updated = keys.filter(k => k.id !== id);
+    setKeys(updated);
+    localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
+  };
+
+  const inviteMember = (email: string, name: string, role: 'Admin' | 'Developer' | 'Viewer' | 'Billing') => {
+    const newMember: TeamMember = {
+      id: `mem_${Date.now()}`,
+      name: name || email.split('@')[0],
+      email,
+      role,
+      status: 'pending',
+      joinedAt: new Date().toISOString().split('T')[0],
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    };
+    const updated = [...members, newMember];
+    setMembers(updated);
+    localStorage.setItem('vibez_dev_members', JSON.stringify(updated));
+  };
+
+  const removeMember = (id: string) => {
+    const updated = members.filter(m => m.id !== id);
+    setMembers(updated);
+    localStorage.setItem('vibez_dev_members', JSON.stringify(updated));
+  };
+
+  return (
+    <DeveloperAuthContext.Provider
+      value={{
+        user,
+        keys,
+        members,
+        login,
+        register,
+        logout,
+        completeOnboarding,
+        createKey,
+        revokeKey,
+        inviteMember,
+        removeMember,
+      }}
+    >
+      {children}
+    </DeveloperAuthContext.Provider>
+  );
+};
+
+export const useDeveloperAuth = () => {
+  const context = useContext(DeveloperAuthContext);
+  if (!context) {
+    throw new Error('useDeveloperAuth must be used within DeveloperAuthProvider');
+  }
+  return context;
+};

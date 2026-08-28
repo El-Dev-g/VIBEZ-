@@ -14,6 +14,7 @@ import { CallController } from './controllers/CallController';
 import { AdminController } from './controllers/AdminController';
 import { PaymentController } from './controllers/PaymentController';
 import { SubscriptionController } from './controllers/SubscriptionController';
+import { DeveloperController } from './controllers/DeveloperController';
 import { authenticate, authenticateAdmin } from './middleware/auth';
 import { checkMaintenanceMode } from './middleware/maintenance';
 import { securityHeaders, sanitizeInputs, checkSecretEntropy } from './middleware/security';
@@ -82,6 +83,15 @@ const call = new CallController();
 const admin = new AdminController();
 const payment = new PaymentController();
 const subscription = new SubscriptionController();
+const developer = new DeveloperController();
+
+// Developer API & Server Integration Routes (Powered by PRIGID GROUP)
+app.get('/api/developer/health', (req, res) => developer.getDeveloperHealth(req, res));
+app.get('/api/developer/metrics', (req, res) => developer.getApiMetrics(req, res));
+app.post('/api/developer/webhooks/verify', (req, res) => developer.verifyWebhook(req, res));
+app.post('/api/developer/messages/send', (req, res) => developer.dispatchServerMessage(req, res, io));
+app.post('/api/developer/rtc/token', (req, res) => developer.generateRtcToken(req, res));
+app.post('/api/developer/oauth/token', (req, res) => developer.issueOAuthToken(req, res));
 
 // Public System Status & App Config Routes
 app.get('/api/system/status', async (req, res) => {
