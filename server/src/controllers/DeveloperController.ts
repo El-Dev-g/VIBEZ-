@@ -71,7 +71,7 @@ export class DeveloperController {
    */
   async dispatchServerMessage(req: Request, res: Response, io?: SocketIOServer) {
     try {
-      const authHeader = req.headers.get?.('authorization') || (req.headers.authorization as string) || '';
+      const authHeader = (typeof req.headers.authorization === 'string' ? req.headers.authorization : (req.header('authorization') || ''));
       const { apiKey, channelId, recipientId, content, messageType = 'TEXT', metadata = {} } = req.body;
 
       const key = apiKey || (authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : '');
