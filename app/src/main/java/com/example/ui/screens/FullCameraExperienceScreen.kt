@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -639,6 +640,7 @@ fun CameraPreview(
             val recordingBuilder = videoCapture.output
                 .prepareRecording(context, outputOptions)
             
+            @SuppressLint("MissingPermission")
             if (hasAudioPermission) {
                 recordingBuilder.withAudioEnabled()
             }

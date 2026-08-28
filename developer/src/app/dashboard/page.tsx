@@ -84,7 +84,7 @@ export default function DashboardPage() {
     },
   ];
 
-  const externalLinks = [
+  const externalLinks: { href: string; label: string; icon: any; badge?: string }[] = [
     { href: '/docs', label: 'API Documentation', icon: BookOpen },
     { href: '/sdks', label: 'SDK Packages', icon: Code2 },
   ];

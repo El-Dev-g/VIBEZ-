@@ -74,37 +74,22 @@ export default function DocsPage() {
       title: 'Guides',
       icon: Layers,
       items: [
-        { id: 'guide-auth', label: 'Authentication' },
-        { id: 'guide-users', label: 'Users' },
-        { id: 'guide-media', label: 'Media & Uploads' },
-        { id: 'guide-messaging', label: 'Messaging' },
-        { id: 'guide-notifications', label: 'Notifications' },
-        { id: 'guide-subscriptions', label: 'Subscriptions' },
-        { id: 'guide-payments', label: 'Payments' },
-        { id: 'guide-webhooks', label: 'Webhooks' },
+        { id: 'guide-auth', label: 'Authentication & Tokens' },
+        { id: 'guide-messaging', label: 'Real-time Messaging' },
+        { id: 'guide-webrtc', label: 'Voice & Video Calling' },
+        { id: 'guide-webhooks', label: 'Webhooks & HMAC Signatures' },
       ],
     },
     {
       title: 'API Reference',
       icon: Terminal,
       items: [
-        { id: 'api-health', label: 'GET /health', method: 'GET', path: '/health' },
-        { id: 'api-sys-status', label: 'GET /api/system/status', method: 'GET', path: '/api/system/status' },
-        { id: 'api-auth-reg', label: 'POST /api/auth/register', method: 'POST', path: '/api/auth/register' },
-        { id: 'api-auth-login', label: 'POST /api/auth/login', method: 'POST', path: '/api/auth/login' },
-        { id: 'api-auth-logout', label: 'POST /api/auth/logout', method: 'POST', path: '/api/auth/logout' },
-        { id: 'api-users', label: 'Users API', method: 'GET', path: '/api/users' },
-        { id: 'api-profiles', label: 'Profiles API', method: 'GET', path: '/api/profiles' },
-        { id: 'api-posts', label: 'Posts API', method: 'POST', path: '/api/posts' },
-        { id: 'api-comments', label: 'Comments API', method: 'POST', path: '/api/comments' },
-        { id: 'api-likes', label: 'Likes API', method: 'POST', path: '/api/likes' },
-        { id: 'api-follows', label: 'Follows API', method: 'POST', path: '/api/follows' },
-        { id: 'api-messaging', label: 'Messaging API', method: 'POST', path: '/api/messages' },
-        { id: 'api-notifications', label: 'Notifications API', method: 'GET', path: '/api/notifications' },
-        { id: 'api-media', label: 'Media API', method: 'POST', path: '/api/media/upload' },
-        { id: 'api-subscriptions', label: 'Subscriptions API', method: 'GET', path: '/api/subscriptions' },
-        { id: 'api-payments', label: 'Payments API', method: 'POST', path: '/api/payments/checkout' },
-        { id: 'api-admin', label: 'Admin Telemetry', method: 'GET', path: '/api/admin/telemetry' },
+        { id: 'api-health', label: 'GET /health-check', method: 'GET', path: '/api/developer/server/health-check' },
+        { id: 'api-status-cluster', label: 'GET /custom-server-status', method: 'GET', path: '/api/developer/server/custom-server-status' },
+        { id: 'api-oauth-token', label: 'POST /issue-oauth-token', method: 'POST', path: '/api/developer/server/issue-oauth-token' },
+        { id: 'api-dispatch-msg', label: 'POST /dispatch-message', method: 'POST', path: '/api/developer/server/dispatch-message' },
+        { id: 'api-rtc-token', label: 'POST /generate-rtc-token', method: 'POST', path: '/api/developer/server/generate-rtc-token' },
+        { id: 'api-webhook-verify', label: 'POST /verify-webhook', method: 'POST', path: '/api/developer/server/verify-webhook' },
       ],
     },
     {
@@ -122,21 +107,21 @@ export default function DocsPage() {
       icon: Webhook,
       items: [
         { id: 'webhook-overview', label: 'Overview' },
-        { id: 'webhook-events', label: 'Events' },
-        { id: 'webhook-signatures', label: 'Signatures' },
-        { id: 'webhook-retry', label: 'Retry Policy' },
+        { id: 'webhook-events', label: 'Supported Events' },
+        { id: 'webhook-signatures', label: 'HMAC SHA-256 Signatures' },
+        { id: 'webhook-retry', label: 'Retry & Delivery Policy' },
       ],
     },
     {
       title: 'Resources',
       icon: FileText,
       items: [
-        { id: 'res-errors', label: 'Errors' },
+        { id: 'res-errors', label: 'Error Codes' },
         { id: 'res-rate-limits', label: 'Rate Limits' },
         { id: 'res-pagination', label: 'Pagination' },
         { id: 'res-versioning', label: 'Versioning' },
         { id: 'res-changelog', label: 'Changelog' },
-        { id: 'res-support', label: 'Support' },
+        { id: 'res-support', label: 'Support & SLAs' },
       ],
     },
   ];
@@ -164,35 +149,35 @@ export default function DocsPage() {
           <div className="space-y-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
-                PRIGID GROUP Platform v3.0
+                PRIGID GROUP VIBEZ Platform v3.0
               </div>
               <h1 className="text-3xl font-black text-white tracking-tight">Introduction</h1>
               <p className="text-slate-400 text-sm leading-relaxed">
-                Welcome to the official developer documentation for the VIBEZ Platform API. VIBEZ provides high-performance, real-time backend infrastructure for messaging, user identities, status broadcasts, webhooks, and monetization.
+                Welcome to the official API & Platform Reference for VIBEZ. VIBEZ provides real-time messaging, WebRTC call signaling, OAuth2 client token generation, and HMAC-signed webhook event dispatching.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
               <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
                 <Zap className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white">Ultra-Low Latency</h3>
-                <p className="text-xs text-slate-400">Sub-30ms global routing powered by Spanner & Redis edge cache.</p>
+                <h3 className="text-sm font-bold text-white">High-Speed Signaling</h3>
+                <p className="text-xs text-slate-400">Sub-30ms global dispatch powered by edge cluster routing.</p>
               </div>
               <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
                 <Shield className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white">Zero-Trust Auth</h3>
-                <p className="text-xs text-slate-400">HMAC SHA-256 signatures, JWT bearer tokens, and Master API Keys.</p>
+                <h3 className="text-sm font-bold text-white">Protected Credentials</h3>
+                <p className="text-xs text-slate-400">Master API Keys, Bearer tokens, and HMAC SHA-256 signatures.</p>
               </div>
               <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
                 <Globe className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white">Cross-SDK Sync</h3>
-                <p className="text-xs text-slate-400">First-class support for Android Kotlin, TypeScript, Node.js, and Python.</p>
+                <h3 className="text-sm font-bold text-white">Cross-Platform SDKs</h3>
+                <p className="text-xs text-slate-400">Native Android Kotlin, Node.js, TypeScript, and Python SDKs.</p>
               </div>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-              <h3 className="text-sm font-bold text-white">Base Endpoint Host</h3>
-              <p className="text-xs text-slate-400">All requests should target the edge production gateway:</p>
+              <h3 className="text-sm font-bold text-white">Live Production Endpoint Host</h3>
+              <p className="text-xs text-slate-400">All API endpoints are served securely from the production edge gateway:</p>
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-400 flex items-center justify-between">
                 <span>https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app</span>
                 <button
@@ -212,7 +197,7 @@ export default function DocsPage() {
             <div className="space-y-2">
               <h1 className="text-3xl font-black text-white tracking-tight">Get Started</h1>
               <p className="text-slate-400 text-sm">
-                Follow this quick 3-step guide to issue API credentials and send your first request in under 2 minutes.
+                Follow this guide to issue Master API credentials and invoke system endpoints in under 2 minutes.
               </p>
             </div>
 
@@ -221,9 +206,9 @@ export default function DocsPage() {
                 <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-xs">
                   <span>STEP 1</span>
                 </div>
-                <h3 className="text-sm font-bold text-white">Generate Master API Key</h3>
+                <h3 className="text-sm font-bold text-white">Issue Primary API Key</h3>
                 <p className="text-xs text-slate-400">
-                  Navigate to your protected <a href="/keys" className="text-emerald-400 underline font-bold">API Sandbox Keys</a> panel in the Dashboard and issue a new key token starting with <code className="text-emerald-300">vbz_live_...</code>.
+                  Access your protected <a href="/keys" className="text-emerald-400 underline font-bold">API Sandbox & Master Keys</a> in the Developer Dashboard and copy your key string.
                 </p>
               </div>
 
@@ -231,12 +216,11 @@ export default function DocsPage() {
                 <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-xs">
                   <span>STEP 2</span>
                 </div>
-                <h3 className="text-sm font-bold text-white">Set HTTP Request Headers</h3>
-                <p className="text-xs text-slate-400">Include your master key in the request headers:</p>
+                <h3 className="text-sm font-bold text-white">Construct HTTP Request Headers</h3>
                 <CodeBlock
                   code={`Content-Type: application/json\nX-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2`}
                   language="http"
-                  title="Request Headers"
+                  title="Required Request Headers"
                 />
               </div>
 
@@ -244,12 +228,12 @@ export default function DocsPage() {
                 <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-xs">
                   <span>STEP 3</span>
                 </div>
-                <h3 className="text-sm font-bold text-white">Test Health Ping</h3>
+                <h3 className="text-sm font-bold text-white">Execute System Health Check</h3>
                 <CodeBlock
                   code={`curl -X GET "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/developer/server/health-check" \\
   -H "X-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2"`}
                   language="bash"
-                  title="cURL Terminal Command"
+                  title="cURL Terminal Execution"
                 />
               </div>
             </div>
@@ -259,29 +243,29 @@ export default function DocsPage() {
       case 'architecture':
         return (
           <div className="space-y-6">
-            <h1 className="text-3xl font-black text-white tracking-tight">Architecture</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">System Architecture</h1>
             <p className="text-slate-400 text-sm leading-relaxed">
-              VIBEZ is built on a distributed microservices mesh operating in Google Cloud Platform with multi-region failover.
+              The VIBEZ platform architecture is built around a distributed server cluster providing instant message routing, OAuth authentication, WebRTC signaling, and webhook delivery.
             </p>
             <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 space-y-4">
-              <h3 className="text-sm font-black uppercase text-white font-mono">Infrastructure Components</h3>
+              <h3 className="text-sm font-black uppercase text-white font-mono">Platform Infrastructure Tiers</h3>
               <ul className="space-y-3 text-xs text-slate-300">
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-400 font-bold">•</span>
                   <div>
-                    <strong className="text-white">Signaling & Edge Layer:</strong> Envoy proxy cluster terminating TLS 1.3 and dispatching requests directly to regional containers.
+                    <strong className="text-white">Edge Gateway:</strong> Accepts incoming API calls, validates <code className="text-emerald-400 font-mono">X-API-Key</code> headers, and routes traffic.
                   </div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-400 font-bold">•</span>
                   <div>
-                    <strong className="text-white">Data Persistence:</strong> Cloud Spanner for ACID transactions paired with Redis Enterprise for sub-millisecond status fanouts.
+                    <strong className="text-white">OAuth Auth Core:</strong> Issues JWT client credentials for SDK authorization.
                   </div>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-400 font-bold">•</span>
                   <div>
-                    <strong className="text-white">Real-Time Messaging:</strong> WebSockets with automatic fallback to gRPC bidirectional streams.
+                    <strong className="text-white">Signaling Engine:</strong> Generates WebRTC channels and RTC tokens for audio/video calls.
                   </div>
                 </li>
               </ul>
@@ -297,11 +281,11 @@ export default function DocsPage() {
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
                 <div>
-                  <div className="text-sm font-bold text-white">All Systems Operational</div>
-                  <div className="text-xs text-emerald-400 font-mono">Global Uptime: 99.99% • Regional Nodes: Healthy</div>
+                  <div className="text-sm font-bold text-white">All System Endpoints Operational</div>
+                  <div className="text-xs text-emerald-400 font-mono">Uptime: 99.99% • Health Checks: Passing</div>
                 </div>
               </div>
-              <span className="text-xs font-mono text-slate-400">Node: v3.0-prod</span>
+              <span className="text-xs font-mono text-slate-400">PRIGID Cloud Edge</span>
             </div>
           </div>
         );
@@ -310,39 +294,45 @@ export default function DocsPage() {
       case 'guide-auth':
         return (
           <div className="space-y-6">
-            <h1 className="text-3xl font-black text-white tracking-tight">Guide: Authentication</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">Guide: Authentication & Tokens</h1>
             <p className="text-slate-400 text-sm">
-              All REST API calls require an API key passed via header or an OAuth2 bearer token.
+              All system endpoints require authentication using the <code className="text-emerald-400 font-mono">X-API-Key</code> header or OAuth2 Bearer tokens.
             </p>
             <CodeBlock
-              code={`// Example Auth Header\nAuthorization: Bearer <YOUR_JWT_OR_OAUTH_TOKEN>\nX-API-Key: <YOUR_PRIMARY_API_KEY>`}
+              code={`// Option A: API Key Header\nX-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2\n\n// Option B: Bearer OAuth Token\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIs...`}
               language="http"
               title="HTTP Header Specifications"
             />
           </div>
         );
 
-      case 'guide-users':
-      case 'guide-media':
       case 'guide-messaging':
-      case 'guide-notifications':
-      case 'guide-subscriptions':
-      case 'guide-payments':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight">Guide: Real-time Messaging</h1>
+            <p className="text-slate-400 text-sm">
+              Send high-speed messages between users and status updates using the <code className="text-emerald-400 font-mono">/dispatch-message</code> endpoint.
+            </p>
+          </div>
+        );
+
+      case 'guide-webrtc':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight">Guide: Voice & Video Calling</h1>
+            <p className="text-slate-400 text-sm">
+              Generate WebRTC RTC channel tokens for peer-to-peer voice/video sessions using the <code className="text-emerald-400 font-mono">/generate-rtc-token</code> endpoint.
+            </p>
+          </div>
+        );
+
       case 'guide-webhooks':
         return (
           <div className="space-y-6">
-            <h1 className="text-3xl font-black text-white tracking-tight capitalize">
-              Guide: {activeItem.replace('guide-', '').replace('-', ' ')}
-            </h1>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Learn how to implement {activeItem.replace('guide-', '')} workflows using VIBEZ platform APIs and client SDKs.
+            <h1 className="text-3xl font-black text-white tracking-tight">Guide: Webhooks & HMAC Signatures</h1>
+            <p className="text-slate-400 text-sm">
+              Verify incoming webhook payloads using HMAC SHA-256 signatures via <code className="text-emerald-400 font-mono">/verify-webhook</code>.
             </p>
-            <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 text-xs text-slate-300 space-y-2">
-              <p className="font-bold text-white">Key Integration Workflow:</p>
-              <p>1. Initialize client using Master API Key.</p>
-              <p>2. Execute request payload through edge routing.</p>
-              <p>3. Handle response status codes and verify HMAC signatures on callback handlers.</p>
-            </div>
           </div>
         );
 
@@ -352,71 +342,183 @@ export default function DocsPage() {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <span className="px-2.5 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-mono font-black">GET</span>
-              <h1 className="text-2xl font-mono font-bold text-white">/health</h1>
+              <h1 className="text-xl font-mono font-bold text-white">/api/developer/server/health-check</h1>
             </div>
-            <p className="text-xs text-slate-400">Basic HTTP health check endpoint for load balancers and container monitors.</p>
+            <p className="text-xs text-slate-400">System health check and node status endpoint.</p>
             <CodeBlock
-              code={`curl -X GET "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/health"`}
+              code={`curl -X GET "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/developer/server/health-check" \\
+  -H "X-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2"`}
               language="bash"
-              title="cURL Command"
+              title="cURL Request"
             />
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300">
-              {JSON.stringify({ status: "healthy", timestamp: new Date().toISOString() }, null, 2)}
+            <div className="space-y-1">
+              <span className="text-xs font-mono text-slate-400 uppercase font-bold">200 OK Response Payload</span>
+              <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300 overflow-auto">
+{JSON.stringify({
+  status: "OK",
+  timestamp: "2026-08-28T12:00:00.000Z",
+  serverNode: "v3.0.0-emerald",
+  databaseStatus: "CONNECTED",
+  latencyMs: 12,
+  environment: "production"
+}, null, 2)}
+              </pre>
             </div>
           </div>
         );
 
-      case 'api-sys-status':
+      case 'api-status-cluster':
         return (
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <span className="px-2.5 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-mono font-black">GET</span>
-              <h1 className="text-2xl font-mono font-bold text-white">/api/system/status</h1>
+              <h1 className="text-xl font-mono font-bold text-white">/api/developer/server/custom-server-status</h1>
             </div>
-            <p className="text-xs text-slate-400">Detailed system operational telemetry and maintenance window status.</p>
+            <p className="text-xs text-slate-400">Detailed infrastructure telemetry, database cluster health, and maintenance status.</p>
             <CodeBlock
-              code={`curl -X GET "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/system/status"`}
+              code={`curl -X GET "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/developer/server/custom-server-status" \\
+  -H "X-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2"`}
               language="bash"
-              title="cURL Command"
+              title="cURL Request"
             />
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300">
-              {JSON.stringify({
-                status: "OPERATIONAL",
-                maintenanceMode: false,
-                allowNewRegistrations: true,
-                node: "v3.0-emerald",
-                poweredBy: "PRIGID GROUP Global Infrastructure"
-              }, null, 2)}
+            <div className="space-y-1">
+              <span className="text-xs font-mono text-slate-400 uppercase font-bold">200 OK Response Payload</span>
+              <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300 overflow-auto">
+{JSON.stringify({
+  status: "OPERATIONAL",
+  maintenanceMode: false,
+  allowNewRegistrations: true,
+  node: "v3.0-emerald",
+  clusters: {
+    redisCache: "HEALTHY",
+    spannerDb: "HEALTHY",
+    webrtcSignaling: "ONLINE"
+  },
+  poweredBy: "PRIGID GROUP Global Infrastructure"
+}, null, 2)}
+              </pre>
             </div>
           </div>
         );
 
-      case 'api-auth-reg':
-      case 'api-auth-login':
-      case 'api-auth-logout':
-      case 'api-users':
-      case 'api-profiles':
-      case 'api-posts':
-      case 'api-comments':
-      case 'api-likes':
-      case 'api-follows':
-      case 'api-messaging':
-      case 'api-notifications':
-      case 'api-media':
-      case 'api-subscriptions':
-      case 'api-payments':
-      case 'api-admin':
+      case 'api-oauth-token':
         return (
           <div className="space-y-6">
-            <h1 className="text-2xl font-mono font-bold text-white">
-              {activeItem.toUpperCase().replace('API-', 'API / ').replace('-', ' ')}
-            </h1>
-            <p className="text-xs text-slate-400">Production REST Endpoint Specification.</p>
+            <div className="flex items-center gap-3">
+              <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-black">POST</span>
+              <h1 className="text-xl font-mono font-bold text-white">/api/developer/server/issue-oauth-token</h1>
+            </div>
+            <p className="text-xs text-slate-400">Issue OAuth2 Bearer access token for client applications.</p>
             <CodeBlock
-              code={`// Example Request\nPOST /api/... HTTP/1.1\nHost: vibez.api.com\nContent-Type: application/json\nX-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2`}
-              language="http"
-              title="Endpoint Specification"
+              code={`curl -X POST "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/developer/server/issue-oauth-token" \\
+  -H "X-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2" \\
+  -H "Content-Type: application/json" \\
+  -d '{"clientId": "clt_live_991823", "grantType": "client_credentials"}'`}
+              language="bash"
+              title="cURL Request"
             />
+            <div className="space-y-1">
+              <span className="text-xs font-mono text-slate-400 uppercase font-bold">200 OK Response Payload</span>
+              <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300 overflow-auto">
+{JSON.stringify({
+  success: true,
+  accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  tokenType: "Bearer",
+  expiresInSeconds: 3600,
+  issuedAt: "2026-08-28T12:00:00.000Z"
+}, null, 2)}
+              </pre>
+            </div>
+          </div>
+        );
+
+      case 'api-dispatch-msg':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-black">POST</span>
+              <h1 className="text-xl font-mono font-bold text-white">/api/developer/server/dispatch-message</h1>
+            </div>
+            <p className="text-xs text-slate-400">Dispatch real-time messages and status updates to target users.</p>
+            <CodeBlock
+              code={`curl -X POST "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/developer/server/dispatch-message" \\
+  -H "X-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2" \\
+  -H "Content-Type: application/json" \\
+  -d '{"recipientId": "usr_alex_rivera", "content": "Welcome to VIBEZ!"}'`}
+              language="bash"
+              title="cURL Request"
+            />
+            <div className="space-y-1">
+              <span className="text-xs font-mono text-slate-400 uppercase font-bold">200 OK Response Payload</span>
+              <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300 overflow-auto">
+{JSON.stringify({
+  success: true,
+  messageId: "msg_live_7721893",
+  recipientId: "usr_alex_rivera",
+  deliveryStatus: "SENT",
+  dispatchedAt: "2026-08-28T12:00:00.000Z"
+}, null, 2)}
+              </pre>
+            </div>
+          </div>
+        );
+
+      case 'api-rtc-token':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-black">POST</span>
+              <h1 className="text-xl font-mono font-bold text-white">/api/developer/server/generate-rtc-token</h1>
+            </div>
+            <p className="text-xs text-slate-400">Generate WebRTC RTC channel tokens for peer voice and video calling.</p>
+            <CodeBlock
+              code={`curl -X POST "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/developer/server/generate-rtc-token" \\
+  -H "X-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2" \\
+  -H "Content-Type: application/json" \\
+  -d '{"channelName": "room_voice_101", "uid": 109238}'`}
+              language="bash"
+              title="cURL Request"
+            />
+            <div className="space-y-1">
+              <span className="text-xs font-mono text-slate-400 uppercase font-bold">200 OK Response Payload</span>
+              <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300 overflow-auto">
+{JSON.stringify({
+  success: true,
+  channelName: "room_voice_101",
+  rtcToken: "0068f901ab38127498cbe0094b2...",
+  expiresAt: "2026-08-28T13:00:00.000Z"
+}, null, 2)}
+              </pre>
+            </div>
+          </div>
+        );
+
+      case 'api-webhook-verify':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-black">POST</span>
+              <h1 className="text-xl font-mono font-bold text-white">/api/developer/server/verify-webhook</h1>
+            </div>
+            <p className="text-xs text-slate-400">Verify incoming webhook event payloads against HMAC SHA-256 signatures.</p>
+            <CodeBlock
+              code={`curl -X POST "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/developer/server/verify-webhook" \\
+  -H "X-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2" \\
+  -H "Content-Type: application/json" \\
+  -d '{"payload": {"event": "user.registered"}, "signature": "sha256=mock"}'`}
+              language="bash"
+              title="cURL Request"
+            />
+            <div className="space-y-1">
+              <span className="text-xs font-mono text-slate-400 uppercase font-bold">200 OK Response Payload</span>
+              <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300 overflow-auto">
+{JSON.stringify({
+  valid: true,
+  signatureMatched: true,
+  verifiedAt: "2026-08-28T12:00:00.000Z"
+}, null, 2)}
+              </pre>
+            </div>
           </div>
         );
 
@@ -431,7 +533,7 @@ export default function DocsPage() {
               SDK: {activeItem.replace('sdk-', '').toUpperCase()}
             </h1>
             <p className="text-slate-400 text-sm">
-              Official client library and integration package for {activeItem.replace('sdk-', '')}.
+              Official SDK integration package for {activeItem.replace('sdk-', '')}.
             </p>
             <CodeBlock
               code={
@@ -440,7 +542,7 @@ export default function DocsPage() {
                   : `npm install @vibez/client-sdk`
               }
               language={activeItem === 'sdk-android' ? 'kotlin' : 'bash'}
-              title="Installation Package"
+              title="Installation Command"
             />
           </div>
         );
@@ -456,10 +558,10 @@ export default function DocsPage() {
               Webhooks: {activeItem.replace('webhook-', '')}
             </h1>
             <p className="text-slate-400 text-sm">
-              Real-time HTTP event callbacks dispatched to registered developer endpoints.
+              Real-time HTTP event callbacks dispatched to registered developer endpoints with HMAC signatures.
             </p>
             <CodeBlock
-              code={`// Sample Webhook Header\nX-Vibez-Signature: sha256=a89102c984fe...\nX-Vibez-Event: message.created`}
+              code={`X-Vibez-Signature: sha256=a89102c984fe...\nX-Vibez-Event: message.created`}
               language="http"
               title="Webhook Callback Header"
             />
@@ -483,8 +585,8 @@ export default function DocsPage() {
             </p>
             <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 text-xs font-mono text-slate-300 space-y-2">
               <div><strong className="text-emerald-400">Rate Limits:</strong> 10,000 requests/min per Primary Master Key.</div>
-              <div><strong className="text-emerald-400">Pagination:</strong> Cursor-based (<code className="text-slate-200">?cursor=...&limit=20</code>).</div>
-              <div><strong className="text-emerald-400">Versioning:</strong> ISO header-based contract guarantees.</div>
+              <div><strong className="text-emerald-400">Pagination:</strong> Cursor-based pagination.</div>
+              <div><strong className="text-emerald-400">Versioning:</strong> ISO date-based API contracts.</div>
             </div>
           </div>
         );
@@ -505,9 +607,9 @@ export default function DocsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold mb-2">
-            OpenAPI 3.0 Documentation Hub
+            OpenAPI 3.0 Reference Documentation
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">API & Platform Reference</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">System Endpoints & Platform Documentation</h1>
         </div>
 
         <div className="relative w-full md:w-80">
