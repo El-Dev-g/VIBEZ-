@@ -37,15 +37,15 @@ export class AdminController {
         }
       });
       
-      // If user exists in normal User table or doesn't exist in Admin table
+      // If user doesn't exist in Admin table
       if (!admin) {
         return res.status(401).json({ 
-          error: 'Access Denied: You do not have administrator permissions. Regular users are forbidden from accessing the administration gate.' 
+          error: 'Access Denied: Administrator account not found or insufficient permissions.' 
         });
       }
 
       if (admin.password !== cleanPassword) {
-        return res.status(401).json({ error: 'Invalid administrator password.' });
+        return res.status(401).json({ error: 'Invalid administrator credentials.' });
       }
 
       // 2FA Verification step
