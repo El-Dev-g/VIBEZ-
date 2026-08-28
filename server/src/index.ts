@@ -71,6 +71,16 @@ app.use('/api/admin', adminRateLimiter);
 // Maintenance Mode Enforcement Middleware for all /api requests
 app.use('/api', checkMaintenanceMode);
 
+const storage = new StorageController();
+const auth = new AuthController();
+const chat = new ChatController();
+const user = new UserController();
+const status = new StatusController();
+const community = new CommunityController();
+const call = new CallController();
+const admin = new AdminController();
+const payment = new PaymentController();
+
 // Public System Status & App Config Routes
 app.get('/api/system/status', async (req, res) => {
   try {
@@ -88,20 +98,10 @@ app.get('/api/system/status', async (req, res) => {
     res.status(500).json({ status: 'error', maintenanceMode: false });
   }
 });
-app.get('/api/config/public', authenticateAdmin, (req, res) => admin.getPublicAppConfig(req, res));
-app.get('/api/app/download-info', authenticateAdmin, (req, res) => admin.getPublicAppConfig(req, res));
+app.get('/api/config/public', (req, res) => admin.getPublicAppConfig(req, res));
+app.get('/api/app/download-info', (req, res) => admin.getPublicAppConfig(req, res));
 app.post('/api/contact', (req, res) => admin.submitContactInquiry(req, res));
-app.get('/api/admin/inquiries', authenticateAdmin, (req, res) => admin.getContactInquiries(req, res));
-
-const storage = new StorageController();
-const auth = new AuthController();
-const chat = new ChatController();
-const user = new UserController();
-const status = new StatusController();
-const community = new CommunityController();
-const call = new CallController();
-const admin = new AdminController();
-const payment = new PaymentController();
+app.get('/api/admin/inquiries', (req, res) => admin.getContactInquiries(req, res));
 
 // Auth Routes
 app.post('/api/auth/google', (req, res) => auth.googleLogin(req, res));
