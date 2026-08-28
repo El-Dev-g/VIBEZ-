@@ -278,6 +278,12 @@ model ContactInquiry {
   createdAt DateTime @default(now())
 }
 
+model Subscription {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
 model BadgePayment {
   id              String   @id @default(uuid())
   userId          String

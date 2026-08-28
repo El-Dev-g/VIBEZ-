@@ -13,6 +13,7 @@ import { CommunityController } from './controllers/CommunityController';
 import { CallController } from './controllers/CallController';
 import { AdminController } from './controllers/AdminController';
 import { PaymentController } from './controllers/PaymentController';
+import { SubscriptionController } from './controllers/SubscriptionController';
 import { authenticate, authenticateAdmin } from './middleware/auth';
 import { checkMaintenanceMode } from './middleware/maintenance';
 import { securityHeaders, sanitizeInputs, checkSecretEntropy } from './middleware/security';
@@ -80,6 +81,7 @@ const community = new CommunityController();
 const call = new CallController();
 const admin = new AdminController();
 const payment = new PaymentController();
+const subscription = new SubscriptionController();
 
 // Public System Status & App Config Routes
 app.get('/api/system/status', async (req, res) => {
@@ -101,6 +103,7 @@ app.get('/api/system/status', async (req, res) => {
 app.get('/api/config/public', (req, res) => admin.getPublicAppConfig(req, res));
 app.get('/api/app/download-info', (req, res) => admin.getPublicAppConfig(req, res));
 app.post('/api/contact', (req, res) => admin.submitContactInquiry(req, res));
+app.post('/api/subscribe', (req, res) => subscription.subscribe(req, res));
 app.get('/api/admin/inquiries', (req, res) => admin.getContactInquiries(req, res));
 
 // Auth Routes

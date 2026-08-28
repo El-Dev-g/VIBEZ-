@@ -549,10 +549,24 @@
       modal.classList.remove('flex');
     }
 
-    function handleSubscribe(e) {
+    async function handleSubscribe(e) {
       e.preventDefault();
-      alert('Subscription confirmed! You will receive live status notifications.');
-      closeSubscribeModal();
+      const email = e.target.querySelector('input[type="email"]').value;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        if (res.ok) {
+          alert('Subscription confirmed! You will receive live status notifications.');
+          closeSubscribeModal();
+        } else {
+          alert('Failed to subscribe. Please try again later.');
+        }
+      } catch (err) {
+        alert('Failed to subscribe. Please try again later.');
+      }
     }
 
     // Live Health Fetching
