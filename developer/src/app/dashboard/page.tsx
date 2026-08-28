@@ -18,6 +18,12 @@ import {
   ShieldCheck,
   Code2,
   BookOpen,
+  Play,
+  Webhook,
+  Server,
+  Menu,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
 import { DeveloperOnboarding } from '../../components/DeveloperOnboarding';
@@ -44,23 +50,115 @@ export default function DashboardPage() {
   const { user, logout } = useDeveloperAuth();
   const [activeTab, setActiveTab] = useState<DashboardTab>('telemetry');
   const [showOnboardingManual, setShowOnboardingManual] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // If user exists and hasn't finished onboarding, trigger the onboarding modal
   const needsOnboarding = user && !user.hasCompletedOnboarding;
 
+  const mainNavItems = [
+    {
+      group: 'Analytics & Metrics',
+      items: [
+        { id: 'telemetry', label: 'SDK Distribution', icon: Activity, badge: 'Live' },
+        { id: 'logs', label: 'Traffic Inspector', icon: Terminal },
+        { id: 'quotas', label: 'Rate Limits & Quota', icon: Gauge },
+      ],
+    },
+    {
+      group: 'Access & Security',
+      items: [
+        { id: 'keys', label: 'API Keys & Secrets', icon: Key },
+        { id: 'oauth', label: 'OAuth2 Client Apps', icon: KeyRound },
+        { id: 'team', label: 'Team Members', icon: Users },
+      ],
+    },
+    {
+      group: 'Developer Tools & AI',
+      items: [
+        { id: 'ai_schema', label: 'AI Schema & Mocks', icon: Sparkles, badge: 'AI' },
+        { id: 'replay', label: 'Event Replay Studio', icon: Radio },
+      ],
+    },
+  ];
+
+  const externalLinks = [
+    { href: '/explorer', label: 'API Sandbox Explorer', icon: Play },
+    { href: '/docs', label: 'API Documentation', icon: BookOpen },
+    { href: '/server-codes', label: 'Server Boilerplates', icon: Server, badge: 'New' },
+    { href: '/webhooks', label: 'Webhook Studio', icon: Webhook },
+    { href: '/sdks', label: 'SDK Packages', icon: Code2 },
+  ];
+
+  const tabTitles: Record<DashboardTab, { title: string; subtitle: string }> = {
+    telemetry: {
+      title: 'SDK Distribution & Telemetry',
+      subtitle: 'Real-time client traffic, platform adoption, and regional distribution.',
+    },
+    keys: {
+      title: 'API Keys & Access Control',
+      subtitle: 'Manage production and test API keys with instant revocation.',
+    },
+    team: {
+      title: 'Team & Organization Members',
+      subtitle: 'Invite collaborators and set granular permission roles.',
+    },
+    quotas: {
+      title: 'Rate Limits & Usage Quotas',
+      subtitle: 'Monitor request volume, burst rates, and account tier limits.',
+    },
+    logs: {
+      title: 'Traffic Inspector & Audit Logs',
+      subtitle: 'Inspect live HTTP requests, status codes, and latency metrics.',
+    },
+    oauth: {
+      title: 'OAuth2 Client Applications',
+      subtitle: 'Register third-party OAuth2 apps, redirect URIs, and credentials.',
+    },
+    replay: {
+      title: 'Event Replay Studio',
+      subtitle: 'Re-trigger WebSocket events and test webhook dispatches.',
+    },
+    ai_schema: {
+      title: 'AI Schema & Mock Generator',
+      subtitle: 'Generate synthetic payloads and mock response schemas using Gemini AI.',
+    },
+  };
+
   return (
-    <div className="min-h-screen bg-[#050811] text-slate-100 pb-20">
-      {/* Onboarding Flow if not completed or opened manually */}
+    <div className="min-h-screen bg-[#050811] text-slate-100 flex flex-col lg:flex-row">
+      {/* Onboarding Flow Modal */}
       {(needsOnboarding || showOnboardingManual) && (
         <DeveloperOnboarding onComplete={() => setShowOnboardingManual(false)} />
       )}
 
-      {/* Top Banner / Header */}
-      <div className="border-b border-slate-800/80 bg-[#070b14]/70 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-all">
+      {/* Mobile Header Bar */}
+      <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#070b14] border-b border-slate-800 sticky top-0 z-50">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center font-black text-slate-950">
+            ⚡
+          </div>
+          <span className="font-black text-white text-base">VIBEZ CONSOLE</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+        >
+          {mobileSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Sidebar Navigation */}
+      <aside
+        className={`fixed lg:sticky top-0 left-0 z-40 w-72 h-screen bg-[#070b14] border-r border-slate-800/80 flex flex-col justify-between transition-transform duration-200 shrink-0 ${
+          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="flex flex-col h-full overflow-y-auto scrollbar-thin">
+          {/* Sidebar Top Header / Brand */}
+          <div className="p-5 border-b border-slate-800/80 flex flex-col gap-3">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-all shrink-0">
                 <div className="w-full h-full bg-[#050811] rounded-[10px] flex items-center justify-center">
                   <Zap className="w-5 h-5 text-emerald-400" />
                 </div>
@@ -68,7 +166,7 @@ export default function DashboardPage() {
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="font-black text-base text-white tracking-tight">VIBEZ</span>
-                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     CONSOLE
                   </span>
                 </div>
@@ -78,54 +176,136 @@ export default function DashboardPage() {
               </div>
             </Link>
 
-            <div className="hidden md:flex items-center gap-2 pl-4 border-l border-slate-800 text-xs font-mono text-slate-400">
-              <Building className="w-3.5 h-3.5 text-slate-500" />
-              <span className="text-white font-bold">{user?.organization || 'Acme Mobile Labs'}</span>
-              <span className="text-slate-600">•</span>
-              <span className="text-emerald-400 font-bold">{user?.role || 'Owner'}</span>
+            {/* Organization Selector Badge */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-mono text-slate-300 mt-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <Building className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span className="truncate font-bold text-white">
+                  {user?.organization || 'Acme Mobile Labs'}
+                </span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 shrink-0">
+                {user?.role || 'Owner'}
+              </span>
             </div>
           </div>
 
-          {/* Quick links & User profile */}
-          <div className="flex items-center gap-2.5">
-            <Link
-              href="/explorer"
-              className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-mono text-slate-300 hover:text-white flex items-center gap-1.5 transition-all"
-            >
-              <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Sandbox API</span>
-            </Link>
+          {/* Navigation Links Group */}
+          <div className="p-4 space-y-6 flex-1">
+            {mainNavItems.map((group) => (
+              <div key={group.group} className="space-y-1.5">
+                <div className="px-3 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                  {group.group}
+                </div>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(item.id as DashboardTab);
+                        setMobileSidebarOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                        isActive
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon
+                          className={`w-4 h-4 ${
+                            isActive ? 'text-emerald-400' : 'text-slate-500'
+                          }`}
+                        />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.badge && (
+                        <span
+                          className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase ${
+                            isActive
+                              ? 'bg-emerald-500 text-slate-950'
+                              : 'bg-emerald-500/10 text-emerald-400'
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
 
-            <Link
-              href="/docs"
-              className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-mono text-slate-300 hover:text-white flex items-center gap-1.5 transition-all"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-              <span>API Docs</span>
-            </Link>
+            {/* Platform Quick Links */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
+              <div className="px-3 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                Platform Resources
+              </div>
+              {externalLinks.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileSidebarOpen(false)}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900/60 transition-all"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className="w-4 h-4 text-slate-500" />
+                      <span>{link.label}</span>
+                    </div>
+                    {link.badge ? (
+                      <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 font-mono font-bold">
+                        {link.badge}
+                      </span>
+                    ) : (
+                      <ExternalLink className="w-3 h-3 text-slate-600" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
 
+          {/* Sidebar Footer User Profile */}
+          <div className="p-4 border-t border-slate-800/80 bg-slate-950/40 space-y-3">
             <button
               type="button"
-              onClick={() => setShowOnboardingManual(true)}
-              className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono text-emerald-400 hover:bg-emerald-500/20 transition-all"
-              title="Re-run Onboarding Wizard"
+              onClick={() => {
+                setShowOnboardingManual(true);
+                setMobileSidebarOpen(false);
+              }}
+              className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-xs font-mono font-bold text-emerald-400 flex items-center justify-center gap-2 transition-all"
             >
-              🚀 Onboarding
+              <span>🚀 Onboarding Guide</span>
             </button>
 
             {user ? (
-              <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-                <div className="w-7 h-7 rounded-lg overflow-hidden border border-slate-700">
-                  <img
-                    src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                    alt={user.name}
-                    className="w-full h-full object-cover"
-                  />
+              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-700 shrink-0">
+                    <img
+                      src={
+                        user.avatar ||
+                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+                      }
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white truncate">{user.name}</div>
+                    <div className="text-[10px] text-slate-500 truncate">{user.email}</div>
+                  </div>
                 </div>
+
                 <button
                   type="button"
                   onClick={logout}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all shrink-0"
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
@@ -134,60 +314,51 @@ export default function DashboardPage() {
             ) : (
               <Link
                 href="/login"
-                className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-black text-xs uppercase hover:bg-emerald-400"
+                className="w-full py-2 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs uppercase text-center block hover:bg-emerald-400"
               >
                 Sign In
               </Link>
             )}
           </div>
         </div>
-      </div>
+      </aside>
 
-      {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
-        {/* Navigation Tabs Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800 scrollbar-thin">
-          {[
-            { id: 'telemetry', label: 'SDK Distribution', icon: Activity, badge: 'Live' },
-            { id: 'keys', label: 'API Keys & Secrets', icon: Key },
-            { id: 'team', label: 'Team Members', icon: Users },
-            { id: 'quotas', label: 'Rate Limits & Quota', icon: Gauge },
-            { id: 'logs', label: 'Traffic Inspector', icon: Terminal },
-            { id: 'oauth', label: 'OAuth2 Apps', icon: KeyRound },
-            { id: 'replay', label: 'Event Replay Studio', icon: Radio },
-            { id: 'ai_schema', label: 'AI Schema & Mocks', icon: Sparkles, badge: 'AI' },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as DashboardTab)}
-                className={`px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap transition-all ${
-                  isActive
-                    ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/10'
-                    : 'bg-[#070b14] text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-emerald-400'}`} />
-                <span>{tab.label}</span>
-                {tab.badge && (
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
-                      isActive ? 'bg-slate-950 text-emerald-400' : 'bg-emerald-500/20 text-emerald-400'
-                    }`}
-                  >
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+      {/* Main Content Area */}
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto">
+        {/* Top Content Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-mono text-slate-500 mb-1">
+              <span>Console</span>
+              <ChevronRight className="w-3 h-3 text-slate-600" />
+              <span className="text-emerald-400 font-bold capitalize">{activeTab}</span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              {tabTitles[activeTab]?.title}
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              {tabTitles[activeTab]?.subtitle}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>LIVE PRODUCTION</span>
+            </div>
+
+            <Link
+              href="/explorer"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <Play className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Sandbox API</span>
+            </Link>
+          </div>
         </div>
 
-        {/* Tab Content Panels */}
-        <div className="space-y-6">
+        {/* Tab Panel Components */}
+        <div className="pt-2 space-y-6">
           {activeTab === 'telemetry' && <SdkDistributionVisualizer />}
           {activeTab === 'keys' && <DeveloperKeyGenerator />}
           {activeTab === 'team' && <TeamMembersManager />}
@@ -197,7 +368,7 @@ export default function DashboardPage() {
           {activeTab === 'replay' && <EventReplayStudio />}
           {activeTab === 'ai_schema' && <AiSchemaMockGenerator />}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
