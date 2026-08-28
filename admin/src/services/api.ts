@@ -946,3 +946,30 @@ export const fetchContactInquiries = async (): Promise<ContactInquiry[]> => {
   return [];
 };
 
+export interface ReplyInquiryPayload {
+  responseMessage: string;
+  agentName?: string;
+  agentTitle?: string;
+}
+
+export const replyToContactInquiry = async (
+  inquiryId: string,
+  payload: ReplyInquiryPayload
+): Promise<{ success: boolean; message?: string; emailDispatched?: boolean; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/inquiries/${inquiryId}/reply`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Failed to send reply' };
+    }
+    return data;
+  } catch (error: any) {
+    console.error('replyToContactInquiry error:', error);
+    return { success: false, error: error.message || 'Network error while sending reply' };
+  }
+};
+

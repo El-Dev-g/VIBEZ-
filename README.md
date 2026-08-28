@@ -29,11 +29,31 @@ A high-fidelity communication application built with modern Android development 
 
 ---
 
-## ☁️ Server Environment Variables (Render / Cloud Deployment)
+## 🔐 Credentials & Environment Variables Reference
 
-All backend variables are configured directly in your **Render Web Service Dashboard** (`Environment` tab):
+All credentials and sensitive configuration settings should be configured via environment variables or the **AI Studio Secrets panel**. Do **not** commit actual passwords, secrets, or private API keys to version control.
 
-### 1. Backend Core Variables (`/server`)
+### 1. Android Client Configuration (`.env` / AI Studio Secrets)
+Configure these variables in your root `.env` or in the **AI Studio Secrets panel**:
+
+| Variable | Description | Example / Recommended Value |
+| :--- | :--- | :--- |
+| `BACKEND_URL` | Production/Development Backend API URL | `https://vibez-n5h1.onrender.com/` |
+| `GOOGLE_WEB_CLIENT_ID` | OAuth 2.0 Web Client ID for Google Sign-In | `31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com` |
+| `GEMINI_API_KEY` | Gemini AI API Key (auto-injected in AI Studio) | `AIzaSy...` |
+
+### 2. Email Service & Nodemailer (Gmail SMTP)
+Used by the backend and admin portal to send branded support response emails and system notifications:
+
+| Variable | Description | Example / Instructions |
+| :--- | :--- | :--- |
+| `GMAIL_USER` | Gmail address used as SMTP transport sender | `support@vibez.chat` or `your_email@gmail.com` |
+| `GMAIL_APP_PASSWORD` | 16-character Google Account App Password | Generated from [Google Account Security > 2-Step Verification > App Passwords](https://myaccount.google.com/apppasswords) |
+| `EMAIL_FROM_NAME` | Display name shown in user email inboxes | `VIBEZ Support Team` |
+
+### 3. Backend Core Variables (`/server`)
+Configured in your Cloud/Render Web Service Environment Settings:
+
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/vibez_db?sslmode=require` |
@@ -44,13 +64,16 @@ All backend variables are configured directly in your **Render Web Service Dashb
 | `FRONTEND_URL` | Explicit origin of the web client for CORS protection | `https://your-client-app.onrender.com` |
 | `ADMIN_EMAIL` | Initial master administrator email used for seeding | `admin@vibez.com` |
 | `ADMIN_PASSWORD` | Initial master administrator password used for seeding | `your-secure-admin-password` |
+| `GMAIL_USER` | Gmail address for backend support response dispatch | `your_email@gmail.com` |
+| `GMAIL_APP_PASSWORD` | 16-character Google App Password | `xxxx xxxx xxxx xxxx` |
+| `EMAIL_FROM_NAME` | Branded sender name | `VIBEZ Support Team` |
 
-### 2. Next.js Admin Variables (`/admin`)
+### 4. Next.js Admin Variables (`/admin`)
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `NEXT_PUBLIC_API_URL` | Production URL pointing to your deployed backend API | `https://vibez-n5h1.onrender.com/api` |
 
-### 3. Cloudflare R2 Media Storage *(Optional)*
+### 5. Cloudflare R2 Media Storage *(Optional)*
 | Variable | Description |
 | :--- | :--- |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account Identifier |
@@ -59,7 +82,7 @@ All backend variables are configured directly in your **Render Web Service Dashb
 | `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | R2 Secret Access Key |
 | `CLOUDFLARE_R2_PUBLIC_DOMAIN` | Custom public CDN/domain URL (e.g. `https://media.yourdomain.com`) |
 
-### 3. Firebase Admin SDK *(Optional for backend token verification)*
+### 6. Firebase Admin SDK *(Optional for backend token verification)*
 | Variable / Secret File | Description |
 | :--- | :--- |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Secret File (e.g. `/etc/secrets/serviceAccountKey.json`) |

@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { fetchSettings, updateSettings } from '../services/api';
 
 export default function DashboardShell({
   children,
@@ -14,9 +15,14 @@ export default function DashboardShell({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusToast, setStatusToast] = useState<string | null>(null);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -29,6 +35,59 @@ export default function DashboardShell({
   }
   const isLoginPage = pathname === '/login';
 
+  // Load and subscribe to live system status
+  useEffect(() => {
+    async function loadStatus() {
+      try {
+        const s = await fetchSettings();
+        if (s) {
+          setMaintenanceMode(Boolean(s.maintenanceMode));
+        }
+      } catch (e) {
+        console.error('Failed to fetch header system status:', e);
+      }
+    }
+
+    loadStatus();
+
+    const interval = setInterval(loadStatus, 25000);
+
+    const handleStatusChanged = (e: any) => {
+      if (e.detail && e.detail.maintenanceMode !== undefined) {
+        setMaintenanceMode(Boolean(e.detail.maintenanceMode));
+      }
+    };
+
+    window.addEventListener('vibez:system_status_changed', handleStatusChanged);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('vibez:system_status_changed', handleStatusChanged);
+    };
+  }, []);
+
+  const handleToggleStatusFromHeader = async (nextVal: boolean) => {
+    setIsUpdatingStatus(true);
+    setMaintenanceMode(nextVal);
+    setStatusToast(nextVal ? '🟡 Set to Scheduled Maintenance' : '🟢 Set to All Systems Operational');
+
+    try {
+      const res = await updateSettings({ maintenanceMode: nextVal });
+      if (res) {
+        setMaintenanceMode(Boolean(res.maintenanceMode));
+        window.dispatchEvent(new CustomEvent('vibez:system_status_changed', { detail: { maintenanceMode: res.maintenanceMode } }));
+      }
+    } catch (err) {
+      console.error('Failed to toggle status from header:', err);
+      setStatusToast('Failed to change status.');
+    } finally {
+      setIsUpdatingStatus(false);
+      setTimeout(() => {
+        setIsStatusMenuOpen(false);
+        setStatusToast(null);
+      }, 2000);
+    }
+  };
+
   // Handle click outside dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,12 +97,16 @@ export default function DashboardShell({
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setIsNotifOpen(false);
       }
+      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
+        setIsStatusMenuOpen(false);
+      }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setIsProfileOpen(false);
         setIsNotifOpen(false);
+        setIsStatusMenuOpen(false);
       }
     }
 
@@ -93,10 +156,83 @@ export default function DashboardShell({
               </svg>
             </button>
             <div className="hidden sm:flex items-center gap-3">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">
-                VIBEZ Internal Command <span className="text-gray-400 font-medium">| Node v2.4</span>
+              <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                <span>VIBEZ Command</span>
+                <span className="text-gray-300 font-normal">|</span>
               </h2>
+
+              {/* Dynamic Live Status Pill */}
+              <div className="relative" ref={statusRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
+                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition-all border shadow-sm cursor-pointer active:scale-95 ${
+                    maintenanceMode
+                      ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                  title="Click to toggle system maintenance"
+                >
+                  <span className={`w-2 h-2 rounded-full animate-pulse ${
+                    maintenanceMode ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`} />
+                  <span>{maintenanceMode ? 'Scheduled System Maintenance' : 'All Systems Operational'}</span>
+                  <span className="text-[9px] opacity-70">▼</span>
+                </button>
+
+                {/* Status Quick Switch Dropdown */}
+                {isStatusMenuOpen && (
+                  <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-2xl p-3 z-50 animate-fadeIn">
+                    <div className="px-2 py-1.5 border-b border-slate-100 mb-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        System Operational Mode
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatusFromHeader(false)}
+                        disabled={isUpdatingStatus}
+                        className={`w-full p-2.5 rounded-xl text-left flex items-start gap-2.5 transition-all border ${
+                          !maintenanceMode 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+                            : 'hover:bg-slate-50 border-transparent text-slate-700'
+                        }`}
+                      >
+                        <span className="text-base mt-0.5">🟢</span>
+                        <div>
+                          <div className="text-xs font-black">All Systems Operational</div>
+                          <div className="text-[11px] text-slate-500 font-medium">Standard live routing and green status</div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatusFromHeader(true)}
+                        disabled={isUpdatingStatus}
+                        className={`w-full p-2.5 rounded-xl text-left flex items-start gap-2.5 transition-all border ${
+                          maintenanceMode 
+                            ? 'bg-amber-50 border-amber-300 text-amber-900' 
+                            : 'hover:bg-slate-50 border-transparent text-slate-700'
+                        }`}
+                      >
+                        <span className="text-base mt-0.5">🟡</span>
+                        <div>
+                          <div className="text-xs font-black">Scheduled System Maintenance</div>
+                          <div className="text-[11px] text-slate-500 font-medium">Amber banner & API 503 lockout active</div>
+                        </div>
+                      </button>
+                    </div>
+
+                    {statusToast && (
+                      <div className="mt-2 p-2 text-center text-[10px] font-bold bg-slate-900 text-white rounded-lg animate-fadeIn">
+                        {statusToast}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

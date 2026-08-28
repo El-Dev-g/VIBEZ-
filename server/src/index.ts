@@ -105,6 +105,7 @@ app.get('/api/app/download-info', (req, res) => admin.getPublicAppConfig(req, re
 app.post('/api/contact', (req, res) => admin.submitContactInquiry(req, res));
 app.post('/api/subscribe', (req, res) => subscription.subscribe(req, res));
 app.get('/api/admin/inquiries', (req, res) => admin.getContactInquiries(req, res));
+app.post('/api/admin/inquiries/:id/reply', (req, res) => admin.replyToContactInquiry(req, res));
 
 // Auth Routes
 app.post('/api/auth/google', (req, res) => auth.googleLogin(req, res));

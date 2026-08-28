@@ -31,6 +31,40 @@ export default function SettingsForm({ initialSettings }: SettingsFormProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ text: string; isError: boolean } | null>(null);
 
+  const handleToggleMaintenance = async (nextVal: boolean) => {
+    setSettings(prev => ({ ...prev, maintenanceMode: nextVal }));
+    setToast({
+      text: nextVal 
+        ? '🟡 System status set to SCHEDULED SYSTEM MAINTENANCE' 
+        : '🟢 System status set to ALL SYSTEMS OPERATIONAL (Emerald)',
+      isError: false
+    });
+
+    try {
+      const res = await updateSettings({ maintenanceMode: nextVal });
+      if (res) {
+        setSettings(prev => ({ ...prev, ...res }));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('vibez:system_status_changed', { detail: { maintenanceMode: res.maintenanceMode } }));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      setToast({ text: 'Failed to update maintenance mode.', isError: true });
+    }
+    setTimeout(() => setToast(null), 5000);
+  };
+
+  const handleToggleRegistrations = async (nextVal: boolean) => {
+    setSettings(prev => ({ ...prev, allowNewRegistrations: nextVal }));
+    try {
+      const res = await updateSettings({ allowNewRegistrations: nextVal });
+      if (res) setSettings(prev => ({ ...prev, ...res }));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     setToast(null);
@@ -42,7 +76,13 @@ export default function SettingsForm({ initialSettings }: SettingsFormProps) {
       const priceStr = typeof result.verificationBadgePrice === 'number'
         ? result.verificationBadgePrice.toFixed(2)
         : Number(settings.verificationBadgePrice ?? 3.00).toFixed(2);
-      setToast({ text: `Protocol updated: Verification set to $${priceStr}`, isError: false });
+      setToast({ 
+        text: `Protocol updated: Verification set to $${priceStr} | Status: ${result.maintenanceMode ? '🟡 Maintenance' : '🟢 Operational'}`, 
+        isError: false 
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vibez:system_status_changed', { detail: { maintenanceMode: result.maintenanceMode } }));
+      }
       router.refresh();
       setTimeout(() => setToast(null), 4000);
     } else {
@@ -57,12 +97,19 @@ export default function SettingsForm({ initialSettings }: SettingsFormProps) {
           {/* Toggle 1: Registration */}
           <div className="flex items-center justify-between p-6 rounded-2xl bg-slate-50 border border-slate-100">
             <div>
-              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Citizen Onboarding</h4>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Citizen Onboarding</h4>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                  settings.allowNewRegistrations ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {settings.allowNewRegistrations ? 'Open' : 'Paused'}
+                </span>
+              </div>
               <p className="text-xs font-bold text-slate-500 mt-1">Enable global registration signals.</p>
             </div>
             <button
               type="button"
-              onClick={() => setSettings({ ...settings, allowNewRegistrations: !settings.allowNewRegistrations })}
+              onClick={() => handleToggleRegistrations(!settings.allowNewRegistrations)}
               className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${
                 settings.allowNewRegistrations ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'
               }`}
@@ -76,16 +123,32 @@ export default function SettingsForm({ initialSettings }: SettingsFormProps) {
           </div>
 
           {/* Toggle 2: Maintenance */}
-          <div className="flex items-center justify-between p-6 rounded-2xl bg-slate-50 border border-slate-100">
+          <div className={`flex items-center justify-between p-6 rounded-2xl border transition-all duration-300 ${
+            settings.maintenanceMode 
+              ? 'bg-amber-50/70 border-amber-200/80' 
+              : 'bg-emerald-50/40 border-emerald-100'
+          }`}>
             <div>
-              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Protocol Lockout</h4>
-              <p className="text-xs font-bold text-slate-500 mt-1">Activate system-wide maintenance.</p>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Protocol Lockout</h4>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                  settings.maintenanceMode 
+                    ? 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse' 
+                    : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${settings.maintenanceMode ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                  {settings.maintenanceMode ? 'Scheduled Maintenance' : 'All Systems Operational'}
+                </span>
+              </div>
+              <p className="text-xs font-bold text-slate-500 mt-1">
+                {settings.maintenanceMode ? '🟡 General APIs return 503 Maintenance' : '🟢 Live traffic active'}
+              </p>
             </div>
             <button
               type="button"
-              onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })}
+              onClick={() => handleToggleMaintenance(!settings.maintenanceMode)}
               className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${
-                settings.maintenanceMode ? 'bg-amber-500 shadow-lg shadow-amber-500/30' : 'bg-slate-300'
+                settings.maintenanceMode ? 'bg-amber-500 shadow-lg shadow-amber-500/30' : 'bg-emerald-500 shadow-lg shadow-emerald-500/20'
               }`}
             >
               <div

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import jwt from 'jsonwebtoken';
+import { emailService } from '../lib/email';
 
 export class AdminController {
   async login(req: Request, res: Response) {
@@ -448,6 +449,53 @@ export class AdminController {
       res.json(inquiries || []);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch inquiries' });
+    }
+  }
+
+  async replyToContactInquiry(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { responseMessage, agentName, agentTitle } = req.body;
+
+      if (!responseMessage || !responseMessage.trim()) {
+        return res.status(400).json({ error: 'Response message is required.' });
+      }
+
+      const inquiry = await (prisma as any).contactInquiry.findUnique({
+        where: { id }
+      });
+
+      if (!inquiry) {
+        return res.status(404).json({ error: 'Inquiry not found.' });
+      }
+
+      // Send branded email via Nodemailer
+      const emailResult = await emailService.sendSupportResponse({
+        to: inquiry.email,
+        recipientName: inquiry.name,
+        ticketId: inquiry.id.substring(0, 8).toUpperCase(),
+        originalSubject: inquiry.subject,
+        originalMessage: inquiry.message,
+        responseMessage: responseMessage.trim(),
+        agentName: agentName || 'VIBEZ Support Team',
+        agentTitle: agentTitle || 'Customer Experience & Success',
+      });
+
+      // Update inquiry status to RESOLVED
+      await (prisma as any).contactInquiry.update({
+        where: { id },
+        data: { status: 'RESOLVED' }
+      });
+
+      res.json({
+        success: true,
+        message: 'Support response sent successfully!',
+        emailDispatched: emailResult.success,
+        error: emailResult.error
+      });
+    } catch (error: any) {
+      console.error('Reply inquiry error:', error);
+      res.status(500).json({ error: error.message || 'Failed to send inquiry response.' });
     }
   }
 
