@@ -16,24 +16,16 @@ export default function KeysPage() {
   const [keys, setKeys] = useState<ApiKeyItem[]>([
     {
       id: 'key_01',
-      name: 'Default Development Sandbox',
-      key: 'vbz_test_9fa81c0029b821ef67c',
-      type: 'sandbox',
-      createdAt: '2026-08-28',
-      scopes: ['messages:write', 'auth:otp', 'system:status']
-    },
-    {
-      id: 'key_02',
-      name: 'Production Mobile Gateway',
+      name: 'Primary Master Production Key',
       key: 'vbz_live_8819230a817cc91e012',
       type: 'production',
       createdAt: '2026-08-28',
-      scopes: ['messages:all', 'calls:signaling', 'verification:admin']
+      scopes: ['messages:write', 'messages:read', 'auth:otp', 'calls:signaling', 'system:status']
     }
   ]);
 
   const [newKeyName, setNewKeyName] = useState('');
-  const [newKeyType, setNewKeyType] = useState<'sandbox' | 'production'>('sandbox');
+  const [newKeyType, setNewKeyType] = useState<'sandbox' | 'production'>('production');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showSecret, setShowSecret] = useState<Record<string, boolean>>({});
 
@@ -53,7 +45,8 @@ export default function KeysPage() {
       scopes: ['messages:write', 'auth:otp', 'system:status']
     };
 
-    setKeys([newKey, ...keys]);
+    // Replace with single primary key
+    setKeys([newKey]);
     setNewKeyName('');
   };
 

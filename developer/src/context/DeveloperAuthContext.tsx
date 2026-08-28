@@ -77,62 +77,18 @@ const DEFAULT_USER: DeveloperUser = {
 
 const INITIAL_KEYS: DeveloperKey[] = [
   {
-    id: 'key_live_01',
-    name: 'Android Mobile App Gateway',
+    id: 'key_master_01',
+    name: 'Primary Master API Key',
     keyType: 'api_key',
     keyPrefix: 'vbz_live_kt_',
     maskedKey: 'vbz_live_kt_••••••••••••••••••••94b2',
     rawKey: 'vbz_live_kt_8f901ab38127498cbe0094b2',
     environment: 'production',
     sdkTarget: 'Kotlin',
-    scopes: ['messages:write', 'auth:otp', 'calls:signaling', 'status:publish'],
+    scopes: ['messages:write', 'messages:read', 'auth:otp', 'calls:signaling', 'status:publish', 'system:telemetry'],
     createdAt: '2026-08-25',
     lastUsedAt: 'Just now',
     requestsCount: 482910,
-  },
-  {
-    id: 'key_live_02',
-    name: 'Next.js Web Client Credentials',
-    keyType: 'client_secret',
-    keyPrefix: 'vbz_clt_ts_',
-    maskedKey: 'vbz_clt_ts_••••••••••••••••••••77a1',
-    rawKey: 'vbz_clt_ts_314ab89ecf001278ba6577a1',
-    clientId: 'vibez_app_ts_991823',
-    clientSecret: 'vbz_sec_99102834bfa810293817cc',
-    environment: 'production',
-    sdkTarget: 'TypeScript',
-    scopes: ['messages:read', 'messages:write', 'webhooks:subscribe'],
-    createdAt: '2026-08-26',
-    lastUsedAt: '2 mins ago',
-    requestsCount: 312840,
-  },
-  {
-    id: 'key_test_01',
-    name: 'Python Data Pipeline Bot',
-    keyType: 'api_key',
-    keyPrefix: 'vbz_test_py_',
-    maskedKey: 'vbz_test_py_••••••••••••••••••••12c4',
-    rawKey: 'vbz_test_py_77218390bbca890124fe12c4',
-    environment: 'sandbox',
-    sdkTarget: 'Python',
-    scopes: ['system:telemetry', 'channels:read'],
-    createdAt: '2026-08-27',
-    lastUsedAt: '12 mins ago',
-    requestsCount: 128450,
-  },
-  {
-    id: 'key_test_02',
-    name: 'Go Microservice Signaling Worker',
-    keyType: 'api_key',
-    keyPrefix: 'vbz_test_go_',
-    maskedKey: 'vbz_test_go_••••••••••••••••••••55d8',
-    rawKey: 'vbz_test_go_001928374a819bce890255d8',
-    environment: 'sandbox',
-    sdkTarget: 'Go',
-    scopes: ['calls:signaling', 'messages:broadcast'],
-    createdAt: '2026-08-28',
-    lastUsedAt: '1 hour ago',
-    requestsCount: 89400,
   },
 ];
 
@@ -260,12 +216,12 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(updated);
     localStorage.setItem('vibez_dev_user', JSON.stringify(updated));
 
-    // Generate initial sandbox key
+    // Generate initial single sandbox/live key
     const prefix = `vbz_sbx_${primarySdk.toLowerCase().substring(0, 2)}_`;
     const rand = Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
     const initialKey: DeveloperKey = {
       id: `key_${Date.now()}`,
-      name: `${projectName} Sandbox Key`,
+      name: `${projectName} Primary Key`,
       keyType: 'api_key',
       keyPrefix: prefix,
       maskedKey: `${prefix}••••••••••••••••••••${rand.slice(-4)}`,
@@ -277,7 +233,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       lastUsedAt: 'Never',
       requestsCount: 0,
     };
-    const updatedKeys = [initialKey, ...keys];
+    const updatedKeys = [initialKey];
     setKeys(updatedKeys);
     localStorage.setItem('vibez_dev_keys', JSON.stringify(updatedKeys));
   };
@@ -312,7 +268,8 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       requestsCount: 0,
     };
 
-    const updated = [newKey, ...keys];
+    // Single API Key Policy across application: replace existing key
+    const updated = [newKey];
     setKeys(updated);
     localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
     return newKey;

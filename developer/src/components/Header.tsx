@@ -2,10 +2,17 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useDeveloperAuth } from '../context/DeveloperAuthContext';
 
 export const Header: React.FC = () => {
+  const pathname = usePathname();
   const { user, logout } = useDeveloperAuth();
+
+  // Hide home page header on dashboard
+  if (pathname?.startsWith('/dashboard')) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-[#090d16]/95 backdrop-blur-md">

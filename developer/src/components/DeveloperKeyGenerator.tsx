@@ -67,11 +67,14 @@ export const DeveloperKeyGenerator: React.FC = () => {
           <div className="flex items-center gap-2">
             <Key className="w-5 h-5 text-emerald-400" />
             <h3 className="text-base font-black uppercase tracking-wider text-white">
-              API Keys & Client Secrets
+              Primary API Key
             </h3>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold border border-emerald-500/20">
+              Single Key Policy
+            </span>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Provision scoped bearer tokens and client credentials for your apps • Powered by <span className="text-emerald-400 font-bold">PRIGID GROUP</span>
+            Your organization maintains 1 active API Key across all services and platforms.
           </p>
         </div>
 
@@ -81,7 +84,7 @@ export const DeveloperKeyGenerator: React.FC = () => {
           className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-emerald-400 flex items-center gap-1.5 transition-all self-start sm:self-auto shadow-lg shadow-emerald-500/10"
         >
           <Plus className="w-4 h-4" />
-          <span>Generate New Key</span>
+          <span>{keys.length > 0 ? 'Rotate / Replace Key' : 'Generate API Key'}</span>
         </button>
       </div>
 

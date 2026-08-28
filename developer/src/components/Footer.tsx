@@ -2,8 +2,16 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export const Footer: React.FC = () => {
+  const pathname = usePathname();
+
+  // Hide footer on dashboard pages
+  if (pathname?.startsWith('/dashboard')) {
+    return null;
+  }
+
   return (
     <footer className="border-t border-slate-800/80 bg-[#060911] text-slate-400 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
