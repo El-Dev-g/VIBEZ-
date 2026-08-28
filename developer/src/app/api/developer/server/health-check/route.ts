@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkCustomServerConnection, DEFAULT_CUSTOM_SERVER_URL } from '@/lib/customServerBridge';
+import { checkCustomServerConnection, DEFAULT_CUSTOM_SERVER_URL } from '../../../../../lib/customServerBridge';
 
 export async function GET(req: NextRequest) {
   const startTime = Date.now();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { DEFAULT_CUSTOM_SERVER_URL } from '@/lib/customServerBridge';
+import { DEFAULT_CUSTOM_SERVER_URL } from '../../../../../lib/customServerBridge';
 
 export async function POST(req: NextRequest) {
   try {
