@@ -65,7 +65,13 @@ export default function KeysPage() {
   const handleGenerateKey = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKeyName.trim()) return;
-    createKey(newKeyName.trim(), newKeyType);
+    createKey({
+      name: newKeyName.trim(),
+      keyType: 'api_key',
+      environment: newKeyType,
+      sdkTarget: 'Universal',
+      scopes: ['read', 'write', 'messages:dispatch'],
+    });
     setNewKeyName('');
   };
 
