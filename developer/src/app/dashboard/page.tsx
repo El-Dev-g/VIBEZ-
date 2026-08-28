@@ -35,6 +35,7 @@ import { TrafficLogsInspector } from '../../components/TrafficLogsInspector';
 import { OAuthAppsManager } from '../../components/OAuthAppsManager';
 import { EventReplayStudio } from '../../components/EventReplayStudio';
 import { AiSchemaMockGenerator } from '../../components/AiSchemaMockGenerator';
+import { ApiExplorerSandbox } from '../../components/ApiExplorerSandbox';
 
 type DashboardTab =
   | 'telemetry'
@@ -44,7 +45,8 @@ type DashboardTab =
   | 'logs'
   | 'oauth'
   | 'replay'
-  | 'ai_schema';
+  | 'ai_schema'
+  | 'explorer';
 
 export default function DashboardPage() {
   const { user, logout } = useDeveloperAuth();
@@ -67,7 +69,7 @@ export default function DashboardPage() {
     {
       group: 'Access & Security',
       items: [
-        { id: 'keys', label: 'API Keys & Secrets', icon: Key },
+        { id: 'keys', label: 'API Sandbox & Master Keys', icon: Key, badge: 'Protected' },
         { id: 'oauth', label: 'OAuth2 Client Apps', icon: KeyRound },
         { id: 'team', label: 'Team Members', icon: Users },
       ],
@@ -75,17 +77,15 @@ export default function DashboardPage() {
     {
       group: 'Developer Tools & AI',
       items: [
+        { id: 'explorer', label: 'API Sandbox Explorer', icon: Play, badge: 'Sandbox' },
+        { id: 'replay', label: 'Webhooks & Event Streams', icon: Webhook, badge: 'Live' },
         { id: 'ai_schema', label: 'AI Schema & Mocks', icon: Sparkles, badge: 'AI' },
-        { id: 'replay', label: 'Event Replay Studio', icon: Radio },
       ],
     },
   ];
 
   const externalLinks = [
-    { href: '/explorer', label: 'API Sandbox Explorer', icon: Play },
     { href: '/docs', label: 'API Documentation', icon: BookOpen },
-    { href: '/server-codes', label: 'Server Boilerplates', icon: Server, badge: 'New' },
-    { href: '/webhooks', label: 'Webhook Studio', icon: Webhook },
     { href: '/sdks', label: 'SDK Packages', icon: Code2 },
   ];
 
@@ -121,6 +121,10 @@ export default function DashboardPage() {
     ai_schema: {
       title: 'AI Schema & Mock Generator',
       subtitle: 'Generate synthetic payloads and mock response schemas using Gemini AI.',
+    },
+    explorer: {
+      title: 'API Sandbox Explorer',
+      subtitle: 'Construct, test, and inspect real-time API request payloads in a protected environment.',
     },
   };
 
@@ -347,13 +351,14 @@ export default function DashboardPage() {
               <span>LIVE PRODUCTION</span>
             </div>
 
-            <Link
-              href="/explorer"
+            <button
+              type="button"
+              onClick={() => setActiveTab('explorer')}
               className="px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all flex items-center gap-1.5"
             >
               <Play className="w-3.5 h-3.5 text-emerald-400" />
               <span>Sandbox API</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -367,6 +372,7 @@ export default function DashboardPage() {
           {activeTab === 'oauth' && <OAuthAppsManager />}
           {activeTab === 'replay' && <EventReplayStudio />}
           {activeTab === 'ai_schema' && <AiSchemaMockGenerator />}
+          {activeTab === 'explorer' && <ApiExplorerSandbox />}
         </div>
       </main>
     </div>

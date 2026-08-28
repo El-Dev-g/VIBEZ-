@@ -1,367 +1,595 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Shield, MessageSquare, Radio, Users, CheckCircle, Server, Copy, Check, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Search,
+  Shield,
+  Server,
+  Code,
+  Globe,
+  Terminal,
+  Zap,
+  CheckCircle,
+  AlertTriangle,
+  FileText,
+  Webhook,
+  Layers,
+  Key,
+  Users,
+  MessageSquare,
+  Bell,
+  CreditCard,
+  Settings,
+  HelpCircle,
+  Copy,
+  Check,
+  ExternalLink
+} from 'lucide-react';
 import { CodeBlock } from '../../components/CodeBlock';
 
-interface Endpoint {
+interface NavItem {
   id: string;
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  path: string;
-  category: string;
-  summary: string;
-  description: string;
-  authRequired: boolean;
-  requestBody?: string;
-  responseBody: string;
-  curlExample: string;
+  label: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  path?: string;
+}
+
+interface NavCategory {
+  title: string;
+  icon: any;
+  items: NavItem[];
 }
 
 export default function DocsPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [expandedEndpoints, setExpandedEndpoints] = useState<Record<string, boolean>>({
-    'auth-otp': true,
-    'msg-send': true,
-    'system-status': true
-  });
+  const [activeItem, setActiveItem] = useState<string>('intro');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
-  const toggleEndpoint = (id: string) => {
-    setExpandedEndpoints(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleCategory = (title: string) => {
+    setCollapsedCategories((prev) => ({ ...prev, [title]: !prev[title] }));
   };
 
-  const endpoints: Endpoint[] = [
+  const copyText = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSection(id);
+    setTimeout(() => setCopiedSection(null), 2000);
+  };
+
+  const navStructure: NavCategory[] = [
     {
-      id: 'auth-otp',
-      method: 'POST',
-      path: '/api/auth/phone/otp',
-      category: 'Authentication',
-      summary: 'Request Phone OTP Challenge',
-      description: 'Sends a one-time verification code via SMS or cellular gateway to verify citizen phone number.',
-      authRequired: false,
-      requestBody: JSON.stringify({
-        phoneNumber: "+1234567890"
-      }, null, 2),
-      responseBody: JSON.stringify({
-        success: true,
-        message: "OTP sent successfully",
-        data: {
-          verificationId: "vfy_891bc029f",
-          expiresIn: 300
-        }
-      }, null, 2),
-      curlExample: `curl -X POST "https://vibez-n5h1.onrender.com/api/auth/phone/otp" \\
-  -H "Content-Type: application/json" \\
-  -d '{"phoneNumber": "+1234567890"}'`
+      title: 'Overview',
+      icon: BookOpen,
+      items: [
+        { id: 'intro', label: 'Introduction' },
+        { id: 'get-started', label: 'Get Started' },
+        { id: 'architecture', label: 'Architecture' },
+        { id: 'api-status', label: 'API Status' },
+      ],
     },
     {
-      id: 'auth-verify',
-      method: 'POST',
-      path: '/api/auth/phone/verify',
-      category: 'Authentication',
-      summary: 'Verify Phone OTP & Issue JWT',
-      description: 'Verifies the OTP token and returns an authenticated user profile with a bearer JWT.',
-      authRequired: false,
-      requestBody: JSON.stringify({
-        phoneNumber: "+1234567890",
-        code: "123456",
-        displayName: "Alex Rivera",
-        about: "Hey there! I am using VIBEZ"
-      }, null, 2),
-      responseBody: JSON.stringify({
-        success: true,
-        token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        user: {
-          id: "usr_991823a",
-          phoneNumber: "+1234567890",
-          name: "Alex Rivera",
-          isVerified: true
-        }
-      }, null, 2),
-      curlExample: `curl -X POST "https://vibez-n5h1.onrender.com/api/auth/phone/verify" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "phoneNumber": "+1234567890",
-    "code": "123456",
-    "displayName": "Alex Rivera"
-  }'`
+      title: 'Guides',
+      icon: Layers,
+      items: [
+        { id: 'guide-auth', label: 'Authentication' },
+        { id: 'guide-users', label: 'Users' },
+        { id: 'guide-media', label: 'Media & Uploads' },
+        { id: 'guide-messaging', label: 'Messaging' },
+        { id: 'guide-notifications', label: 'Notifications' },
+        { id: 'guide-subscriptions', label: 'Subscriptions' },
+        { id: 'guide-payments', label: 'Payments' },
+        { id: 'guide-webhooks', label: 'Webhooks' },
+      ],
     },
     {
-      id: 'msg-send',
-      method: 'POST',
-      path: '/api/messages',
-      category: 'Messaging',
-      summary: 'Dispatch Direct or Group Message',
-      description: 'Creates and delivers an encrypted message to a recipient or group channel with real-time WebSocket fanout.',
-      authRequired: true,
-      requestBody: JSON.stringify({
-        recipientId: "usr_551982b",
-        chatId: "chat_001928",
-        content: "Hello from the VIBEZ API! 🚀",
-        type: "TEXT"
-      }, null, 2),
-      responseBody: JSON.stringify({
-        success: true,
-        data: {
-          id: "msg_7721839a",
-          chatId: "chat_001928",
-          senderId: "usr_991823a",
-          content: "Hello from the VIBEZ API! 🚀",
-          type: "TEXT",
-          status: "SENT",
-          createdAt: "2026-08-28T06:12:00.000Z"
-        }
-      }, null, 2),
-      curlExample: `curl -X POST "https://vibez-n5h1.onrender.com/api/messages" \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \\
-  -d '{
-    "recipientId": "usr_551982b",
-    "content": "Hello from VIBEZ API! 🚀",
-    "type": "TEXT"
-  }'`
+      title: 'API Reference',
+      icon: Terminal,
+      items: [
+        { id: 'api-health', label: 'GET /health', method: 'GET', path: '/health' },
+        { id: 'api-sys-status', label: 'GET /api/system/status', method: 'GET', path: '/api/system/status' },
+        { id: 'api-auth-reg', label: 'POST /api/auth/register', method: 'POST', path: '/api/auth/register' },
+        { id: 'api-auth-login', label: 'POST /api/auth/login', method: 'POST', path: '/api/auth/login' },
+        { id: 'api-auth-logout', label: 'POST /api/auth/logout', method: 'POST', path: '/api/auth/logout' },
+        { id: 'api-users', label: 'Users API', method: 'GET', path: '/api/users' },
+        { id: 'api-profiles', label: 'Profiles API', method: 'GET', path: '/api/profiles' },
+        { id: 'api-posts', label: 'Posts API', method: 'POST', path: '/api/posts' },
+        { id: 'api-comments', label: 'Comments API', method: 'POST', path: '/api/comments' },
+        { id: 'api-likes', label: 'Likes API', method: 'POST', path: '/api/likes' },
+        { id: 'api-follows', label: 'Follows API', method: 'POST', path: '/api/follows' },
+        { id: 'api-messaging', label: 'Messaging API', method: 'POST', path: '/api/messages' },
+        { id: 'api-notifications', label: 'Notifications API', method: 'GET', path: '/api/notifications' },
+        { id: 'api-media', label: 'Media API', method: 'POST', path: '/api/media/upload' },
+        { id: 'api-subscriptions', label: 'Subscriptions API', method: 'GET', path: '/api/subscriptions' },
+        { id: 'api-payments', label: 'Payments API', method: 'POST', path: '/api/payments/checkout' },
+        { id: 'api-admin', label: 'Admin Telemetry', method: 'GET', path: '/api/admin/telemetry' },
+      ],
     },
     {
-      id: 'msg-list',
-      method: 'GET',
-      path: '/api/chats/:chatId/messages',
-      category: 'Messaging',
-      summary: 'Retrieve Chat History',
-      description: 'Fetches paginated chronological messages for a specific conversation.',
-      authRequired: true,
-      responseBody: JSON.stringify({
-        success: true,
-        data: [
-          {
-            id: "msg_7721839a",
-            senderId: "usr_991823a",
-            content: "Hey, are you free for a call?",
-            type: "TEXT",
-            createdAt: "2026-08-28T06:10:00.000Z"
-          }
-        ],
-        pagination: {
-          cursor: "msg_7721839a",
-          hasMore: false
-        }
-      }, null, 2),
-      curlExample: `curl -X GET "https://vibez-n5h1.onrender.com/api/chats/chat_001928/messages?limit=20" \\
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"`
+      title: 'SDKs',
+      icon: Code,
+      items: [
+        { id: 'sdk-js', label: 'JavaScript' },
+        { id: 'sdk-ts', label: 'TypeScript' },
+        { id: 'sdk-android', label: 'Android (Kotlin)' },
+        { id: 'sdk-rest', label: 'REST API' },
+      ],
     },
     {
-      id: 'status-create',
-      method: 'POST',
-      path: '/api/statuses',
-      category: 'Statuses',
-      summary: 'Publish 24h Expiring Status',
-      description: 'Publishes a temporary text or media status broadcast visible to contacts.',
-      authRequired: true,
-      requestBody: JSON.stringify({
-        content: "Working on new APIs with PRIGID GROUP!",
-        mediaUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe",
-        backgroundColor: "#10b981",
-        caption: "Launch day!"
-      }, null, 2),
-      responseBody: JSON.stringify({
-        success: true,
-        data: {
-          id: "st_8819234",
-          expiresAt: "2026-08-29T06:12:00.000Z",
-          status: "ACTIVE"
-        }
-      }, null, 2),
-      curlExample: `curl -X POST "https://vibez-n5h1.onrender.com/api/statuses" \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \\
-  -d '{
-    "content": "Working with PRIGID GROUP!",
-    "backgroundColor": "#10b981"
-  }'`
+      title: 'Webhooks',
+      icon: Webhook,
+      items: [
+        { id: 'webhook-overview', label: 'Overview' },
+        { id: 'webhook-events', label: 'Events' },
+        { id: 'webhook-signatures', label: 'Signatures' },
+        { id: 'webhook-retry', label: 'Retry Policy' },
+      ],
     },
     {
-      id: 'verification-checkout',
-      method: 'POST',
-      path: '/api/verification/checkout',
-      category: 'Verification & Badges',
-      summary: 'Initiate Badge Verification Checkout',
-      description: 'Generates an encrypted checkout session to purchase official VIBEZ verified citizen status.',
-      authRequired: true,
-      requestBody: JSON.stringify({
-        paymentMethod: "STRIPE_CHECKOUT",
-        returnUrl: "https://vibez-app.com/verified/success"
-      }, null, 2),
-      responseBody: JSON.stringify({
-        success: true,
-        data: {
-          checkoutUrl: "https://checkout.stripe.com/pay/cs_live_9921a",
-          sessionId: "cs_live_9921a",
-          price: 3.00,
-          currency: "USD"
-        }
-      }, null, 2),
-      curlExample: `curl -X POST "https://vibez-n5h1.onrender.com/api/verification/checkout" \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \\
-  -d '{"paymentMethod": "STRIPE_CHECKOUT"}'`
+      title: 'Resources',
+      icon: FileText,
+      items: [
+        { id: 'res-errors', label: 'Errors' },
+        { id: 'res-rate-limits', label: 'Rate Limits' },
+        { id: 'res-pagination', label: 'Pagination' },
+        { id: 'res-versioning', label: 'Versioning' },
+        { id: 'res-changelog', label: 'Changelog' },
+        { id: 'res-support', label: 'Support' },
+      ],
     },
-    {
-      id: 'system-status',
-      method: 'GET',
-      path: '/api/system/status',
-      category: 'Telemetry',
-      summary: 'Query System Operational Mode',
-      description: 'Returns real-time operational status (All Systems Operational vs Scheduled Maintenance) and global node metadata.',
-      authRequired: false,
-      responseBody: JSON.stringify({
-        success: true,
-        status: "OPERATIONAL",
-        maintenanceMode: false,
-        allowNewRegistrations: true,
-        node: "v2.4.0-emerald",
-        poweredBy: "PRIGID GROUP",
-        timestamp: "2026-08-28T06:12:00.000Z"
-      }, null, 2),
-      curlExample: `curl -X GET "https://vibez-n5h1.onrender.com/api/system/status"`
-    }
   ];
 
-  const categories = ['all', 'Authentication', 'Messaging', 'Statuses', 'Verification & Badges', 'Telemetry'];
+  const methodBadge = (method?: string) => {
+    if (!method) return null;
+    const colors = {
+      GET: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+      POST: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+      PUT: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+      PATCH: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+      DELETE: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    };
+    return (
+      <span className={`px-1.5 py-0.5 text-[9px] font-mono font-black border rounded ${colors[method as keyof typeof colors] || ''}`}>
+        {method}
+      </span>
+    );
+  };
 
-  const filteredEndpoints = selectedCategory === 'all'
-    ? endpoints
-    : endpoints.filter(e => e.category === selectedCategory);
+  const renderContent = () => {
+    switch (activeItem) {
+      case 'intro':
+        return (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
+                PRIGID GROUP Platform v3.0
+              </div>
+              <h1 className="text-3xl font-black text-white tracking-tight">Introduction</h1>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Welcome to the official developer documentation for the VIBEZ Platform API. VIBEZ provides high-performance, real-time backend infrastructure for messaging, user identities, status broadcasts, webhooks, and monetization.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
+                <Zap className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white">Ultra-Low Latency</h3>
+                <p className="text-xs text-slate-400">Sub-30ms global routing powered by Spanner & Redis edge cache.</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
+                <Shield className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white">Zero-Trust Auth</h3>
+                <p className="text-xs text-slate-400">HMAC SHA-256 signatures, JWT bearer tokens, and Master API Keys.</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
+                <Globe className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white">Cross-SDK Sync</h3>
+                <p className="text-xs text-slate-400">First-class support for Android Kotlin, TypeScript, Node.js, and Python.</p>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
+              <h3 className="text-sm font-bold text-white">Base Endpoint Host</h3>
+              <p className="text-xs text-slate-400">All requests should target the edge production gateway:</p>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-400 flex items-center justify-between">
+                <span>https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app</span>
+                <button
+                  onClick={() => copyText('https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app', 'base-url')}
+                  className="p-1 text-slate-400 hover:text-white"
+                >
+                  {copiedSection === 'base-url' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'get-started':
+        return (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-black text-white tracking-tight">Get Started</h1>
+              <p className="text-slate-400 text-sm">
+                Follow this quick 3-step guide to issue API credentials and send your first request in under 2 minutes.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-xs">
+                  <span>STEP 1</span>
+                </div>
+                <h3 className="text-sm font-bold text-white">Generate Master API Key</h3>
+                <p className="text-xs text-slate-400">
+                  Navigate to your protected <a href="/keys" className="text-emerald-400 underline font-bold">API Sandbox Keys</a> panel in the Dashboard and issue a new key token starting with <code className="text-emerald-300">vbz_live_...</code>.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-xs">
+                  <span>STEP 2</span>
+                </div>
+                <h3 className="text-sm font-bold text-white">Set HTTP Request Headers</h3>
+                <p className="text-xs text-slate-400">Include your master key in the request headers:</p>
+                <CodeBlock
+                  code={`Content-Type: application/json\nX-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2`}
+                  language="http"
+                  title="Request Headers"
+                />
+              </div>
+
+              <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-xs">
+                  <span>STEP 3</span>
+                </div>
+                <h3 className="text-sm font-bold text-white">Test Health Ping</h3>
+                <CodeBlock
+                  code={`curl -X GET "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/developer/server/health-check" \\
+  -H "X-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2"`}
+                  language="bash"
+                  title="cURL Terminal Command"
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'architecture':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight">Architecture</h1>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              VIBEZ is built on a distributed microservices mesh operating in Google Cloud Platform with multi-region failover.
+            </p>
+            <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 space-y-4">
+              <h3 className="text-sm font-black uppercase text-white font-mono">Infrastructure Components</h3>
+              <ul className="space-y-3 text-xs text-slate-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">•</span>
+                  <div>
+                    <strong className="text-white">Signaling & Edge Layer:</strong> Envoy proxy cluster terminating TLS 1.3 and dispatching requests directly to regional containers.
+                  </div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">•</span>
+                  <div>
+                    <strong className="text-white">Data Persistence:</strong> Cloud Spanner for ACID transactions paired with Redis Enterprise for sub-millisecond status fanouts.
+                  </div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">•</span>
+                  <div>
+                    <strong className="text-white">Real-Time Messaging:</strong> WebSockets with automatic fallback to gRPC bidirectional streams.
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        );
+
+      case 'api-status':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight">API Operational Status</h1>
+            <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+                <div>
+                  <div className="text-sm font-bold text-white">All Systems Operational</div>
+                  <div className="text-xs text-emerald-400 font-mono">Global Uptime: 99.99% • Regional Nodes: Healthy</div>
+                </div>
+              </div>
+              <span className="text-xs font-mono text-slate-400">Node: v3.0-prod</span>
+            </div>
+          </div>
+        );
+
+      // Guides
+      case 'guide-auth':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight">Guide: Authentication</h1>
+            <p className="text-slate-400 text-sm">
+              All REST API calls require an API key passed via header or an OAuth2 bearer token.
+            </p>
+            <CodeBlock
+              code={`// Example Auth Header\nAuthorization: Bearer <YOUR_JWT_OR_OAUTH_TOKEN>\nX-API-Key: <YOUR_PRIMARY_API_KEY>`}
+              language="http"
+              title="HTTP Header Specifications"
+            />
+          </div>
+        );
+
+      case 'guide-users':
+      case 'guide-media':
+      case 'guide-messaging':
+      case 'guide-notifications':
+      case 'guide-subscriptions':
+      case 'guide-payments':
+      case 'guide-webhooks':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight capitalize">
+              Guide: {activeItem.replace('guide-', '').replace('-', ' ')}
+            </h1>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Learn how to implement {activeItem.replace('guide-', '')} workflows using VIBEZ platform APIs and client SDKs.
+            </p>
+            <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 text-xs text-slate-300 space-y-2">
+              <p className="font-bold text-white">Key Integration Workflow:</p>
+              <p>1. Initialize client using Master API Key.</p>
+              <p>2. Execute request payload through edge routing.</p>
+              <p>3. Handle response status codes and verify HMAC signatures on callback handlers.</p>
+            </div>
+          </div>
+        );
+
+      // API Reference Endpoints
+      case 'api-health':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <span className="px-2.5 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-mono font-black">GET</span>
+              <h1 className="text-2xl font-mono font-bold text-white">/health</h1>
+            </div>
+            <p className="text-xs text-slate-400">Basic HTTP health check endpoint for load balancers and container monitors.</p>
+            <CodeBlock
+              code={`curl -X GET "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/health"`}
+              language="bash"
+              title="cURL Command"
+            />
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300">
+              {JSON.stringify({ status: "healthy", timestamp: new Date().toISOString() }, null, 2)}
+            </div>
+          </div>
+        );
+
+      case 'api-sys-status':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <span className="px-2.5 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-mono font-black">GET</span>
+              <h1 className="text-2xl font-mono font-bold text-white">/api/system/status</h1>
+            </div>
+            <p className="text-xs text-slate-400">Detailed system operational telemetry and maintenance window status.</p>
+            <CodeBlock
+              code={`curl -X GET "https://ais-dev-knzemx4apbas7ltgs7fl4d-259298733495.europe-west2.run.app/api/system/status"`}
+              language="bash"
+              title="cURL Command"
+            />
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-300">
+              {JSON.stringify({
+                status: "OPERATIONAL",
+                maintenanceMode: false,
+                allowNewRegistrations: true,
+                node: "v3.0-emerald",
+                poweredBy: "PRIGID GROUP Global Infrastructure"
+              }, null, 2)}
+            </div>
+          </div>
+        );
+
+      case 'api-auth-reg':
+      case 'api-auth-login':
+      case 'api-auth-logout':
+      case 'api-users':
+      case 'api-profiles':
+      case 'api-posts':
+      case 'api-comments':
+      case 'api-likes':
+      case 'api-follows':
+      case 'api-messaging':
+      case 'api-notifications':
+      case 'api-media':
+      case 'api-subscriptions':
+      case 'api-payments':
+      case 'api-admin':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-mono font-bold text-white">
+              {activeItem.toUpperCase().replace('API-', 'API / ').replace('-', ' ')}
+            </h1>
+            <p className="text-xs text-slate-400">Production REST Endpoint Specification.</p>
+            <CodeBlock
+              code={`// Example Request\nPOST /api/... HTTP/1.1\nHost: vibez.api.com\nContent-Type: application/json\nX-API-Key: vbz_live_kt_8f901ab38127498cbe0094b2`}
+              language="http"
+              title="Endpoint Specification"
+            />
+          </div>
+        );
+
+      // SDKs
+      case 'sdk-js':
+      case 'sdk-ts':
+      case 'sdk-android':
+      case 'sdk-rest':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              SDK: {activeItem.replace('sdk-', '').toUpperCase()}
+            </h1>
+            <p className="text-slate-400 text-sm">
+              Official client library and integration package for {activeItem.replace('sdk-', '')}.
+            </p>
+            <CodeBlock
+              code={
+                activeItem === 'sdk-android'
+                  ? `dependencies {\n    implementation("com.vibez.sdk:android:v3.0.0")\n}`
+                  : `npm install @vibez/client-sdk`
+              }
+              language={activeItem === 'sdk-android' ? 'kotlin' : 'bash'}
+              title="Installation Package"
+            />
+          </div>
+        );
+
+      // Webhooks
+      case 'webhook-overview':
+      case 'webhook-events':
+      case 'webhook-signatures':
+      case 'webhook-retry':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight capitalize">
+              Webhooks: {activeItem.replace('webhook-', '')}
+            </h1>
+            <p className="text-slate-400 text-sm">
+              Real-time HTTP event callbacks dispatched to registered developer endpoints.
+            </p>
+            <CodeBlock
+              code={`// Sample Webhook Header\nX-Vibez-Signature: sha256=a89102c984fe...\nX-Vibez-Event: message.created`}
+              language="http"
+              title="Webhook Callback Header"
+            />
+          </div>
+        );
+
+      // Resources
+      case 'res-errors':
+      case 'res-rate-limits':
+      case 'res-pagination':
+      case 'res-versioning':
+      case 'res-changelog':
+      case 'res-support':
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-black text-white tracking-tight capitalize">
+              Resource: {activeItem.replace('res-', '').replace('-', ' ')}
+            </h1>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Technical details regarding {activeItem.replace('res-', '').replace('-', ' ')} across all VIBEZ API tiers.
+            </p>
+            <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 text-xs font-mono text-slate-300 space-y-2">
+              <div><strong className="text-emerald-400">Rate Limits:</strong> 10,000 requests/min per Primary Master Key.</div>
+              <div><strong className="text-emerald-400">Pagination:</strong> Cursor-based (<code className="text-slate-200">?cursor=...&limit=20</code>).</div>
+              <div><strong className="text-emerald-400">Versioning:</strong> ISO header-based contract guarantees.</div>
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="space-y-4">
+            <h1 className="text-2xl font-bold text-white">Documentation Section</h1>
+            <p className="text-xs text-slate-400">Select a section from the left navigation tree.</p>
+          </div>
+        );
+    }
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-8 border-b border-slate-800">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Top Search Bar & Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-800">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold mb-2">
-            REST API v2.4 Reference
+            OpenAPI 3.0 Documentation Hub
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">API Documentation & Endpoints</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Complete OpenAPI 3.0 specifications for the VIBEZ backend services • Powered by <span className="text-emerald-400 font-bold">PRIGID GROUP</span>
-          </p>
+          <h1 className="text-2xl font-black text-white tracking-tight">API & Platform Reference</h1>
         </div>
 
-        {/* Base URL indicator */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-slate-300">
-          <span className="text-slate-500 font-bold">Base URL:</span>
-          <span className="text-emerald-400 font-bold">https://vibez-n5h1.onrender.com</span>
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search API reference..."
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 font-mono focus:border-emerald-500 focus:outline-none"
+          />
         </div>
       </div>
 
-      {/* Category Pills */}
-      <div className="flex flex-wrap gap-2 my-8">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              selectedCategory === cat
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-            }`}
-          >
-            {cat === 'all' ? 'All Endpoints' : cat}
-          </button>
-        ))}
-      </div>
-
-      {/* Endpoints List */}
-      <div className="space-y-6">
-        {filteredEndpoints.map((ep) => {
-          const isExpanded = Boolean(expandedEndpoints[ep.id]);
-          const methodColors = {
-            GET: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-            POST: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-            PUT: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-            PATCH: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-            DELETE: 'bg-red-500/10 text-red-400 border-red-500/20',
-          };
-
-          return (
-            <div
-              key={ep.id}
-              className="rounded-2xl border border-slate-800 bg-[#070b14] overflow-hidden transition-all shadow-xl"
-            >
-              {/* Header Bar */}
-              <button
-                type="button"
-                onClick={() => toggleEndpoint(ep.id)}
-                className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-slate-900/50 transition-colors text-left"
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={`px-2.5 py-1 rounded-md text-xs font-mono font-black border ${methodColors[ep.method]}`}>
-                    {ep.method}
-                  </span>
-                  <span className="font-mono text-sm font-bold text-white tracking-wide">
-                    {ep.path}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium hidden sm:inline">
-                    — {ep.summary}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {ep.authRequired ? (
-                    <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">
-                      <Shield className="w-3 h-3" />
-                      <span>Bearer Auth</span>
-                    </span>
-                  ) : (
-                    <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-bold">
-                      Public
-                    </span>
-                  )}
-                  {isExpanded ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
-                </div>
-              </button>
-
-              {/* Collapsible Content */}
-              {isExpanded && (
-                <div className="p-5 border-t border-slate-800 bg-[#050810] space-y-6">
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-1">Description</h4>
-                    <p className="text-sm text-slate-300">{ep.description}</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Left: Request Schema */}
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
-                        {ep.requestBody ? 'Request Body (JSON)' : 'Request Parameters'}
-                      </h4>
-                      {ep.requestBody ? (
-                        <pre className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto">
-                          {ep.requestBody}
-                        </pre>
-                      ) : (
-                        <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-500 italic">
-                          No request body required (GET endpoint)
-                        </div>
-                      )}
-
-                      <div className="mt-4">
-                        <CodeBlock code={ep.curlExample} language="bash" title="cURL Command" />
-                      </div>
-                    </div>
-
-                    {/* Right: Response Schema */}
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
-                        200 OK Response Payload
-                      </h4>
-                      <pre className="p-3.5 rounded-xl bg-slate-950 border border-emerald-900/30 text-xs font-mono text-emerald-300 overflow-x-auto">
-                        {ep.responseBody}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              )}
+      {/* Main Grid: Sidebar Tree + Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8">
+        {/* Left Sidebar Navigation Tree */}
+        <div className="lg:col-span-3 space-y-4">
+          <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800 space-y-4 sticky top-24">
+            <div className="text-xs font-black uppercase tracking-wider text-slate-400 font-mono">
+              Documentation Tree
             </div>
-          );
-        })}
+
+            <nav className="space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
+              {navStructure.map((cat) => {
+                const Icon = cat.icon;
+                const isCollapsed = Boolean(collapsedCategories[cat.title]);
+                const filteredItems = cat.items.filter((item) =>
+                  item.label.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+
+                if (searchQuery && filteredItems.length === 0) return null;
+
+                return (
+                  <div key={cat.title} className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleCategory(cat.title)}
+                      className="w-full flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-900 text-xs font-bold text-slate-300 hover:text-white transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{cat.title}</span>
+                      </div>
+                      {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
+                    </button>
+
+                    {!isCollapsed && (
+                      <div className="pl-5 space-y-1 border-l border-slate-800/80 ml-3">
+                        {filteredItems.map((item) => {
+                          const isActive = activeItem === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => setActiveItem(item.id)}
+                              className={`w-full flex items-center justify-between p-1.5 rounded-md text-[11px] font-mono transition-all text-left ${
+                                isActive
+                                  ? 'bg-emerald-500/10 text-emerald-400 font-bold border-l-2 border-emerald-500 pl-2'
+                                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                              }`}
+                            >
+                              <span className="truncate">{item.label}</span>
+                              {methodBadge(item.method)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+
+        {/* Right Main Content Area */}
+        <div className="lg:col-span-9">
+          <div className="p-6 sm:p-8 rounded-3xl bg-[#070b14] border border-slate-800 shadow-2xl min-h-[600px]">
+            {renderContent()}
+          </div>
+        </div>
       </div>
     </div>
   );

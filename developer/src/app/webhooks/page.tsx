@@ -1,15 +1,67 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Webhook, Shield, Send, CheckCircle, RefreshCw, Key, Code, Check } from 'lucide-react';
+import Link from 'next/link';
+import { Webhook, Shield, Send, Lock, ShieldCheck, ArrowRight, RefreshCw, Key, Code, Check, Zap } from 'lucide-react';
+import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
 import { CodeBlock } from '../../components/CodeBlock';
 
 export default function WebhooksPage() {
+  const { user } = useDeveloperAuth();
   const [targetUrl, setTargetUrl] = useState('https://webhook.site/sample-endpoint');
   const [webhookSecret, setWebhookSecret] = useState('whsec_vibez_live_prigid_982b');
   const [selectedEvent, setSelectedEvent] = useState<'message.created' | 'payment.verified' | 'user.registered' | 'system.maintenance_toggled'>('message.created');
   const [isSending, setIsSending] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  if (!user) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <div className="w-full max-w-lg bg-[#070b14] border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-center relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-mono font-bold">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Protected Console Resource</span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Webhooks & Event Streams
+            </h1>
+            <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+              Webhook dispatching, HMAC secret verification, and event stream testing are restricted to authenticated developer accounts. Please sign in to access Webhook Studio.
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/login"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
+            >
+              <span>Sign In to Access Webhooks</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <Link
+              href="/register"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs hover:text-white hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+            >
+              <span>Create Account</span>
+            </Link>
+          </div>
+
+          <div className="pt-4 border-t border-slate-800/80 text-[10px] text-slate-500 font-mono flex items-center justify-center gap-1">
+            <span>Powered by</span>
+            <span className="text-emerald-400 font-bold">PRIGID GROUP Event Router</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const eventPayloads = {
     'message.created': {
@@ -68,7 +120,6 @@ export default function WebhooksPage() {
     setStatusMessage(null);
 
     try {
-      // Send sample test event
       await new Promise(r => setTimeout(r, 800));
       setStatusMessage(`✓ Test webhook [${selectedEvent}] dispatched successfully with HMAC signature header.`);
     } catch (e) {
@@ -103,9 +154,17 @@ function verifyVibezWebhook(rawBody, signatureHeader, secret) {
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">Webhooks & Event Streams</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Receive real-time HTTP callbacks when actions occur across the VIBEZ ecosystem • Powered by <span className="text-emerald-400 font-bold">PRIGID GROUP</span>
+            Receive real-time HTTP callbacks when actions occur across the VIBEZ ecosystem • Logged in as <span className="text-emerald-400 font-bold">{user.email}</span>
           </p>
         </div>
+
+        <Link
+          href="/dashboard"
+          className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs hover:text-white transition-all flex items-center gap-2 self-start md:self-auto"
+        >
+          <Zap className="w-4 h-4 text-emerald-400" />
+          <span>Dashboard Console</span>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

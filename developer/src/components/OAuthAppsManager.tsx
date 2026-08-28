@@ -14,28 +14,7 @@ interface OAuthApp {
   createdAt: string;
 }
 
-const INITIAL_APPS: OAuthApp[] = [
-  {
-    id: 'app_01',
-    name: 'Vibez Android Native App',
-    clientId: 'vibez_client_android_991823',
-    clientSecret: 'vbz_sec_7718293400192841abce992019',
-    redirectUris: ['com.aistudio.vibez://oauth/callback', 'https://vibez.prigid.com/auth/callback'],
-    grantTypes: ['authorization_code', 'refresh_token'],
-    scopes: ['messages:read', 'messages:write', 'auth:otp', 'calls:signaling'],
-    createdAt: '2026-08-22',
-  },
-  {
-    id: 'app_02',
-    name: 'Web Dashboard & Admin Portal',
-    clientId: 'vibez_client_web_331092',
-    clientSecret: 'vbz_sec_8829103948571029384756',
-    redirectUris: ['https://developer.vibez.prigid.com/api/auth/callback'],
-    grantTypes: ['authorization_code', 'client_credentials'],
-    scopes: ['system:telemetry', 'channels:read', 'webhooks:subscribe'],
-    createdAt: '2026-08-25',
-  },
-];
+const INITIAL_APPS: OAuthApp[] = [];
 
 export const OAuthAppsManager: React.FC = () => {
   const [apps, setApps] = useState<OAuthApp[]>(INITIAL_APPS);

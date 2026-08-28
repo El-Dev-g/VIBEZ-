@@ -65,71 +65,19 @@ const DeveloperAuthContext = createContext<DeveloperAuthContextType | undefined>
 
 const DEFAULT_USER: DeveloperUser = {
   id: 'dev_usr_0192a',
-  name: 'Alex Rivera',
-  email: 'alex.rivera@prigid.com',
-  organization: 'Acme Mobile Labs',
+  name: 'Developer Account',
+  email: 'developer@prigid.com',
+  organization: 'Primary Organization',
   role: 'Owner',
   primarySdk: 'Kotlin',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  createdAt: '2026-08-20',
+  createdAt: new Date().toISOString().split('T')[0],
   hasCompletedOnboarding: true,
 };
 
-const INITIAL_KEYS: DeveloperKey[] = [
-  {
-    id: 'key_master_01',
-    name: 'Primary Master API Key',
-    keyType: 'api_key',
-    keyPrefix: 'vbz_live_kt_',
-    maskedKey: 'vbz_live_kt_••••••••••••••••••••94b2',
-    rawKey: 'vbz_live_kt_8f901ab38127498cbe0094b2',
-    environment: 'production',
-    sdkTarget: 'Kotlin',
-    scopes: ['messages:write', 'messages:read', 'auth:otp', 'calls:signaling', 'status:publish', 'system:telemetry'],
-    createdAt: '2026-08-25',
-    lastUsedAt: 'Just now',
-    requestsCount: 482910,
-  },
-];
+const INITIAL_KEYS: DeveloperKey[] = [];
 
-const INITIAL_MEMBERS: TeamMember[] = [
-  {
-    id: 'mem_01',
-    name: 'Alex Rivera',
-    email: 'alex.rivera@prigid.com',
-    role: 'Admin',
-    status: 'active',
-    joinedAt: '2026-08-20',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'mem_02',
-    name: 'Elena Rostova',
-    email: 'elena.rostova@prigid.com',
-    role: 'Developer',
-    status: 'active',
-    joinedAt: '2026-08-22',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'mem_03',
-    name: 'Marcus Chen',
-    email: 'marcus.chen@techcorp.io',
-    role: 'Developer',
-    status: 'active',
-    joinedAt: '2026-08-26',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'mem_04',
-    name: 'Devon Vance',
-    email: 'devon.vance@securitylead.net',
-    role: 'Viewer',
-    status: 'pending',
-    joinedAt: '2026-08-28',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-  }
-];
+const INITIAL_MEMBERS: TeamMember[] = [];
 
 export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<DeveloperUser | null>(null);

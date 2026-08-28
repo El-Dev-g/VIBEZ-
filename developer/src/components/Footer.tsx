@@ -31,11 +31,8 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-200 mb-3">API Resources</h4>
             <ul className="space-y-2 text-xs">
-              <li><Link href="/server-codes" className="text-emerald-400 font-bold hover:underline transition-colors flex items-center gap-1.5"><span>Server Codebases</span> <span className="text-[9px] px-1 bg-emerald-500/20 rounded">New</span></Link></li>
               <li><Link href="/docs" className="hover:text-emerald-400 transition-colors">REST API Reference</Link></li>
-              <li><Link href="/explorer" className="hover:text-emerald-400 transition-colors">Interactive API Explorer</Link></li>
-              <li><Link href="/webhooks" className="hover:text-emerald-400 transition-colors">Webhooks & Events</Link></li>
-              <li><Link href="/keys" className="hover:text-emerald-400 transition-colors">API Sandbox Keys</Link></li>
+              <li><Link href="/sdks" className="hover:text-emerald-400 transition-colors">SDKs & Client Libraries</Link></li>
             </ul>
           </div>
 

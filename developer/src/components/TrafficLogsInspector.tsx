@@ -19,139 +19,66 @@ interface RequestDetail {
   errorDetail?: string;
 }
 
-const SAMPLE_LOGS: RequestDetail[] = [
-  {
-    id: 'req_998124_01',
-    time: '2026-08-28 13:25:40.112',
-    sdk: 'Kotlin',
-    method: 'POST',
-    endpoint: '/api/messages',
-    status: 200,
-    durationMs: 28,
-    ip: '192.168.1.104',
-    clientVersion: 'vibez-android-sdk/v2.4.0',
-    headers: {
-      'Authorization': 'Bearer vbz_live_kt_8f901ab38127498cbe0094b2',
-      'Content-Type': 'application/json',
-      'X-Vibez-Device-Model': 'Pixel 9 Pro',
-      'X-Vibez-OS': 'Android 15',
-    },
-    requestBody: {
-      recipientId: 'usr_8821a',
-      content: 'Hey Alex, checkout the new PRIGID group release notes!',
-      mediaType: 'text',
-      tempId: 'tmp_msg_109283',
-    },
-    responseBody: {
-      success: true,
-      messageId: 'msg_live_7721893',
-      deliveryStatus: 'sent',
-      timestamp: 1787923540,
-    },
-  },
-  {
-    id: 'req_998124_02',
-    time: '2026-08-28 13:25:38.890',
-    sdk: 'TypeScript',
-    method: 'POST',
-    endpoint: '/api/auth/phone/otp',
-    status: 200,
-    durationMs: 42,
-    ip: '82.165.197.1',
-    clientVersion: 'vibez-web-client/v1.9.2',
-    headers: {
-      'Authorization': 'Bearer vbz_clt_ts_314ab89ecf001278ba6577a1',
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    },
-    requestBody: {
-      phoneNumber: '+14155552671',
-      recaptchaToken: 'recaptcha_v3_passed_token',
-    },
-    responseBody: {
-      success: true,
-      otpDispatched: true,
-      expiresInSeconds: 300,
-      retryAfterSeconds: 60,
-    },
-  },
-  {
-    id: 'req_998124_03',
-    time: '2026-08-28 13:25:35.210',
-    sdk: 'Python',
-    method: 'POST',
-    endpoint: '/api/verification/checkout',
-    status: 400,
-    durationMs: 19,
-    ip: '54.210.12.88',
-    clientVersion: 'vibez-python-bot/v3.0.1',
-    headers: {
-      'Authorization': 'Bearer vbz_test_py_77218390bbca890124fe12c4',
-      'Content-Type': 'application/json',
-    },
-    requestBody: {
-      targetUserId: 'usr_invalid_9999',
-      badgeTier: 'gold',
-    },
-    responseBody: {
-      error: 'INVALID_TARGET_USER',
-      message: 'User id usr_invalid_9999 does not exist or has closed their account.',
-      code: 40012,
-    },
-    errorDetail: 'ValidationError: Target user not found in Redis cache or Spanner cluster.',
-  },
-  {
-    id: 'req_998124_04',
-    time: '2026-08-28 13:25:31.745',
-    sdk: 'Go',
-    method: 'WS',
-    endpoint: '/api/calls/signaling',
-    status: 101,
-    durationMs: 11,
-    ip: '35.190.22.14',
-    clientVersion: 'vibez-go-signaling/v1.2.0',
-    headers: {
-      'Upgrade': 'websocket',
-      'Connection': 'Upgrade',
-      'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      'X-Vibez-Room-ID': 'room_sfu_voice_9918',
-    },
-    requestBody: { action: 'JOIN_ROOM', sdpOffer: 'v=0\r\no=- 20518 0 IN IP4 0.0.0.0...' },
-    responseBody: { status: 'CONNECTED', peerId: 'peer_node_01', sdpAnswer: 'v=0\r\no=PRIGID_SFU...' },
-  },
-  {
-    id: 'req_998124_05',
-    time: '2026-08-28 13:25:28.004',
-    sdk: 'Kotlin',
-    method: 'POST',
-    endpoint: '/api/statuses',
-    status: 200,
-    durationMs: 35,
-    ip: '192.168.1.104',
-    clientVersion: 'vibez-android-sdk/v2.4.0',
-    headers: {
-      'Authorization': 'Bearer vbz_live_kt_8f901ab38127498cbe0094b2',
-      'Content-Type': 'application/json',
-    },
-    requestBody: {
-      mediaUrl: 'https://cdn.vibez.prigid.com/status/st_99812.webp',
-      caption: 'Testing the new PRIGID high-speed signaling!',
-      durationSeconds: 24,
-    },
-    responseBody: {
-      statusId: 'st_881923',
-      publishedAt: 1787923528,
-      expiresAt: 1788009928,
-    },
-  },
-];
+const SAMPLE_LOGS: RequestDetail[] = [];
 
 export const TrafficLogsInspector: React.FC = () => {
-  const [logs] = useState<RequestDetail[]>(SAMPLE_LOGS);
+  const [logs, setLogs] = useState<RequestDetail[]>([]);
   const [statusFilter, setStatusFilter] = useState<'All' | '2xx' | '4xx' | '5xx'>('All');
   const [sdkFilter, setSdkFilter] = useState<'All' | 'Kotlin' | 'TypeScript' | 'Python' | 'Go'>('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLog, setSelectedLog] = useState<RequestDetail | null>(SAMPLE_LOGS[0]);
+  const [selectedLog, setSelectedLog] = useState<RequestDetail | null>(null);
+  const [isPinging, setIsPinging] = useState(false);
+
+  const handleLivePing = async () => {
+    setIsPinging(true);
+    const start = performance.now();
+    try {
+      const res = await fetch('/api/developer/server/health-check');
+      const data = await res.json();
+      const durationMs = Math.round(performance.now() - start);
+
+      const newLog: RequestDetail = {
+        id: `req_${Date.now().toString().slice(-6)}`,
+        time: new Date().toISOString().replace('T', ' ').slice(0, 23),
+        sdk: 'Kotlin',
+        method: 'GET',
+        endpoint: '/api/developer/server/health-check',
+        status: res.status,
+        durationMs,
+        ip: '127.0.0.1',
+        clientVersion: 'vibez-developer-console/v3.0',
+        headers: {
+          'Authorization': 'Bearer vbz_live_master_key',
+          'Content-Type': 'application/json',
+          'X-Vibez-Platform': 'AI Studio Cloud',
+        },
+        requestBody: null,
+        responseBody: data,
+      };
+
+      setLogs((prev) => [newLog, ...prev]);
+      if (!selectedLog) setSelectedLog(newLog);
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - start);
+      const errLog: RequestDetail = {
+        id: `req_err_${Date.now().toString().slice(-6)}`,
+        time: new Date().toISOString().replace('T', ' ').slice(0, 23),
+        sdk: 'TypeScript',
+        method: 'GET',
+        endpoint: '/api/developer/server/health-check',
+        status: 500,
+        durationMs,
+        ip: '127.0.0.1',
+        clientVersion: 'vibez-developer-console/v3.0',
+        headers: { 'Content-Type': 'application/json' },
+        errorDetail: err?.message || 'Network request failure',
+      };
+      setLogs((prev) => [errLog, ...prev]);
+      if (!selectedLog) setSelectedLog(errLog);
+    } finally {
+      setIsPinging(false);
+    }
+  };
 
   const filteredLogs = logs.filter((log) => {
     if (statusFilter === '2xx' && (log.status < 200 || log.status >= 300)) return false;
@@ -186,6 +113,16 @@ export const TrafficLogsInspector: React.FC = () => {
 
         {/* Filter Controls */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleLivePing}
+            disabled={isPinging}
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-emerald-400 flex items-center gap-1.5 transition-all disabled:opacity-50"
+          >
+            <Clock className={`w-3.5 h-3.5 ${isPinging ? 'animate-spin' : ''}`} />
+            <span>{isPinging ? 'Pinging...' : 'Ping Live API'}</span>
+          </button>
+
           {/* Status filter */}
           <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs font-mono">
             {(['All', '2xx', '4xx', '5xx'] as const).map((st) => (
@@ -240,42 +177,52 @@ export const TrafficLogsInspector: React.FC = () => {
             </span>
           </div>
 
-          <div className="divide-y divide-slate-800/60 max-h-[500px] overflow-y-auto">
-            {filteredLogs.map((log) => {
-              const isSelected = selectedLog?.id === log.id;
-              return (
-                <div
-                  key={log.id}
-                  onClick={() => setSelectedLog(log)}
-                  className={`p-3.5 cursor-pointer transition-all flex items-center justify-between gap-3 text-xs font-mono ${
-                    isSelected ? 'bg-emerald-500/10 border-l-4 border-emerald-500' : 'hover:bg-slate-900/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-black ${
-                        log.status === 200 || log.status === 101
-                          ? 'bg-emerald-500/20 text-emerald-400'
-                          : 'bg-rose-500/20 text-rose-400'
-                      }`}
-                    >
-                      {log.status}
-                    </span>
-                    <span className="text-slate-400 font-bold">{log.method}</span>
-                    <span className="text-white font-medium truncate">{log.endpoint}</span>
-                  </div>
+          {filteredLogs.length === 0 ? (
+            <div className="p-10 text-center space-y-3">
+              <Terminal className="w-8 h-8 text-slate-600 mx-auto" />
+              <div className="text-xs font-mono text-slate-400 font-bold">No traffic logs recorded yet</div>
+              <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                Click "Ping Live API" above or issue requests through your SDKs to record telemetry in real time.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-800/60 max-h-[500px] overflow-y-auto">
+              {filteredLogs.map((log) => {
+                const isSelected = selectedLog?.id === log.id;
+                return (
+                  <div
+                    key={log.id}
+                    onClick={() => setSelectedLog(log)}
+                    className={`p-3.5 cursor-pointer transition-all flex items-center justify-between gap-3 text-xs font-mono ${
+                      isSelected ? 'bg-emerald-500/10 border-l-4 border-emerald-500' : 'hover:bg-slate-900/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-black ${
+                          log.status === 200 || log.status === 101
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-rose-500/20 text-rose-400'
+                        }`}
+                      >
+                        {log.status}
+                      </span>
+                      <span className="text-slate-400 font-bold">{log.method}</span>
+                      <span className="text-white font-medium truncate">{log.endpoint}</span>
+                    </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300">
-                      {log.sdk}
-                    </span>
-                    <span className="text-emerald-400 font-bold">{log.durationMs}ms</span>
-                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300">
+                        {log.sdk}
+                      </span>
+                      <span className="text-emerald-400 font-bold">{log.durationMs}ms</span>
+                      <ChevronRight className="w-4 h-4 text-slate-600" />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Selected Request Inspector Details */}

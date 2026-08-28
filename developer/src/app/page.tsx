@@ -99,14 +99,6 @@ print("Response:", res.json())`
               <BookOpen className="w-4 h-4 text-slate-400" />
               <span>API Reference</span>
             </Link>
-
-            <Link
-              href="/server-codes"
-              className="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/40 text-slate-300 font-bold text-xs transition-all flex items-center gap-2"
-            >
-              <Server className="w-4 h-4 text-emerald-400" />
-              <span>Server Boilerplates</span>
-            </Link>
           </div>
         </div>
       </section>
@@ -253,16 +245,16 @@ print("Response:", res.json())`
             </div>
           </Link>
 
-          <Link href="/server-codes" className="p-5 rounded-2xl bg-slate-900/40 border border-emerald-500/30 hover:border-emerald-400 transition-all group">
+          <Link href="/sdks" className="p-5 rounded-2xl bg-slate-900/40 border border-emerald-500/30 hover:border-emerald-400 transition-all group">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-base mb-3 group-hover:scale-105 transition-transform">
-              🛠️
+              📦
             </div>
-            <h4 className="text-sm font-bold text-white">Server Codes</h4>
+            <h4 className="text-sm font-bold text-white">SDK Packages</h4>
             <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-              Starter code for Node.js, Python, Kotlin, Go, Rust, and Java.
+              Official SDK packages and client libraries for Android Kotlin, Node.js, and Python.
             </p>
             <div className="inline-flex items-center gap-1 text-xs text-emerald-400 font-bold mt-4">
-              <span>Get Boilerplates</span>
+              <span>View SDKs</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </div>
           </Link>
