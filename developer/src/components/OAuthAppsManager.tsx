@@ -279,6 +279,35 @@ export const OAuthAppsManager: React.FC = () => {
                   <div className="text-[10px] text-slate-300 break-all bg-slate-950 p-2 rounded border border-slate-800">
                     {issuedTokenResult.token}
                   </div>
+                  
+                  <div className="space-y-1 pt-2">
+                    <div className="flex items-center justify-between text-[9px] text-slate-500 uppercase font-mono">
+                      <span>Test cURL Command</span>
+                      <button 
+                        onClick={() => {
+                          const app = apps.find(a => a.id === issuedTokenResult.appId);
+                          if (!app) return;
+                          const curl = `curl -X POST "${window.location.origin}/api/developer/server/issue-oauth-token" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "client_id": "${app.clientId}",
+    "client_secret": "${app.clientSecret}",
+    "grant_type": "client_credentials"
+  }'`;
+                          navigator.clipboard.writeText(curl);
+                          setCopiedField(`${app.id}_curl`);
+                          setTimeout(() => setCopiedField(null), 2000);
+                        }}
+                        className="text-emerald-500 hover:text-emerald-400"
+                      >
+                        {copiedField === `${issuedTokenResult.appId}_curl` ? 'Copied' : 'Copy cURL'}
+                      </button>
+                    </div>
+                    <pre className="text-[9px] text-slate-400 bg-slate-950/50 p-2 rounded border border-slate-800/50 overflow-x-auto">
+                      {`curl -X POST "/api/developer/server/issue-oauth-token" ...`}
+                    </pre>
+                  </div>
+
                   <div className="text-[10px] text-slate-400">
                     Expires in: {issuedTokenResult.expiresIn}s • Type: Bearer
                   </div>

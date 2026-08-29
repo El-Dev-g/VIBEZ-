@@ -29,6 +29,7 @@ import {
   User,
   Settings,
   Lock,
+  CreditCard,
 } from 'lucide-react';
 import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
 import { DeveloperOnboarding } from '../../components/DeveloperOnboarding';
@@ -43,6 +44,7 @@ import { AiSchemaMockGenerator } from '../../components/AiSchemaMockGenerator';
 import { ApiExplorerSandbox } from '../../components/ApiExplorerSandbox';
 import { DeveloperProfile } from '../../components/DeveloperProfile';
 import { DeveloperSettings } from '../../components/DeveloperSettings';
+import { BillingManager } from '../../components/BillingManager';
 
 type DashboardTab =
   | 'overview'
@@ -55,7 +57,8 @@ type DashboardTab =
   | 'ai_schema'
   | 'explorer'
   | 'profile'
-  | 'settings';
+  | 'settings'
+  | 'billing';
 
 export default function DashboardPage() {
   const { user, login, logout } = useDeveloperAuth();
@@ -111,6 +114,7 @@ export default function DashboardPage() {
       group: 'Account & Preferences',
       items: [
         { id: 'profile', label: 'Developer Profile', icon: User },
+        { id: 'billing', label: 'Billing & Plans', icon: CreditCard },
         { id: 'settings', label: 'Console Settings', icon: Settings },
       ],
     },
@@ -165,6 +169,10 @@ export default function DashboardPage() {
     settings: {
       title: 'Console & API Settings',
       subtitle: 'Configure webhook signing keys, default environment modes, and rate limit alerts.',
+    },
+    billing: {
+      title: 'Billing & Subscription Plans',
+      subtitle: 'Manage your organization’s financial settings, usage tiers, and invoice history.',
     },
   };
 
@@ -557,6 +565,7 @@ export default function DashboardPage() {
               {activeTab === 'explorer' && <ApiExplorerSandbox />}
               {activeTab === 'profile' && <DeveloperProfile onLogout={logout} />}
               {activeTab === 'settings' && <DeveloperSettings />}
+              {activeTab === 'billing' && <BillingManager />}
             </>
           )}
         </div>
