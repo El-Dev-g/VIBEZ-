@@ -25,6 +25,8 @@ import {
   X,
   ExternalLink,
   LayoutDashboard,
+  User,
+  Settings,
 } from 'lucide-react';
 import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
 import { DeveloperOnboarding } from '../../components/DeveloperOnboarding';
@@ -37,6 +39,8 @@ import { OAuthAppsManager } from '../../components/OAuthAppsManager';
 import { EventReplayStudio } from '../../components/EventReplayStudio';
 import { AiSchemaMockGenerator } from '../../components/AiSchemaMockGenerator';
 import { ApiExplorerSandbox } from '../../components/ApiExplorerSandbox';
+import { DeveloperProfile } from '../../components/DeveloperProfile';
+import { DeveloperSettings } from '../../components/DeveloperSettings';
 
 type DashboardTab =
   | 'overview'
@@ -47,7 +51,9 @@ type DashboardTab =
   | 'oauth'
   | 'replay'
   | 'ai_schema'
-  | 'explorer';
+  | 'explorer'
+  | 'profile'
+  | 'settings';
 
 export default function DashboardPage() {
   const { user, logout } = useDeveloperAuth();
@@ -81,6 +87,13 @@ export default function DashboardPage() {
         { id: 'explorer', label: 'API Sandbox Explorer', icon: Play, badge: 'Sandbox' },
         { id: 'replay', label: 'Webhooks & Event Streams', icon: Webhook, badge: 'Live' },
         { id: 'ai_schema', label: 'AI Schema & Mocks', icon: Sparkles, badge: 'AI' },
+      ],
+    },
+    {
+      group: 'Account & Preferences',
+      items: [
+        { id: 'profile', label: 'Developer Profile', icon: User },
+        { id: 'settings', label: 'Console Settings', icon: Settings },
       ],
     },
   ];
@@ -126,6 +139,14 @@ export default function DashboardPage() {
     explorer: {
       title: 'API Sandbox Explorer',
       subtitle: 'Construct, test, and inspect real-time API request payloads in a protected environment.',
+    },
+    profile: {
+      title: 'Developer Profile',
+      subtitle: 'View account credentials, developer identity, and enterprise tier details.',
+    },
+    settings: {
+      title: 'Console & API Settings',
+      subtitle: 'Configure webhook signing keys, default environment modes, and rate limit alerts.',
     },
   };
 
@@ -290,7 +311,15 @@ export default function DashboardPage() {
 
             {user ? (
               <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800">
-                <div className="flex items-center gap-2.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('profile');
+                    setMobileSidebarOpen(false);
+                  }}
+                  className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity"
+                  title="View Profile"
+                >
                   <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-700 shrink-0">
                     <img
                       src={
@@ -305,16 +334,29 @@ export default function DashboardPage() {
                     <div className="text-xs font-bold text-white truncate">{user.name}</div>
                     <div className="text-[10px] text-slate-500 truncate">{user.email}</div>
                   </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all shrink-0"
-                  title="Logout"
-                >
-                  <LogOut className="w-4 h-4" />
                 </button>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('settings');
+                      setMobileSidebarOpen(false);
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+                    title="Console Settings"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                    title="Logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ) : (
               <Link
@@ -376,6 +418,8 @@ export default function DashboardPage() {
           {activeTab === 'replay' && <EventReplayStudio />}
           {activeTab === 'ai_schema' && <AiSchemaMockGenerator />}
           {activeTab === 'explorer' && <ApiExplorerSandbox />}
+          {activeTab === 'profile' && <DeveloperProfile onLogout={logout} />}
+          {activeTab === 'settings' && <DeveloperSettings />}
         </div>
       </main>
     </div>
