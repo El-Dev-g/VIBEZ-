@@ -13,7 +13,7 @@ export const RateLimitingQuotaManager: React.FC = () => {
     Enterprise: {
       rpsLimit: 2500,
       monthlyQuota: 50000000,
-      usedThisMonth: 21840900,
+      usedThisMonth: 0,
       burstAllowance: 7500,
       sla: '99.99%',
       dedicatedSupport: true,
@@ -22,7 +22,7 @@ export const RateLimitingQuotaManager: React.FC = () => {
     Scale: {
       rpsLimit: 800,
       monthlyQuota: 10000000,
-      usedThisMonth: 4230000,
+      usedThisMonth: 0,
       burstAllowance: 2000,
       sla: '99.95%',
       dedicatedSupport: false,
@@ -31,7 +31,7 @@ export const RateLimitingQuotaManager: React.FC = () => {
     Developer: {
       rpsLimit: 150,
       monthlyQuota: 1000000,
-      usedThisMonth: 680000,
+      usedThisMonth: 0,
       burstAllowance: 300,
       sla: '99.9%',
       dedicatedSupport: false,

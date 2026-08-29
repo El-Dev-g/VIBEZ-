@@ -8,28 +8,7 @@ export const AiSchemaMockGenerator: React.FC = () => {
   const [targetSdk, setTargetSdk] = useState<'Kotlin' | 'TypeScript' | 'Python' | 'Go'>('Kotlin');
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [mockOutput, setMockOutput] = useState(`{
-  "status": "success",
-  "data": {
-    "messageId": "msg_991823901",
-    "sender": {
-      "userId": "usr_dev_4491",
-      "displayName": "Alex Rivera",
-      "verifiedBadge": true,
-      "badgeTier": "gold"
-    },
-    "recipient": "usr_target_1102",
-    "encryptedPayload": "AES256:8f910a...==",
-    "deliveryReceipt": {
-      "serverReceived": 1787923500,
-      "clientDelivered": 1787923502
-    }
-  },
-  "telemetry": {
-    "engine": "PRIGID Core v3.8",
-    "latencyMs": 24
-  }
-}`);
+  const [mockOutput, setMockOutput] = useState('// Generator ready. Select an endpoint and target SDK to begin.');
 
   const handleGenerate = () => {
     setIsGenerating(true);

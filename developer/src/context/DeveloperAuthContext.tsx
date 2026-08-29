@@ -63,17 +63,7 @@ interface DeveloperAuthContextType {
 
 const DeveloperAuthContext = createContext<DeveloperAuthContextType | undefined>(undefined);
 
-const DEFAULT_USER: DeveloperUser = {
-  id: 'dev_usr_0192a',
-  name: 'Developer Account',
-  email: 'developer@prigid.com',
-  organization: 'Primary Organization',
-  role: 'Owner',
-  primarySdk: 'Kotlin',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  createdAt: new Date().toISOString().split('T')[0],
-  hasCompletedOnboarding: true,
-};
+const DEFAULT_USER: DeveloperUser | null = null;
 
 const INITIAL_KEYS: DeveloperKey[] = [];
 

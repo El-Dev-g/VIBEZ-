@@ -32,9 +32,9 @@ export const DashboardOverview: React.FC<{ onNavigateTab?: (tab: string) => void
               <Activity className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-2xl font-black text-white tracking-tight">29.7K <span className="text-xs font-normal text-slate-400">rpm</span></div>
-          <div className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
-            <span>↑ 12.4% vs last hour</span>
+          <div className="text-2xl font-black text-white tracking-tight">0 <span className="text-xs font-normal text-slate-400">rpm</span></div>
+          <div className="text-[11px] font-mono text-slate-500 flex items-center gap-1">
+            <span>Waiting for data...</span>
           </div>
         </div>
 
@@ -45,8 +45,8 @@ export const DashboardOverview: React.FC<{ onNavigateTab?: (tab: string) => void
               <CheckCircle className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-2xl font-black text-white tracking-tight">99.99%</div>
-          <div className="text-[11px] font-mono text-emerald-400">All Nodes Operational</div>
+          <div className="text-2xl font-black text-white tracking-tight">-- %</div>
+          <div className="text-[11px] font-mono text-blue-400">Syncing with Nodes...</div>
         </div>
 
         <div className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 space-y-2 relative overflow-hidden">
@@ -56,7 +56,7 @@ export const DashboardOverview: React.FC<{ onNavigateTab?: (tab: string) => void
               <Key className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-2xl font-black text-white tracking-tight">{keys?.length || 1} <span className="text-xs font-normal text-slate-400">keys</span></div>
+          <div className="text-2xl font-black text-white tracking-tight">{keys?.length || 0} <span className="text-xs font-normal text-slate-400">keys</span></div>
           <div className="text-[11px] font-mono text-slate-400">Protected Master Credentials</div>
         </div>
 
@@ -67,8 +67,8 @@ export const DashboardOverview: React.FC<{ onNavigateTab?: (tab: string) => void
               <Clock className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-2xl font-black text-white tracking-tight">24 <span className="text-xs font-normal text-slate-400">ms</span></div>
-          <div className="text-[11px] font-mono text-emerald-400">Sub-30ms Global Edge Routing</div>
+          <div className="text-2xl font-black text-white tracking-tight">0 <span className="text-xs font-normal text-slate-400">ms</span></div>
+          <div className="text-[11px] font-mono text-slate-500">Global Edge Routing</div>
         </div>
       </div>
 
