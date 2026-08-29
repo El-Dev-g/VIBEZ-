@@ -24,10 +24,11 @@ import {
   Menu,
   X,
   ExternalLink,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
 import { DeveloperOnboarding } from '../../components/DeveloperOnboarding';
-import { SdkDistributionVisualizer } from '../../components/SdkDistributionVisualizer';
+import { DashboardOverview } from '../../components/DashboardOverview';
 import { DeveloperKeyGenerator } from '../../components/DeveloperKeyGenerator';
 import { TeamMembersManager } from '../../components/TeamMembersManager';
 import { RateLimitingQuotaManager } from '../../components/RateLimitingQuotaManager';
@@ -38,7 +39,7 @@ import { AiSchemaMockGenerator } from '../../components/AiSchemaMockGenerator';
 import { ApiExplorerSandbox } from '../../components/ApiExplorerSandbox';
 
 type DashboardTab =
-  | 'telemetry'
+  | 'overview'
   | 'keys'
   | 'team'
   | 'quotas'
@@ -50,7 +51,7 @@ type DashboardTab =
 
 export default function DashboardPage() {
   const { user, logout } = useDeveloperAuth();
-  const [activeTab, setActiveTab] = useState<DashboardTab>('telemetry');
+  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [showOnboardingManual, setShowOnboardingManual] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -59,9 +60,9 @@ export default function DashboardPage() {
 
   const mainNavItems = [
     {
-      group: 'Analytics & Metrics',
+      group: 'Overview & Metrics',
       items: [
-        { id: 'telemetry', label: 'SDK Distribution', icon: Activity, badge: 'Live' },
+        { id: 'overview', label: 'Dashboard Overview', icon: LayoutDashboard, badge: 'Live' },
         { id: 'logs', label: 'Traffic Inspector', icon: Terminal },
         { id: 'quotas', label: 'Rate Limits & Quota', icon: Gauge },
       ],
@@ -90,9 +91,9 @@ export default function DashboardPage() {
   ];
 
   const tabTitles: Record<DashboardTab, { title: string; subtitle: string }> = {
-    telemetry: {
-      title: 'SDK Distribution & Telemetry',
-      subtitle: 'Real-time client traffic, platform adoption, and regional distribution.',
+    overview: {
+      title: 'Dashboard Overview',
+      subtitle: 'System performance, API traffic activity, active keys, and operational telemetry.',
     },
     keys: {
       title: 'API Keys & Access Control',
@@ -364,7 +365,9 @@ export default function DashboardPage() {
 
         {/* Tab Panel Components */}
         <div className="pt-2 space-y-6">
-          {activeTab === 'telemetry' && <SdkDistributionVisualizer />}
+          {activeTab === 'overview' && (
+            <DashboardOverview onNavigateTab={(tab) => setActiveTab(tab as DashboardTab)} />
+          )}
           {activeTab === 'keys' && <DeveloperKeyGenerator />}
           {activeTab === 'team' && <TeamMembersManager />}
           {activeTab === 'quotas' && <RateLimitingQuotaManager />}
