@@ -476,7 +476,7 @@ export class AdminController {
       });
 
       // Send branded email via Nodemailer safely
-      let emailResult = { success: false, error: 'Email delivery not configured' };
+      let emailResult: { success: boolean; error?: string } = { success: false, error: 'Email delivery not configured' };
       try {
         emailResult = await emailService.sendSupportResponse({
           to: inquiry.email,

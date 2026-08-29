@@ -12,7 +12,8 @@ import {
   History,
   AlertCircle,
   ExternalLink,
-  Wallet
+  Wallet,
+  ChevronRight
 } from 'lucide-react';
 
 export const BillingManager: React.FC = () => {
