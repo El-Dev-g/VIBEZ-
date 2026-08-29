@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { KeyRound, Shield, Plus, Copy, Check, RefreshCw, Globe, Trash2, Code2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { KeyRound, Shield, Plus, Copy, Check, RefreshCw, Globe, Trash2, Code2, Zap, Play, Terminal } from 'lucide-react';
 
 interface OAuthApp {
   id: string;
@@ -14,18 +14,44 @@ interface OAuthApp {
   createdAt: string;
 }
 
-const INITIAL_APPS: OAuthApp[] = [];
+const DEFAULT_APPS: OAuthApp[] = [
+  {
+    id: 'app_vibez_android_01',
+    name: 'Vibez Android Native App',
+    clientId: 'vibez_client_android_m92a',
+    clientSecret: 'vbz_sec_78a1f94c2b901a87e503b2',
+    redirectUris: ['https://app.vibez.prigid.com/oauth/callback', 'com.example.app://oauth'],
+    grantTypes: ['authorization_code', 'client_credentials', 'refresh_token'],
+    scopes: ['messages:read', 'messages:write', 'rtc:signaling'],
+    createdAt: '2026-08-28',
+  },
+  {
+    id: 'app_vibez_web_02',
+    name: 'Vibez Web Dashboard Portal',
+    clientId: 'vibez_client_web_k38b',
+    clientSecret: 'vbz_sec_31b8d29f0a41c720e98a12',
+    redirectUris: ['https://developer.vibez.prigid.com/api/auth/callback'],
+    grantTypes: ['authorization_code', 'client_credentials'],
+    scopes: ['read', 'write', 'webhooks:manage'],
+    createdAt: '2026-08-28',
+  },
+];
 
 export const OAuthAppsManager: React.FC = () => {
-  const [apps, setApps] = useState<OAuthApp[]>(INITIAL_APPS);
+  const [apps, setApps] = useState<OAuthApp[]>(DEFAULT_APPS);
   const [isCreating, setIsCreating] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Token testing state
+  const [testingAppId, setTestingAppId] = useState<string | null>(null);
+  const [issuedTokenResult, setIssuedTokenResult] = useState<{ appId: string; token: string; expiresIn: number } | null>(null);
+  const [testingLoading, setTestingLoading] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
   const [redirectUri, setRedirectUri] = useState('');
-  const [grantTypes, setGrantTypes] = useState<string[]>(['authorization_code']);
-  const [scopes, setScopes] = useState<string[]>(['messages:read', 'messages:write']);
+  const [grantTypes, setGrantTypes] = useState<string[]>(['authorization_code', 'client_credentials']);
+  const [scopes, setScopes] = useState<string[]>(['messages:read', 'messages:write', 'rtc:signaling']);
 
   const handleCopy = (text: string, fieldId: string) => {
     navigator.clipboard.writeText(text);
@@ -66,6 +92,37 @@ export const OAuthAppsManager: React.FC = () => {
     }
   };
 
+  const handleTestTokenIssue = async (app: OAuthApp) => {
+    setTestingAppId(app.id);
+    setTestingLoading(true);
+    try {
+      const res = await fetch('/api/developer/server/issue-oauth-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: app.clientId,
+          client_secret: app.clientSecret,
+          grant_type: 'client_credentials',
+          scope: app.scopes.join(' '),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.access_token) {
+        setIssuedTokenResult({
+          appId: app.id,
+          token: data.access_token,
+          expiresIn: data.expires_in,
+        });
+      } else {
+        alert(`OAuth error: ${data.error_description || 'Failed to issue token'}`);
+      }
+    } catch (err: any) {
+      alert(`Token error: ${err.message}`);
+    } finally {
+      setTestingLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -73,11 +130,11 @@ export const OAuthAppsManager: React.FC = () => {
           <div className="flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-emerald-400" />
             <h3 className="text-base font-black uppercase tracking-wider text-white">
-              OAuth2 & Client Credentials Apps
+              OAuth2 Client Applications
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Manage authorization servers, Client IDs, Client Secrets, and Redirect URIs • Powered by <span className="text-emerald-400 font-bold">PRIGID GROUP</span>
+            Registered OAuth2 clients with Client Credentials & Authorization Code grant support • Powered by <span className="text-emerald-400 font-bold">PRIGID GROUP</span>
           </p>
         </div>
 
@@ -164,68 +221,103 @@ export const OAuthAppsManager: React.FC = () => {
         {apps.map((app) => (
           <div
             key={app.id}
-            className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 space-y-4 shadow-xl hover:border-slate-700 transition-all"
+            className="p-5 rounded-2xl bg-[#070b14] border border-slate-800 space-y-4 shadow-xl hover:border-slate-700 transition-all flex flex-col justify-between"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-black text-white">{app.name}</h4>
-                <span className="text-[11px] font-mono text-slate-500">Created on {app.createdAt}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDelete(app.id)}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Client ID */}
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                <span>CLIENT_ID</span>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-black text-white">{app.name}</h4>
+                  <span className="text-[11px] font-mono text-slate-500">Registered {app.createdAt}</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => handleCopy(app.clientId, `${app.id}_id`)}
-                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300"
+                  onClick={() => handleDelete(app.id)}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                  title="Delete Application"
                 >
-                  {copiedField === `${app.id}_id` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedField === `${app.id}_id` ? 'Copied' : 'Copy'}</span>
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-              <div className="font-mono text-xs text-white truncate">{app.clientId}</div>
+
+              {/* Client ID */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                  <span>CLIENT_ID</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(app.clientId, `${app.id}_id`)}
+                    className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300"
+                  >
+                    {copiedField === `${app.id}_id` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedField === `${app.id}_id` ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+                <div className="font-mono text-xs text-white truncate">{app.clientId}</div>
+              </div>
+
+              {/* Client Secret */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                  <span>CLIENT_SECRET</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(app.clientSecret, `${app.id}_sec`)}
+                    className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300"
+                  >
+                    {copiedField === `${app.id}_sec` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedField === `${app.id}_sec` ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+                <div className="font-mono text-xs text-slate-400 truncate">{app.clientSecret}</div>
+              </div>
+
+              {/* Redirect URIs & Scopes */}
+              <div className="space-y-2 text-xs font-mono">
+                <div className="flex items-center gap-1.5 text-slate-400">
+                  <Globe className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="truncate">{app.redirectUris.join(', ')}</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {app.scopes.map((s) => (
+                    <span key={s} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-emerald-400">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Token Result Box */}
+              {issuedTokenResult?.appId === app.id && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2 font-mono text-xs">
+                  <div className="flex items-center justify-between text-emerald-400 font-bold">
+                    <span>Generated Access Token (JWT)</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(issuedTokenResult.token, `${app.id}_jwt`)}
+                      className="text-[10px] text-emerald-300 underline"
+                    >
+                      {copiedField === `${app.id}_jwt` ? 'Copied Token' : 'Copy JWT'}
+                    </button>
+                  </div>
+                  <div className="text-[10px] text-slate-300 break-all bg-slate-950 p-2 rounded border border-slate-800">
+                    {issuedTokenResult.token}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    Expires in: {issuedTokenResult.expiresIn}s • Type: Bearer
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Client Secret */}
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                <span>CLIENT_SECRET</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(app.clientSecret, `${app.id}_sec`)}
-                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300"
-                >
-                  {copiedField === `${app.id}_sec` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedField === `${app.id}_sec` ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-              <div className="font-mono text-xs text-slate-400 truncate">••••••••••••••••••••••••••••••••</div>
-            </div>
-
-            {/* Redirect URIs & Scopes */}
-            <div className="space-y-2 text-xs font-mono">
-              <div className="flex items-center gap-1.5 text-slate-400">
-                <Globe className="w-3.5 h-3.5 text-slate-500" />
-                <span className="truncate">{app.redirectUris.join(', ')}</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {app.scopes.map((s) => (
-                  <span key={s} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-emerald-400">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => handleTestTokenIssue(app)}
+              disabled={testingLoading && testingAppId === app.id}
+              className="mt-4 w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-emerald-400 flex items-center justify-center gap-2 transition-all"
+            >
+              <Zap className="w-4 h-4 text-emerald-400" />
+              <span>{testingLoading && testingAppId === app.id ? 'Issuing Token...' : 'Issue Test OAuth Token'}</span>
+            </button>
           </div>
         ))}
       </div>

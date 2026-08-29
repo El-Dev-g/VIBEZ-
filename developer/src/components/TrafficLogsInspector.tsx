@@ -19,10 +19,81 @@ interface RequestDetail {
   errorDetail?: string;
 }
 
-const SAMPLE_LOGS: RequestDetail[] = [];
+const SAMPLE_LOGS: RequestDetail[] = [
+  {
+    id: 'req_890123',
+    time: '2026-08-28 17:15:02.102',
+    sdk: 'Kotlin',
+    method: 'GET',
+    endpoint: '/api/developer/server/health-check',
+    status: 200,
+    durationMs: 12,
+    ip: '192.168.1.104',
+    clientVersion: 'vibez-android-sdk/v3.2.0',
+    headers: {
+      'Authorization': 'Bearer vbz_live_master_key',
+      'User-Agent': 'VibezAndroid/3.2.0 (Android 14; Pixel 8 Pro)',
+      'X-Vibez-Platform': 'Android',
+    },
+    requestBody: null,
+    responseBody: { status: 'healthy', timestamp: 1787946902, region: 'us-east-1' },
+  },
+  {
+    id: 'req_890124',
+    time: '2026-08-28 17:14:58.890',
+    sdk: 'TypeScript',
+    method: 'POST',
+    endpoint: '/api/developer/server/dispatch-message',
+    status: 200,
+    durationMs: 24,
+    ip: '34.201.12.88',
+    clientVersion: 'vibez-node-sdk/v2.1.0',
+    headers: {
+      'Authorization': 'Bearer vbz_live_master_key',
+      'Content-Type': 'application/json',
+      'X-Signature-256': 'sha256=a89f3c21...',
+    },
+    requestBody: { channelId: 'chn_dev_01', message: 'Hello Vibez Developer Network' },
+    responseBody: { success: true, messageId: 'msg_881923', dispatchedAt: '2026-08-28T17:14:58Z' },
+  },
+  {
+    id: 'req_890125',
+    time: '2026-08-28 17:14:42.420',
+    sdk: 'Python',
+    method: 'POST',
+    endpoint: '/api/developer/server/generate-rtc-token',
+    status: 200,
+    durationMs: 18,
+    ip: '18.222.45.101',
+    clientVersion: 'vibez-python/v1.4.2',
+    headers: {
+      'Authorization': 'Bearer vbz_live_master_key',
+      'Content-Type': 'application/json',
+    },
+    requestBody: { roomId: 'room_voice_global', uid: 'usr_python_bot' },
+    responseBody: { rtcToken: 'rtc_tok_7718293a9f', expiresAt: 1787950502 },
+  },
+  {
+    id: 'req_890126',
+    time: '2026-08-28 17:14:10.910',
+    sdk: 'Go',
+    method: 'POST',
+    endpoint: '/api/developer/server/verify-webhook',
+    status: 200,
+    durationMs: 29,
+    ip: '52.90.110.22',
+    clientVersion: 'vibez-go-sdk/v1.1.0',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Vibez-Signature': 'v1=9910a8b7c6...',
+    },
+    requestBody: { event: 'user.subscribed', payload: { userId: 'usr_99102' } },
+    responseBody: { valid: true, verifiedAt: '2026-08-28T17:14:10Z' },
+  },
+];
 
 export const TrafficLogsInspector: React.FC = () => {
-  const [logs, setLogs] = useState<RequestDetail[]>([]);
+  const [logs, setLogs] = useState<RequestDetail[]>(SAMPLE_LOGS);
   const [statusFilter, setStatusFilter] = useState<'All' | '2xx' | '4xx' | '5xx'>('All');
   const [sdkFilter, setSdkFilter] = useState<'All' | 'Kotlin' | 'TypeScript' | 'Python' | 'Go'>('All');
   const [searchQuery, setSearchQuery] = useState('');

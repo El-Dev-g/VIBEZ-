@@ -174,6 +174,14 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {mobileSidebarOpen && (
+        <div
+          onClick={() => setMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-30 lg:hidden transition-opacity"
+        />
+      )}
+
       {/* Sidebar Navigation */}
       <aside
         className={`fixed lg:sticky top-0 left-0 z-40 w-72 h-screen bg-[#070b14] border-r border-slate-800/80 flex flex-col justify-between transition-transform duration-200 shrink-0 ${
