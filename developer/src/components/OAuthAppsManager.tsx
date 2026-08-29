@@ -14,31 +14,8 @@ interface OAuthApp {
   createdAt: string;
 }
 
-const DEFAULT_APPS: OAuthApp[] = [
-  {
-    id: 'app_vibez_android_01',
-    name: 'Vibez Android Native App',
-    clientId: 'vibez_client_android_m92a',
-    clientSecret: 'vbz_sec_78a1f94c2b901a87e503b2',
-    redirectUris: ['https://app.vibez.prigid.com/oauth/callback', 'com.example.app://oauth'],
-    grantTypes: ['authorization_code', 'client_credentials', 'refresh_token'],
-    scopes: ['messages:read', 'messages:write', 'rtc:signaling'],
-    createdAt: '2026-08-28',
-  },
-  {
-    id: 'app_vibez_web_02',
-    name: 'Vibez Web Dashboard Portal',
-    clientId: 'vibez_client_web_k38b',
-    clientSecret: 'vbz_sec_31b8d29f0a41c720e98a12',
-    redirectUris: ['https://developer.vibez.prigid.com/api/auth/callback'],
-    grantTypes: ['authorization_code', 'client_credentials'],
-    scopes: ['read', 'write', 'webhooks:manage'],
-    createdAt: '2026-08-28',
-  },
-];
-
 export const OAuthAppsManager: React.FC = () => {
-  const [apps, setApps] = useState<OAuthApp[]>(DEFAULT_APPS);
+  const [apps, setApps] = useState<OAuthApp[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
