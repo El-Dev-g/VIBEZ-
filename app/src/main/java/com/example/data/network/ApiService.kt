@@ -210,6 +210,6 @@ interface ApiService {
         @Body request: ReportUserRequest
     ): ReportUserResponse
 
-    @GET("api/system/updates/latest")
+    @GET("api/app/updates/latest")
     suspend fun getLatestUpdate(): AppUpdateDto
 }

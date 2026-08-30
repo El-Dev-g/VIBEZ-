@@ -269,6 +269,17 @@ model SystemSetting {
   supportAddress        String? @default("San Francisco, CA, USA")
 }
 
+model AppUpdate {
+  id            String   @id @default(uuid())
+  versionCode   Int
+  versionName   String
+  updateTitle   String
+  updateMessage String
+  downloadUrl   String
+  isCritical    Boolean  @default(false)
+  releasedAt    DateTime @default(now())
+}
+
 model ContactInquiry {
   id        String   @id @default(uuid())
   name      String

@@ -45,11 +45,8 @@ export default function Footer() {
 
           <div className="flex flex-wrap justify-center items-center gap-6 text-xs font-medium">
             <Link href="/features" className="hover:text-white transition-colors">{t('footer.features')}</Link>
-            <Link href="/faq" className="hover:text-white transition-colors">{t('footer.faq')}</Link>
-            <Link href="/security" className="hover:text-white transition-colors">{t('footer.security')}</Link>
-            <Link href="/download" className="hover:text-white transition-colors">{t('footer.download')}</Link>
-            <Link href="/about" className="hover:text-white transition-colors">{t('footer.about')}</Link>
-            <Link href="/contact" className="hover:text-white transition-colors">{t('footer.contact')}</Link>
+            <a href="https://faq.whatsapp.com" className="hover:text-white transition-colors" target="_blank" rel="noopener noreferrer">Help Center</a>
+            <a href="mailto:support@vibez.chat" className="hover:text-white transition-colors">Contact Support</a>
             <Link href="/privacy" className="hover:text-white transition-colors">{t('footer.privacy')}</Link>
             <Link href="/terms" className="hover:text-white transition-colors">{t('footer.terms')}</Link>
           </div>

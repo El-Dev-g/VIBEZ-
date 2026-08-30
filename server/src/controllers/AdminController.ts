@@ -412,6 +412,55 @@ export class AdminController {
     }
   }
 
+  async getLatestUpdate(req: Request, res: Response) {
+    try {
+      const update = await (prisma as any).appUpdate.findFirst({
+        orderBy: { versionCode: 'desc' }
+      });
+      
+      if (!update) {
+        return res.json({
+          versionCode: 1,
+          versionName: '1.0.0',
+          updateTitle: 'VIBEZ 1.0.0',
+          updateMessage: 'Welcome to the stable release of VIBEZ!',
+          downloadUrl: 'https://vibez.app/download/android/latest',
+          isCritical: false,
+          releasedAt: new Date()
+        });
+      }
+      
+      res.json(update);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch latest update' });
+    }
+  }
+
+  async createUpdate(req: Request, res: Response) {
+    try {
+      const { versionCode, versionName, updateTitle, updateMessage, downloadUrl, isCritical } = req.body;
+      
+      if (!versionCode || !versionName || !downloadUrl) {
+        return res.status(400).json({ error: 'versionCode, versionName and downloadUrl are required' });
+      }
+
+      const update = await (prisma as any).appUpdate.create({
+        data: {
+          versionCode: parseInt(versionCode),
+          versionName,
+          updateTitle: updateTitle || `VIBEZ ${versionName}`,
+          updateMessage: updateMessage || 'New features and performance improvements.',
+          downloadUrl,
+          isCritical: isCritical || false
+        }
+      });
+
+      res.json(update);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create update' });
+    }
+  }
+
   // Contact form submission
   async submitContactInquiry(req: Request, res: Response) {
     try {

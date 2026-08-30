@@ -1072,6 +1072,45 @@ export const updateCommunity = async (communityId: string, data: { name?: string
   return null;
 };
 
+export interface AppUpdate {
+  id: string;
+  versionCode: number;
+  versionName: string;
+  updateTitle: string;
+  updateMessage: string;
+  downloadUrl: string;
+  isCritical: boolean;
+  releasedAt: string;
+}
+
+export const fetchLatestUpdate = async (): Promise<AppUpdate | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/system/updates/latest`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error('fetchLatestUpdate error:', error);
+  }
+  return null;
+};
+
+export const createUpdateApi = async (data: Partial<AppUpdate>): Promise<AppUpdate | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/system/updates`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error('createUpdateApi error:', error);
+  }
+  return null;
+};
+
+
 export const clearAuditLogs = async (): Promise<boolean> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/logs`, {

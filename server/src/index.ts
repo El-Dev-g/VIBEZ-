@@ -136,6 +136,8 @@ app.head('/api/system/status', handleSystemStatus);
 app.get('/api/config/public', (req, res) => admin.getPublicAppConfig(req, res));
 app.head('/api/config/public', (req, res) => admin.getPublicAppConfig(req, res));
 app.get('/api/app/download-info', (req, res) => admin.getPublicAppConfig(req, res));
+app.get('/api/app/updates/latest', (req, res) => admin.getLatestUpdate(req, res));
+app.post('/api/admin/system/updates', authenticateAdmin, (req, res) => admin.createUpdate(req, res));
 app.post('/api/contact', (req, res) => admin.submitContactInquiry(req, res));
 app.post('/api/subscribe', (req, res) => subscription.subscribe(req, res));
 app.get('/api/admin/inquiries', (req, res) => admin.getContactInquiries(req, res));

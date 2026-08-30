@@ -47,11 +47,12 @@ export const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-200 mb-3">Platform Links</h4>
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-200 mb-3">Support & Legal</h4>
             <ul className="space-y-2 text-xs">
-              <li><a href="https://vibez-n5h1.onrender.com/health" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">System Telemetry & Health</a></li>
-              <li><a href="https://vibez-n5h1.onrender.com/api/system/status" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Public Status Endpoint</a></li>
-              <li><Link href="/" className="hover:text-emerald-400 transition-colors">Quickstart Guide</Link></li>
+              <li><a href="https://faq.whatsapp.com" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Help Center</a></li>
+              <li><a href="mailto:support@vibez.chat" className="hover:text-emerald-400 transition-colors">Developer Support</a></li>
+              <li><a href="https://www.whatsapp.com/legal" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Terms of Service</a></li>
+              <li><a href="https://www.whatsapp.com/legal" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Privacy Policy</a></li>
             </ul>
           </div>
         </div>

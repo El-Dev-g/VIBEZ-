@@ -147,17 +147,6 @@ fun SettingsScreen(
     var activeVibeStatus by remember { mutableStateOf("⚡ Vibing in VIBEZ") }
     var showQrModal by remember { mutableStateOf(false) }
     var showLogoutModal by remember { mutableStateOf(false) }
-    var hdMediaUpload by remember { mutableStateOf(true) }
-    var hapticFeedback by remember { mutableStateOf(true) }
-    var biometricLock by remember { mutableStateOf(false) }
-
-    val vibeStatusOptions = listOf(
-        "⚡ Vibing in VIBEZ",
-        "💻 Code & Chill",
-        "🎧 Music Mode",
-        "🌴 On Vacation",
-        "🔋 Battery Low"
-    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -176,9 +165,6 @@ fun SettingsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Search */ }) {
-                        Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
-                    }
                     IconButton(onClick = { showQrModal = true }) {
                         Icon(imageVector = Icons.Default.QrCode2, contentDescription = "My QR")
                     }
@@ -219,22 +205,6 @@ fun SettingsScreen(
                         .padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // "Share a thought!" bubble
-                    Surface(
-                        modifier = Modifier.offset(y = 12.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        shadowElevation = 2.dp,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-                    ) {
-                        Text(
-                            text = "Share a thought!",
-                            fontSize = 13.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                    }
-
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Box(contentAlignment = Alignment.BottomEnd) {
@@ -259,22 +229,6 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Normal,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .border(1.dp, Color(0xFF22C55E), CircleShape)
-                                .background(Color.White),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add",
-                                tint = Color(0xFF22C55E),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
                         if (isVerified) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
@@ -507,78 +461,6 @@ fun SettingsScreen(
                     Text("Cancel")
                 }
             }
-        )
-    }
-}
-
-@Composable
-fun VibesQuickTile(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    isActive: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isActive) WhatsAppMinimalPrimary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = if (isActive) WhatsAppMinimalPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-                Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    color = if (isActive) WhatsAppMinimalPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun VibesSettingToggleRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!isChecked) }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(imageVector = icon, contentDescription = title, tint = WhatsAppMinimalPrimary)
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(
-            checked = isChecked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = WhatsAppMinimalAccent
-            )
         )
     }
 }

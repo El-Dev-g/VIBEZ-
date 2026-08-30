@@ -7,7 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,6 +23,36 @@ fun HelpSettingsScreen(
     onBackClick: () -> Unit
 ) {
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var showInfoDialog by remember { mutableStateOf(false) }
+
+    if (showInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showInfoDialog = false },
+            title = { Text("App Info") },
+            text = {
+                Column {
+                    Text("VIBEZ for Android", fontWeight = FontWeight.Bold)
+                    Text("Version: 1.0.0 (Stable)")
+                    Text("Build: August 30, 2026")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("© 2026 VIBEZ. Powered by PRIGID GROUP.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = { uriHandler.openUri("https://vibez.app") },
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text("Visit Website", color = WhatsAppMinimalPrimary)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showInfoDialog = false }) {
+                    Text("OK", color = WhatsAppMinimalPrimary)
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -53,7 +83,17 @@ fun HelpSettingsScreen(
                     icon = Icons.Default.Group, 
                     title = "Contact us", 
                     subtitle = "Questions? Need help?",
-                    onClick = { /* Could open email or a form */ }
+                    onClick = {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                            data = android.net.Uri.parse("mailto:support@vibez.chat")
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "VIBEZ Support - Android")
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            // Handle if no email app is installed
+                        }
+                    }
                 )
                 HelpItem(
                     icon = Icons.Default.Description, 
@@ -65,7 +105,7 @@ fun HelpSettingsScreen(
                     icon = Icons.Default.Info, 
                     title = "App info", 
                     subtitle = "Version, licenses",
-                    onClick = { /* Show a dialog or another screen */ }
+                    onClick = { showInfoDialog = true }
                 )
             }
         }
