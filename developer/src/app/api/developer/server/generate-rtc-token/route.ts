@@ -1,9 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+export async function GET(req: NextRequest) {
+  const origin = req.nextUrl.origin || 'https://vibez-developer.onrender.com';
+  return NextResponse.json(
+    {
+      endpoint: '/api/developer/server/generate-rtc-token',
+      description: 'VIBEZ WebRTC Audio/Video Signaling Token Generator • Powered by PRIGID GROUP',
+      method: 'POST',
+      contentType: 'application/json',
+      usage_example: {
+        curl: `curl -X POST ${origin}/api/developer/server/generate-rtc-token -H "Content-Type: application/json" -d '{"roomId": "room_123", "userId": "user_456", "role": "publisher"}'`,
+      },
+      status: 'active',
+      timestamp: new Date().toISOString(),
+    },
+    { status: 200 }
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: any = {};
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const formData = await req.formData();
+      body = Object.fromEntries(formData.entries());
+    } else {
+      try {
+        body = await req.json();
+      } catch {
+        body = {};
+      }
+    }
+
     const { roomId, userId, role = 'publisher', ttlSeconds = 3600 } = body;
 
     if (!roomId || !userId) {
@@ -14,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const issuedAt = Math.floor(Date.now() / 1000);
-    const expiresAt = issuedAt + (ttlSeconds || 3600);
+    const expiresAt = issuedAt + (Number(ttlSeconds) || 3600);
     const tokenPayload = {
       sub: userId,
       room: roomId,

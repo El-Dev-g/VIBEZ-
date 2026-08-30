@@ -1,9 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+/**
+ * Handle GET requests to provide helpful API documentation and usage guidelines
+ * when developers curl or open the endpoint in a browser.
+ */
+export async function GET(req: NextRequest) {
+  const origin = req.nextUrl.origin || 'https://vibez-developer.onrender.com';
+  return NextResponse.json(
+    {
+      endpoint: '/api/developer/server/issue-oauth-token',
+      description: 'VIBEZ OAuth 2.0 Client Credentials Token Issuer • Powered by PRIGID GROUP',
+      method: 'POST',
+      contentType: 'application/json',
+      supported_grant_types: ['client_credentials'],
+      usage_example: {
+        curl: `curl -X POST ${origin}/api/developer/server/issue-oauth-token -H "Content-Type: application/json" -d '{"client_id": "your_client_id", "client_secret": "your_client_secret", "grant_type": "client_credentials"}'`,
+      },
+      status: 'active',
+      timestamp: new Date().toISOString(),
+    },
+    { status: 200 }
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: any = {};
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const formData = await req.formData();
+      body = Object.fromEntries(formData.entries());
+    } else {
+      try {
+        body = await req.json();
+      } catch {
+        body = {};
+      }
+    }
+
     const { client_id, client_secret, grant_type = 'client_credentials', scope = 'messages:write rtc:signaling' } = body;
 
     if (grant_type !== 'client_credentials') {
@@ -37,7 +73,7 @@ export async function POST(req: NextRequest) {
     const headerB64 = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
     const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const signature = crypto
-      .createHmac('sha256', client_secret)
+      .createHmac('sha256', String(client_secret))
       .update(`${headerB64}.${payloadB64}`)
       .digest('base64url');
 

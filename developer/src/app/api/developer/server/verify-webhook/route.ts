@@ -1,9 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+export async function GET(req: NextRequest) {
+  const origin = req.nextUrl.origin || 'https://vibez-developer.onrender.com';
+  return NextResponse.json(
+    {
+      endpoint: '/api/developer/server/verify-webhook',
+      description: 'VIBEZ Webhook Signature Verifier & Debugger • Powered by PRIGID GROUP',
+      method: 'POST',
+      contentType: 'application/json',
+      usage_example: {
+        curl: `curl -X POST ${origin}/api/developer/server/verify-webhook -H "Content-Type: application/json" -d '{"secret": "whsec_123", "payload": {"event": "call.completed"}}'`,
+      },
+      status: 'active',
+      timestamp: new Date().toISOString(),
+    },
+    { status: 200 }
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: any = {};
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const formData = await req.formData();
+      body = Object.fromEntries(formData.entries());
+    } else {
+      try {
+        body = await req.json();
+      } catch {
+        body = {};
+      }
+    }
+
     const { secret, payload, signature, timestamp } = body;
 
     if (!secret) {
@@ -28,7 +59,6 @@ export async function POST(req: NextRequest) {
     
     let isValid = false;
     if (signature) {
-      // If signature is provided as v1=... or raw hex
       const cleanSig = signature.includes('v1=') 
         ? signature.split('v1=')[1].split(',')[0].trim() 
         : signature.trim();
