@@ -26,8 +26,8 @@ export const DeveloperOnboarding: React.FC<OnboardingProps> = ({ onComplete }) =
     }
   };
 
-  const handleFinish = () => {
-    completeOnboarding(orgName, selectedSdk, projectName);
+  const handleFinish = async () => {
+    await completeOnboarding(orgName, selectedSdk, projectName);
     if (onComplete) onComplete();
   };
 

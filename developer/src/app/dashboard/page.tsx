@@ -504,13 +504,13 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                {/* Quick Quick Login Form inside Protection Gate */}
+                {/* Quick Login Form inside Protection Gate */}
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     const formData = new FormData(e.currentTarget);
                     const emailInput = (formData.get('email') as string) || 'developer@prigid.com';
-                    login(emailInput);
+                    await login(emailInput);
                   }}
                   className="space-y-3 pt-2 text-left"
                 >

@@ -88,6 +88,11 @@ const developer = new DeveloperController();
 // Developer API & Server Integration Routes (Powered by PRIGID GROUP)
 app.get('/api/developer/health', (req, res) => developer.getDeveloperHealth(req, res));
 app.get('/api/developer/metrics', (req, res) => developer.getApiMetrics(req, res));
+app.post('/api/developer/auth/login', (req, res) => developer.developerLogin(req, res));
+app.post('/api/developer/auth/register', (req, res) => developer.developerRegister(req, res));
+app.get('/api/developer/auth/me', (req, res) => developer.getDeveloperProfile(req, res));
+app.post('/api/developer/keys', (req, res) => developer.createApiKey(req, res));
+app.delete('/api/developer/keys/:id', (req, res) => developer.revokeApiKey(req, res));
 app.post('/api/developer/webhooks/verify', (req, res) => developer.verifyWebhook(req, res));
 app.post('/api/developer/messages/send', (req, res) => developer.dispatchServerMessage(req, res, io));
 app.post('/api/developer/rtc/token', (req, res) => developer.generateRtcToken(req, res));

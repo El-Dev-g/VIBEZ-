@@ -1,4 +1,4 @@
-name: Manual Build Pipeline
+name: Manual Build & Release Pipeline
 
 on:
   workflow_dispatch:
@@ -16,7 +16,17 @@ on:
           - 'debug_apk'
           - 'release_apk'
           - 'release_bundle_aab'
-        default: 'debug_apk'
+        default: 'release_apk'
+      create_github_release:
+        description: 'Automatically create GitHub Release & attach binaries'
+        required: true
+        type: boolean
+        default: true
+      release_tag:
+        description: 'Release Tag (leave empty for auto tag e.g. v1.0.0-build-X)'
+        required: false
+        type: string
+        default: ''
       build_server:
         description: 'Build Express Server Backend (TypeScript)'
         required: true
@@ -32,6 +42,10 @@ on:
         required: true
         type: boolean
         default: false
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build-android:
@@ -66,54 +80,31 @@ jobs:
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "Injecting google-services.json from GitHub Secrets (GOOGLE_SERVICES_JSON)..."
             echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
-          elif [ ! -f "app/google-services.json" ]; then
-            echo "google-services.json is missing on checkout and no secret provided. Generating fallback placeholder..."
-            PACKAGE_NAME=$(grep -oP 'applicationId\s*=\s*"\K[^"]+' app/build.gradle.kts || echo "com.aistudio.whatsappclone.app")
-            echo "Detected application ID: $PACKAGE_NAME"
-            echo '{
-              "project_info": {
-                "project_number": "123456789",
-                "project_id": "mock-project-id",
-                "storage_bucket": "mock-bucket.appspot.com"
-              },
-              "client": [
-                {
-                  "client_info": {
-                    "mobilesdk_app_id": "1:123456789:android:123456789",
-                    "android_client_info": {
-                      "package_name": "'"$PACKAGE_NAME"'"
-                    }
-                  },
-                  "oauth_client": [],
-                  "api_key": [
-                    {
-                      "current_key": "mock_api_key_value"
-                    }
-                  ],
-                  "services": {}
-                }
-              ],
-              "configuration_version": "1"
-            }' > app/google-services.json
+          elif [ -f "app/google-services.json" ]; then
+            echo "google-services.json found in repository checkout."
           else
-            echo "google-services.json already exists in workspace!"
+            echo "::error::CRITICAL: google-services.json is missing and GOOGLE_SERVICES_JSON secret was not provided. Build failed."
+            exit 1
           fi
 
       - name: Prepare Keystore (Release Mode)
         if: ${{ inputs.android_build_type != 'debug_apk' }}
         run: |
-          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding release keystore from secrets..."
-            echo -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | tr -d '\r\n ' | base64 -d > my-upload-key.jks
-            echo "USING_CUSTOM_SECRETS=true" >> $GITHUB_ENV
-          else
-            echo "No custom keystore secret provided. Creating a temporary keystore for building a signed package..."
-            keytool -genkey -v -keystore my-upload-key.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Vibez, O=AI Studio, C=US" -storepass "temporarypassword" -keypass "temporarypassword"
-            echo "TEMP_STORE_PASSWORD=temporarypassword" >> $GITHUB_ENV
-            echo "TEMP_KEY_PASSWORD=temporarypassword" >> $GITHUB_ENV
-            echo "TEMP_KEY_ALIAS=upload" >> $GITHUB_ENV
-            echo "USING_CUSTOM_SECRETS=false" >> $GITHUB_ENV
+          if [ -z "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::CRITICAL: RELEASE_KEYSTORE_BASE64 secret is missing! Release signing cannot proceed without a valid keystore. Build failed."
+            exit 1
           fi
+          if [ -z "${{ secrets.RELEASE_STORE_PASSWORD }}" ] && [ -z "${{ secrets.RELEASE_KEY_PASSWORD }}" ]; then
+            echo "::error::CRITICAL: Keystore passwords (RELEASE_STORE_PASSWORD / RELEASE_KEY_PASSWORD) are missing in GitHub Secrets! Build failed."
+            exit 1
+          fi
+          echo "Decoding release keystore from secrets..."
+          echo -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | tr -d '\r\n ' | base64 -d > my-upload-key.jks
+          if [ ! -s "my-upload-key.jks" ]; then
+            echo "::error::CRITICAL: Decoded keystore file is empty or corrupted! Build failed."
+            exit 1
+          fi
+          echo "Keystore verified successfully."
 
       - name: Build Android Package (Debug APK)
         if: ${{ inputs.android_build_type == 'debug_apk' }}
@@ -123,18 +114,18 @@ jobs:
         if: ${{ inputs.android_build_type == 'release_apk' }}
         env:
           KEYSTORE_PATH: "my-upload-key.jks"
-          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || secrets.RELEASE_KEY_PASSWORD || env.TEMP_STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || env.TEMP_KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || env.TEMP_KEY_ALIAS || 'vibez-key' }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || secrets.RELEASE_KEY_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'vibez-key' }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
       - name: Build Android Package (Release AAB Bundle)
         if: ${{ inputs.android_build_type == 'release_bundle_aab' }}
         env:
           KEYSTORE_PATH: "my-upload-key.jks"
-          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || secrets.RELEASE_KEY_PASSWORD || env.TEMP_STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || env.TEMP_KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || env.TEMP_KEY_ALIAS || 'vibez-key' }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || secrets.RELEASE_KEY_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'vibez-key' }}
         run: ./gradlew :app:bundleRelease --stacktrace
 
       - name: Upload Debug APK Artifact
@@ -163,6 +154,33 @@ jobs:
           path: app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 7
+
+      - name: Determine Release Tag
+        if: ${{ inputs.create_github_release }}
+        id: release_meta
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG_NAME="${{ inputs.release_tag }}"
+          else
+            TAG_NAME="v1.0.0-build-${{ github.run_number }}"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Automatically Publish GitHub Release
+        if: ${{ inputs.create_github_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
+          name: "Vibez Release ${{ steps.release_meta.outputs.tag_name }}"
+          draft: false
+          prerelease: ${{ inputs.android_build_type == 'debug_apk' }}
+          generate_release_notes: true
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-server:
     name: Build Express Server

@@ -3,24 +3,31 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Zap, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useDeveloperAuth();
   const [email, setEmail] = useState('alex.rivera@prigid.com');
-  const [password, setPassword] = useState('••••••••••••');
+  const [password, setPassword] = useState('password123');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setIsLoading(true);
-    setTimeout(() => {
-      login(email);
+    setErrorMessage(null);
+
+    const res = await login(email, password);
+    setIsLoading(false);
+
+    if (res.success) {
       router.push('/dashboard');
-    }, 500);
+    } else {
+      setErrorMessage(res.error || 'Failed to authenticate. Please check your credentials.');
+    }
   };
 
   return (
@@ -38,6 +45,13 @@ export default function LoginPage() {
             Sign in to access your API keys, traffic telemetry & team workspace
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -73,8 +87,17 @@ export default function LoginPage() {
             disabled={isLoading}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider hover:opacity-95 shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
           >
-            <span>{isLoading ? 'Signing In...' : 'Sign In to Dashboard'}</span>
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Verifying Credentials...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In to Dashboard</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
 

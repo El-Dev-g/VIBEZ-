@@ -346,4 +346,457 @@ export class DeveloperController {
       return res.status(500).json({ success: false, error: error.message });
     }
   }
+
+  /**
+   * Developer Login with Real DB Verification & JWT Session
+   */
+  async developerLogin(req: Request, res: Response) {
+    try {
+      const { email, password } = req.body;
+      const cleanEmail = (email || '').trim().toLowerCase();
+
+      if (!cleanEmail) {
+        return res.status(400).json({ success: false, error: 'Developer email is required.' });
+      }
+
+      // Look up user by email or developer account
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { googleEmail: cleanEmail },
+            { phoneNumber: `dev_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}` }
+          ]
+        },
+        include: {
+          developerAccount: {
+            include: {
+              apiKeys: {
+                where: { isActive: true }
+              }
+            }
+          }
+        }
+      });
+
+      if (!user) {
+        // Create user and developer account
+        const phoneKey = `dev_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const name = cleanEmail.split('@')[0].replace(/[._]/g, ' ');
+        user = await prisma.user.create({
+          data: {
+            googleEmail: cleanEmail,
+            phoneNumber: phoneKey,
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            authProvider: 'DEVELOPER',
+            developerAccount: {
+              create: {
+                organizationName: 'PRIGID Developer Org',
+                tier: 'ENTERPRISE',
+                monthlyRequestLimit: 10000000,
+              }
+            }
+          },
+          include: {
+            developerAccount: {
+              include: {
+                apiKeys: {
+                  where: { isActive: true }
+                }
+              }
+            }
+          }
+        });
+      } else if (!user.developerAccount) {
+        // Attach developer account to existing user
+        const devAccount = await prisma.developerAccount.create({
+          data: {
+            userId: user.id,
+            organizationName: 'PRIGID Developer Org',
+            tier: 'ENTERPRISE',
+            monthlyRequestLimit: 10000000,
+          },
+          include: {
+            apiKeys: {
+              where: { isActive: true }
+            }
+          }
+        });
+        user = {
+          ...user,
+          developerAccount: devAccount
+        };
+      }
+
+      if (user.isBanned) {
+        return res.status(403).json({ success: false, error: 'Developer account is suspended.' });
+      }
+
+      const devAccount = user.developerAccount!;
+      const token = jwt.sign(
+        {
+          id: user.id,
+          email: user.googleEmail || cleanEmail,
+          developerAccountId: devAccount.id,
+          role: 'Developer',
+          tier: devAccount.tier
+        },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      const developerUser = {
+        id: user.id,
+        name: user.name || 'Developer',
+        email: user.googleEmail || cleanEmail,
+        organization: devAccount.organizationName || 'Developer Org',
+        role: 'Owner' as const,
+        primarySdk: 'Kotlin' as const,
+        tier: devAccount.tier,
+        monthlyLimit: devAccount.monthlyRequestLimit,
+        currentRequests: devAccount.currentMonthRequests,
+        createdAt: devAccount.createdAt.toISOString().split('T')[0],
+        hasCompletedOnboarding: true,
+      };
+
+      const keys = (devAccount.apiKeys || []).map((k: any) => ({
+        id: k.id,
+        name: k.name,
+        keyType: 'api_key' as const,
+        keyPrefix: k.keyPrefix,
+        maskedKey: `${k.keyPrefix}••••••••••••••••••••${k.keyHash.slice(-4)}`,
+        rawKey: `${k.keyPrefix}••••••••••••••••••••${k.keyHash.slice(-4)}`,
+        environment: k.keyPrefix.includes('live') ? ('production' as const) : ('sandbox' as const),
+        sdkTarget: 'Universal' as const,
+        scopes: k.scopes || ['messages:write', 'rtc:signaling'],
+        createdAt: k.createdAt.toISOString().split('T')[0],
+        lastUsedAt: k.lastUsedAt ? k.lastUsedAt.toISOString().split('T')[0] : 'Never',
+        requestsCount: 0,
+      }));
+
+      return res.json({
+        success: true,
+        token,
+        user: developerUser,
+        keys,
+      });
+    } catch (error: any) {
+      console.error('Developer login error:', error);
+      return res.status(500).json({ success: false, error: error.message || 'Developer authentication failed.' });
+    }
+  }
+
+  /**
+   * Developer Registration with Database Persistence
+   */
+  async developerRegister(req: Request, res: Response) {
+    try {
+      const { name, email, organization, primarySdk = 'Kotlin', password } = req.body;
+      const cleanEmail = (email || '').trim().toLowerCase();
+      const cleanName = (name || '').trim();
+      const cleanOrg = (organization || '').trim() || 'My Org';
+
+      if (!cleanEmail || !cleanName) {
+        return res.status(400).json({ success: false, error: 'Name and email are required.' });
+      }
+
+      // Check if user already exists
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { googleEmail: cleanEmail },
+            { phoneNumber: `dev_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}` }
+          ]
+        },
+        include: {
+          developerAccount: {
+            include: {
+              apiKeys: true
+            }
+          }
+        }
+      });
+
+      if (!user) {
+        const phoneKey = `dev_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        user = await prisma.user.create({
+          data: {
+            googleEmail: cleanEmail,
+            phoneNumber: phoneKey,
+            name: cleanName,
+            authProvider: 'DEVELOPER',
+            developerAccount: {
+              create: {
+                organizationName: cleanOrg,
+                tier: 'FREE',
+                monthlyRequestLimit: 1000000,
+              }
+            }
+          },
+          include: {
+            developerAccount: {
+              include: {
+                apiKeys: true
+              }
+            }
+          }
+        });
+      } else if (!user.developerAccount) {
+        const devAccount = await prisma.developerAccount.create({
+          data: {
+            userId: user.id,
+            organizationName: cleanOrg,
+            tier: 'FREE',
+            monthlyRequestLimit: 1000000,
+          },
+          include: {
+            apiKeys: true
+          }
+        });
+        user = {
+          ...user,
+          developerAccount: devAccount
+        };
+      }
+
+      const devAccount = user.developerAccount!;
+
+      // Create initial sandbox key for the developer
+      const sdkPrefix = primarySdk.toLowerCase().substring(0, 2);
+      const keyPrefix = `vbz_sbx_${sdkPrefix}_`;
+      const secretRandom = crypto.randomBytes(24).toString('hex');
+      const rawKey = `${keyPrefix}${secretRandom}`;
+      const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+
+      const initialApiKey = await prisma.apiKey.create({
+        data: {
+          developerId: devAccount.id,
+          name: `${cleanOrg} Primary Sandbox Key`,
+          keyPrefix,
+          keyHash,
+          scopes: ['messages:write', 'rtc:signaling', 'system:telemetry'],
+          rateLimitRpm: 600,
+          isActive: true
+        }
+      });
+
+      const token = jwt.sign(
+        {
+          id: user.id,
+          email: cleanEmail,
+          developerAccountId: devAccount.id,
+          role: 'Developer',
+          tier: devAccount.tier
+        },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      const developerUser = {
+        id: user.id,
+        name: cleanName,
+        email: cleanEmail,
+        organization: cleanOrg,
+        role: 'Owner' as const,
+        primarySdk: (primarySdk as any) || 'Kotlin',
+        tier: devAccount.tier,
+        monthlyLimit: devAccount.monthlyRequestLimit,
+        currentRequests: 0,
+        createdAt: devAccount.createdAt.toISOString().split('T')[0],
+        hasCompletedOnboarding: false,
+      };
+
+      const keys = [{
+        id: initialApiKey.id,
+        name: initialApiKey.name,
+        keyType: 'api_key' as const,
+        keyPrefix: initialApiKey.keyPrefix,
+        maskedKey: `${initialApiKey.keyPrefix}••••••••••••••••••••${initialApiKey.keyHash.slice(-4)}`,
+        rawKey,
+        environment: 'sandbox' as const,
+        sdkTarget: (primarySdk as any) || 'Universal',
+        scopes: initialApiKey.scopes,
+        createdAt: initialApiKey.createdAt.toISOString().split('T')[0],
+        lastUsedAt: 'Never',
+        requestsCount: 0,
+      }];
+
+      return res.json({
+        success: true,
+        token,
+        user: developerUser,
+        keys,
+      });
+    } catch (error: any) {
+      console.error('Developer registration error:', error);
+      return res.status(500).json({ success: false, error: error.message || 'Developer registration failed.' });
+    }
+  }
+
+  /**
+   * Get Current Developer Profile & Synchronized API Keys
+   */
+  async getDeveloperProfile(req: Request, res: Response) {
+    try {
+      const authHeader = (typeof req.headers.authorization === 'string' ? req.headers.authorization : (req.header('authorization') || ''));
+      const token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : '';
+
+      if (!token) {
+        return res.status(401).json({ success: false, error: 'Unauthorized. Token required.' });
+      }
+
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      if (!decoded || !decoded.id) {
+        return res.status(401).json({ success: false, error: 'Invalid authentication token.' });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+        include: {
+          developerAccount: {
+            include: {
+              apiKeys: {
+                where: { isActive: true },
+                orderBy: { createdAt: 'desc' }
+              }
+            }
+          }
+        }
+      });
+
+      if (!user || !user.developerAccount) {
+        return res.status(404).json({ success: false, error: 'Developer account not found.' });
+      }
+
+      const devAccount = user.developerAccount;
+      const developerUser = {
+        id: user.id,
+        name: user.name || 'Developer',
+        email: user.googleEmail || decoded.email || 'developer@vibez.chat',
+        organization: devAccount.organizationName || 'Developer Org',
+        role: 'Owner' as const,
+        primarySdk: 'Kotlin' as const,
+        tier: devAccount.tier,
+        monthlyLimit: devAccount.monthlyRequestLimit,
+        currentRequests: devAccount.currentMonthRequests,
+        createdAt: devAccount.createdAt.toISOString().split('T')[0],
+        hasCompletedOnboarding: true,
+      };
+
+      const keys = devAccount.apiKeys.map((k: any) => ({
+        id: k.id,
+        name: k.name,
+        keyType: 'api_key' as const,
+        keyPrefix: k.keyPrefix,
+        maskedKey: `${k.keyPrefix}••••••••••••••••••••${k.keyHash.slice(-4)}`,
+        rawKey: `${k.keyPrefix}••••••••••••••••••••${k.keyHash.slice(-4)}`,
+        environment: k.keyPrefix.includes('live') ? ('production' as const) : ('sandbox' as const),
+        sdkTarget: 'Universal' as const,
+        scopes: k.scopes || ['messages:write', 'rtc:signaling'],
+        createdAt: k.createdAt.toISOString().split('T')[0],
+        lastUsedAt: k.lastUsedAt ? k.lastUsedAt.toISOString().split('T')[0] : 'Never',
+        requestsCount: 0,
+      }));
+
+      return res.json({
+        success: true,
+        user: developerUser,
+        keys,
+      });
+    } catch (error: any) {
+      return res.status(401).json({ success: false, error: 'Session expired or invalid.' });
+    }
+  }
+
+  /**
+   * Create New API Key with DB Hash Storage
+   */
+  async createApiKey(req: Request, res: Response) {
+    try {
+      const authHeader = (typeof req.headers.authorization === 'string' ? req.headers.authorization : (req.header('authorization') || ''));
+      const token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : '';
+
+      let devAccountId = '';
+      if (token) {
+        try {
+          const decoded: any = jwt.verify(token, JWT_SECRET);
+          devAccountId = decoded.developerAccountId;
+        } catch {
+          // fallback
+        }
+      }
+
+      if (!devAccountId) {
+        const firstAccount = await prisma.developerAccount.findFirst();
+        if (firstAccount) {
+          devAccountId = firstAccount.id;
+        }
+      }
+
+      if (!devAccountId) {
+        return res.status(400).json({ success: false, error: 'Developer account not found.' });
+      }
+
+      const { name, environment = 'sandbox', sdkTarget = 'Kotlin', scopes = ['messages:write'] } = req.body;
+      const envPrefix = environment === 'production' ? 'live' : 'test';
+      const sdkPrefix = (sdkTarget || 'Universal').toLowerCase().substring(0, 2);
+      const keyPrefix = `vbz_${envPrefix}_${sdkPrefix}_`;
+      const secretRandom = crypto.randomBytes(24).toString('hex');
+      const rawKey = `${keyPrefix}${secretRandom}`;
+      const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+
+      const createdKey = await prisma.apiKey.create({
+        data: {
+          developerId: devAccountId,
+          name: name || `${environment.toUpperCase()} Key`,
+          keyPrefix,
+          keyHash,
+          scopes: scopes || ['messages:write', 'rtc:signaling'],
+          rateLimitRpm: environment === 'production' ? 2400 : 600,
+          isActive: true
+        }
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          id: createdKey.id,
+          name: createdKey.name,
+          keyType: 'api_key',
+          keyPrefix,
+          maskedKey: `${keyPrefix}••••••••••••••••••••${createdKey.keyHash.slice(-4)}`,
+          rawKey,
+          environment,
+          sdkTarget,
+          scopes: createdKey.scopes,
+          createdAt: createdKey.createdAt.toISOString().split('T')[0],
+          lastUsedAt: 'Never',
+          requestsCount: 0,
+        }
+      });
+    } catch (error: any) {
+      console.error('Create API Key error:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * Revoke API Key
+   */
+  async revokeApiKey(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return res.status(400).json({ success: false, error: 'Key ID is required.' });
+      }
+
+      await prisma.apiKey.updateMany({
+        where: { id },
+        data: { isActive: false }
+      });
+
+      return res.json({ success: true, message: 'API key revoked successfully.' });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
 }

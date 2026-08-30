@@ -44,11 +44,11 @@ export const DeveloperKeyGenerator: React.FC = () => {
     }
   };
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    createKey({
+    await createKey({
       name,
       keyType,
       environment,

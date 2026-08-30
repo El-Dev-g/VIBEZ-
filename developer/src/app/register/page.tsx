@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, User, Mail, Building, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Zap, User, Mail, Building, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
 
 export default function RegisterPage() {
@@ -14,15 +14,22 @@ export default function RegisterPage() {
   const [org, setOrg] = useState('');
   const [sdk, setSdk] = useState<'Kotlin' | 'TypeScript' | 'Python' | 'Go'>('Kotlin');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !org) return;
     setIsLoading(true);
-    setTimeout(() => {
-      register(name, email, org, sdk);
+    setErrorMessage(null);
+
+    const res = await register(name, email, org, sdk);
+    setIsLoading(false);
+
+    if (res.success) {
       router.push('/dashboard');
-    }, 500);
+    } else {
+      setErrorMessage(res.error || 'Failed to register. Please check your details.');
+    }
   };
 
   return (
@@ -40,6 +47,13 @@ export default function RegisterPage() {
             Join the PRIGID GROUP Developer Hub to build real-time communication apps
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -114,8 +128,17 @@ export default function RegisterPage() {
             disabled={isLoading}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider hover:opacity-95 shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
           >
-            <span>{isLoading ? 'Creating Account...' : 'Continue to Onboarding'}</span>
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Creating Developer Profile...</span>
+              </>
+            ) : (
+              <>
+                <span>Continue to Onboarding</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
 

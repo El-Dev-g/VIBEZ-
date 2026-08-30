@@ -45,10 +45,9 @@ export const DeveloperProfile: React.FC<{ onLogout?: () => void }> = ({ onLogout
   };
 
   const handleLogoutClick = () => {
+    logout();
     if (onLogout) {
       onLogout();
-    } else {
-      logout();
     }
   };
 
