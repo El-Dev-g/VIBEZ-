@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     );
 
     const nameParts = cleanEmail.split('@')[0].split(/[._-]/);
-    const formattedName = nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    const formattedName = nameParts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
 
     const user = {
       id: `dev_${crypto.createHash('md5').update(cleanEmail).digest('hex').substring(0, 12)}`,

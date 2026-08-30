@@ -40,6 +40,9 @@ const io = new Server(httpServer, {
 const allowedOrigins = [
   process.env.ADMIN_FRONTEND_URL,
   process.env.FRONTEND_URL,
+  process.env.DEVELOPER_FRONTEND_URL,
+  process.env.LANDING_PAGE_URL,
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : []),
   'http://localhost:3000',
   'http://localhost:5173',
   'https://render.com'

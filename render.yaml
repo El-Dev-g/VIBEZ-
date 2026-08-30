@@ -39,7 +39,7 @@ services:
       - key: CORS_ORIGIN
         value: "*"
 
-  # 2. Developer Hub & Server Codes Console
+  # 2. Developer Hub & API Platform
   - type: web
     name: vibez-developer-hub
     runtime: node
@@ -69,6 +69,24 @@ services:
     region: frankfurt
     plan: free
     rootDir: admin
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: vibez-server
+          property: host
+
+  # 4. Landing Page
+  - type: web
+    name: vibez-landingpage
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: landingpage
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
