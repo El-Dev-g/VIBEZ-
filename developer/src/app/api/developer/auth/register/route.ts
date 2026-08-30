@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
+import { signJwt } from '../../../../../lib/jwt';
 import { DEFAULT_CUSTOM_SERVER_URL } from '../../../../../lib/customServerBridge';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'vibez_secret_jwt_key_2024';
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       // Backend offline fallback with secure JWT issuance
     }
 
-    const token = jwt.sign(
+    const token = signJwt(
       {
         id: `dev_${crypto.createHash('md5').update(cleanEmail).digest('hex').substring(0, 12)}`,
         email: cleanEmail,
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         tier: 'FREE',
       },
       JWT_SECRET,
-      { expiresIn: '30d' }
+      30
     );
 
     const user = {

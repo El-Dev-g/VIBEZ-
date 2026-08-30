@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { verifyJwt } from '../../../../../lib/jwt';
 import { DEFAULT_CUSTOM_SERVER_URL } from '../../../../../lib/customServerBridge';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'vibez_secret_jwt_key_2024';
@@ -39,7 +39,11 @@ export async function GET(req: NextRequest) {
 
     // Fallback: Verify JWT
     try {
-      const decoded: any = jwt.verify(token, JWT_SECRET);
+      const decoded: any = verifyJwt(token, JWT_SECRET);
+      if (!decoded || !decoded.id) {
+        return NextResponse.json({ success: false, error: 'Invalid or expired session token.' }, { status: 401 });
+      }
+
       return NextResponse.json({
         success: true,
         user: {
