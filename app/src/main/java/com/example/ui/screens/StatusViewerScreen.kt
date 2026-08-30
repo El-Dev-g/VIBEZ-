@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -279,11 +280,13 @@ fun StatusPageItem(
     ) {
         // Status Background Media / Content
         if (status.mediaType == "IMAGE") {
-            Image(
-                painter = painterResource(id = R.drawable.img_status_banner_1787278113131),
+            AsyncImage(
+                model = status.mediaUrl,
                 contentDescription = "Status photo",
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                placeholder = painterResource(id = R.drawable.img_status_banner_1787278113131),
+                error = painterResource(id = R.drawable.img_status_banner_1787278113131)
             )
         } else {
             Box(
@@ -482,7 +485,7 @@ fun StatusPageItem(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "4 views • Tap to see viewers",
+                        text = "${status.viewCount} views • Tap to see viewers",
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold

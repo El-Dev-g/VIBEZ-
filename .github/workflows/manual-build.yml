@@ -121,7 +121,7 @@ jobs:
             RESOLVED_CLIENT_ID="${{ inputs.google_web_client_id }}"
             echo "Using GOOGLE_WEB_CLIENT_ID from workflow input."
           else
-            RESOLVED_CLIENT_ID="your_google_web_client_id.apps.googleusercontent.com"
+            RESOLVED_CLIENT_ID="your-google-web-client-id.apps.googleusercontent.com"
             echo "Using fallback default GOOGLE_WEB_CLIENT_ID."
           fi
 

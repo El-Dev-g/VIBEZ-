@@ -507,6 +507,14 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun fetchMessages(chatId: String) {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                repository.getMessagesForChat(chatId, token)
+            }
+        }
+    }
+
     fun sendMessage(
         chatId: String,
         content: String,
@@ -685,7 +693,20 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     ) {
         viewModelScope.launch {
             authManager.getAuthToken()?.let { token ->
-                repository.postStatus(caption, type, colorHex, mediaUrl, songTitle, songArtist, songPreviewUrl, musicOffsetX, musicOffsetY, token)
+                var finalMediaUrl = mediaUrl
+                if (mediaUrl.isNotEmpty() && (mediaUrl.startsWith("content://") || mediaUrl.startsWith("file://"))) {
+                    val app = getApplication<android.app.Application>()
+                    val uploadedUrl = repository.uploadFile(
+                        token = token,
+                        uriString = mediaUrl,
+                        type = type,
+                        contentResolver = app.contentResolver
+                    )
+                    if (uploadedUrl != null) {
+                        finalMediaUrl = uploadedUrl
+                    }
+                }
+                repository.postStatus(caption, type, colorHex, finalMediaUrl, songTitle, songArtist, songPreviewUrl, musicOffsetX, musicOffsetY, token)
             }
         }
     }
@@ -707,7 +728,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun getStatusViewers(statusId: String): List<com.example.data.StatusViewer> {
-        return emptyList()
+        return statuses.value.firstOrNull { it.id == statusId }?.viewers ?: emptyList()
     }
 
     fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean) {

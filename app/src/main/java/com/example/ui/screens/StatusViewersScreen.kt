@@ -57,6 +57,7 @@ import com.example.R
 import com.example.data.StatusEntity
 import com.example.data.StatusViewer
 import com.example.ui.components.AvatarView
+import coil.compose.AsyncImage
 import com.example.ui.theme.WhatsAppEmerald
 import com.example.ui.theme.WhatsAppMinimalPrimary
 import java.text.SimpleDateFormat
@@ -192,11 +193,13 @@ fun StatusViewersScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (status.mediaType == "IMAGE") {
-                                    Image(
-                                        painter = painterResource(id = R.drawable.img_status_banner_1787278113131),
+                                    AsyncImage(
+                                        model = status.mediaUrl,
                                         contentDescription = "Status photo",
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
+                                        modifier = Modifier.fillMaxSize(),
+                                        placeholder = painterResource(id = R.drawable.img_status_banner_1787278113131),
+                                        error = painterResource(id = R.drawable.img_status_banner_1787278113131)
                                     )
                                 } else {
                                     Text(

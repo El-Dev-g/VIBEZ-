@@ -16,7 +16,10 @@ class SocketManager(private val userId: String) {
             val opts = IO.Options().apply {
                 query = "userId=$userId"
             }
-            socket = IO.socket(BuildConfig.BACKEND_URL.ifEmpty { "https://your-backend-url.com/" }, opts) // Match BACKEND_URL
+            val rawUrl = BuildConfig.BACKEND_URL.ifEmpty { "https://your-backend-url.com/" }
+            val baseUrl = if (rawUrl.endsWith("/")) rawUrl.substring(0, rawUrl.length - 1) else rawUrl
+            
+            socket = IO.socket(baseUrl, opts)
             
             socket?.on(Socket.EVENT_CONNECT) {
                 Log.d(TAG, "Connected to socket server")

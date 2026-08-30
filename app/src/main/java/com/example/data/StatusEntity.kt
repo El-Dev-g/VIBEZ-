@@ -21,5 +21,6 @@ data class StatusEntity(
     val songPreviewUrl: String? = null,
     val musicOffsetX: Float = 0.5f, // Normalized 0-1
     val musicOffsetY: Float = 0.5f,  // Normalized 0-1
-    val videoDurationMillis: Long = 0
+    val videoDurationMillis: Long = 0,
+    val viewers: List<StatusViewer> = emptyList()
 )

@@ -7,12 +7,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import com.example.data.network.*
 import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for binary compatibility if needed, but not using it
 
@@ -156,7 +158,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
-    fun getMessagesFlow(chatId: String): Flow<List<MessageEntity>> = MutableStateFlow(_currentChatMessages.value[chatId] ?: emptyList())
+    fun getMessagesFlow(chatId: String): Flow<List<MessageEntity>> = _currentChatMessages.map { it[chatId] ?: emptyList() }
 
     fun addLocalMessage(message: MessageEntity) {
         val currentList = _currentChatMessages.value[message.chatId] ?: emptyList()
@@ -423,6 +425,17 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                 }
             }
             _allChats.value = currentChats
+
+            // Also populate messages for these chats from the DTOs
+            val currentMsgMap = _currentChatMessages.value.toMutableMap()
+            dtos.forEach { dto ->
+                val chatMessages = dto.messages.map { mapMessageDtoToEntity(it) }
+                if (chatMessages.isNotEmpty()) {
+                    currentMsgMap[dto.id] = chatMessages
+                }
+            }
+            _currentChatMessages.value = currentMsgMap
+
             entities
         } catch (e: Exception) {
             e.printStackTrace()
@@ -474,6 +487,49 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
+    suspend fun uploadFile(
+        token: String,
+        uriString: String,
+        type: String,
+        contentResolver: android.content.ContentResolver
+    ): String? {
+        return try {
+            val uri = android.net.Uri.parse(uriString)
+            val fileName = "status_${System.currentTimeMillis()}.${if (type == "VIDEO") "mp4" else "jpg"}"
+            val contentType = if (type == "VIDEO") "video/mp4" else "image/jpeg"
+
+            val requestMap = mapOf(
+                "fileName" to fileName,
+                "contentType" to contentType
+            )
+            val response = NetworkClient.apiService.getUploadUrl("Bearer $token", requestMap)
+            val uploadUrl = response.uploadUrl
+            val publicUrl = response.publicUrl
+
+            val inputStream = contentResolver.openInputStream(uri) ?: return null
+            val bytes = inputStream.readBytes()
+            inputStream.close()
+
+            val okHttpClient = okhttp3.OkHttpClient()
+            val requestBody = okhttp3.RequestBody.create(contentType.toMediaTypeOrNull(), bytes)
+            val putRequest = okhttp3.Request.Builder()
+                .url(uploadUrl)
+                .put(requestBody)
+                .build()
+
+            val callResponse = okHttpClient.newCall(putRequest).execute()
+            if (callResponse.isSuccessful) {
+                publicUrl
+            } else {
+                android.util.Log.e("WhatsAppRepository", "File upload failed with code: ${callResponse.code}")
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     suspend fun postStatus(
         caption: String,
         type: String,
@@ -487,14 +543,27 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         token: String
     ): String {
         return try {
+            val textStyleJson = if (songTitle != null) {
+                val json = JSONObject()
+                json.put("songTitle", songTitle)
+                json.put("songArtist", songArtist ?: "")
+                json.put("songPreviewUrl", songPreviewUrl ?: "")
+                json.put("musicOffsetX", musicOffsetX.toDouble())
+                json.put("musicOffsetY", musicOffsetY.toDouble())
+                json.toString()
+            } else {
+                null
+            }
+
             val request = CreateStatusRequest(
                 content = caption,
                 type = type,
                 mediaUrl = mediaUrl,
-                backgroundColor = colorHex
+                backgroundColor = colorHex,
+                textStyle = textStyleJson
             )
             val dto = NetworkClient.apiService.createStatus("Bearer $token", request)
-            val currentUserId = if (dto.userId != "ME") dto.userId else null // Just use the ID from the response if possible
+            val currentUserId = if (dto.userId != "ME") dto.userId else null
             val entity = mapStatusDtoToEntity(dto, currentUserId ?: "ME")
             _allStatuses.value = _allStatuses.value + entity
             entity.id
@@ -505,6 +574,26 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     }
 
     private fun mapStatusDtoToEntity(dto: StatusDto, currentUserId: String?): StatusEntity {
+        var sTitle: String? = null
+        var sArtist: String? = null
+        var sPreviewUrl: String? = null
+        var sOffsetX = 0.5f
+        var sOffsetY = 0.5f
+
+        val ts = dto.textStyle
+        if (!ts.isNullOrEmpty() && ts.startsWith("{") && ts.endsWith("}")) {
+            try {
+                val json = JSONObject(ts)
+                sTitle = json.optString("songTitle", null)
+                sArtist = json.optString("songArtist", null)
+                sPreviewUrl = json.optString("songPreviewUrl", null)
+                sOffsetX = json.optDouble("musicOffsetX", 0.5).toFloat()
+                sOffsetY = json.optDouble("musicOffsetY", 0.5).toFloat()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         return StatusEntity(
             id = dto.id,
             contactId = dto.userId,
@@ -517,8 +606,38 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             timestamp = parseDate(dto.createdAt),
             isViewed = currentUserId != null && dto.viewers.any { it.userId == currentUserId },
             isMyStatus = currentUserId != null && dto.userId == currentUserId,
-            viewCount = dto.viewers.size
+            viewCount = dto.viewers.size,
+            songTitle = sTitle,
+            songArtist = sArtist,
+            songPreviewUrl = sPreviewUrl,
+            musicOffsetX = sOffsetX,
+            musicOffsetY = sOffsetY,
+            viewers = dto.viewers.map { v ->
+                val viewerTimestamp = parseDate(v.viewedAt)
+                StatusViewer(
+                    contactId = v.userId,
+                    name = v.user?.name ?: "Unknown",
+                    avatarUrl = v.user?.avatarUrl ?: "",
+                    phoneNumber = v.user?.phoneNumber ?: "",
+                    viewedTimestamp = viewerTimestamp,
+                    timeAgoFormatted = formatTimeAgo(viewerTimestamp)
+                )
+            }
         )
+    }
+
+    private fun formatTimeAgo(timestamp: Long): String {
+        val now = System.currentTimeMillis()
+        val diff = now - timestamp
+        return when {
+            diff < 60000 -> "Just now"
+            diff < 3600000 -> "${diff / 60000}m ago"
+            diff < 86400000 -> "${diff / 3600000}h ago"
+            else -> {
+                val sdf = java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault())
+                sdf.format(java.util.Date(timestamp))
+            }
+        }
     }
 
     suspend fun deleteExpiredStatuses() {

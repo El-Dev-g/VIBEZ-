@@ -531,6 +531,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             LaunchedEffect(chatId) {
                 if (chatId.isNotEmpty()) {
                     viewModel.joinChat(chatId)
+                    viewModel.fetchMessages(chatId)
                 }
             }
 
