@@ -45,7 +45,9 @@ import {
   Menu,
   X,
   User,
-  ShieldCheck
+  ShieldCheck,
+  Gauge,
+  Play
 } from 'lucide-react';
 import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
 import { CodeBlock } from '../../components/CodeBlock';
