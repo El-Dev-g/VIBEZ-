@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { fetchAdminCommunities, createOfficialCommunity, AdminCommunityItem, deleteCommunity, toggleOfficialStatus } from '../../services/api';
+import { fetchAdminCommunities, createOfficialCommunity, AdminCommunityItem, deleteCommunity, toggleOfficialStatus, updateCommunity } from '../../services/api';
 
 export default function CommunitiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,7 +12,9 @@ export default function CommunitiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newCommunity, setNewCommunity] = useState({ name: '', description: '' });
+  const [editingCommunity, setEditingCommunity] = useState<AdminCommunityItem | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     loadCommunities();
@@ -43,6 +45,24 @@ export default function CommunitiesPage() {
       showToast('Failed to create community.', true);
     }
     setIsCreating(false);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingCommunity) return;
+    setIsUpdating(true);
+    const result = await updateCommunity(editingCommunity.id, {
+      name: editingCommunity.name,
+      description: editingCommunity.description,
+      category: editingCommunity.category
+    });
+    if (result) {
+      showToast('Community updated successfully!');
+      setEditingCommunity(null);
+      loadCommunities();
+    } else {
+      showToast('Failed to update community.', true);
+    }
+    setIsUpdating(false);
   };
 
   const handleToggleOfficial = async (id: string, currentStatus: boolean) => {
@@ -89,6 +109,65 @@ export default function CommunitiesPage() {
           Create Official Community
         </button>
       </div>
+
+      {/* Edit Community Modal */}
+      {editingCommunity && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 p-8 space-y-6 animate-scaleIn">
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Edit Community</h3>
+              <p className="text-slate-500 font-bold text-sm mt-1">Update community metadata, name, category, or mission description.</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Community Name</label>
+                <input
+                  type="text"
+                  value={editingCommunity.name}
+                  onChange={(e) => setEditingCommunity({ ...editingCommunity, name: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Category Classification</label>
+                <input
+                  type="text"
+                  value={editingCommunity.category || ''}
+                  onChange={(e) => setEditingCommunity({ ...editingCommunity, category: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Mission Statement</label>
+                <textarea
+                  value={editingCommunity.description || ''}
+                  onChange={(e) => setEditingCommunity({ ...editingCommunity, description: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 transition-all min-h-[120px] resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setEditingCommunity(null)}
+                className="flex-1 py-4 bg-slate-50 text-slate-400 hover:bg-slate-100 font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdate}
+                disabled={isUpdating || !editingCommunity.name}
+                className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50"
+              >
+                {isUpdating ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
@@ -222,6 +301,13 @@ export default function CommunitiesPage() {
                       </td>
                       <td className="whitespace-nowrap px-8 py-6 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => setEditingCommunity(c)}
+                            className="px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-900 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                            title="Edit Community"
+                          >
+                            Edit
+                          </button>
                           <button 
                             onClick={() => handleToggleOfficial(c.id, c.isOfficial || false)}
                             className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${

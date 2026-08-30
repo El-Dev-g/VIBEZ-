@@ -62,12 +62,83 @@ interface DeveloperAuthContextType {
     sdkTarget: 'Kotlin' | 'TypeScript' | 'Python' | 'Go' | 'Universal';
     scopes: string[];
   }) => Promise<DeveloperKey | null>;
+  updateKey: (id: string, data: {
+    name?: string;
+    scopes?: string[];
+    environment?: 'sandbox' | 'production';
+    sdkTarget?: 'Kotlin' | 'TypeScript' | 'Python' | 'Go' | 'Universal';
+    rotateSecret?: boolean;
+  }) => Promise<DeveloperKey | null>;
   revokeKey: (id: string) => Promise<void>;
   inviteMember: (email: string, name: string, role: 'Admin' | 'Developer' | 'Viewer' | 'Billing') => void;
+  updateMember: (id: string, data: { name?: string; role?: 'Admin' | 'Developer' | 'Viewer' | 'Billing'; status?: 'active' | 'pending' }) => void;
   removeMember: (id: string) => void;
 }
 
 const DeveloperAuthContext = createContext<DeveloperAuthContextType | undefined>(undefined);
+
+const DEFAULT_MEMBERS: TeamMember[] = [
+  {
+    id: 'mem_1',
+    name: 'Sarah Chen',
+    email: 'sarah.c@prigid.com',
+    role: 'Admin',
+    status: 'active',
+    joinedAt: '2026-07-15',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'mem_2',
+    name: 'Alex Rivera',
+    email: 'a.rivera@prigid.com',
+    role: 'Developer',
+    status: 'active',
+    joinedAt: '2026-08-01',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'mem_3',
+    name: 'Elena Rostova',
+    email: 'elena@partner.io',
+    role: 'Viewer',
+    status: 'pending',
+    joinedAt: '2026-08-20',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  },
+];
+
+const DEFAULT_KEYS: DeveloperKey[] = [
+  {
+    id: 'key_prod_master',
+    name: 'Production Master API Key',
+    keyType: 'api_key',
+    keyPrefix: 'vbz_live_ko_',
+    maskedKey: 'vbz_live_ko_••••••••••••••••••••7a8b',
+    rawKey: 'vbz_live_ko_9824fbc001824a77e092471829a7b',
+    environment: 'production',
+    sdkTarget: 'Kotlin',
+    scopes: ['openid', 'profile', 'email', 'messages:write', 'messages:read', 'auth:otp', 'calls:signaling', 'system:telemetry'],
+    createdAt: '2026-08-01',
+    lastUsedAt: '2 mins ago',
+    requestsCount: 142850,
+  },
+  {
+    id: 'key_sandbox_client',
+    name: 'Client Credentials Testing Key',
+    keyType: 'client_secret',
+    keyPrefix: 'vbz_clt_ts_',
+    maskedKey: 'vbz_clt_ts_••••••••••••••••••••99c1',
+    rawKey: 'vbz_clt_ts_87834190bcae2847ff11048299c1',
+    clientId: 'vbz_client_sbx_90248f',
+    clientSecret: 'vbz_secret_a1b2c3d4e5f60718293a4b5c6d',
+    environment: 'sandbox',
+    sdkTarget: 'TypeScript',
+    scopes: ['openid', 'profile', 'email', 'phone', 'offline_access', 'messages:write', 'calls:signaling'],
+    createdAt: '2026-08-10',
+    lastUsedAt: '1 hour ago',
+    requestsCount: 4210,
+  },
+];
 
 export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<DeveloperUser | null>(null);
@@ -77,7 +148,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Restore authenticated session from storage & verify with backend
+  // Restore authenticated session from storage & fetch keys
   useEffect(() => {
     const initAuth = async () => {
       setIsLoading(true);
@@ -101,43 +172,49 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (savedKeys) {
           try {
-            setKeys(JSON.parse(savedKeys));
+            const parsed = JSON.parse(savedKeys);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setKeys(parsed);
+            } else {
+              setKeys(DEFAULT_KEYS);
+            }
           } catch {
-            setKeys([]);
+            setKeys(DEFAULT_KEYS);
           }
+        } else {
+          setKeys(DEFAULT_KEYS);
         }
 
         if (savedMembers) {
           try {
-            setMembers(JSON.parse(savedMembers));
+            const parsedMembers = JSON.parse(savedMembers);
+            if (Array.isArray(parsedMembers) && parsedMembers.length > 0) {
+              setMembers(parsedMembers);
+            } else {
+              setMembers(DEFAULT_MEMBERS);
+            }
           } catch {
-            setMembers([]);
+            setMembers(DEFAULT_MEMBERS);
           }
+        } else {
+          setMembers(DEFAULT_MEMBERS);
         }
 
-        // Verify session live against server if token exists
-        if (savedToken) {
-          try {
-            const res = await fetch('/api/developer/auth/me', {
-              headers: { 'Authorization': `Bearer ${savedToken}` }
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.user) {
-                setUser(data.user);
-                localStorage.setItem('vibez_dev_user', JSON.stringify(data.user));
-              }
-              if (data.keys && Array.isArray(data.keys)) {
-                setKeys(data.keys);
-                localStorage.setItem('vibez_dev_keys', JSON.stringify(data.keys));
-              }
+        // Try backend key fetch
+        try {
+          const res = await fetch('/api/developer/auth/keys');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+              setKeys(data.data);
+              localStorage.setItem('vibez_dev_keys', JSON.stringify(data.data));
             }
-          } catch (fetchErr) {
-            console.warn('Session verification fallback to local state:', fetchErr);
           }
+        } catch {
+          // Fallback to local
         }
-      } catch (err) {
-        console.error('Auth initialization error:', err);
+      } catch (err: any) {
+        console.error('Error initializing developer auth context:', err);
       } finally {
         setIsLoading(false);
       }
@@ -237,10 +314,8 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
-    setKeys([]);
     localStorage.removeItem('vibez_dev_token');
     localStorage.removeItem('vibez_dev_user');
-    localStorage.removeItem('vibez_dev_keys');
   }, []);
 
   const completeOnboarding = useCallback(async (
@@ -270,14 +345,14 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
           name: `${projectName} Primary Key`,
           environment: 'sandbox',
           sdkTarget: primarySdk,
-          scopes: ['messages:write', 'rtc:signaling', 'system:telemetry']
+          scopes: ['openid', 'profile', 'email', 'messages:write', 'rtc:signaling', 'system:telemetry']
         })
       });
 
       if (res.ok) {
         const data = await res.json();
         if (data.data) {
-          const updatedKeys = [data.data];
+          const updatedKeys = [data.data, ...keys.filter(k => k.id !== data.data.id)];
           setKeys(updatedKeys);
           localStorage.setItem('vibez_dev_keys', JSON.stringify(updatedKeys));
           return;
@@ -286,28 +361,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (e) {
       console.warn('Backend key generation fallback:', e);
     }
-
-    // Fallback key creation
-    const prefix = `vbz_sbx_${primarySdk.toLowerCase().substring(0, 2)}_`;
-    const rand = Math.random().toString(36).substring(2, 14);
-    const initialKey: DeveloperKey = {
-      id: `key_${Date.now()}`,
-      name: `${projectName} Primary Key`,
-      keyType: 'api_key',
-      keyPrefix: prefix,
-      maskedKey: `${prefix}••••••••••••••••••••${rand.slice(-4)}`,
-      rawKey: `${prefix}${rand}`,
-      environment: 'sandbox',
-      sdkTarget: primarySdk,
-      scopes: ['messages:write', 'rtc:signaling', 'system:telemetry'],
-      createdAt: new Date().toISOString().split('T')[0],
-      lastUsedAt: 'Never',
-      requestsCount: 0,
-    };
-    const updatedKeys = [initialKey];
-    setKeys(updatedKeys);
-    localStorage.setItem('vibez_dev_keys', JSON.stringify(updatedKeys));
-  }, [user, token]);
+  }, [user, token, keys]);
 
   const createKey = useCallback(async (data: {
     name: string;
@@ -369,9 +423,73 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return newKey;
   }, [keys, token]);
 
+  const updateKey = useCallback(async (id: string, data: {
+    name?: string;
+    scopes?: string[];
+    environment?: 'sandbox' | 'production';
+    sdkTarget?: 'Kotlin' | 'TypeScript' | 'Python' | 'Go' | 'Universal';
+    rotateSecret?: boolean;
+  }): Promise<DeveloperKey | null> => {
+    try {
+      const res = await fetch('/api/developer/auth/keys', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ id, ...data }),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.data) {
+          const updatedKey = result.data;
+          const updated = keys.map((k) => (k.id === id ? updatedKey : k));
+          setKeys(updated);
+          localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
+          return updatedKey;
+        }
+      }
+    } catch (err) {
+      console.warn('Error updating key:', err);
+    }
+
+    // Local fallback update
+    const updated = keys.map((k) => {
+      if (k.id !== id) return k;
+      let newRawKey = k.rawKey;
+      let newMaskedKey = k.maskedKey;
+      let newClientSecret = k.clientSecret;
+
+      if (data.rotateSecret) {
+        const rand = Math.random().toString(36).substring(2, 14) + Math.random().toString(36).substring(2, 14);
+        newRawKey = `${k.keyPrefix}${rand}`;
+        newMaskedKey = `${k.keyPrefix}••••••••••••••••••••${rand.slice(-4)}`;
+        if (k.keyType === 'client_secret') {
+          newClientSecret = `vbz_secret_${Math.random().toString(36).substring(2, 18)}`;
+        }
+      }
+
+      return {
+        ...k,
+        name: data.name !== undefined ? data.name : k.name,
+        scopes: data.scopes !== undefined ? data.scopes : k.scopes,
+        environment: data.environment !== undefined ? data.environment : k.environment,
+        sdkTarget: data.sdkTarget !== undefined ? data.sdkTarget : k.sdkTarget,
+        rawKey: newRawKey,
+        maskedKey: newMaskedKey,
+        clientSecret: newClientSecret,
+      };
+    });
+
+    setKeys(updated);
+    localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
+    return updated.find((k) => k.id === id) || null;
+  }, [keys, token]);
+
   const revokeKey = useCallback(async (id: string) => {
     try {
-      await fetch(`/api/developer/keys/${id}`, {
+      await fetch(`/api/developer/auth/keys?id=${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': token ? `Bearer ${token}` : '' }
       });
@@ -393,7 +511,21 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       joinedAt: new Date().toISOString().split('T')[0],
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
     };
-    const updated = [...members, newMember];
+    const updated = [newMember, ...members];
+    setMembers(updated);
+    localStorage.setItem('vibez_dev_members', JSON.stringify(updated));
+  }, [members]);
+
+  const updateMember = useCallback((id: string, data: { name?: string; role?: 'Admin' | 'Developer' | 'Viewer' | 'Billing'; status?: 'active' | 'pending' }) => {
+    const updated = members.map((m) => {
+      if (m.id !== id) return m;
+      return {
+        ...m,
+        name: data.name !== undefined ? data.name : m.name,
+        role: data.role !== undefined ? data.role : m.role,
+        status: data.status !== undefined ? data.status : m.status,
+      };
+    });
     setMembers(updated);
     localStorage.setItem('vibez_dev_members', JSON.stringify(updated));
   }, [members]);
@@ -418,8 +550,10 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logout,
         completeOnboarding,
         createKey,
+        updateKey,
         revokeKey,
         inviteMember,
+        updateMember,
         removeMember,
       }}
     >

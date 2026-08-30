@@ -1,7 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Play, Send, RefreshCw, Copy, Check, Sparkles, Shield, Key, AlertCircle } from 'lucide-react';
+import {
+  Play,
+  Send,
+  RefreshCw,
+  Copy,
+  Check,
+  Sparkles,
+  Shield,
+  Key,
+  AlertCircle,
+  ShieldCheck,
+  Layers,
+  KeyRound,
+  CheckCircle2,
+} from 'lucide-react';
 import { useDeveloperAuth } from '../context/DeveloperAuthContext';
 
 interface Preset {
@@ -10,7 +24,22 @@ interface Preset {
   endpoint: string;
   body: string;
   requiresAuth: boolean;
+  suggestedScopes: string[];
 }
+
+const AVAILABLE_SANDBOX_SCOPES = [
+  'openid',
+  'profile',
+  'email',
+  'phone',
+  'messages:write',
+  'messages:read',
+  'auth:otp',
+  'calls:signaling',
+  'status:publish',
+  'system:telemetry',
+  'webhooks:manage',
+];
 
 export const ApiExplorerSandbox: React.FC = () => {
   const { user, keys } = useDeveloperAuth();
@@ -22,45 +51,118 @@ export const ApiExplorerSandbox: React.FC = () => {
       endpoint: '/api/developer/server/health-check',
       body: '',
       requiresAuth: false,
+      suggestedScopes: ['system:telemetry'],
+    },
+    {
+      name: 'List Stored API Keys (CRUD GET)',
+      method: 'GET',
+      endpoint: '/api/developer/auth/keys',
+      body: '',
+      requiresAuth: true,
+      suggestedScopes: ['system:telemetry'],
+    },
+    {
+      name: 'Generate Scoped API Key (CRUD POST)',
+      method: 'POST',
+      endpoint: '/api/developer/auth/keys',
+      body: JSON.stringify(
+        {
+          name: 'Kotlin Sandbox Client',
+          keyType: 'api_key',
+          environment: 'sandbox',
+          sdkTarget: 'Kotlin',
+          scopes: ['openid', 'profile', 'messages:write', 'calls:signaling'],
+        },
+        null,
+        2
+      ),
+      requiresAuth: true,
+      suggestedScopes: ['messages:write', 'calls:signaling'],
+    },
+    {
+      name: 'Issue Scoped OAuth2 Bearer Token',
+      method: 'POST',
+      endpoint: '/api/developer/server/issue-oauth-token',
+      body: JSON.stringify(
+        {
+          client_id: 'clt_sandbox_client',
+          client_secret: 'sec_sandbox_secret',
+          grant_type: 'client_credentials',
+          scope: 'openid profile email messages:write auth:otp calls:signaling',
+        },
+        null,
+        2
+      ),
+      requiresAuth: false,
+      suggestedScopes: ['openid', 'profile', 'email'],
     },
     {
       name: 'Dispatch Live Message',
       method: 'POST',
       endpoint: '/api/developer/server/dispatch-message',
-      body: JSON.stringify({ recipientId: 'usr_live_receiver', content: 'Testing live payload from Sandbox ⚡' }, null, 2),
+      body: JSON.stringify(
+        {
+          recipientId: 'usr_live_receiver',
+          content: 'Testing live scoped payload from VIBEZ Sandbox ⚡',
+        },
+        null,
+        2
+      ),
       requiresAuth: true,
+      suggestedScopes: ['messages:write'],
     },
     {
       name: 'Verify Webhook Signature',
       method: 'POST',
       endpoint: '/api/developer/server/verify-webhook',
-      body: JSON.stringify({ payload: { event: 'user.registered', userId: 'usr_10092' }, signature: 'sha256=mock' }, null, 2),
+      body: JSON.stringify(
+        {
+          payload: { event: 'user.registered', userId: 'usr_10092' },
+          signature: 'sha256=mock_signature',
+        },
+        null,
+        2
+      ),
       requiresAuth: true,
-    },
-    {
-      name: 'Issue OAuth Token',
-      method: 'POST',
-      endpoint: '/api/developer/server/issue-oauth-token',
-      body: JSON.stringify({ clientId: 'clt_live_client', grantType: 'client_credentials' }, null, 2),
-      requiresAuth: true,
+      suggestedScopes: ['webhooks:manage'],
     },
     {
       name: 'Generate WebRTC RTC Token',
       method: 'POST',
       endpoint: '/api/developer/server/generate-rtc-token',
-      body: JSON.stringify({ channelName: 'voice_room_01', uid: 109238 }, null, 2),
+      body: JSON.stringify(
+        {
+          channelName: 'voice_room_01',
+          uid: 109238,
+        },
+        null,
+        2
+      ),
       requiresAuth: true,
+      suggestedScopes: ['calls:signaling'],
     },
   ];
 
-  const primaryKey = keys.length > 0 ? (keys[0].rawKey || keys[0].maskedKey) : '';
+  const primaryKey = keys.length > 0 ? keys[0].rawKey : '';
 
+  const [selectedKeyId, setSelectedKeyId] = useState<string>(keys.length > 0 ? keys[0].id : 'custom');
   const [baseUrl, setBaseUrl] = useState('');
   const [method, setMethod] = useState<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>('GET');
   const [endpoint, setEndpoint] = useState('/api/developer/server/health-check');
   const [authToken, setAuthToken] = useState('');
   const [apiKey, setApiKey] = useState(primaryKey);
   const [requestBody, setRequestBody] = useState('');
+
+  // Scopes state for interactive token minting
+  const [sandboxScopes, setSandboxScopes] = useState<string[]>([
+    'openid',
+    'profile',
+    'email',
+    'messages:write',
+    'auth:otp',
+    'calls:signaling',
+  ]);
+  const [isMintingToken, setIsMintingToken] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [responseStatus, setResponseStatus] = useState<number | null>(null);
@@ -70,10 +172,14 @@ export const ApiExplorerSandbox: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (primaryKey && !apiKey) {
-      setApiKey(primaryKey);
+    if (keys.length > 0 && (!apiKey || selectedKeyId === 'custom')) {
+      setSelectedKeyId(keys[0].id);
+      setApiKey(keys[0].rawKey);
+      if (keys[0].scopes) {
+        setSandboxScopes(keys[0].scopes);
+      }
     }
-  }, [primaryKey]);
+  }, [keys]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -81,10 +187,69 @@ export const ApiExplorerSandbox: React.FC = () => {
     }
   }, []);
 
+  const handleKeySelectChange = (id: string) => {
+    setSelectedKeyId(id);
+    if (id === 'custom') {
+      // Keep existing manual text
+      return;
+    }
+    const found = keys.find((k) => k.id === id);
+    if (found) {
+      setApiKey(found.rawKey);
+      if (found.scopes && found.scopes.length > 0) {
+        setSandboxScopes(found.scopes);
+      }
+    }
+  };
+
+  const toggleScope = (scope: string) => {
+    if (sandboxScopes.includes(scope)) {
+      setSandboxScopes(sandboxScopes.filter((s) => s !== scope));
+    } else {
+      setSandboxScopes([...sandboxScopes, scope]);
+    }
+  };
+
+  const handleMintScopedToken = async () => {
+    setIsMintingToken(true);
+    try {
+      const activeKeyObj = keys.find((k) => k.id === selectedKeyId);
+      const res = await fetch('/api/developer/server/issue-oauth-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: activeKeyObj?.clientId || 'clt_sandbox_direct',
+          client_secret: activeKeyObj?.clientSecret || apiKey || 'sec_sandbox_secret',
+          api_key: apiKey,
+          grant_type: 'client_credentials',
+          scope: sandboxScopes.join(' '),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.access_token) {
+        setAuthToken(data.access_token);
+        setResponseBody(JSON.stringify(data, null, 2));
+        setResponseStatus(200);
+      } else {
+        setResponseBody(JSON.stringify(data, null, 2));
+        setResponseStatus(400);
+      }
+    } catch (err: any) {
+      setResponseBody(JSON.stringify({ error: err.message || 'Token mint error' }, null, 2));
+      setResponseStatus(500);
+    } finally {
+      setIsMintingToken(false);
+    }
+  };
+
   const applyPreset = (preset: Preset) => {
     setMethod(preset.method);
     setEndpoint(preset.endpoint);
     setRequestBody(preset.body);
+    if (preset.suggestedScopes && preset.suggestedScopes.length > 0) {
+      setSandboxScopes(Array.from(new Set([...sandboxScopes, ...preset.suggestedScopes])));
+    }
   };
 
   const handleSendRequest = async () => {
@@ -115,7 +280,7 @@ export const ApiExplorerSandbox: React.FC = () => {
       if (['POST', 'PUT', 'PATCH'].includes(method) && requestBody.trim()) {
         try {
           options.body = requestBody;
-        } catch (e) {
+        } catch {
           console.error('Invalid JSON request body');
         }
       }
@@ -174,29 +339,91 @@ export const ApiExplorerSandbox: React.FC = () => {
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-mono font-bold">
             <Shield className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Protected Sandbox Environment</span>
+            <span>Interactive Scoped API Sandbox</span>
           </div>
-          <h2 className="text-lg font-black text-white">Interactive API Payload Tester</h2>
+          <h2 className="text-lg font-black text-white">Execute REST Endpoints & Scoped Keys</h2>
           <p className="text-xs text-slate-400">
-            Construct, execute, and inspect real HTTP payloads using your primary developer credentials.
+            Construct, execute, and verify permissions with API Keys or OAuth Client Credentials.
           </p>
         </div>
 
         <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 shrink-0">
           <Key className="w-4 h-4 text-emerald-400 shrink-0" />
           <div className="min-w-0">
-            <div className="text-[10px] text-slate-500 uppercase font-bold">Active Primary Key</div>
-            <div className="truncate font-bold text-white max-w-[180px]">
-              {primaryKey ? primaryKey.slice(0, 16) + '...' : 'No API Key Generated'}
-            </div>
+            <div className="text-[10px] text-slate-500 uppercase font-bold">Active Selected Key</div>
+            <select
+              value={selectedKeyId}
+              onChange={(e) => handleKeySelectChange(e.target.value)}
+              className="bg-transparent text-white font-bold font-mono text-xs focus:outline-none cursor-pointer max-w-[200px] truncate"
+            >
+              {keys.map((k) => (
+                <option key={k.id} value={k.id} className="bg-slate-950 text-white">
+                  {k.name} ({k.keyType === 'client_secret' ? 'OAuth' : 'API Key'})
+                </option>
+              ))}
+              <option value="custom" className="bg-slate-950 text-slate-400">
+                Custom / Manual Input
+              </option>
+            </select>
           </div>
+        </div>
+      </div>
+
+      {/* Scope Selector Bar */}
+      <div className="p-4 rounded-2xl bg-[#070b14] border border-slate-800 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+              Active Authorization Scopes ({sandboxScopes.length} selected)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleMintScopedToken}
+              disabled={isMintingToken}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold flex items-center gap-1.5 transition-all"
+            >
+              {isMintingToken ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              <span>Issue Scoped Bearer Token</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSandboxScopes(AVAILABLE_SANDBOX_SCOPES)}
+              className="text-[11px] font-mono text-slate-400 hover:text-white"
+            >
+              Select All
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {AVAILABLE_SANDBOX_SCOPES.map((scope) => {
+            const isChecked = sandboxScopes.includes(scope);
+            return (
+              <button
+                key={scope}
+                type="button"
+                onClick={() => toggleScope(scope)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 border ${
+                  isChecked
+                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-bold'
+                    : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {isChecked ? <Check className="w-3 h-3 text-emerald-400" /> : <span className="w-3 h-3" />}
+                <span>{scope}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Presets Row */}
       <div className="space-y-2">
         <span className="text-xs font-black uppercase tracking-wider text-slate-400 font-mono">
-          Endpoint Presets:
+          Endpoint Presets (CRUD Operations):
         </span>
         <div className="flex flex-wrap gap-2">
           {presets.map((p, idx) => (
@@ -208,7 +435,13 @@ export const ApiExplorerSandbox: React.FC = () => {
             >
               <span
                 className={`text-[10px] font-mono font-black ${
-                  p.method === 'GET' ? 'text-blue-400' : 'text-emerald-400'
+                  p.method === 'GET'
+                    ? 'text-blue-400'
+                    : p.method === 'POST'
+                    ? 'text-emerald-400'
+                    : p.method === 'PUT'
+                    ? 'text-amber-400'
+                    : 'text-rose-400'
                 }`}
               >
                 {p.method}
@@ -228,7 +461,7 @@ export const ApiExplorerSandbox: React.FC = () => {
               <h3 className="text-xs font-black uppercase tracking-wider text-white font-mono">
                 Request Configuration
               </h3>
-              <span className="text-[10px] font-mono text-emerald-400">Authenticated Payload</span>
+              <span className="text-[10px] font-mono text-emerald-400">Authenticated Scope Payload</span>
             </div>
 
             {/* Base Host URL */}
@@ -274,7 +507,7 @@ export const ApiExplorerSandbox: React.FC = () => {
             {/* X-API-Key Header */}
             <div>
               <label className="block text-xs font-mono text-slate-400 mb-1">
-                X-API-Key Header (Primary Key)
+                X-API-Key Header (Credential Key / Master Key)
               </label>
               <input
                 type="text"
@@ -288,7 +521,7 @@ export const ApiExplorerSandbox: React.FC = () => {
             {/* Auth Bearer Token */}
             <div>
               <label className="block text-xs font-mono text-slate-400 mb-1">
-                Bearer Authorization Token (Optional)
+                Bearer Authorization Token (Scoped JWT)
               </label>
               <input
                 type="text"
@@ -327,7 +560,7 @@ export const ApiExplorerSandbox: React.FC = () => {
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  <span>Execute Request</span>
+                  <span>Execute {method} Request</span>
                 </>
               )}
             </button>

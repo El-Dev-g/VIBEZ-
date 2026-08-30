@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkCustomServerConnection, DEFAULT_CUSTOM_SERVER_URL } from '../../../../../lib/customServerBridge';
 
 export async function GET(req: NextRequest) {
+  return handleHealth(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handleHealth(req);
+}
+
+export async function HEAD(req: NextRequest) {
+  return handleHealth(req);
+}
+
+async function handleHealth(req: NextRequest) {
   const startTime = Date.now();
   const customServerUrl = req.nextUrl.searchParams.get('customServerUrl') || DEFAULT_CUSTOM_SERVER_URL;
   

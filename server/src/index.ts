@@ -58,9 +58,11 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'X-Client', 'X-Client-Platform', 'Accept', 'X-Client-Version', 'Origin']
 }));
+
+app.options('*', cors());
 
 // Apply Security Headers & Input Sanitization
 app.use(securityHeaders);
@@ -90,19 +92,30 @@ const developer = new DeveloperController();
 
 // Developer API & Server Integration Routes (Powered by PRIGID GROUP)
 app.get('/api/developer/health', (req, res) => developer.getDeveloperHealth(req, res));
+app.head('/api/developer/health', (req, res) => developer.getDeveloperHealth(req, res));
 app.get('/api/developer/metrics', (req, res) => developer.getApiMetrics(req, res));
 app.post('/api/developer/auth/login', (req, res) => developer.developerLogin(req, res));
 app.post('/api/developer/auth/register', (req, res) => developer.developerRegister(req, res));
 app.get('/api/developer/auth/me', (req, res) => developer.getDeveloperProfile(req, res));
+app.get('/api/developer/keys', (req, res) => developer.getDeveloperProfile(req, res));
 app.post('/api/developer/keys', (req, res) => developer.createApiKey(req, res));
 app.delete('/api/developer/keys/:id', (req, res) => developer.revokeApiKey(req, res));
+app.delete('/api/developer/keys', (req, res) => developer.revokeApiKey(req, res));
 app.post('/api/developer/webhooks/verify', (req, res) => developer.verifyWebhook(req, res));
 app.post('/api/developer/messages/send', (req, res) => developer.dispatchServerMessage(req, res, io));
 app.post('/api/developer/rtc/token', (req, res) => developer.generateRtcToken(req, res));
 app.post('/api/developer/oauth/token', (req, res) => developer.issueOAuthToken(req, res));
 
+// Direct Developer Bridge Routes
+app.get('/api/developer/server/health-check', (req, res) => developer.getDeveloperHealth(req, res));
+app.post('/api/developer/server/health-check', (req, res) => developer.getDeveloperHealth(req, res));
+app.post('/api/developer/server/dispatch-message', (req, res) => developer.dispatchServerMessage(req, res, io));
+app.post('/api/developer/server/issue-oauth-token', (req, res) => developer.issueOAuthToken(req, res));
+app.post('/api/developer/server/rtc-token', (req, res) => developer.generateRtcToken(req, res));
+app.post('/api/developer/server/verify-webhook', (req, res) => developer.verifyWebhook(req, res));
+
 // Public System Status & App Config Routes
-app.get('/api/system/status', async (req, res) => {
+const handleSystemStatus = async (req: express.Request, res: express.Response) => {
   try {
     const setting = await prisma.systemSetting.findFirst();
     res.json({
@@ -117,8 +130,11 @@ app.get('/api/system/status', async (req, res) => {
   } catch (error) {
     res.status(500).json({ status: 'error', maintenanceMode: false });
   }
-});
+};
+app.get('/api/system/status', handleSystemStatus);
+app.head('/api/system/status', handleSystemStatus);
 app.get('/api/config/public', (req, res) => admin.getPublicAppConfig(req, res));
+app.head('/api/config/public', (req, res) => admin.getPublicAppConfig(req, res));
 app.get('/api/app/download-info', (req, res) => admin.getPublicAppConfig(req, res));
 app.post('/api/contact', (req, res) => admin.submitContactInquiry(req, res));
 app.post('/api/subscribe', (req, res) => subscription.subscribe(req, res));
@@ -212,15 +228,34 @@ app.post('/api/admin/login', (req, res) => admin.login(req, res));
 app.get('/api/admin/metrics', authenticateAdmin, (req, res) => admin.getMetrics(req, res));
 app.get('/api/admin/users', authenticateAdmin, (req, res) => admin.getUsers(req, res));
 app.get('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.getUserById(req, res));
+app.put('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.updateUser(req, res));
+app.patch('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.updateUser(req, res));
+app.post('/api/admin/users/:userId/ban', authenticateAdmin, (req, res) => admin.banUser(req, res));
+app.post('/api/admin/users/:userId/unban', authenticateAdmin, (req, res) => admin.unbanUser(req, res));
+app.delete('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.deleteUser(req, res));
+
 app.get('/api/admin/reports', authenticateAdmin, (req, res) => admin.getReports(req, res));
+app.patch('/api/admin/reports/:reportId/status', authenticateAdmin, (req, res) => admin.updateReportStatus(req, res));
+app.put('/api/admin/reports/:reportId', authenticateAdmin, (req, res) => admin.updateReportStatus(req, res));
+app.delete('/api/admin/reports/:reportId', authenticateAdmin, (req, res) => admin.deleteReport(req, res));
+
 app.get('/api/admin/logs', authenticateAdmin, (req, res) => admin.getAuditLogs(req, res));
+app.delete('/api/admin/logs', authenticateAdmin, (req, res) => admin.clearAuditLogs(req, res));
+
 app.get('/api/admin/settings', authenticateAdmin, (req, res) => admin.getSettings(req, res));
 app.patch('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
 app.put('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
 app.post('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
-app.post('/api/admin/users/:userId/ban', authenticateAdmin, (req, res) => admin.banUser(req, res));
-app.post('/api/admin/users/:userId/unban', authenticateAdmin, (req, res) => admin.unbanUser(req, res));
-app.delete('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.deleteUser(req, res));
+
+app.get('/api/admin/inquiries/:id', authenticateAdmin, (req, res) => admin.getContactInquiryById(req, res));
+app.delete('/api/admin/inquiries/:id', authenticateAdmin, (req, res) => admin.deleteContactInquiry(req, res));
+app.patch('/api/admin/inquiries/:id/status', authenticateAdmin, (req, res) => admin.updateContactInquiryStatus(req, res));
+app.put('/api/admin/inquiries/:id/status', authenticateAdmin, (req, res) => admin.updateContactInquiryStatus(req, res));
+app.post('/api/admin/inquiries/:id/status', authenticateAdmin, (req, res) => admin.updateContactInquiryStatus(req, res));
+
+app.delete('/api/admin/broadcasts/:id', authenticateAdmin, (req, res) => admin.deleteBroadcast(req, res));
+app.put('/api/admin/communities/:communityId', authenticateAdmin, (req, res) => admin.updateCommunity(req, res));
+app.patch('/api/admin/communities/:communityId', authenticateAdmin, (req, res) => admin.updateCommunity(req, res));
 
 // Admin Profile, Password & Sessions Routes
 app.get('/api/admin/profile', authenticateAdmin, (req, res) => admin.getProfile(req, res));

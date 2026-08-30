@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ContactInquiry } from '../services/api';
+import { ContactInquiry, deleteContactInquiry, updateContactInquiryStatus } from '../services/api';
 import { InquiryReplyModal, SUPPORT_TEMPLATES } from './InquiryReplyModal';
 
 interface InquiriesManagerProps {
@@ -15,10 +15,15 @@ export const InquiriesManager: React.FC<InquiriesManagerProps> = ({ initialInqui
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'UNREAD' | 'RESOLVED'>('ALL');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; isError?: boolean } | null>(null);
   const [openQuickMenuId, setOpenQuickMenuId] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const showToast = (text: string, isError = false) => {
+    setToastMessage({ text, isError });
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   // Close quick reply menu on outside click
   useEffect(() => {
@@ -48,14 +53,45 @@ export const InquiriesManager: React.FC<InquiriesManagerProps> = ({ initialInqui
     setOpenQuickMenuId(null);
   };
 
+  const handleToggleStatus = async (inquiry: ContactInquiry) => {
+    const nextStatus = inquiry.status.toUpperCase() === 'RESOLVED' ? 'UNREAD' : 'RESOLVED';
+    try {
+      const ok = await updateContactInquiryStatus(inquiry.id, nextStatus);
+      if (ok) {
+        setInquiries(prev =>
+          prev.map(i => (i.id === inquiry.id ? { ...i, status: nextStatus } : i))
+        );
+        showToast(`Inquiry status updated to ${nextStatus}`);
+      } else {
+        showToast('Failed to update status', true);
+      }
+    } catch (e) {
+      showToast('Network error updating status', true);
+    }
+  };
+
+  const handleDelete = async (inquiryId: string) => {
+    if (!confirm('Are you sure you want to delete this support inquiry?')) return;
+    try {
+      const ok = await deleteContactInquiry(inquiryId);
+      if (ok) {
+        setInquiries(prev => prev.filter(i => i.id !== inquiryId));
+        showToast('Inquiry deleted successfully');
+      } else {
+        showToast('Failed to delete inquiry', true);
+      }
+    } catch (e) {
+      showToast('Network error deleting inquiry', true);
+    }
+  };
+
   const handleReplySuccess = (updatedInquiryId: string) => {
     setInquiries(prev =>
       prev.map(item =>
         item.id === updatedInquiryId ? { ...item, status: 'RESOLVED' } : item
       )
     );
-    setToastMessage('Branded email reply dispatched successfully via Nodemailer!');
-    setTimeout(() => setToastMessage(null), 5000);
+    showToast('Branded email reply dispatched successfully via Nodemailer!');
   };
 
   const filteredInquiries = inquiries.filter(item => {
@@ -74,14 +110,16 @@ export const InquiriesManager: React.FC<InquiriesManagerProps> = ({ initialInqui
     <div className="space-y-6">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-sm flex items-center justify-between animate-fadeIn">
+        <div className={`p-4 rounded-2xl font-bold text-sm flex items-center justify-between border animate-fadeIn ${
+          toastMessage.isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+        }`}>
           <div className="flex items-center gap-2">
-            <span>✅</span>
-            <span>{toastMessage}</span>
+            <span>{toastMessage.isError ? '⚠️' : '✅'}</span>
+            <span>{toastMessage.text}</span>
           </div>
           <button
             onClick={() => setToastMessage(null)}
-            className="text-emerald-400 hover:text-emerald-300 text-xs font-mono"
+            className="text-slate-400 hover:text-slate-600 text-xs font-mono"
           >
             ✕
           </button>
@@ -276,10 +314,32 @@ export const InquiriesManager: React.FC<InquiriesManagerProps> = ({ initialInqui
                           <button
                             type="button"
                             onClick={() => handleOpenStandardReply(inquiry)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 text-[11px] font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-500/20 active:scale-95"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 text-[11px] font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-500/20 active:scale-95"
                           >
                             <span>✉️</span>
-                            <span>Preview &amp; Reply</span>
+                            <span>Reply</span>
+                          </button>
+
+                          {/* Toggle Status */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(inquiry)}
+                            className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-wider transition-all"
+                            title="Toggle status between UNREAD / RESOLVED"
+                          >
+                            {inquiry.status.toUpperCase() === 'RESOLVED' ? 'Mark Unread' : 'Mark Resolved'}
+                          </button>
+
+                          {/* Delete Inquiry */}
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(inquiry.id)}
+                            className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all"
+                            title="Delete Inquiry"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                           </button>
                         </div>
                       </td>

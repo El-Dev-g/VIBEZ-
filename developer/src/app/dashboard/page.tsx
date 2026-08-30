@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Activity,
   Key,
@@ -60,8 +61,26 @@ type DashboardTab =
   | 'settings'
   | 'billing';
 
-export default function DashboardPage() {
-  const { user, login, logout } = useDeveloperAuth();
+const VALID_TABS: DashboardTab[] = [
+  'overview',
+  'keys',
+  'team',
+  'quotas',
+  'logs',
+  'oauth',
+  'replay',
+  'ai_schema',
+  'explorer',
+  'profile',
+  'settings',
+  'billing'
+];
+
+function DashboardContent() {
+  const { user, login, logout, isLoading: authLoading } = useDeveloperAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [showOnboardingManual, setShowOnboardingManual] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -69,11 +88,47 @@ export default function DashboardPage() {
   // Collapsible dropdown state for sidebar group menus
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     'Overview & Metrics': true,
-    'Access & Security': false,
-    'Developer Tools & AI': false,
-    'Account & Preferences': false,
-    'Platform Resources': false,
+    'Access & Security': true,
+    'Developer Tools & AI': true,
+    'Account & Preferences': true,
+    'Platform Resources': true,
   });
+
+  // Restore and maintain tab from URL search params / hash / localStorage on page load or refresh
+  useEffect(() => {
+    // 1. Check URL query param ?tab=
+    const tabFromQuery = searchParams.get('tab') as DashboardTab;
+    if (tabFromQuery && VALID_TABS.includes(tabFromQuery)) {
+      setActiveTab(tabFromQuery);
+      return;
+    }
+
+    // 2. Check URL Hash #tab= or #oauth, etc.
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '') as DashboardTab;
+      if (hash && VALID_TABS.includes(hash)) {
+        setActiveTab(hash);
+        return;
+      }
+
+      // 3. Fallback to localStorage
+      const savedTab = localStorage.getItem('vibez_active_dashboard_tab') as DashboardTab;
+      if (savedTab && VALID_TABS.includes(savedTab)) {
+        setActiveTab(savedTab);
+      }
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (newTab: DashboardTab) => {
+    setActiveTab(newTab);
+    setMobileSidebarOpen(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vibez_active_dashboard_tab', newTab);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', newTab);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
 
   const toggleGroup = (groupName: string) => {
     setOpenGroups((prev) => ({
@@ -241,17 +296,17 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2 min-w-0">
                 <Building className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                 <span className="truncate font-bold text-white">
-                  {user?.organization || 'Acme Mobile Labs'}
+                  {user?.organization || 'PRIGID Verified Developer'}
                 </span>
               </div>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 shrink-0">
-                {user?.role || 'Owner'}
+                {user?.role || 'Developer'}
               </span>
             </div>
           </div>
 
           {/* Navigation Links Group */}
-          <div className="p-4 space-y-6 flex-1">
+          <div className="p-4 space-y-4 flex-1">
             {mainNavItems.map((group) => {
               const isOpen = openGroups[group.group] !== false;
               const hasActiveChild = group.items.some((item) => item.id === activeTab);
@@ -284,10 +339,7 @@ export default function DashboardPage() {
                           <button
                             key={item.id}
                             type="button"
-                            onClick={() => {
-                              setActiveTab(item.id as DashboardTab);
-                              setMobileSidebarOpen(false);
-                            }}
+                            onClick={() => handleTabChange(item.id as DashboardTab)}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                               isActive
                                 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold shadow-sm'
@@ -379,110 +431,96 @@ export default function DashboardPage() {
                 setShowOnboardingManual(true);
                 setMobileSidebarOpen(false);
               }}
-              className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-xs font-mono font-bold text-emerald-400 flex items-center justify-center gap-2 transition-all"
+              className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all"
             >
-              <span>🚀 Onboarding Guide</span>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Restart SDK Onboarding</span>
             </button>
 
             {user ? (
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('profile');
-                    setMobileSidebarOpen(false);
-                  }}
-                  className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity"
-                  title="View Profile"
-                >
-                  <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-700 shrink-0">
-                    <img
-                      src={
-                        user.avatar ||
-                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
-                      }
-                      alt={user.name}
-                      className="w-full h-full object-cover"
-                    />
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-400 to-teal-600 flex items-center justify-center font-bold text-slate-950 text-xs shadow shrink-0">
+                    {user.name ? user.name.charAt(0) : 'D'}
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-white truncate">{user.name}</div>
-                    <div className="text-[10px] text-slate-500 truncate">{user.email}</div>
+                    <div className="text-[10px] text-slate-500 truncate font-mono">{user.email}</div>
                   </div>
-                </button>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('settings');
-                      setMobileSidebarOpen(false);
-                    }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
-                    title="Console Settings"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={logout}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                    title="Logout"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={logout}
+                  title="Logout Session"
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
             ) : (
               <Link
                 href="/login"
-                className="w-full py-2 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs uppercase text-center block hover:bg-emerald-400"
+                className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 border border-slate-800"
               >
-                Sign In
+                <User className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Developer Sign In</span>
               </Link>
             )}
           </div>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto">
-        {/* Top Content Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-mono text-slate-500 mb-1">
-              <span>Console</span>
-              <ChevronRight className="w-3 h-3 text-slate-600" />
-              <span className="text-emerald-400 font-bold capitalize">{activeTab}</span>
+      {/* Main Content Workspace Area */}
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+        {/* Workspace Top Action Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/80 mb-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider font-bold">
+                PRIGID Infrastructure
+              </span>
+              <span className="text-slate-600">•</span>
+              <span className="text-[11px] font-mono text-slate-400 uppercase">
+                {activeTab.replace('_', ' ')}
+              </span>
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">
-              {tabTitles[activeTab]?.title}
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              {tabTitles[activeTab]?.title || 'Dashboard'}
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              {tabTitles[activeTab]?.subtitle}
+            <p className="text-xs sm:text-sm text-slate-400">
+              {tabTitles[activeTab]?.subtitle || 'Manage your developer workspace.'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>LIVE PRODUCTION</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('explorer')}
-              className="px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all flex items-center gap-1.5"
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Link
+              href="/docs"
+              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-mono font-medium flex items-center gap-1.5 transition-all"
             >
-              <Play className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Sandbox API</span>
-            </button>
+              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Interactive Docs</span>
+            </Link>
+
+            <Link
+              href="/sdks"
+              className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>Get SDKs</span>
+            </Link>
           </div>
         </div>
 
         {/* Tab Panel Components */}
         <div className="pt-2 space-y-6">
-          {!user ? (
+          {authLoading ? (
+            <div className="min-h-[50vh] flex items-center justify-center p-8">
+              <div className="flex flex-col items-center gap-3 text-slate-400 font-mono text-xs">
+                <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                <span>Restoring developer session...</span>
+              </div>
+            </div>
+          ) : !user ? (
             <div className="min-h-[65vh] flex items-center justify-center p-4">
               <div className="w-full max-w-lg bg-[#070b14] border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-center relative overflow-hidden">
                 <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -553,7 +591,7 @@ export default function DashboardPage() {
           ) : (
             <>
               {activeTab === 'overview' && (
-                <DashboardOverview onNavigateTab={(tab) => setActiveTab(tab as DashboardTab)} />
+                <DashboardOverview onNavigateTab={(tab) => handleTabChange(tab as DashboardTab)} />
               )}
               {activeTab === 'keys' && <DeveloperKeyGenerator />}
               {activeTab === 'team' && <TeamMembersManager />}
@@ -571,5 +609,20 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#050811] flex items-center justify-center text-slate-400 font-mono text-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          <span>Loading developer console...</span>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

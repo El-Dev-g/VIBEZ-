@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   BookOpen,
   ChevronDown,
@@ -43,11 +44,44 @@ interface NavCategory {
   items: NavItem[];
 }
 
-export default function DocsPage() {
+function DocsContent() {
+  const searchParams = useSearchParams();
   const [activeItem, setActiveItem] = useState<string>('intro');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+
+  // Restore and maintain active docs section on reload / direct link
+  useEffect(() => {
+    const docFromQuery = searchParams?.get('doc') || searchParams?.get('section');
+    if (docFromQuery) {
+      setActiveItem(docFromQuery);
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        setActiveItem(hash);
+        return;
+      }
+
+      const savedDoc = localStorage.getItem('vibez_active_docs_section');
+      if (savedDoc) {
+        setActiveItem(savedDoc);
+      }
+    }
+  }, [searchParams]);
+
+  const handleSelectDoc = (id: string) => {
+    setActiveItem(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vibez_active_docs_section', id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('doc', id);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
 
   const toggleCategory = (title: string) => {
     setCollapsedCategories((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -665,7 +699,7 @@ export default function DocsPage() {
                             <button
                               key={item.id}
                               type="button"
-                              onClick={() => setActiveItem(item.id)}
+                              onClick={() => handleSelectDoc(item.id)}
                               className={`w-full flex items-center justify-between p-1.5 rounded-md text-[11px] font-mono transition-all text-left ${
                                 isActive
                                   ? 'bg-emerald-500/10 text-emerald-400 font-bold border-l-2 border-emerald-500 pl-2'
@@ -694,5 +728,20 @@ export default function DocsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DocsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center text-slate-400 font-mono text-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          <span>Loading documentation...</span>
+        </div>
+      </div>
+    }>
+      <DocsContent />
+    </Suspense>
   );
 }

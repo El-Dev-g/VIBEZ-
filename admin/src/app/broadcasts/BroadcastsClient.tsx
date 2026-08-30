@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { fetchBroadcasts, sendBroadcastApi, BroadcastItem } from '../../services/api';
+import { fetchBroadcasts, sendBroadcastApi, deleteBroadcast, BroadcastItem } from '../../services/api';
 
 export default function BroadcastsPage() {
   const [title, setTitle] = useState('');
@@ -22,16 +22,14 @@ export default function BroadcastsPage() {
       setBroadcastHistory(data.map(item => ({
         id: item.id,
         title: item.title,
+        message: item.message,
         audience: item.targetAudience,
         sentAt: item.sentAt,
         status: 'Delivered',
         recipientCount: item.targetAudience === 'ALL' ? 'All Users' : 'Targeted'
       })));
     } else {
-      setBroadcastHistory([
-        { id: 'b1', title: 'System Maintenance Notice', audience: 'ALL', sentAt: '2026-08-24 14:00', status: 'Delivered', recipientCount: 'All Users' },
-        { id: 'b2', title: 'Green Checkmark Badge Special', audience: 'VERIFIED_ONLY', sentAt: '2026-08-20 09:30', status: 'Delivered', recipientCount: 'Verified Users' },
-      ]);
+      setBroadcastHistory([]);
     }
     setIsLoading(false);
   };
@@ -39,6 +37,23 @@ export default function BroadcastsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this broadcast log?')) return;
+    try {
+      const ok = await deleteBroadcast(id);
+      if (ok) {
+        setBroadcastHistory(prev => prev.filter(b => b.id !== id));
+        setToast({ text: 'Broadcast transmission deleted from archive.', isError: false });
+        setTimeout(() => setToast(null), 4000);
+      } else {
+        setToast({ text: 'Failed to delete broadcast transmission.', isError: true });
+      }
+    } catch (err) {
+      setToast({ text: 'Network error deleting broadcast.', isError: true });
+    }
+  };
 
   const handleSendBroadcast = async () => {
     if (!title.trim() || !message.trim()) {
@@ -170,19 +185,39 @@ export default function BroadcastsPage() {
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Archived Transmissions</h3>
             </div>
             <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto scrollbar-hide">
-              {broadcastHistory.map((item) => (
-                <div key={item.id} className="p-6 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{item.recipientCount}</span>
-                    <span className="text-[10px] font-bold text-slate-400">{item.sentAt.split(' ')[0]}</span>
-                  </div>
-                  <h4 className="text-sm font-black text-slate-900 leading-tight">{item.title}</h4>
-                  <div className="mt-3 flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.status}</span>
-                  </div>
+              {broadcastHistory.length === 0 ? (
+                <div className="p-8 text-center text-xs font-bold text-slate-400">
+                  No transmissions recorded yet.
                 </div>
-              ))}
+              ) : (
+                broadcastHistory.map((item) => (
+                  <div key={item.id} className="p-6 hover:bg-slate-50 transition-colors group">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{item.recipientCount}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-400">{item.sentAt?.split(' ')[0] || item.sentAt}</span>
+                        <button
+                          onClick={(e) => handleDelete(item.id, e)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all"
+                          title="Delete transmission log"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <h4 className="text-sm font-black text-slate-900 leading-tight">{item.title}</h4>
+                    {item.message && (
+                      <p className="mt-1 text-xs text-slate-500 font-medium line-clamp-2">{item.message}</p>
+                    )}
+                    <div className="mt-3 flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.status}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

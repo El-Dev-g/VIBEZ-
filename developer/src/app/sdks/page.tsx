@@ -1,11 +1,48 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Code, Terminal, Smartphone, Server, Cpu } from 'lucide-react';
 import { CodeBlock } from '../../components/CodeBlock';
 
-export default function SdksPage() {
-  const [selectedSdk, setSelectedSdk] = useState<'kotlin' | 'ts' | 'python' | 'go'>('kotlin');
+type SdkType = 'kotlin' | 'ts' | 'python' | 'go';
+
+const VALID_SDKS: SdkType[] = ['kotlin', 'ts', 'python', 'go'];
+
+function SdksContent() {
+  const searchParams = useSearchParams();
+  const [selectedSdk, setSelectedSdk] = useState<SdkType>('kotlin');
+
+  useEffect(() => {
+    const sdkParam = searchParams?.get('sdk') as SdkType;
+    if (sdkParam && VALID_SDKS.includes(sdkParam)) {
+      setSelectedSdk(sdkParam);
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '') as SdkType;
+      if (hash && VALID_SDKS.includes(hash)) {
+        setSelectedSdk(hash);
+        return;
+      }
+
+      const saved = localStorage.getItem('vibez_active_sdk') as SdkType;
+      if (saved && VALID_SDKS.includes(saved)) {
+        setSelectedSdk(saved);
+      }
+    }
+  }, [searchParams]);
+
+  const handleSelectSdk = (sdk: SdkType) => {
+    setSelectedSdk(sdk);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vibez_active_sdk', sdk);
+      const url = new URL(window.location.href);
+      url.searchParams.set('sdk', sdk);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
 
   const sdkDetails = {
     kotlin: {
@@ -183,7 +220,7 @@ func main() {
             <button
               key={item.id}
               type="button"
-              onClick={() => setSelectedSdk(item.id as any)}
+              onClick={() => handleSelectSdk(item.id as any)}
               className={`p-4 rounded-2xl border text-left flex items-center gap-3 transition-all ${
                 isSelected
                   ? 'bg-emerald-500/10 border-emerald-500/40 text-white shadow-lg shadow-emerald-500/10'
@@ -224,5 +261,20 @@ func main() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SdksPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center text-slate-400 font-mono text-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          <span>Loading SDK packages...</span>
+        </div>
+      </div>
+    }>
+      <SdksContent />
+    </Suspense>
   );
 }

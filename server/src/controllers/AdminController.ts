@@ -1479,4 +1479,236 @@ export class AdminController {
       res.status(500).json({ error: 'Failed to fetch security health report' });
     }
   }
+
+  async updateUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const { name, phoneNumber, googleEmail, about, isVerified, isBanned, adminEmail } = req.body;
+
+      if (name !== undefined || phoneNumber !== undefined || googleEmail !== undefined || about !== undefined) {
+        return res.status(403).json({ error: 'Direct modification of user profile fields (name, phone, email/handle, bio) by administrators is restricted.' });
+      }
+
+      const updateData: any = {};
+      if (isVerified !== undefined) {
+        updateData.isVerified = Boolean(isVerified);
+        if (isVerified) {
+          updateData.verifiedAt = new Date();
+        }
+      }
+      if (isBanned !== undefined) updateData.isBanned = Boolean(isBanned);
+
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: updateData
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || (req as any).admin?.email || 'system',
+          action: 'UPDATE_USER',
+          target: `User:${userId} (${updatedUser.name || updatedUser.phoneNumber || ''})`
+        }
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      res.status(500).json({ error: 'Failed to update user profile' });
+    }
+  }
+
+  async updateReportStatus(req: Request, res: Response) {
+    try {
+      const { reportId } = req.params;
+      const { status, adminEmail } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ error: 'Status is required (PENDING, RESOLVED, DISMISSED)' });
+      }
+
+      const updatedReport = await prisma.report.update({
+        where: { id: reportId },
+        data: { status: status.toUpperCase() }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || (req as any).admin?.email || 'system',
+          action: 'UPDATE_REPORT_STATUS',
+          target: `Report:${reportId} -> ${status.toUpperCase()}`
+        }
+      });
+
+      res.json({ success: true, report: updatedReport });
+    } catch (error) {
+      console.error('Failed to update report status:', error);
+      res.status(500).json({ error: 'Failed to update report status' });
+    }
+  }
+
+  async deleteReport(req: Request, res: Response) {
+    try {
+      const { reportId } = req.params;
+      const { adminEmail } = req.body || {};
+
+      await prisma.report.delete({
+        where: { id: reportId }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || (req as any).admin?.email || 'system',
+          action: 'DELETE_REPORT',
+          target: `Report:${reportId}`
+        }
+      });
+
+      res.json({ success: true, message: `Report ${reportId} deleted` });
+    } catch (error) {
+      console.error('Failed to delete report:', error);
+      res.status(500).json({ error: 'Failed to delete report' });
+    }
+  }
+
+  async getContactInquiryById(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const inquiry = await (prisma as any).contactInquiry.findUnique({
+        where: { id }
+      });
+      if (!inquiry) {
+        return res.status(404).json({ error: 'Inquiry not found' });
+      }
+      res.json(inquiry);
+    } catch (error) {
+      console.error('Failed to get contact inquiry:', error);
+      res.status(500).json({ error: 'Failed to retrieve contact inquiry' });
+    }
+  }
+
+  async deleteContactInquiry(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { adminEmail } = req.body || {};
+
+      await (prisma as any).contactInquiry.delete({
+        where: { id }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || (req as any).admin?.email || 'system',
+          action: 'DELETE_CONTACT_INQUIRY',
+          target: `Inquiry:${id}`
+        }
+      });
+
+      res.json({ success: true, message: 'Support inquiry deleted successfully' });
+    } catch (error) {
+      console.error('Failed to delete contact inquiry:', error);
+      res.status(500).json({ error: 'Failed to delete inquiry' });
+    }
+  }
+
+  async updateContactInquiryStatus(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { status, adminEmail } = req.body;
+
+      const updated = await (prisma as any).contactInquiry.update({
+        where: { id },
+        data: { status: status ? status.toUpperCase() : 'RESOLVED' }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || (req as any).admin?.email || 'system',
+          action: 'UPDATE_INQUIRY_STATUS',
+          target: `Inquiry:${id} -> ${status}`
+        }
+      });
+
+      res.json({ success: true, inquiry: updated });
+    } catch (error) {
+      console.error('Failed to update inquiry status:', error);
+      res.status(500).json({ error: 'Failed to update inquiry status' });
+    }
+  }
+
+  async deleteBroadcast(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { adminEmail } = req.body || {};
+
+      await (prisma as any).broadcast.delete({
+        where: { id }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || (req as any).admin?.email || 'system',
+          action: 'DELETE_BROADCAST',
+          target: `Broadcast:${id}`
+        }
+      });
+
+      res.json({ success: true, message: 'Broadcast deleted successfully' });
+    } catch (error) {
+      console.error('Failed to delete broadcast:', error);
+      res.status(500).json({ error: 'Failed to delete broadcast' });
+    }
+  }
+
+  async updateCommunity(req: Request, res: Response) {
+    try {
+      const { communityId } = req.params;
+      const { name, description, isOfficial, allowComments, allowReactions, adminEmail } = req.body;
+
+      const data: any = {};
+      if (name !== undefined) data.name = name.trim();
+      if (description !== undefined) data.description = description.trim();
+      if (isOfficial !== undefined) data.isOfficial = Boolean(isOfficial);
+      if (allowComments !== undefined) data.allowComments = Boolean(allowComments);
+      if (allowReactions !== undefined) data.allowReactions = Boolean(allowReactions);
+
+      const updated = await prisma.community.update({
+        where: { id: communityId },
+        data
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || (req as any).admin?.email || 'system',
+          action: 'UPDATE_COMMUNITY',
+          target: `Community:${communityId} (${updated.name})`
+        }
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Failed to update community:', error);
+      res.status(500).json({ error: 'Failed to update community' });
+    }
+  }
+
+  async clearAuditLogs(req: Request, res: Response) {
+    try {
+      const { adminEmail } = req.body || {};
+      await prisma.auditLog.deleteMany({});
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || (req as any).admin?.email || 'system',
+          action: 'CLEAR_AUDIT_LOGS',
+          target: 'All historical logs cleared'
+        }
+      });
+
+      res.json({ success: true, message: 'Audit logs cleared successfully' });
+    } catch (error) {
+      console.error('Failed to clear audit logs:', error);
+      res.status(500).json({ error: 'Failed to clear audit logs' });
+    }
+  }
 }

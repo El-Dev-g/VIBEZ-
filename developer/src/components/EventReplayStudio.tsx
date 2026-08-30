@@ -30,7 +30,11 @@ export const EventReplayStudio: React.FC = () => {
       const res = await fetch('/api/developer/server/dispatch-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientId: 'usr_test_receiver', content: 'Webhooks live dispatch event' })
+        body: JSON.stringify({
+          apiKey: 'vbz_live_master_key',
+          recipientId: 'usr_test_receiver',
+          content: 'Webhooks live dispatch event'
+        })
       });
       const data = await res.json();
       const newEvt: EventItem = {

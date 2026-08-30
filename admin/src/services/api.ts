@@ -975,3 +975,113 @@ export const replyToContactInquiry = async (
   }
 };
 
+export const deleteContactInquiry = async (inquiryId: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/inquiries/${inquiryId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders()
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('deleteContactInquiry error:', error);
+    return false;
+  }
+};
+
+export const updateContactInquiryStatus = async (inquiryId: string, status: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/inquiries/${inquiryId}/status`, {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ status })
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('updateContactInquiryStatus error:', error);
+    return false;
+  }
+};
+
+export const updateUser = async (userId: string, data: { name?: string; phoneNumber?: string; googleEmail?: string; about?: string; isVerified?: boolean; isBanned?: boolean }): Promise<User | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error('updateUser error:', error);
+  }
+  return null;
+};
+
+export const updateReportStatus = async (reportId: string, status: 'PENDING' | 'RESOLVED' | 'DISMISSED'): Promise<{ success: boolean; report?: any; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/reports/${reportId}/status`, {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json();
+    if (res.ok) return { success: true, report: data.report };
+    return { success: false, error: data.error || 'Failed to update report status' };
+  } catch (error: any) {
+    console.error('updateReportStatus error:', error);
+    return { success: false, error: error.message || 'Network error updating report' };
+  }
+};
+
+export const deleteReport = async (reportId: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/reports/${reportId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders()
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('deleteReport error:', error);
+    return false;
+  }
+};
+
+export const deleteBroadcast = async (broadcastId: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/broadcasts/${broadcastId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders()
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('deleteBroadcast error:', error);
+    return false;
+  }
+};
+
+export const updateCommunity = async (communityId: string, data: { name?: string; description?: string; isOfficial?: boolean; category?: string }): Promise<AdminCommunityItem | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/communities/${communityId}`, {
+      method: 'PUT',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error('updateCommunity error:', error);
+  }
+  return null;
+};
+
+export const clearAuditLogs = async (): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/logs`, {
+      method: 'DELETE',
+      headers: getAdminHeaders()
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('clearAuditLogs error:', error);
+    return false;
+  }
+};
+
