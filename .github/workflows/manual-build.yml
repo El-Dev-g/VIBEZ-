@@ -17,6 +17,16 @@ on:
           - 'release_apk'
           - 'release_bundle_aab'
         default: 'release_apk'
+      backend_url:
+        description: 'Backend API URL (e.g. https://vibez-server.onrender.com/)'
+        required: false
+        type: string
+        default: 'https://vibez-n5h1.onrender.com'
+      google_web_client_id:
+        description: 'Google OAuth Web Client ID for Sign-In'
+        required: false
+        type: string
+        default: 'your_google_web_client_id.apps.googleusercontent.com'
       create_github_release:
         description: 'Automatically create GitHub Release & attach binaries'
         required: true
@@ -85,6 +95,45 @@ jobs:
             echo "::error::CRITICAL: google-services.json is missing and GOOGLE_SERVICES_JSON secret was not provided. Build failed."
             exit 1
           fi
+
+      - name: Inject Environment Variables (.env)
+        env:
+          BACKEND_URL_SECRET: ${{ secrets.BACKEND_URL }}
+          GOOGLE_WEB_CLIENT_ID_SECRET: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          # Determine BACKEND_URL
+          if [ -n "$BACKEND_URL_SECRET" ]; then
+            RESOLVED_BACKEND_URL="$BACKEND_URL_SECRET"
+            echo "Using BACKEND_URL from GitHub Secrets."
+          elif [ -n "${{ inputs.backend_url }}" ]; then
+            RESOLVED_BACKEND_URL="${{ inputs.backend_url }}"
+            echo "Using BACKEND_URL from workflow input."
+          else
+            RESOLVED_BACKEND_URL="https://vibez-n5h1.onrender.com"
+            echo "Using fallback default BACKEND_URL."
+          fi
+
+          # Determine GOOGLE_WEB_CLIENT_ID
+          if [ -n "$GOOGLE_WEB_CLIENT_ID_SECRET" ]; then
+            RESOLVED_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID_SECRET"
+            echo "Using GOOGLE_WEB_CLIENT_ID from GitHub Secrets."
+          elif [ -n "${{ inputs.google_web_client_id }}" ]; then
+            RESOLVED_CLIENT_ID="${{ inputs.google_web_client_id }}"
+            echo "Using GOOGLE_WEB_CLIENT_ID from workflow input."
+          else
+            RESOLVED_CLIENT_ID="your_google_web_client_id.apps.googleusercontent.com"
+            echo "Using fallback default GOOGLE_WEB_CLIENT_ID."
+          fi
+
+          # Create .env file for Secrets Gradle Plugin to compile into BuildConfig
+          echo "Writing to .env file..."
+          echo "BACKEND_URL=\"$RESOLVED_BACKEND_URL\"" > .env
+          echo "GOOGLE_WEB_CLIENT_ID=\"$RESOLVED_CLIENT_ID\"" >> .env
+          
+          echo "----------------------------------------"
+          echo "Current .env configuration values:"
+          cat .env | sed 's/=[^=]*/=******/'
+          echo "----------------------------------------"
 
       - name: Prepare Keystore (Release Mode)
         if: ${{ inputs.android_build_type != 'debug_apk' }}
