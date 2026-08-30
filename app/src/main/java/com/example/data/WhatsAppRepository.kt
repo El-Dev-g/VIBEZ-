@@ -163,6 +163,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
         try {
             val remoteChats = NetworkClient.apiService.getChats("Bearer $token")
             remoteChats.forEach { dto ->
+                val isOff = dto.isOfficial || dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
+                val isVer = dto.isVerified || isOff || dto.members.any { it.user.isVerified }
                 val entity = ChatEntity(
                     id = dto.id,
                     remoteId = dto.id,
@@ -173,7 +175,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
                     unreadCount = 0,
                     isGroup = dto.isGroup,
                     isMuted = dto.isMuted,
-                    customWallpaper = dto.wallpaper
+                    customWallpaper = dto.wallpaper,
+                    isOfficial = isOff,
+                    isVerified = isVer
                 )
                 dao.insertChat(entity)
                 
@@ -486,6 +490,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
         return try {
             val dtos = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
             val entities = dtos.map { dto ->
+                val isOff = dto.isOfficial || dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
                 ChatEntity(
                     id = dto.id,
                     remoteId = dto.id,
@@ -495,7 +500,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
                     lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
                     unreadCount = 0,
                     isGroup = dto.isGroup,
-                    isOfficial = dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
+                    isOfficial = isOff,
+                    isVerified = isOff || dto.isVerified
                 )
             }
             entities.forEach { dao.insertChat(it) }

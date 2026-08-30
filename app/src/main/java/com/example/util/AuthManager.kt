@@ -63,6 +63,12 @@ class AuthManager(context: Context) {
         return prefs.getString("setting_$key", defaultValue)
     }
 
+    fun setVerified(verified: Boolean) {
+        prefs.edit().putBoolean("is_verified", verified).apply()
+    }
+
+    fun isVerified(): Boolean = prefs.getBoolean("is_verified", false)
+
     fun isLoggedIn(): Boolean = getAuthToken() != null
 
     fun logout() {

@@ -67,6 +67,8 @@ import com.example.data.ChatEntity
 import com.example.data.ContactEntity
 import com.example.data.MessageEntity
 import com.example.ui.components.AvatarView
+import com.example.ui.components.VerifiedBadge
+import com.example.ui.components.VerifiedBadgePill
 import com.example.ui.theme.WhatsAppEmerald
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,22 +136,12 @@ fun ContactInfoScreen(
                         )
                         if (chat?.isOfficial == true || chat?.isVerified == true || contact?.isVerified == true) {
                             Spacer(modifier = Modifier.width(6.dp))
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Verified",
-                                tint = WhatsAppEmerald,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            VerifiedBadge(size = 22.dp)
                         }
                     }
                     if (chat?.isOfficial == true) {
-                        Text(
-                            text = "Official System Community",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = WhatsAppEmerald,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        VerifiedBadgePill(label = "Official Verified Channel")
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

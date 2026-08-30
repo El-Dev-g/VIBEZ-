@@ -109,6 +109,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.AvatarView
+import com.example.ui.components.VerifiedBadge
 import com.example.ui.theme.WhatsAppMinimalAccent
 import com.example.ui.theme.WhatsAppMinimalNavPill
 import com.example.ui.theme.WhatsAppMinimalPrimary
@@ -190,6 +191,8 @@ fun SettingsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .clickable(onClick = onProfileClick)
                         .drawBehind {
                             // Subtle doodle background pattern
                             val stroke = Stroke(width = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
@@ -230,13 +233,8 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         if (isVerified) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Verified",
-                                tint = Color(0xFF10B981),
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            VerifiedBadge(size = 22.dp)
                         }
                     }
                 }
@@ -245,6 +243,12 @@ fun SettingsScreen(
             // 2. SETTINGS LIST (Screenshots 1 & 2)
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    VibesSettingClickRow(
+                        icon = Icons.Default.Security,
+                        title = "Verification & Badges",
+                        subtitle = if (isVerified) "Verified Official Account • View receipt" else "Get Green Verification Checkmark badge",
+                        onClick = if (isVerified) onViewBadgeReceiptClick else onGetBadgeClick
+                    )
                     VibesSettingClickRow(
                         icon = Icons.Default.AccountBox,
                         title = "Account",

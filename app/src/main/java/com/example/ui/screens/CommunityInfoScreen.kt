@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import com.example.data.ChatEntity
 import com.example.data.CommunityEntity
 import com.example.ui.components.AvatarView
+import com.example.ui.components.VerifiedBadge
+import com.example.ui.components.VerifiedBadgePill
 import com.example.ui.theme.WhatsAppEmerald
 import java.text.SimpleDateFormat
 import java.util.*
@@ -172,30 +174,14 @@ fun CommunityInfoScreen(
                         )
 
                         if (community.isOfficial) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = 8.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF3B82F6).copy(alpha = 0.15f))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(
-                                        imageVector = Icons.Default.Verified,
-                                        contentDescription = "Verified Official",
-                                        tint = Color(0xFF3B82F6),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = "Official",
-                                        color = Color(0xFF3B82F6),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            VerifiedBadge(size = 22.dp)
                         }
+                    }
+
+                    if (community.isOfficial) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        VerifiedBadgePill(label = "Platform Official Community")
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -380,12 +366,18 @@ fun CommunityInfoScreen(
                         Spacer(modifier = Modifier.width(16.dp))
 
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = channel.contactName,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = channel.contactName,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (channel.isOfficial || channel.isVerified) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    VerifiedBadge(size = 16.dp)
+                                }
+                            }
                             if (channel.lastMessage.isNotBlank()) {
                                 Text(
                                     text = channel.lastMessage,

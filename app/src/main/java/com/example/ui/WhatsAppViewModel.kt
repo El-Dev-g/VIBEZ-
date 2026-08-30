@@ -99,7 +99,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val typingChatId = MutableStateFlow<String?>(null)
 
     // Verification Badge State
-    val isVerified = MutableStateFlow(false)
+    val isVerified = MutableStateFlow(authManager.isVerified())
     val badgeStatus = MutableStateFlow<BadgeStatusResponse?>(null)
 
     // Maintenance Mode State
@@ -987,6 +987,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 if (response != null) {
                     badgeStatus.value = response
                     isVerified.value = response.isVerified
+                    authManager.setVerified(response.isVerified)
                     return@launch
                 }
             }
@@ -1039,6 +1040,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 )
                 if (response.success) {
                     isVerified.value = true
+                    authManager.setVerified(true)
                     refreshBadgeStatus()
                     onComplete(true, response.message)
                 } else {

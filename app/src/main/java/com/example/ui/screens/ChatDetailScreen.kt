@@ -599,7 +599,8 @@ fun ChatDetailScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    if (chat.isVerified || contact?.isVerified == true) {
+                                    if (chat.isVerified || chat.isOfficial || contact?.isVerified == true) {
+                                        Spacer(modifier = Modifier.width(4.dp))
                                         VerifiedBadge(size = 18.dp)
                                     }
                                 }

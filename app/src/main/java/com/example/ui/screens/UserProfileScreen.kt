@@ -88,6 +88,7 @@ fun UserProfileScreen(
     var showEditStatusDialog by remember { mutableStateOf(false) }
     var showEditContactDialog by remember { mutableStateOf(false) }
     var showQrDialog by remember { mutableStateOf(false) }
+    var showTrustDialog by remember { mutableStateOf(false) }
 
     // Temporary editing values for dialogs
     var editNameInput by remember { mutableStateOf("") }
@@ -187,6 +188,7 @@ fun UserProfileScreen(
                             icon = Icons.Default.Person,
                             label = "Name",
                             value = currentName,
+                            isVerified = isVerified,
                             onEditClick = {
                                 editNameInput = currentName
                                 showEditNameDialog = true
@@ -203,6 +205,7 @@ fun UserProfileScreen(
                             icon = Icons.Default.Info,
                             label = "About",
                             value = currentStatus,
+                            isVerified = false,
                             onEditClick = {
                                 editStatusInput = currentStatus
                                 showEditStatusDialog = true
@@ -215,19 +218,29 @@ fun UserProfileScreen(
                             icon = Icons.Default.Phone,
                             label = "Phone",
                             value = currentPhone,
+                            isVerified = false,
                             onEditClick = null
                         )
                     }
                 }
             } else {
-                // CONTACT VIEW (For other users)
+                // CONTACT VIEW (For other users / Viewers - Read Only)
                 item {
                     Column(modifier = Modifier.padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = currentName,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = currentName,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (isVerified) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                VerifiedBadge(size = 22.dp)
+                            }
+                        }
                         Text(
                             text = currentPhone,
                             fontSize = 16.sp,
@@ -249,14 +262,74 @@ fun UserProfileScreen(
                 
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(text = "About", fontWeight = FontWeight.Bold, color = WhatsAppMinimalPrimary)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = currentStatus)
+                            Text(text = currentStatus, fontSize = 15.sp)
+                        }
+                    }
+                }
+            }
+
+            // 3. BADGES & VERIFICATION STATUS SECTION
+            if (isVerified || isCurrentUser) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isVerified) Color(0xFF10B981).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isVerified) Color(0xFF10B981).copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (isCurrentUser) {
+                                        if (isVerified) onViewBadgeReceiptClick() else onGetBadgeClick()
+                                    } else {
+                                        showTrustDialog = true
+                                    }
+                                }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            VerifiedBadge(size = 28.dp)
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = if (isVerified) "Official Verified Badge" else "Get Verified Badge",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isVerified) Color(0xFF047857) else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (isVerified) {
+                                        if (isCurrentUser) "Cryptographically signed by VIBEZ • Tap to view certificate & invoice"
+                                        else "Verified authentic identity signed by VIBEZ platform"
+                                    } else "Display the green checkmark next to your name • $3.00 USD",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = if (isVerified) Color(0xFF10B981) else Color.Gray
+                            )
                         }
                     }
                 }
@@ -280,6 +353,32 @@ fun UserProfileScreen(
                     leadingContent = { Icon(Icons.Default.Lock, contentDescription = null, tint = WhatsAppMinimalPrimary) },
                     modifier = Modifier.clickable { onEncryptionClick?.invoke() }
                 )
+            }
+
+            if (!isCurrentUser) {
+                item {
+                    ListItem(
+                        headlineContent = { Text("Block $currentName", color = MaterialTheme.colorScheme.error) },
+                        leadingContent = { Icon(Icons.Default.Block, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                        modifier = Modifier.clickable {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("$currentName has been blocked")
+                            }
+                        }
+                    )
+                }
+
+                item {
+                    ListItem(
+                        headlineContent = { Text("Report $currentName", color = MaterialTheme.colorScheme.error) },
+                        leadingContent = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                        modifier = Modifier.clickable {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Report submitted to VIBEZ Security")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -334,6 +433,73 @@ fun UserProfileScreen(
             }
         )
     }
+
+    if (showTrustDialog) {
+        AlertDialog(
+            onDismissRequest = { showTrustDialog = false },
+            icon = {
+                VerifiedBadge(size = 48.dp)
+            },
+            title = {
+                Text(
+                    text = "Official Verified Profile",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "$currentName has verified their identity with the VIBEZ Platform Security Network.",
+                        fontSize = 14.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF10B981).copy(alpha = 0.1f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = Color(0xFF047857),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Status: Authentic & Active",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF047857)
+                                )
+                                Text(
+                                    text = "Authenticity certificate verified",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF047857).copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTrustDialog = false }) {
+                    Text("Done", fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -341,6 +507,7 @@ private fun ProfileInfoRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     value: String,
+    isVerified: Boolean = false,
     onEditClick: (() -> Unit)?
 ) {
     Row(
@@ -359,7 +526,18 @@ private fun ProfileInfoRow(
         Spacer(modifier = Modifier.width(32.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = label, fontSize = 14.sp, color = Color.Gray)
-            Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = value,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (isVerified) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    VerifiedBadge(size = 18.dp)
+                }
+            }
         }
         if (onEditClick != null) {
             Icon(
