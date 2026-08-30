@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:width="76dp"
-        android:height="76dp"
-        android:drawable="@drawable/vibez_logo_icon_1787281799663"
+        android:width="66dp"
+        android:height="66dp"
+        android:drawable="@drawable/vibez_icon_foreground_1788119528154"
         android:gravity="center" />
 </layer-list>

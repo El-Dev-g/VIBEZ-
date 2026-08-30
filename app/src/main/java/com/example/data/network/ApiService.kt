@@ -209,4 +209,7 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: ReportUserRequest
     ): ReportUserResponse
+
+    @GET("api/system/updates/latest")
+    suspend fun getLatestUpdate(): AppUpdateDto
 }

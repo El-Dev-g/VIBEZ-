@@ -1,7 +1,11 @@
 package com.example.data
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "communities")
 data class CommunityEntity(
-    val id: String = "",
+    @PrimaryKey val id: String = "",
     val name: String,
     val description: String = "",
     val avatarUrl: String = "",

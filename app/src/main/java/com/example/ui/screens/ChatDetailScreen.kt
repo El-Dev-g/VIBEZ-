@@ -538,6 +538,12 @@ fun ChatDetailScreen(
         )
     }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            focusManager.clearFocus()
+        }
+    }
+
     Scaffold(
         topBar = {
             if (showLocalSearch) {

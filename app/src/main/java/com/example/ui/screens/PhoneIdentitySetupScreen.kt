@@ -221,8 +221,7 @@ fun PhoneIdentitySetupScreen(
             if (isDemoMode) {
                 phoneVerificationStep = 1
                 verificationIdState = "demo_verification_id_${System.currentTimeMillis()}"
-                statusNotice = "Demo Mode: Firebase simulated SMS dispatched to $cleanPhone. Code: 123456"
-                Toast.makeText(context, "Demo Mode Active", Toast.LENGTH_SHORT).show()
+                statusNotice = "Verification simulated for testing. Code: 123456"
             } else {
                 errorMessage = "Firebase initialization failed. Please check your configuration."
             }
@@ -266,7 +265,6 @@ fun PhoneIdentitySetupScreen(
                 if (isDemoMode) {
                     phoneVerificationStep = 1
                     verificationIdState = "demo_vid_${System.currentTimeMillis()}"
-                    Toast.makeText(context, "Demo Mode: Falling back to mock verification", Toast.LENGTH_SHORT).show()
                 }
             }
 

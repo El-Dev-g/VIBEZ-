@@ -46,6 +46,7 @@ webrtc = "1.2.1"
 socket-io = "2.1.0"
 zxing = "3.5.3"
 mlkitBarcodeScanning = "17.3.0"
+gson = "2.11.0"
 
 
 [libraries]
@@ -111,6 +112,7 @@ webrtc = { group = "io.getstream", name = "stream-webrtc-android", version.ref =
 socket-io = { group = "io.socket", name = "socket.io-client", version.ref = "socket-io" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcodeScanning" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
 
 [plugins]

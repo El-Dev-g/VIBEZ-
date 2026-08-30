@@ -101,6 +101,12 @@ import com.example.ui.screens.MaintenanceScreen
 import com.example.ui.screens.WallpaperSettingsScreen
 import com.example.ui.screens.SystemBroadcastsScreen
 import com.example.ui.screens.ReportUserScreen
+import com.example.ui.screens.AccountSettingsScreen
+import com.example.ui.screens.PrivacySettingsScreen
+import com.example.ui.screens.HelpSettingsScreen
+import com.example.ui.screens.StorageDataSettingsScreen
+import com.example.ui.screens.EncryptionInfoScreen
+import com.example.ui.screens.AppUpdateScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -1112,7 +1118,90 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onChangePhoneClick = {
                     navController.navigate("change_phone")
+                },
+                onAccountClick = {
+                    navController.navigate("settings/account")
+                },
+                onPrivacyClick = {
+                    navController.navigate("settings/privacy")
+                },
+                onHelpClick = {
+                    navController.navigate("settings/help")
+                },
+                onStorageClick = {
+                    navController.navigate("settings/storage")
+                },
+                onAppUpdatesClick = {
+                    navController.navigate("settings/updates")
                 }
+            )
+        }
+
+        // 13.1 Account Settings
+        composable("settings/account") {
+            AccountSettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                onChangeNumberClick = { navController.navigate("change_phone") },
+                onDeleteAccountClick = {
+                    viewModel.logoutUser()
+                    navController.navigate("auth") { popUpTo(0) }
+                }
+            )
+        }
+
+        // 13.2 Privacy Settings
+        composable("settings/privacy") {
+            val lastSeen by viewModel.lastSeenPrivacy.collectAsState("EVERYONE")
+            val profilePhoto by viewModel.profilePhotoPrivacy.collectAsState("EVERYONE")
+            val about by viewModel.aboutPrivacy.collectAsState("EVERYONE")
+            val readReceipts by viewModel.isReadReceiptsEnabled.collectAsState(true)
+            
+            PrivacySettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                onStatusPrivacyClick = { navController.navigate("status_privacy") },
+                lastSeen = lastSeen,
+                profilePhoto = profilePhoto,
+                about = about,
+                readReceipts = readReceipts,
+                onPrivacyChange = { key, value -> viewModel.setPrivacySetting(key, value) },
+                onReadReceiptsChange = { enabled -> viewModel.setSetting("read_receipts", enabled) }
+            )
+        }
+
+        // 13.3 Help & Support
+        composable("settings/help") {
+            HelpSettingsScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 13.4 Storage & Data
+        composable("settings/storage") {
+            val mobileData by viewModel.mobileDataDownload.collectAsState("PHOTOS")
+            val wifi by viewModel.wifiDownload.collectAsState("ALL")
+            val roaming by viewModel.roamingDownload.collectAsState("NONE")
+
+            StorageDataSettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                mobileData = mobileData,
+                wifi = wifi,
+                roaming = roaming,
+                onStorageChange = { key, value -> viewModel.setStorageSetting(key, value) }
+            )
+        }
+
+        // 13.5 App Updates
+        composable("settings/updates") {
+            val latestUpdate by viewModel.latestUpdate.collectAsState()
+            val isChecking by viewModel.isCheckingForUpdates.collectAsState()
+            val error by viewModel.updateError.collectAsState()
+
+            AppUpdateScreen(
+                onBackClick = { navController.popBackStack() },
+                latestUpdate = latestUpdate,
+                isChecking = isChecking,
+                error = error,
+                onCheckUpdate = { viewModel.checkForUpdates() }
             )
         }
 
@@ -1304,6 +1393,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onViewBadgeReceiptClick = {
                     navController.navigate("badges_receipt")
                 },
+                onEncryptionClick = {
+                    navController.navigate("encryption_info")
+                },
                 onMessageClick = {
                     val matchingChat = allChatsList.firstOrNull { it.contactId == contactId }
                     if (matchingChat != null) {
@@ -1351,6 +1443,12 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onSuccess = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable("encryption_info") {
+            EncryptionInfoScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
     }

@@ -117,6 +117,16 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val isConversationTonesEnabled = MutableStateFlow(authManager.getSettingBoolean("conversation_tones", true))
     val isHighPriorityNotificationsEnabled = MutableStateFlow(authManager.getSettingBoolean("high_priority_notif", true))
 
+    // Privacy settings state
+    val lastSeenPrivacy: MutableStateFlow<String> = MutableStateFlow(authManager.getSettingString("last_seen_privacy") ?: "EVERYONE")
+    val profilePhotoPrivacy: MutableStateFlow<String> = MutableStateFlow(authManager.getSettingString("profile_photo_privacy") ?: "EVERYONE")
+    val aboutPrivacy: MutableStateFlow<String> = MutableStateFlow(authManager.getSettingString("about_privacy") ?: "EVERYONE")
+
+    // Storage settings state
+    val mobileDataDownload: MutableStateFlow<String> = MutableStateFlow(authManager.getSettingString("mobile_data_download") ?: "PHOTOS")
+    val wifiDownload: MutableStateFlow<String> = MutableStateFlow(authManager.getSettingString("wifi_download") ?: "ALL")
+    val roamingDownload: MutableStateFlow<String> = MutableStateFlow(authManager.getSettingString("roaming_download") ?: "NONE")
+
     // Status Privacy State
     val statusPrivacyMode = MutableStateFlow("MY_CONTACTS") // "MY_CONTACTS", "EXCEPT", "ONLY_SHARE"
     val statusPrivacyExcludedIds = MutableStateFlow<Set<String>>(emptySet())
@@ -138,6 +148,11 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val searchQuery = MutableStateFlow("")
     val isDarkMode = MutableStateFlow(false)
     val selectedTab = MutableStateFlow(0) // 0: Chats, 1: Updates, 2: Communities, 3: Calls
+
+    // App Update State
+    val latestUpdate = MutableStateFlow<AppUpdateDto?>(null)
+    val isCheckingForUpdates = MutableStateFlow(false)
+    val updateError = MutableStateFlow<String?>(null)
 
     val incomingNotification = MutableStateFlow<IncomingNotification?>(null)
     val repository: WhatsAppRepository
@@ -519,7 +534,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     fun fetchMessages(chatId: String) {
         viewModelScope.launch {
             authManager.getAuthToken()?.let { token ->
-                repository.getMessagesForChat(chatId, token)
+                repository.fetchMessagesForChat(chatId, token)
             }
         }
     }
@@ -547,7 +562,9 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             mediaUrl = mediaUrl,
             voiceDurationSeconds = voiceDurationSeconds
         )
-        repository.addLocalMessage(localMessage)
+        viewModelScope.launch {
+            repository.addLocalMessage(localMessage)
+        }
 
         viewModelScope.launch {
             repository.sendMessage(
@@ -612,6 +629,45 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             } finally {
                 isSyncingContacts.value = false
             }
+        }
+    }
+
+    fun setPrivacySetting(key: String, value: String) {
+        authManager.setSettingString(key, value)
+        when (key) {
+            "last_seen_privacy" -> lastSeenPrivacy.value = value
+            "profile_photo_privacy" -> profilePhotoPrivacy.value = value
+            "about_privacy" -> aboutPrivacy.value = value
+        }
+        
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                val current = repository.getSettings(token) ?: UserSettingsDto(
+                    statusPrivacyMode = statusPrivacyMode.value ?: "MY_CONTACTS",
+                    lastSeenPrivacy = lastSeenPrivacy.value ?: "EVERYONE",
+                    profilePhotoPrivacy = profilePhotoPrivacy.value ?: "EVERYONE",
+                    aboutPrivacy = aboutPrivacy.value ?: "EVERYONE",
+                    readReceipts = isReadReceiptsEnabled.value ?: true,
+                    notificationsEnabled = isHighPriorityNotificationsEnabled.value ?: true
+                )
+                
+                val updated = when (key) {
+                    "last_seen_privacy" -> current.copy(lastSeenPrivacy = value)
+                    "profile_photo_privacy" -> current.copy(profilePhotoPrivacy = value)
+                    "about_privacy" -> current.copy(aboutPrivacy = value)
+                    else -> current
+                }
+                repository.updateSettings(updated, token)
+            }
+        }
+    }
+
+    fun setStorageSetting(key: String, value: String) {
+        authManager.setSettingString(key, value)
+        when (key) {
+            "mobile_data_download" -> mobileDataDownload.value = value
+            "wifi_download" -> wifiDownload.value = value
+            "roaming_download" -> roamingDownload.value = value
         }
     }
 
@@ -684,17 +740,15 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun deleteMessage(messageId: String) {
         viewModelScope.launch {
-            authManager.getAuthToken()?.let { token ->
-                repository.deleteMessage(messageId, token)
-            }
+            val token = authManager.getAuthToken() ?: ""
+            repository.deleteMessage(messageId, token)
         }
     }
 
     fun clearChat(chatId: String) {
         viewModelScope.launch {
-            authManager.getAuthToken()?.let { token ->
-                repository.clearChat(chatId, token)
-            }
+            val token = authManager.getAuthToken() ?: ""
+            repository.clearChat(chatId, token)
         }
     }
 
@@ -704,9 +758,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun deleteChat(chatId: String) {
         viewModelScope.launch {
-            authManager.getAuthToken()?.let { token ->
-                repository.deleteChat(chatId, token)
-            }
+            val token = authManager.getAuthToken() ?: ""
+            repository.deleteChat(chatId, token)
         }
     }
 
@@ -765,9 +818,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun deleteStatus(statusId: String) {
         viewModelScope.launch {
-            authManager.getAuthToken()?.let { token ->
-                repository.deleteStatus(statusId, token)
-            }
+            val token = authManager.getAuthToken() ?: ""
+            repository.deleteStatus(statusId, token)
         }
     }
 
@@ -783,6 +835,22 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun toggleDarkMode() {
         isDarkMode.value = !isDarkMode.value
+    }
+
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            isCheckingForUpdates.value = true
+            updateError.value = null
+            try {
+                val update = repository.getLatestUpdate()
+                latestUpdate.value = update
+            } catch (e: Exception) {
+                updateError.value = "Failed to check for updates. Please try again later."
+                android.util.Log.e("WhatsAppViewModel", "Error checking for updates", e)
+            } finally {
+                isCheckingForUpdates.value = false
+            }
+        }
     }
 
     fun setSelectedTab(index: Int) {
@@ -823,7 +891,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun clearCallLogs() {
         viewModelScope.launch {
-            repository.clearCallLogs()
+            val token = authManager.getAuthToken()
+            repository.clearCallLogs(token)
         }
     }
 

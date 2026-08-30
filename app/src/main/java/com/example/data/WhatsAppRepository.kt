@@ -16,21 +16,18 @@ import com.example.data.network.*
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
-class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for binary compatibility if needed, but not using it
+class WhatsAppRepository(private val dao: WhatsAppDao) {
 
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     var socketManager: SocketManager? = null
 
-    private val _allChats = MutableStateFlow<List<ChatEntity>>(emptyList())
-    val allChats: StateFlow<List<ChatEntity>> = _allChats.asStateFlow()
-
-    private val _allCommunities = MutableStateFlow<List<CommunityEntity>>(emptyList())
-    val allCommunities: StateFlow<List<CommunityEntity>> = _allCommunities.asStateFlow()
-
-    private val _allContacts = MutableStateFlow<List<ContactEntity>>(emptyList())
-    val allContacts: StateFlow<List<ContactEntity>> = _allContacts.asStateFlow()
-
-    private val _currentChatMessages = MutableStateFlow<Map<String, List<MessageEntity>>>(emptyMap())
+    // Room-backed Flow streams
+    val allChats: Flow<List<ChatEntity>> = dao.getAllChats()
+    val allCommunities: Flow<List<CommunityEntity>> = dao.getAllCommunities()
+    val allContacts: Flow<List<ContactEntity>> = dao.getAllContacts()
+    val allStatuses: Flow<List<StatusEntity>> = dao.getAllStatuses()
+    val allCallLogs: Flow<List<CallLogEntity>> = dao.getAllCallLogs()
+    val starredMessages: Flow<List<MessageEntity>> = dao.getStarredMessages()
 
     fun initSocket(userId: String, onNewMessage: (MessageEntity) -> Unit) {
         socketManager = SocketManager(userId).apply {
@@ -39,10 +36,19 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     val messageDto = parseMessageJson(json)
                     val entity = mapMessageDtoToEntity(messageDto)
                     
-                    // Update in-memory messages
-                    val currentList = _currentChatMessages.value[entity.chatId] ?: emptyList()
-                    val newList = (currentList + entity).distinctBy { it.id }
-                    _currentChatMessages.value = _currentChatMessages.value + (entity.chatId to newList)
+                    repositoryScope.launch {
+                        dao.insertMessage(entity)
+                        
+                        // Update chat's last message
+                        val chat = dao.getChatById(entity.chatId)
+                        chat?.let {
+                            dao.updateChat(it.copy(
+                                lastMessage = entity.content,
+                                lastMessageTime = entity.timestamp,
+                                unreadCount = it.unreadCount + 1
+                            ))
+                        }
+                    }
                     
                     onNewMessage(entity)
                 } catch (e: Exception) {
@@ -80,6 +86,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     private fun mapMessageDtoToEntity(dto: MessageDto): MessageEntity {
         return MessageEntity(
             id = dto.id,
+            remoteId = dto.id,
             chatId = dto.chatId,
             senderId = if (dto.senderId == "ME") "ME" else dto.senderId,
             content = dto.content,
@@ -146,20 +153,19 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             e.printStackTrace()
         }
         socketManager = null
-        _allChats.value = emptyList()
-        _allCommunities.value = emptyList()
-        _allContacts.value = emptyList()
-        _allStatuses.value = emptyList()
-        _allCallLogs.value = emptyList()
-        _currentChatMessages.value = emptyMap()
+        repositoryScope.launch {
+            dao.clearCallLogs()
+            // We usually don't clear everything on logout in WhatsApp, but we could if needed
+        }
     }
 
     suspend fun syncChats(token: String) {
         try {
             val remoteChats = NetworkClient.apiService.getChats("Bearer $token")
-            val chatEntities = remoteChats.map { dto ->
-                ChatEntity(
+            remoteChats.forEach { dto ->
+                val entity = ChatEntity(
                     id = dto.id,
+                    remoteId = dto.id,
                     contactId = dto.members.firstOrNull { it.user.phoneNumber != "" }?.user?.id ?: "",
                     contactName = dto.name ?: dto.members.firstOrNull { it.user.phoneNumber != "" }?.user?.name ?: "Unknown",
                     lastMessage = dto.messages.firstOrNull()?.content ?: "",
@@ -169,30 +175,40 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     isMuted = dto.isMuted,
                     customWallpaper = dto.wallpaper
                 )
+                dao.insertChat(entity)
+                
+                // Sync messages for each chat
+                dto.messages.forEach { msgDto ->
+                    dao.insertMessage(mapMessageDtoToEntity(msgDto))
+                }
             }
-            _allChats.value = chatEntities
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    suspend fun getMessagesForChat(chatId: String, token: String): List<MessageEntity> {
-        return try {
+    suspend fun fetchMessagesForChat(chatId: String, token: String) {
+        try {
             val dtos = NetworkClient.apiService.getMessages("Bearer $token", chatId)
-            val entities = dtos.map { mapMessageDtoToEntity(it) }
-            _currentChatMessages.value = _currentChatMessages.value + (chatId to entities)
-            entities
+            dtos.forEach { 
+                dao.insertMessage(mapMessageDtoToEntity(it))
+            }
         } catch (e: Exception) {
-            emptyList()
+            e.printStackTrace()
         }
     }
 
-    fun getMessagesFlow(chatId: String): Flow<List<MessageEntity>> = _currentChatMessages.map { it[chatId] ?: emptyList() }
+    fun getMessagesFlow(chatId: String): Flow<List<MessageEntity>> = dao.getMessagesForChat(chatId)
 
-    fun addLocalMessage(message: MessageEntity) {
-        val currentList = _currentChatMessages.value[message.chatId] ?: emptyList()
-        val newList = (currentList + message).distinctBy { it.id }
-        _currentChatMessages.value = _currentChatMessages.value + (message.chatId to newList)
+    suspend fun addLocalMessage(message: MessageEntity) {
+        dao.insertMessage(message)
+        val chat = dao.getChatById(message.chatId)
+        chat?.let {
+            dao.updateChat(it.copy(
+                lastMessage = message.content,
+                lastMessageTime = message.timestamp
+            ))
+        }
     }
 
     suspend fun sendMessage(
@@ -239,17 +255,15 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     }
 
     suspend fun resetChatUnreadCount(chatId: String) {
-        _allChats.value = _allChats.value.map {
-            if (it.id == chatId) it.copy(unreadCount = 0) else it
-        }
+        dao.resetChatUnreadCount(chatId)
     }
 
     suspend fun updateChatWallpaper(chatId: String, wallpaper: String, token: String) {
         try {
             NetworkClient.apiService.updateChat("Bearer $token", chatId, UpdateChatRequest(wallpaper = wallpaper))
-            // Wallpaper state is usually managed in VM but we can cache it in chat entity if needed
-            _allChats.value = _allChats.value.map {
-                if (it.id == chatId) it.copy(customWallpaper = wallpaper) else it
+            val chat = dao.getChatById(chatId)
+            chat?.let {
+                dao.updateChat(it.copy(customWallpaper = wallpaper))
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -259,56 +273,82 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     suspend fun updateChatMuteStatus(chatId: String, isMuted: Boolean, token: String) {
         try {
             NetworkClient.apiService.updateChat("Bearer $token", chatId, UpdateChatRequest(isMuted = isMuted))
-            _allChats.value = _allChats.value.map {
-                if (it.id == chatId) it.copy(isMuted = isMuted) else it
-            }
+            dao.updateChatMuteStatus(chatId, isMuted)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    suspend fun getChatById(chatId: String): ChatEntity? = _allChats.value.find { it.id == chatId }
-    suspend fun getMessageById(messageId: String): MessageEntity? = _currentChatMessages.value.values.flatten().find { it.id == messageId }
+    suspend fun getChatById(chatId: String): ChatEntity? = dao.getChatById(chatId)
+    suspend fun getMessageById(messageId: String): MessageEntity? = dao.getMessageById(messageId)
 
     suspend fun deleteMessage(messageId: String, token: String) {
         try {
-            NetworkClient.apiService.deleteMessage("Bearer $token", messageId)
-            val currentMap = _currentChatMessages.value.toMutableMap()
-            for ((cId, msgList) in currentMap) {
-                val updated = msgList.filter { it.id != messageId }
-                if (updated.size != msgList.size) {
-                    currentMap[cId] = updated
+            val message = dao.getMessageById(messageId)
+            message?.let { msg ->
+                if (msg.mediaUrl.isNotEmpty() && !msg.mediaUrl.startsWith("http")) {
+                    try {
+                        val file = java.io.File(msg.mediaUrl)
+                        if (file.exists()) file.delete()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             }
-            _currentChatMessages.value = currentMap
+            NetworkClient.apiService.deleteMessage("Bearer $token", messageId)
+            dao.deleteMessage(messageId)
         } catch (e: Exception) {
             e.printStackTrace()
+            // Always try to delete locally even if network fails
+            dao.deleteMessage(messageId)
         }
     }
 
     suspend fun clearChat(chatId: String, token: String) {
         try {
+            val messages = dao.getMessagesForChatOneShot(chatId)
+            messages.forEach { msg ->
+                if (msg.mediaUrl.isNotEmpty() && !msg.mediaUrl.startsWith("http")) {
+                    try {
+                        val file = java.io.File(msg.mediaUrl)
+                        if (file.exists()) file.delete()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
             NetworkClient.apiService.clearChatMessages("Bearer $token", chatId)
-            val currentMap = _currentChatMessages.value.toMutableMap()
-            currentMap[chatId] = emptyList()
-            _currentChatMessages.value = currentMap
-            _allChats.value = _allChats.value.map {
-                if (it.id == chatId) it.copy(lastMessage = "", lastMessageTime = System.currentTimeMillis()) else it
+            dao.clearChatMessages(chatId)
+            val chat = dao.getChatById(chatId)
+            chat?.let {
+                dao.updateChat(it.copy(lastMessage = "", lastMessageTime = System.currentTimeMillis()))
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            dao.clearChatMessages(chatId)
         }
     }
 
     suspend fun deleteChat(chatId: String, token: String) {
         try {
+            val messages = dao.getMessagesForChatOneShot(chatId)
+            messages.forEach { msg ->
+                if (msg.mediaUrl.isNotEmpty() && !msg.mediaUrl.startsWith("http")) {
+                    try {
+                        val file = java.io.File(msg.mediaUrl)
+                        if (file.exists()) file.delete()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
             NetworkClient.apiService.deleteChat("Bearer $token", chatId)
-            _allChats.value = _allChats.value.filter { it.id != chatId }
-            val currentMap = _currentChatMessages.value.toMutableMap()
-            currentMap.remove(chatId)
-            _currentChatMessages.value = currentMap
+            dao.deleteChat(chatId)
+            dao.clearChatMessages(chatId)
         } catch (e: Exception) {
             e.printStackTrace()
+            dao.deleteChat(chatId)
+            dao.clearChatMessages(chatId)
         }
     }
 
@@ -316,26 +356,15 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         try {
             val newStarred = !message.isStarred
             NetworkClient.apiService.updateMessage("Bearer $token", message.id, UpdateMessageRequest(isStarred = newStarred))
-            
-            val currentMap = _currentChatMessages.value.toMutableMap()
-            val list = currentMap[message.chatId] ?: return
-            val updated = list.map {
-                if (it.id == message.id) it.copy(isStarred = newStarred) else it
-            }
-            currentMap[message.chatId] = updated
-            _currentChatMessages.value = currentMap
+            dao.updateMessage(message.copy(isStarred = newStarred))
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     suspend fun updateContact(id: String, name: String, phone: String, about: String) {
-        _allContacts.value = _allContacts.value.map {
-            if (it.id == id) it.copy(name = name, phoneNumber = phone, aboutStatus = about) else it
-        }
-        _allChats.value = _allChats.value.map {
-            if (it.contactId == id) it.copy(contactName = name) else it
-        }
+        dao.updateContactDetails(id, name, phone, about)
+        dao.updateChatContactName(id, name)
     }
 
     suspend fun createNewContact(name: String, phone: String, about: String, token: String): String {
@@ -348,7 +377,6 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                 syncChats(token)
                 targetUser.id
             } else {
-                // If user doesn't exist, we can't create a real HTTPS chat
                 throw Exception("User with phone $phone not found on server")
             }
         } catch (e: Exception) {
@@ -359,7 +387,6 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     suspend fun createGroupChat(groupName: String, contactIds: List<String>, token: String): String {
         return try {
-            // Filter out any local/mock IDs if they somehow leaked in
             val memberIds = contactIds.filter { !it.contains("_") } 
             val request = CreateGroupRequest(name = groupName, memberIds = memberIds)
             val chatDto = NetworkClient.apiService.createGroupChat("Bearer $token", request)
@@ -387,15 +414,13 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                 )
             }
             
-            // Merge with existing contacts
-            val currentMap = _allContacts.value.associateBy { it.phoneNumber }.toMutableMap()
-            mappedContacts.forEach { currentMap[it.phoneNumber] = it }
-            _allContacts.value = currentMap.values.toList()
+            mappedContacts.forEach { 
+                dao.insertContact(it)
+            }
             mappedContacts
         } catch (e: Exception) {
             e.printStackTrace()
-            // Fallback for demo: return any matching from current contacts
-            _allContacts.value
+            emptyList()
         }
     }
 
@@ -435,12 +460,11 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     suspend fun syncCommunities(token: String) {
         try {
-            android.util.Log.d("WhatsAppRepository", "Syncing communities...")
             val dtos = NetworkClient.apiService.getCommunities("Bearer $token")
-            android.util.Log.d("WhatsAppRepository", "Received ${dtos.size} communities from server")
-            _allCommunities.value = dtos.map { mapCommunityDtoToEntity(it) }
+            dtos.forEach { 
+                dao.insertCommunity(mapCommunityDtoToEntity(it))
+            }
         } catch (e: Exception) {
-            android.util.Log.e("WhatsAppRepository", "Failed to sync communities: ${e.message}")
             e.printStackTrace()
         }
     }
@@ -450,7 +474,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             val request = CreateCommunityRequest(name, description, avatarUrl)
             val dto = NetworkClient.apiService.createCommunity("Bearer $token", request)
             val entity = mapCommunityDtoToEntity(dto)
-            _allCommunities.value = _allCommunities.value + entity
+            dao.insertCommunity(entity)
             entity
         } catch (e: Exception) {
             e.printStackTrace()
@@ -461,38 +485,26 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     suspend fun getCommunityChats(communityId: String, token: String): List<ChatEntity> {
         return try {
             val dtos = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
-            val community = _allCommunities.value.find { it.id == communityId }
             val entities = dtos.map { dto ->
                 ChatEntity(
                     id = dto.id,
+                    remoteId = dto.id,
                     contactId = "",
                     contactName = dto.name ?: "Unknown",
                     lastMessage = dto.messages.firstOrNull()?.content ?: "",
                     lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
                     unreadCount = 0,
                     isGroup = dto.isGroup,
-                    isOfficial = dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true,
-                    allowComments = community?.allowComments ?: true
+                    isOfficial = dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
                 )
             }
-            // Cache these chats so they are available in the global chat list for navigation
-            val currentChats = _allChats.value.toMutableList()
-            entities.forEach { entity ->
-                if (currentChats.none { it.id == entity.id }) {
-                    currentChats.add(entity)
-                }
-            }
-            _allChats.value = currentChats
+            entities.forEach { dao.insertChat(it) }
 
-            // Also populate messages for these chats from the DTOs
-            val currentMsgMap = _currentChatMessages.value.toMutableMap()
             dtos.forEach { dto ->
-                val chatMessages = dto.messages.map { mapMessageDtoToEntity(it) }
-                if (chatMessages.isNotEmpty()) {
-                    currentMsgMap[dto.id] = chatMessages
+                dto.messages.forEach { msgDto ->
+                    dao.insertMessage(mapMessageDtoToEntity(msgDto))
                 }
             }
-            _currentChatMessages.value = currentMsgMap
 
             entities
         } catch (e: Exception) {
@@ -519,7 +531,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     suspend fun syncStatuses(token: String, currentUserId: String?) {
         try {
             val dtos = NetworkClient.apiService.getStatuses("Bearer $token")
-            _allStatuses.value = dtos.map { mapStatusDtoToEntity(it, currentUserId) }
+            dtos.forEach { 
+                dao.insertStatus(mapStatusDtoToEntity(it, currentUserId))
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -528,9 +542,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
     suspend fun markStatusViewed(statusId: String, token: String) {
         try {
             NetworkClient.apiService.viewStatus("Bearer $token", statusId)
-            _allStatuses.value = _allStatuses.value.map {
-                if (it.id == statusId) it.copy(isViewed = true) else it
-            }
+            dao.markStatusViewed(statusId)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -538,10 +550,22 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     suspend fun deleteStatus(statusId: String, token: String) {
         try {
+            val status = dao.getStatusById(statusId)
+            status?.let { s ->
+                if (s.mediaUrl.isNotEmpty() && !s.mediaUrl.startsWith("http")) {
+                    try {
+                        val file = java.io.File(s.mediaUrl)
+                        if (file.exists()) file.delete()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
             NetworkClient.apiService.deleteStatus("Bearer $token", statusId)
-            _allStatuses.value = _allStatuses.value.filter { it.id != statusId }
+            dao.deleteStatus(statusId)
         } catch (e: Exception) {
             e.printStackTrace()
+            dao.deleteStatus(statusId)
         }
     }
 
@@ -579,7 +603,6 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             if (callResponse.isSuccessful) {
                 publicUrl
             } else {
-                android.util.Log.e("WhatsAppRepository", "File upload failed with code: ${callResponse.code}")
                 null
             }
         } catch (e: Exception) {
@@ -621,9 +644,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                 textStyle = textStyleJson
             )
             val dto = NetworkClient.apiService.createStatus("Bearer $token", request)
-            val currentUserId = if (dto.userId != "ME") dto.userId else null
-            val entity = mapStatusDtoToEntity(dto, currentUserId ?: "ME")
-            _allStatuses.value = _allStatuses.value + entity
+            val entity = mapStatusDtoToEntity(dto, null)
+            dao.insertStatus(entity)
             entity.id
         } catch (e: Exception) {
             e.printStackTrace()
@@ -700,15 +722,28 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     suspend fun deleteExpiredStatuses() {
         val twentyFourHoursAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000L)
-        _allStatuses.value = _allStatuses.value.filter { it.timestamp > twentyFourHoursAgo }
-    }
-    suspend fun clearCallLogs() {
-        _allCallLogs.value = emptyList()
+        try {
+            val expired = dao.getExpiredStatuses(twentyFourHoursAgo)
+            expired.forEach { s ->
+                if (s.mediaUrl.isNotEmpty() && !s.mediaUrl.startsWith("http")) {
+                    try {
+                        val file = java.io.File(s.mediaUrl)
+                        if (file.exists()) file.delete()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        dao.deleteExpiredStatuses(twentyFourHoursAgo)
     }
 
     suspend fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean): String {
+        val id = "call_${System.currentTimeMillis()}"
         val newLog = CallLogEntity(
-            id = "call_${System.currentTimeMillis()}",
+            id = id,
             contactId = contactId,
             contactName = contactName,
             timestamp = System.currentTimeMillis(),
@@ -716,14 +751,15 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             isIncoming = isIncoming,
             isMissed = isMissed
         )
-        _allCallLogs.value = listOf(newLog) + _allCallLogs.value
-        return newLog.id
+        dao.insertCallLog(newLog)
+        return id
     }
+
     suspend fun syncCallLogs(token: String) {
         try {
             val dtos = NetworkClient.apiService.getCallLogs("Bearer $token")
-            _allCallLogs.value = dtos.map { dto ->
-                CallLogEntity(
+            dtos.forEach { dto ->
+                dao.insertCallLog(CallLogEntity(
                     id = dto.id,
                     contactId = if (dto.callerId == "ME") dto.receiverId else dto.callerId,
                     contactName = (if (dto.callerId == "ME") dto.receiver?.name else dto.caller?.name) ?: "Unknown",
@@ -731,7 +767,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     callType = dto.type,
                     isIncoming = dto.receiverId == "ME",
                     isMissed = dto.status == "MISSED"
-                )
+                ))
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -746,10 +782,18 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
+    suspend fun clearCallLogs(token: String? = null) {
+        if (token != null) {
+            clearRemoteCallLogs(token)
+        } else {
+            dao.clearCallLogs()
+        }
+    }
+
     suspend fun clearRemoteCallLogs(token: String) {
         try {
             NetworkClient.apiService.clearCallLogs("Bearer $token")
-            _allCallLogs.value = emptyList()
+            dao.clearCallLogs()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -810,15 +854,6 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
-    private val _allStatuses = MutableStateFlow<List<StatusEntity>>(emptyList())
-    val allStatuses: StateFlow<List<StatusEntity>> = _allStatuses.asStateFlow()
-
-    private val _allCallLogs = MutableStateFlow<List<CallLogEntity>>(emptyList())
-    val allCallLogs: StateFlow<List<CallLogEntity>> = _allCallLogs.asStateFlow()
-    val starredMessages: Flow<List<MessageEntity>> = _currentChatMessages.map { map ->
-        map.values.flatten().filter { it.isStarred }
-    }
-
     suspend fun getAvailablePaymentProviders(token: String): List<PaymentProviderDto> {
         return NetworkClient.apiService.getAvailablePaymentProviders("Bearer $token")
     }
@@ -829,5 +864,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     suspend fun reportUser(token: String, reportedUserId: String, reason: String): ReportUserResponse {
         return NetworkClient.apiService.reportUser("Bearer $token", ReportUserRequest(reportedUserId, reason))
+    }
+
+    suspend fun getLatestUpdate(): AppUpdateDto {
+        return NetworkClient.apiService.getLatestUpdate()
     }
 }

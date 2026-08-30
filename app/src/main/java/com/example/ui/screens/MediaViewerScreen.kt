@@ -83,6 +83,8 @@ import com.example.data.MessageEntity
 import com.example.ui.components.AvatarView
 import com.example.ui.theme.WhatsAppMinimalPrimary
 import kotlinx.coroutines.delay
+import androidx.core.content.FileProvider
+import com.example.BuildConfig
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -370,7 +372,35 @@ fun MediaViewerScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        Toast.makeText(context, "Opening document viewer...", Toast.LENGTH_SHORT).show()
+                                        if (message.mediaUrl.isNotBlank()) {
+                                            try {
+                                                val file = File(message.mediaUrl)
+                                                if (file.exists()) {
+                                                    val uri = FileProvider.getUriForFile(
+                                                        context,
+                                                        "${BuildConfig.APPLICATION_ID}.fileprovider",
+                                                        file
+                                                    )
+                                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                        setDataAndType(uri, context.contentResolver.getType(uri))
+                                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } else {
+                                                    // Try treat as Uri if not local file path
+                                                    val uri = Uri.parse(message.mediaUrl)
+                                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                        setDataAndType(uri, "application/pdf") // Default to pdf for doc
+                                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    }
+                                                    context.startActivity(intent)
+                                                }
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Could not open document: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Document URL is empty", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                             ) {
                                 Row(

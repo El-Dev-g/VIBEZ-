@@ -314,3 +314,14 @@ data class ReportUserResponse(
     val message: String? = null
 )
 
+@JsonClass(generateAdapter = true)
+data class AppUpdateDto(
+    val id: String,
+    val versionCode: Int,
+    val versionName: String,
+    val releaseNotes: String,
+    val downloadUrl: String,
+    val isCritical: Boolean = false,
+    val createdAt: String
+)
+

@@ -58,7 +58,7 @@ object MusicSearchService {
                         )
                     }
                 }
-                tracks
+                tracks.distinctBy { it.title.lowercase() + it.artist.lowercase() }
             }
         } catch (e: Exception) {
             Log.e("MusicSearchService", "Error searching music: ", e)

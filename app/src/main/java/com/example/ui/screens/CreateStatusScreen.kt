@@ -145,6 +145,13 @@ fun CreateStatusScreen(
         Color(0xFF075E54)
     }
 
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    DisposableEffect(Unit) {
+        onDispose {
+            focusManager.clearFocus()
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {

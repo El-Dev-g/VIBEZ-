@@ -411,35 +411,6 @@ fun StatusPageItem(
                     Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                 }
             }
-
-            status.songTitle?.let { song ->
-                Spacer(modifier = Modifier.height(10.dp))
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                    modifier = Modifier.align(Alignment.Start)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Audiotrack,
-                            contentDescription = "Song playing",
-                            tint = WhatsAppEmerald,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "$song • ${status.songArtist ?: "Unknown artist"}",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
         }
 
         // Media caption overlay if IMAGE or VIDEO status

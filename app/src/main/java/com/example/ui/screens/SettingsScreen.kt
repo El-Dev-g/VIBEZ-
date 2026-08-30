@@ -48,7 +48,30 @@ import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Vibration
-import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.Feedback
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -111,7 +134,12 @@ fun SettingsScreen(
     onGetBadgeClick: () -> Unit = {},
     onViewBadgeReceiptClick: () -> Unit = {},
     onSystemBroadcastsClick: () -> Unit = {},
-    onChangePhoneClick: () -> Unit = {}
+    onChangePhoneClick: () -> Unit = {},
+    onAccountClick: () -> Unit = {},
+    onPrivacyClick: () -> Unit = {},
+    onHelpClick: () -> Unit = {},
+    onStorageClick: () -> Unit = {},
+    onAppUpdatesClick: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -136,24 +164,26 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.ElectricBolt,
-                            contentDescription = "VIBEZ",
-                            tint = WhatsAppMinimalPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "VIBEZ Settings",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = userName,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { /* Search */ }) {
+                        Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                    }
+                    IconButton(onClick = { showQrModal = true }) {
+                        Icon(imageVector = Icons.Default.QrCode2, contentDescription = "My QR")
+                    }
+                    IconButton(onClick = onProfileClick) {
+                        Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Profile")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -169,463 +199,146 @@ fun SettingsScreen(
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            // 1. HERO VIBEZ PROFILE CARD
+            // 1. HERO VIBEZ PROFILE HEADER (Screenshot 1 Style)
             item {
-                Card(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onProfileClick),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        WhatsAppMinimalNavPill,
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                )
-                            )
-                            .padding(20.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Box(modifier = Modifier.clickable(onClick = onProfileClick)) {
-                                AvatarView(name = userName, avatarUrl = "", size = 72.dp)
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF22C55E))
-                                        .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                                        .align(Alignment.BottomEnd)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(16.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = userName,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = userPhone,
-                                    fontSize = 14.sp,
-                                    color = WhatsAppMinimalPrimary,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Surface(
-                                    color = WhatsAppMinimalPrimary.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Text(
-                                        text = activeVibeStatus,
-                                        fontSize = 12.sp,
-                                        color = WhatsAppMinimalPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-
-                            IconButton(
-                                onClick = { showQrModal = true },
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(WhatsAppMinimalPrimary.copy(alpha = 0.1f))
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.QrCode2,
-                                    contentDescription = "My QR",
-                                    tint = WhatsAppMinimalPrimary
+                        .drawBehind {
+                            // Subtle doodle background pattern
+                            val stroke = Stroke(width = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+                            for (i in 0..10) {
+                                drawCircle(
+                                    color = Color.LightGray.copy(alpha = 0.1f),
+                                    radius = 40f + (i * 20f),
+                                    center = Offset(size.width * 0.8f, size.height * 0.2f),
+                                    style = stroke
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Status Chip Picker
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // "Share a thought!" bubble
+                    Surface(
+                        modifier = Modifier.offset(y = 12.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        shadowElevation = 2.dp,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
+                    ) {
                         Text(
-                            text = "Set Current Status",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Share a thought!",
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        Box(
+                            modifier = Modifier
+                                .size(136.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .padding(4.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            vibeStatusOptions.forEach { statusOption ->
-                                val isSelected = (statusOption == activeVibeStatus)
-                                Surface(
-                                    modifier = Modifier.clickable {
-                                        activeVibeStatus = statusOption
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("VIBEZ status updated to: $statusOption")
-                                        }
-                                    },
-                                    color = if (isSelected) WhatsAppMinimalPrimary else MaterialTheme.colorScheme.surface,
-                                    shape = RoundedCornerShape(20.dp),
-                                    border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                                ) {
-                                    Text(
-                                        text = statusOption,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                    )
-                                }
-                            }
+                            AvatarView(name = userName, avatarUrl = "", size = 128.dp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = userName,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .border(1.dp, Color(0xFF22C55E), CircleShape)
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add",
+                                tint = Color(0xFF22C55E),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        if (isVerified) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Verified",
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
             }
 
-            // 2. QUICK VIBEZ DASHBOARD GRID
+            // 2. SETTINGS LIST (Screenshots 1 & 2)
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Dark Mode Card
-                    VibesQuickTile(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.DarkMode,
-                        title = "Dark Theme",
-                        subtitle = if (isDarkMode) "Enabled" else "Disabled",
-                        isActive = isDarkMode,
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    VibesSettingClickRow(
+                        icon = Icons.Default.AccountBox,
+                        title = "Account",
+                        subtitle = "Security notifications, change number",
+                        onClick = onAccountClick
+                    )
+                    VibesSettingClickRow(
+                        icon = Icons.Default.PrivacyTip,
+                        title = "Privacy",
+                        subtitle = "Block contacts, status privacy",
+                        onClick = onPrivacyClick
+                    )
+                    VibesSettingClickRow(
+                        icon = Icons.Default.Chat,
+                        title = "Chats",
+                        subtitle = "Wallpapers and chat history",
+                        onClick = onWallpaperClick
+                    )
+                    VibesSettingClickRow(
+                        icon = Icons.Default.Palette,
+                        title = "Appearance",
+                        subtitle = "Light/Dark theme",
                         onClick = onToggleDarkMode
                     )
-
-                    // Biometric Lock Card
-                    VibesQuickTile(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Fingerprint,
-                        title = "App Lock",
-                        subtitle = if (biometricLock) "Active" else "Off",
-                        isActive = biometricLock,
-                        onClick = {
-                            biometricLock = !biometricLock
-                            scope.launch {
-                                snackbarHostState.showSnackbar(
-                                    if (biometricLock) "VIBEZ Fingerprint Lock Enabled" else "VIBEZ App Lock Disabled"
-                                )
-                            }
-                        }
+                    VibesSettingClickRow(
+                        icon = Icons.Default.Campaign,
+                        title = "Broadcasts",
+                        subtitle = "Manage broadcast lists",
+                        onClick = onSystemBroadcastsClick
                     )
-                }
-            }
-
-            // 3. STORAGE & DATA CLEANER CARD
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Storage,
-                                    contentDescription = "Storage",
-                                    tint = WhatsAppMinimalPrimary
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(text = "VIBEZ Vault Storage", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                    Text(text = "1.4 GB / 32 GB Used", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                            OutlinedButton(
-                                onClick = {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("VIBEZ Cache Cleared! 240 MB freed.")
-                                    }
-                                },
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Clean", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        LinearProgressIndicator(
-                            progress = { 0.18f },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp)),
-                            color = WhatsAppMinimalPrimary,
-                            trackColor = MaterialTheme.colorScheme.outlineVariant
-                        )
-                    }
-                }
-            }
-
-            // 4. VIBEZ PREFERENCES LIST
-            item {
-                Text(
-                    text = "VERIFICATION & BADGE",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WhatsAppMinimalPrimary,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-                )
-            }
-
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (isVerified) onViewBadgeReceiptClick() else onGetBadgeClick()
-                        },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isVerified) Color(0xFFECFDF5) else MaterialTheme.colorScheme.surface
+                    VibesSettingClickRow(
+                        icon = Icons.Default.Storage,
+                        title = "Storage and data",
+                        subtitle = "Network usage, auto-download",
+                        onClick = onStorageClick
                     )
-                ) {
-                    val shortPriceDisplay = badgePriceText.replace(" USD", "").ifBlank { "$3.00" }
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isVerified) Color(0xFF10B981) else Color(0xFF10B981).copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = if (isVerified) Color.White else Color(0xFF10B981)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = if (isVerified) "Verified Badge ($shortPriceDisplay)" else "Get Green Verification Badge ($shortPriceDisplay)",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (isVerified) "Active • Tap to view payment receipt" else "Stand out & verify real identity across VIBEZ",
-                                    fontSize = 12.sp,
-                                    color = if (isVerified) Color(0xFF047857) else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF10B981)
-                        ) {
-                            Text(
-                                text = if (isVerified) "Receipt" else shortPriceDisplay,
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSystemBroadcastsClick() },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
+                    VibesSettingClickRow(
+                        icon = Icons.Default.HelpOutline,
+                        title = "Help",
+                        subtitle = "Help center, privacy policy",
+                        onClick = onHelpClick
                     )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .background(WhatsAppMinimalNavPill),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.NotificationsActive,
-                                    contentDescription = null,
-                                    tint = WhatsAppMinimalPrimary
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "System Broadcasts & Alerts",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "View official announcements & maintenance alerts",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = WhatsAppMinimalPrimary.copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                text = "View",
-                                color = WhatsAppMinimalPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                Text(
-                    text = "VIBEZ PREFERENCES",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WhatsAppMinimalPrimary,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-                )
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column {
-                        // HD Uploads Toggle
-                        VibesSettingToggleRow(
-                            icon = Icons.Default.Hd,
-                            title = "HD Media Uploads",
-                            subtitle = "Always upload photos and videos in full uncompressed resolution",
-                            isChecked = hdMediaUpload,
-                            onCheckedChange = {
-                                hdMediaUpload = it
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("HD Media Uploads set to $it")
-                                }
-                            }
-                        )
-
-                        // Haptic Feedback
-                        VibesSettingToggleRow(
-                            icon = Icons.Default.Vibration,
-                            title = "VIBEZ Haptics & Vibration",
-                            subtitle = "Tactile feedback on messages and calls",
-                            isChecked = hapticFeedback,
-                            onCheckedChange = {
-                                hapticFeedback = it
-                            }
-                        )
-
-                        // Google Authentication & Cloud Services
-                        VibesSettingClickRow(
-                            icon = Icons.Default.AccountCircle,
-                            title = "Google Account & Cloud Auth",
-                            subtitle = googleEmail?.let { "Connected as $it" } ?: "Link Google Account & Drive Backup",
-                            onClick = onGoogleAuthClick
-                        )
-
-                        // Change Phone Number
-                        VibesSettingClickRow(
-                            icon = Icons.Default.Phone,
-                            title = "Change Phone Number",
-                            subtitle = "Migrate your account and encrypted keys to a new number",
-                            onClick = onChangePhoneClick
-                        )
-
-                        // Security Shield
-                        VibesSettingClickRow(
-                            icon = Icons.Default.Security,
-                            title = "Security & Encryption",
-                            subtitle = "256-bit End-to-end active protection",
-                            onClick = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("All VIBEZ chats & calls are E2E encrypted.")
-                                }
-                            }
-                        )
-
-                        // Linked Devices
-                        VibesSettingClickRow(
-                            icon = Icons.Default.Devices,
-                            title = "Connected Web Devices",
-                            subtitle = "1 active web session online",
-                            onClick = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("VIBEZ Web Session: Chrome on macOS")
-                                }
-                            }
-                        )
-
-                        // Chat Wallpaper Option
-                        VibesSettingClickRow(
-                            icon = Icons.Default.Wallpaper,
-                            title = "Chat Wallpaper",
-                            subtitle = "Customize background color, gradient, or custom photos",
-                            onClick = onWallpaperClick
-                        )
-
-                        // Help & Support
-                        VibesSettingClickRow(
-                            icon = Icons.Default.HelpOutline,
-                            title = "VIBEZ Help Center",
-                            subtitle = "FAQs, app version v2.4.0, contact us",
-                            onClick = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("VIBEZ Version 2.4.0 (Build 2026)")
-                                }
-                            }
-                        )
-                    }
+                    VibesSettingClickRow(
+                        icon = Icons.Default.SystemUpdate,
+                        title = "App updates",
+                        subtitle = "Check for new versions",
+                        onClick = onAppUpdatesClick
+                    )
                 }
             }
 

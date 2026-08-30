@@ -55,6 +55,14 @@ class AuthManager(context: Context) {
         return prefs.getBoolean("setting_$key", defaultValue)
     }
 
+    fun setSettingString(key: String, value: String) {
+        prefs.edit().putString("setting_$key", value).apply()
+    }
+
+    fun getSettingString(key: String, defaultValue: String? = null): String? {
+        return prefs.getString("setting_$key", defaultValue)
+    }
+
     fun isLoggedIn(): Boolean = getAuthToken() != null
 
     fun logout() {

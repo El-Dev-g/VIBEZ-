@@ -3,8 +3,9 @@ package com.example.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Entity(tableName = "messages")
 data class MessageEntity(
-    val id: String = "",
+    @PrimaryKey val id: String = "",
     val remoteId: String? = null,
     val chatId: String,
     val senderId: String, // "ME" for Me, or contactId
