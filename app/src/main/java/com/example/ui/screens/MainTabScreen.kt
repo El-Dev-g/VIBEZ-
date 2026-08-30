@@ -98,6 +98,7 @@ fun MainTabScreen(
     onStarredMessagesClick: () -> Unit,
     onNewGroupClick: () -> Unit,
     onAvatarClick: (String) -> Unit = {},
+    onDeleteChat: (String) -> Unit = {},
     onStatusPrivacyClick: () -> Unit = {},
     onMyStatusListClick: () -> Unit = {},
     onClearCallLogs: () -> Unit = {},
@@ -419,7 +420,8 @@ fun MainTabScreen(
                     onSearchQueryChange = onSearchQueryChange,
                     onChatClick = onChatClick,
                     onNewChatClick = onNewChatClick,
-                    onAvatarClick = onAvatarClick
+                    onAvatarClick = onAvatarClick,
+                    onDeleteChat = onDeleteChat
                 )
                 1 -> StatusListScreen(
                     statuses = statuses,

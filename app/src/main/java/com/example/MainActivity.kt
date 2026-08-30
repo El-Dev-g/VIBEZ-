@@ -523,6 +523,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                         navController.navigate("user_profile/$contactId")
                     }
                 },
+                onDeleteChat = { cId ->
+                    viewModel.deleteChat(cId)
+                },
                 onStatusPrivacyClick = {
                     navController.navigate("status_privacy")
                 },
@@ -654,6 +657,10 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onClearChat = {
                     viewModel.clearChat(chatId)
+                },
+                onDeleteChat = {
+                    viewModel.deleteChat(chatId)
+                    navController.popBackStack()
                 },
                 onChatRead = {
                     viewModel.resetChatUnreadCount(chatId)

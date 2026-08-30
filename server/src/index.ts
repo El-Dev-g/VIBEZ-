@@ -161,6 +161,9 @@ app.post('/api/users/report', authenticate, (req, res) => user.reportUser(req, r
 app.get('/api/chats', authenticate, (req, res) => chat.getChats(req, res));
 app.get('/api/chats/:chatId/messages', authenticate, (req, res) => chat.getMessages(req, res));
 app.post('/api/chats/private', authenticate, (req, res) => chat.createOrGetPrivateChat(req, res));
+app.post('/api/chats/group', authenticate, (req, res) => chat.createGroupChat(req, res));
+app.delete('/api/chats/:chatId', authenticate, (req, res) => chat.deleteChat(req, res));
+app.patch('/api/chats/:chatId', authenticate, (req, res) => chat.updateChat(req, res));
 
 // Status Routes
 app.get('/api/statuses', authenticate, (req, res) => status.getStatuses(req, res));

@@ -1,9 +1,11 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,12 +28,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -42,6 +47,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,9 +81,57 @@ fun ChatsListScreen(
     onChatClick: (String) -> Unit,
     onNewChatClick: () -> Unit,
     onAvatarClick: (String) -> Unit = {},
+    onDeleteChat: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
+    var chatToDelete by remember { mutableStateOf<ChatEntity?>(null) }
+
+    if (chatToDelete != null) {
+        val target = chatToDelete!!
+        AlertDialog(
+            onDismissRequest = { chatToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Delete chat?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete this chat with \"${target.contactName}\"? Messages and media will be permanently removed from this device and the database.",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val id = target.id
+                        chatToDelete = null
+                        onDeleteChat(id)
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete chat", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { chatToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     val categories = listOf("All", "Unread", "Groups", "Pinned")
 
@@ -226,6 +280,7 @@ fun ChatsListScreen(
                         contacts = contacts,
                         typingChatId = typingChatId,
                         onClick = { onChatClick(chat.id) },
+                        onLongClick = { chatToDelete = chat },
                         onAvatarClick = { onAvatarClick(chat.contactId) }
                     )
                 }
@@ -234,19 +289,24 @@ fun ChatsListScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VibezChatItemCard(
     chat: ChatEntity,
     contacts: List<ContactEntity> = emptyList(),
     typingChatId: String? = null,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     onAvatarClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 5.dp)
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)

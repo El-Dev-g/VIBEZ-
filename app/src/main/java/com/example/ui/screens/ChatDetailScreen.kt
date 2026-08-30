@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -147,6 +148,7 @@ fun ChatDetailScreen(
     onCameraClick: () -> Unit = {},
     onToggleMuteChat: (String) -> Unit = {},
     onClearChat: () -> Unit,
+    onDeleteChat: () -> Unit = {},
     onChatRead: () -> Unit = {}
 ) {
     if (chat == null) return
@@ -154,6 +156,52 @@ fun ChatDetailScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
+
+    var showDeleteChatDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteChatDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteChatDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Delete this chat?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Messages and media from this chat will be deleted from your device and removed from the database.",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteChatDialog = false
+                        onDeleteChat()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete chat", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteChatDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     LaunchedEffect(chat.id, chat.unreadCount) {
         if (chat.unreadCount > 0) {
@@ -695,6 +743,20 @@ fun ChatDetailScreen(
                                     onClick = {
                                         showOptionsMenu = false
                                         onClearChat()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete chat", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    },
+                                    onClick = {
+                                        showOptionsMenu = false
+                                        showDeleteChatDialog = true
                                     }
                                 )
                             }

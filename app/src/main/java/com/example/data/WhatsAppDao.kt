@@ -39,6 +39,9 @@ interface WhatsAppDao {
     @Query("SELECT * FROM chats ORDER BY lastMessageTime DESC")
     fun getAllChats(): Flow<List<ChatEntity>>
 
+    @Query("SELECT * FROM chats")
+    suspend fun getAllChatsOneShot(): List<ChatEntity>
+
     @Query("SELECT * FROM chats WHERE id = :chatId")
     suspend fun getChatById(chatId: String): ChatEntity?
 

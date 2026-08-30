@@ -84,4 +84,94 @@ export class ChatController {
       res.status(500).json({ error: 'Failed to create chat' });
     }
   }
+
+  async createGroupChat(req: AuthRequest, res: Response) {
+    try {
+      const { name, memberIds, avatarUrl } = req.body;
+      const currentUserId = req.user?.id as string;
+      const allMembers = Array.from(new Set([currentUserId, ...(memberIds || [])]));
+
+      const newGroup = await prisma.chat.create({
+        data: {
+          isGroup: true,
+          name: name || 'New Group',
+          avatarUrl: avatarUrl || null,
+          members: {
+            create: allMembers.map(uid => ({ userId: uid }))
+          }
+        },
+        include: {
+          members: {
+            include: { user: true }
+          },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' }
+          }
+        }
+      });
+
+      res.json(newGroup);
+    } catch (error) {
+      console.error('Failed to create group chat:', error);
+      res.status(500).json({ error: 'Failed to create group chat' });
+    }
+  }
+
+  async deleteChat(req: AuthRequest, res: Response) {
+    try {
+      const { chatId } = req.params;
+      const currentUserId = req.user?.id as string;
+
+      // Verify the user is a member of this chat
+      const member = await prisma.chatMember.findFirst({
+        where: { chatId, userId: currentUserId }
+      });
+
+      if (!member) {
+        return res.status(404).json({ error: 'Chat not found or access denied' });
+      }
+
+      // Check if it's a private 1-on-1 chat or group
+      const chat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { members: true }
+      });
+
+      if (!chat) {
+        return res.status(404).json({ error: 'Chat not found' });
+      }
+
+      // Delete the messages, members, and chat
+      await prisma.message.deleteMany({ where: { chatId } });
+      await prisma.chatMember.deleteMany({ where: { chatId } });
+      await prisma.chat.delete({ where: { id: chatId } });
+
+      res.json({ success: true, message: 'Chat deleted successfully' });
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+      res.status(500).json({ error: 'Failed to delete chat' });
+    }
+  }
+
+  async updateChat(req: AuthRequest, res: Response) {
+    try {
+      const { chatId } = req.params;
+      const { name, avatarUrl } = req.body;
+
+      const updated = await prisma.chat.update({
+        where: { id: chatId },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(avatarUrl !== undefined && { avatarUrl })
+        }
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Failed to update chat:', error);
+      res.status(500).json({ error: 'Failed to update chat' });
+    }
+  }
 }
+
