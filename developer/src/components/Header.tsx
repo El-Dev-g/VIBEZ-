@@ -9,8 +9,8 @@ export const Header: React.FC = () => {
   const pathname = usePathname();
   const { user, logout } = useDeveloperAuth();
 
-  // Hide home page header on dashboard
-  if (pathname?.startsWith('/dashboard')) {
+  // Hide home page header on dashboard and docs
+  if (pathname?.startsWith('/dashboard') || pathname?.startsWith('/docs')) {
     return null;
   }
 

@@ -1,10 +1,10 @@
-import { fetchAuditLogs } from '../../services/api';
+import { fetchAuditLogs, AuditLog } from '../../services/api';
 import LogsClient from './LogsClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AuditLogsPage() {
-  let logs = [];
+  let logs: AuditLog[] = [];
   try {
     logs = await fetchAuditLogs();
   } catch (error) {
