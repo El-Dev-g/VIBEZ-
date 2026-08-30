@@ -26,7 +26,7 @@ on:
         description: 'Google OAuth Web Client ID for Sign-In'
         required: false
         type: string
-        default: 'your_google_web_client_id.apps.googleusercontent.com'
+        default: 'your-google-web-client-id.apps.googleusercontent.com'
       create_github_release:
         description: 'Automatically create GitHub Release & attach binaries'
         required: true
@@ -162,6 +162,23 @@ jobs:
             exit 1
           fi
           echo "Keystore verified successfully."
+
+      - name: Print Keystore SHA Fingerprints
+        run: |
+          if [ -f "my-upload-key.jks" ]; then
+            echo "=========================================================="
+            echo "           RELEASE KEYSTORE FINGERPRINTS                  "
+            echo "=========================================================="
+            keytool -list -v -keystore my-upload-key.jks -storepass "${{ secrets.RELEASE_STORE_PASSWORD }}" | grep -E "Alias name:|SHA1:|SHA256:" || true
+            echo "=========================================================="
+          else
+            echo "=========================================================="
+            echo "No custom release keystore decoded (Debug APK build)."
+            echo "Extracting local debug signatures using Gradle signingReport..."
+            echo "=========================================================="
+            ./gradlew :app:signingReport | grep -A 10 "Variant: debug" || true
+            echo "=========================================================="
+          fi
 
       - name: Build Android Package (Debug APK)
         if: ${{ inputs.android_build_type == 'debug_apk' }}

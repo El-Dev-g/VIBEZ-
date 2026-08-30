@@ -640,7 +640,9 @@ fun AuthScreen(
                                 scope.launch {
                                     isSigningIn = true
                                     try {
-                                        val clientId = if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotEmpty() && BuildConfig.GOOGLE_WEB_CLIENT_ID != "your-google-web-client-id.apps.googleusercontent.com") {
+                                        val clientId = if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotEmpty() && 
+                                                           !BuildConfig.GOOGLE_WEB_CLIENT_ID.contains("your-google-web-client-id") && 
+                                                           !BuildConfig.GOOGLE_WEB_CLIENT_ID.contains("your_google_web_client_id")) {
                                             BuildConfig.GOOGLE_WEB_CLIENT_ID
                                         } else {
                                             "31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com"
