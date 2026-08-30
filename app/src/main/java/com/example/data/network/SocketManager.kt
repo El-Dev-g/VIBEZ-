@@ -10,6 +10,10 @@ import java.net.URISyntaxException
 class SocketManager(private val userId: String) {
     private var socket: Socket? = null
     private val TAG = "SocketManager"
+    
+    var onCallOfferReceived: ((JSONObject) -> Unit)? = null
+    var onCallAnswerReceived: ((JSONObject) -> Unit)? = null
+    var onIceCandidateReceived: ((JSONObject) -> Unit)? = null
 
     fun connect(onMessageReceived: (JSONObject) -> Unit) {
         try {
@@ -28,6 +32,21 @@ class SocketManager(private val userId: String) {
             socket?.on("receive_message") { args ->
                 val data = args[0] as JSONObject
                 onMessageReceived(data)
+            }
+
+            socket?.on("call_offer") { args ->
+                val data = args[0] as JSONObject
+                onCallOfferReceived?.invoke(data)
+            }
+
+            socket?.on("call_answer") { args ->
+                val data = args[0] as JSONObject
+                onCallAnswerReceived?.invoke(data)
+            }
+
+            socket?.on("ice_candidate") { args ->
+                val data = args[0] as JSONObject
+                onIceCandidateReceived?.invoke(data)
             }
 
             socket?.on("new_message_notification") { args ->
@@ -65,6 +84,32 @@ class SocketManager(private val userId: String) {
             put("isTyping", isTyping)
         }
         socket?.emit("typing", data)
+    }
+
+    fun sendCallOffer(targetUserId: String, sdp: String) {
+        val data = JSONObject().apply {
+            put("targetUserId", targetUserId)
+            put("sdp", sdp)
+        }
+        socket?.emit("call_offer", data)
+    }
+
+    fun sendCallAnswer(targetUserId: String, sdp: String) {
+        val data = JSONObject().apply {
+            put("targetUserId", targetUserId)
+            put("sdp", sdp)
+        }
+        socket?.emit("call_answer", data)
+    }
+
+    fun sendIceCandidate(targetUserId: String, sdpMid: String, sdpMLineIndex: Int, candidate: String) {
+        val data = JSONObject().apply {
+            put("targetUserId", targetUserId)
+            put("sdpMid", sdpMid)
+            put("sdpMLineIndex", sdpMLineIndex)
+            put("candidate", candidate)
+        }
+        socket?.emit("ice_candidate", data)
     }
 
     fun disconnect() {

@@ -243,6 +243,44 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         }
     }
 
+    // Bridge WebRTC signaling between Repository and VideoCallViewModel
+    LaunchedEffect(Unit) {
+        viewModel.repository.incomingCall.collect { json ->
+            if (json != null) {
+                val callerName = json.optString("callerName", "Unknown")
+                val sdp = json.optString("sdp")
+                if (sdp.isNotEmpty()) {
+                    val offer = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.OFFER, sdp)
+                    videoCallViewModel.setIncomingCallOffer(callerName, offer)
+                }
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.repository.callAnswer.collect { json ->
+            if (json != null) {
+                val sdp = json.optString("sdp")
+                if (sdp.isNotEmpty()) {
+                    val answer = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.ANSWER, sdp)
+                    videoCallViewModel.onRemoteAnswerReceived(answer)
+                }
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.repository.iceCandidate.collect { json ->
+            if (json != null) {
+                val sdpMid = json.optString("sdpMid")
+                val sdpMLineIndex = json.optInt("sdpMLineIndex")
+                val sdp = json.optString("candidate")
+                if (sdp.isNotEmpty()) {
+                    val candidate = org.webrtc.IceCandidate(sdpMid, sdpMLineIndex, sdp)
+                    videoCallViewModel.onRemoteIceCandidateReceived(candidate)
+                }
+            }
+        }
+    }
+
     val startDestination = "splash"
 
     if (isMaintenanceMode) {
@@ -1014,6 +1052,12 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             val contactId = backStackEntry.arguments?.getString("contactId") ?: ""
             val isVideo = backStackEntry.arguments?.getBoolean("isVideo") ?: false
             val contact = contacts.firstOrNull { it.id == contactId }
+
+            LaunchedEffect(contactId) {
+                viewModel.repository.socketManager?.let {
+                    videoCallViewModel.setupSignaling(it, contactId)
+                }
+            }
 
             CallScreen(
                 contact = contact,

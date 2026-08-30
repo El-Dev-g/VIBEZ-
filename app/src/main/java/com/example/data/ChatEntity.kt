@@ -16,6 +16,7 @@ data class ChatEntity(
     val isArchived: Boolean = false,
     val isGroup: Boolean = false,
     val isMuted: Boolean = false,
+    val customWallpaper: String? = null,
     val isVerified: Boolean = false,
     val isOfficial: Boolean = false,
     val allowComments: Boolean = true,

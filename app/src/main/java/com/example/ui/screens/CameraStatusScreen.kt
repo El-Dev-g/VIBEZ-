@@ -85,6 +85,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import com.example.R
 import com.example.ui.theme.WhatsAppEmerald
 import com.example.ui.theme.WhatsAppMinimalPrimary
@@ -170,14 +178,10 @@ fun CameraStatusScreen(
                                 )
                             )
                     ) {
-                        // Viewfinder Mock / Sample Live Camera Feed
-                        Image(
-                            painter = painterResource(id = R.drawable.img_status_banner_1787278113131),
-                            contentDescription = "Camera viewfinder preview",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .scale(if (isFrontCamera) -1f else 1f, 1f)
+                        // Real CameraX Viewfinder
+                        CameraPreview(
+                            isFrontCamera = isFrontCamera,
+                            modifier = Modifier.fillMaxSize()
                         )
 
                         // Optional Grid Lines Overlay
@@ -557,4 +561,65 @@ fun CameraStatusScreen(
             )
         }
     }
+}
+
+@Composable
+fun CameraPreview(
+    isFrontCamera: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalContext.current as LifecycleOwner
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+
+    AndroidView(
+        factory = { ctx ->
+            val previewView = PreviewView(ctx)
+            val executor = ContextCompat.getMainExecutor(ctx)
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+                val preview = Preview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+
+                val cameraSelector = if (isFrontCamera) {
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                } else {
+                    CameraSelector.DEFAULT_BACK_CAMERA
+                }
+
+                try {
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        preview
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("CameraPreview", "Use case binding failed", e)
+                }
+            }, executor)
+            previewView
+        },
+        modifier = modifier,
+        update = { previewView ->
+            val cameraProvider = cameraProviderFuture.get()
+            val cameraSelector = if (isFrontCamera) {
+                CameraSelector.DEFAULT_FRONT_CAMERA
+            } else {
+                CameraSelector.DEFAULT_BACK_CAMERA
+            }
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
+            try {
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    preview
+                )
+            } catch (e: Exception) {}
+        }
+    )
 }

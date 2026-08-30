@@ -22,7 +22,9 @@ data class ChatDto(
     val name: String?,
     val avatarUrl: String?,
     val members: List<ChatMemberDto>,
-    val messages: List<MessageDto>
+    val messages: List<MessageDto>,
+    val isMuted: Boolean = false,
+    val wallpaper: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -44,7 +46,9 @@ data class MessageDto(
     val receiverId: String?,
     val chatId: String,
     val createdAt: String,
-    val sender: UserDto?
+    val sender: UserDto?,
+    val isStarred: Boolean = false,
+    val isPinned: Boolean = false
 )
 
 @JsonClass(generateAdapter = true)
@@ -206,7 +210,9 @@ data class UserSettingsDto(
     val profilePhotoPrivacy: String,
     val aboutPrivacy: String,
     val readReceipts: Boolean,
-    val notificationsEnabled: Boolean
+    val notificationsEnabled: Boolean,
+    val hdMedia: Boolean = true,
+    val biometricLock: Boolean = false
 )
 
 @JsonClass(generateAdapter = true)
@@ -281,6 +287,25 @@ data class CreatePaymentResponse(
 data class ReportUserRequest(
     val reportedUserId: String,
     val reason: String
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateChatRequest(
+    val isMuted: Boolean? = null,
+    val wallpaper: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateGroupRequest(
+    val name: String,
+    val memberIds: List<String>,
+    val avatarUrl: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateMessageRequest(
+    val isStarred: Boolean? = null,
+    val isPinned: Boolean? = null
 )
 
 @JsonClass(generateAdapter = true)

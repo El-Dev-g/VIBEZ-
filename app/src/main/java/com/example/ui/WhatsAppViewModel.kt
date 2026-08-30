@@ -140,8 +140,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val selectedTab = MutableStateFlow(0) // 0: Chats, 1: Updates, 2: Communities, 3: Calls
 
     val incomingNotification = MutableStateFlow<IncomingNotification?>(null)
-
-    private val repository: WhatsAppRepository
+    val repository: WhatsAppRepository
 
     init {
         val database = WhatsAppDatabase.getDatabase(application)
@@ -232,6 +231,16 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             repository.syncCallLogs(token)
             repository.getSettings(token)?.let { settings ->
                 statusPrivacyMode.value = settings.statusPrivacyMode
+                isReadReceiptsEnabled.value = settings.readReceipts
+                isHighPriorityNotificationsEnabled.value = settings.notificationsEnabled
+                isHdMediaUpload.value = settings.hdMedia
+                isBiometricLockEnabled.value = settings.biometricLock
+                
+                // Save to local for persistence during offline
+                authManager.setSettingBoolean("read_receipts", settings.readReceipts)
+                authManager.setSettingBoolean("high_priority_notif", settings.notificationsEnabled)
+                authManager.setSettingBoolean("hd_media", settings.hdMedia)
+                authManager.setSettingBoolean("biometric_lock", settings.biometricLock)
             }
         }
     }
@@ -616,6 +625,29 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             "conversation_tones" -> isConversationTonesEnabled.value = value
             "high_priority_notif" -> isHighPriorityNotificationsEnabled.value = value
         }
+        
+        // Sync with server
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                val current = repository.getSettings(token) ?: UserSettingsDto(
+                    statusPrivacyMode = statusPrivacyMode.value,
+                    lastSeenPrivacy = "EVERYONE",
+                    profilePhotoPrivacy = globalWallpaper.value,
+                    aboutPrivacy = "EVERYONE",
+                    readReceipts = isReadReceiptsEnabled.value,
+                    notificationsEnabled = isHighPriorityNotificationsEnabled.value
+                )
+                
+                val updated = when (key) {
+                    "biometric_lock" -> current.copy(biometricLock = value)
+                    "hd_media" -> current.copy(hdMedia = value)
+                    "read_receipts" -> current.copy(readReceipts = value)
+                    "high_priority_notif" -> current.copy(notificationsEnabled = value)
+                    else -> current
+                }
+                repository.updateSettings(updated, token)
+            }
+        }
     }
 
     fun updateContact(contactId: String, name: String, phone: String, about: String) {
@@ -626,33 +658,43 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun createNewContact(name: String, phone: String, about: String, onComplete: (String) -> Unit) {
         viewModelScope.launch {
-            val contactId = repository.createNewContact(name, phone, about)
-            onComplete(contactId)
+            authManager.getAuthToken()?.let { token ->
+                val contactId = repository.createNewContact(name, phone, about, token)
+                onComplete(contactId)
+            }
         }
     }
 
     fun createGroupChat(groupName: String, contactIds: List<String>, onComplete: (String) -> Unit) {
         viewModelScope.launch {
-            val chatId = repository.createGroupChat(groupName, contactIds)
-            onComplete(chatId)
+            authManager.getAuthToken()?.let { token ->
+                val chatId = repository.createGroupChat(groupName, contactIds, token)
+                onComplete(chatId)
+            }
         }
     }
 
     fun toggleStarMessage(message: MessageEntity) {
         viewModelScope.launch {
-            repository.toggleStarMessage(message)
+            authManager.getAuthToken()?.let { token ->
+                repository.toggleStarMessage(message, token)
+            }
         }
     }
 
     fun deleteMessage(messageId: String) {
         viewModelScope.launch {
-            repository.deleteMessage(messageId)
+            authManager.getAuthToken()?.let { token ->
+                repository.deleteMessage(messageId, token)
+            }
         }
     }
 
     fun clearChat(chatId: String) {
         viewModelScope.launch {
-            repository.clearChat(chatId)
+            authManager.getAuthToken()?.let { token ->
+                repository.clearChat(chatId, token)
+            }
         }
     }
 
@@ -662,7 +704,9 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun deleteChat(chatId: String) {
         viewModelScope.launch {
-            repository.deleteChat(chatId)
+            authManager.getAuthToken()?.let { token ->
+                repository.deleteChat(chatId, token)
+            }
         }
     }
 
@@ -799,18 +843,42 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         wallpaperDimming.value = dimming
         if (chatId == null || chatId == "") {
             globalWallpaper.value = wallpaperValue
+            // Global wallpaper can be stored in general settings
+            viewModelScope.launch {
+                authManager.getAuthToken()?.let { token ->
+                    repository.updateSettings(
+                        repository.getSettings(token)?.copy(profilePhotoPrivacy = "WALLPAPER:$wallpaperValue") ?: UserSettingsDto(
+                            statusPrivacyMode = statusPrivacyMode.value,
+                            lastSeenPrivacy = "EVERYONE",
+                            profilePhotoPrivacy = "WALLPAPER:$wallpaperValue",
+                            aboutPrivacy = "EVERYONE",
+                            readReceipts = isReadReceiptsEnabled.value,
+                            notificationsEnabled = isHighPriorityNotificationsEnabled.value
+                        ),
+                        token
+                    )
+                }
+            }
         } else {
             val currentMap = chatWallpapers.value.toMutableMap()
             currentMap[chatId] = wallpaperValue
             chatWallpapers.value = currentMap
+            
+            viewModelScope.launch {
+                authManager.getAuthToken()?.let { token ->
+                    repository.updateChatWallpaper(chatId, wallpaperValue, token)
+                }
+            }
         }
     }
 
     fun toggleMuteChat(chatId: String) {
         viewModelScope.launch {
-            val chat = repository.getChatById(chatId)
-            if (chat != null) {
-                repository.updateChatMuteStatus(chatId, !chat.isMuted)
+            authManager.getAuthToken()?.let { token ->
+                val chat = repository.getChatById(chatId)
+                if (chat != null) {
+                    repository.updateChatMuteStatus(chatId, !chat.isMuted, token)
+                }
             }
         }
     }

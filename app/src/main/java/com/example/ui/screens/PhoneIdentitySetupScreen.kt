@@ -112,6 +112,7 @@ import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.FirebaseException
 import android.app.Activity
+import android.widget.Toast
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.launch
 
@@ -150,6 +151,7 @@ fun PhoneIdentitySetupScreen(
     onBackClick: () -> Unit,
     onCompleteSetup: (phone: String, name: String, about: String, avatarUrl: String?, idToken: String?) -> Unit
 ) {
+    val isDemoMode = false // Set to true ONLY for internal testing/preview
     var currentPage by remember { mutableStateOf(IdentitySetupPage.PAGE_PHONE_NUMBER) }
 
     // Page 1 State
@@ -216,9 +218,14 @@ fun PhoneIdentitySetupScreen(
 
         if (auth == null || activity == null) {
             isVerifying = false
-            phoneVerificationStep = 1
-            verificationIdState = "mock_verification_id_${System.currentTimeMillis()}"
-            statusNotice = "Firebase simulated SMS dispatched to $cleanPhone. Code: 123456"
+            if (isDemoMode) {
+                phoneVerificationStep = 1
+                verificationIdState = "demo_verification_id_${System.currentTimeMillis()}"
+                statusNotice = "Demo Mode: Firebase simulated SMS dispatched to $cleanPhone. Code: 123456"
+                Toast.makeText(context, "Demo Mode Active", Toast.LENGTH_SHORT).show()
+            } else {
+                errorMessage = "Firebase initialization failed. Please check your configuration."
+            }
             return
         }
 
@@ -254,9 +261,13 @@ fun PhoneIdentitySetupScreen(
             override fun onVerificationFailed(e: FirebaseException) {
                 isVerifying = false
                 e.printStackTrace()
-                errorMessage = "Firebase SMS verification failed: ${e.message ?: "Failed to send SMS."}\n\nTip: You can use simulated verification code '123456' for testing."
-                phoneVerificationStep = 1
-                verificationIdState = "test_vid_${System.currentTimeMillis()}"
+                errorMessage = "Firebase SMS verification failed: ${e.message ?: "Failed to send SMS."}"
+                
+                if (isDemoMode) {
+                    phoneVerificationStep = 1
+                    verificationIdState = "demo_vid_${System.currentTimeMillis()}"
+                    Toast.makeText(context, "Demo Mode: Falling back to mock verification", Toast.LENGTH_SHORT).show()
+                }
             }
 
             override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
@@ -279,9 +290,13 @@ fun PhoneIdentitySetupScreen(
         } catch (e: Exception) {
             isVerifying = false
             e.printStackTrace()
-            phoneVerificationStep = 1
-            verificationIdState = "test_vid_${System.currentTimeMillis()}"
-            statusNotice = "Verification requested for $cleanPhone (Demo code: 123456)"
+            if (isDemoMode) {
+                phoneVerificationStep = 1
+                verificationIdState = "demo_vid_${System.currentTimeMillis()}"
+                statusNotice = "Verification requested for $cleanPhone (Demo code: 123456)"
+            } else {
+                errorMessage = "Verification request failed: ${e.message}"
+            }
         }
     }
 
@@ -297,7 +312,7 @@ fun PhoneIdentitySetupScreen(
         val vid = verificationIdState
         val auth = firebaseAuth
 
-        if (vid.isNotBlank() && !vid.startsWith("mock_") && !vid.startsWith("test_") && auth?.currentUser != null) {
+        if (vid.isNotBlank() && !vid.startsWith("demo_") && !vid.startsWith("test_") && auth?.currentUser != null) {
             val credential = PhoneAuthProvider.getCredential(vid, code)
             auth.currentUser!!.linkWithCredential(credential)
                 .addOnCompleteListener { task ->
@@ -314,12 +329,15 @@ fun PhoneIdentitySetupScreen(
                         }
                     }
                 }
-        } else {
+        } else if (isDemoMode) {
             scope.launch {
                 kotlinx.coroutines.delay(400)
                 isVerifying = false
                 currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
             }
+        } else {
+            isVerifying = false
+            errorMessage = "Invalid verification state"
         }
     }
 

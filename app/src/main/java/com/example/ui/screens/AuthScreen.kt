@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -95,6 +96,8 @@ fun AuthScreen(
     onGoogleAuthSuccess: ((email: String, name: String, avatarUrl: String?, phone: String?, idToken: String?) -> Unit)? = null,
     onNavigateToPhoneIdentity: ((email: String, name: String, avatarUrl: String?, idToken: String?) -> Unit)? = null
 ) {
+    val isDemoMode = false // Set to true ONLY for internal testing/preview
+    
     var activeTab by remember { mutableIntStateOf(1) } // 1 = Firebase Phone Auth (Default), 0 = Google Sign-In
     
     // Phone Auth Form States
@@ -180,9 +183,14 @@ fun AuthScreen(
         if (auth == null || activity == null) {
             // If Firebase or Activity is unavailable in current preview, proceed gracefully
             isSigningIn = false
-            phoneAuthStep = 1
-            verificationIdState = "mock_verification_id_${System.currentTimeMillis()}"
-            statusNotice = "Firebase simulated SMS dispatched to $cleanPhone. Code: 123456"
+            if (isDemoMode) {
+                phoneAuthStep = 1
+                verificationIdState = "demo_verification_id_${System.currentTimeMillis()}"
+                statusNotice = "Demo Mode: Firebase simulated SMS dispatched to $cleanPhone. Code: 123456"
+                Toast.makeText(context, "Demo Mode Active", Toast.LENGTH_SHORT).show()
+            } else {
+                errorMessage = "Firebase initialization failed. Please check your configuration."
+            }
             return
         }
 
@@ -210,9 +218,11 @@ fun AuthScreen(
                 
                 errorMessage = "$specificError\n\nTip: For development, you can use simulated verification codes for test numbers registered in Firebase."
                 
-                // Still allow user to proceed to code entry in testing environments
-                phoneAuthStep = 1
-                verificationIdState = "test_vid_${System.currentTimeMillis()}"
+                // Still allow user to proceed to code entry in demo environments
+                if (isDemoMode) {
+                    phoneAuthStep = 1
+                    verificationIdState = "demo_vid_${System.currentTimeMillis()}"
+                }
             }
 
             override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
@@ -240,10 +250,14 @@ fun AuthScreen(
         } catch (e: Exception) {
             isSigningIn = false
             e.printStackTrace()
-            // Fallback for emulator or non-Play Services container
-            phoneAuthStep = 1
-            verificationIdState = "test_vid_${System.currentTimeMillis()}"
-            statusNotice = "Verification code requested for $cleanPhone (Demo code: 123456)"
+            // Fallback for emulator or non-Play Services container in demo mode
+            if (isDemoMode) {
+                phoneAuthStep = 1
+                verificationIdState = "demo_vid_${System.currentTimeMillis()}"
+                statusNotice = "Verification code requested for $cleanPhone (Demo code: 123456)"
+            } else {
+                errorMessage = "Verification request failed: ${e.message}"
+            }
         }
     }
 
@@ -542,10 +556,10 @@ fun AuthScreen(
                                     }
 
                                     val vid = verificationIdState
-                                    if (vid.isNotBlank() && !vid.startsWith("mock_") && !vid.startsWith("test_")) {
+                                    if (vid.isNotBlank() && !vid.startsWith("demo_") && !vid.startsWith("test_")) {
                                         val credential = PhoneAuthProvider.getCredential(vid, code)
                                         completePhoneAuthWithCredential(credential)
-                                    } else {
+                                    } else if (isDemoMode) {
                                         // Demo/Test fallback
                                         isSigningIn = true
                                         scope.launch {
@@ -555,9 +569,11 @@ fun AuthScreen(
                                                 phoneNumber.trim(),
                                                 phoneName.trim(),
                                                 "Hey there! I am using VIBEZ.",
-                                                "mock_firebase_id_token_${System.currentTimeMillis()}"
+                                                "demo_firebase_id_token_${System.currentTimeMillis()}"
                                             )
                                         }
+                                    } else {
+                                        errorMessage = "Invalid verification state"
                                     }
                                 },
                                 enabled = !isSigningIn && verificationCode.length == 6,

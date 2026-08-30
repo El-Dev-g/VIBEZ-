@@ -166,6 +166,44 @@ interface ApiService {
         @Body request: CreatePaymentRequest
     ): CreatePaymentResponse
 
+    @POST("api/chats/group")
+    suspend fun createGroupChat(
+        @Header("Authorization") token: String,
+        @Body request: CreateGroupRequest
+    ): ChatDto
+
+    @DELETE("api/chats/{chatId}")
+    suspend fun deleteChat(
+        @Header("Authorization") token: String,
+        @Path("chatId") chatId: String
+    )
+
+    @PATCH("api/chats/{chatId}")
+    suspend fun updateChat(
+        @Header("Authorization") token: String,
+        @Path("chatId") chatId: String,
+        @Body request: UpdateChatRequest
+    ): ChatDto
+
+    @DELETE("api/chats/{chatId}/messages")
+    suspend fun clearChatMessages(
+        @Header("Authorization") token: String,
+        @Path("chatId") chatId: String
+    )
+
+    @DELETE("api/messages/{messageId}")
+    suspend fun deleteMessage(
+        @Header("Authorization") token: String,
+        @Path("messageId") messageId: String
+    )
+
+    @PATCH("api/messages/{messageId}")
+    suspend fun updateMessage(
+        @Header("Authorization") token: String,
+        @Path("messageId") messageId: String,
+        @Body request: UpdateMessageRequest
+    ): MessageDto
+
     @POST("api/users/report")
     suspend fun reportUser(
         @Header("Authorization") token: String,

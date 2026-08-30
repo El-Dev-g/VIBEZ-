@@ -15,6 +15,7 @@ data class MessageEntity(
     val mediaUrl: String = "",
     val voiceDurationSeconds: Int = 0,
     val isStarred: Boolean = false,
+    val isPinned: Boolean = false,
     val replyToMessageId: String? = null,
     val reaction: String? = null
 )

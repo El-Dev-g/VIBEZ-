@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.webrtc.SignalingClient
 import com.example.webrtc.WebRTCClient
+import com.example.data.network.SocketManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -21,21 +22,34 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     val remoteTrack = _remoteTrack.asStateFlow()
 
     private var rtcClient: WebRTCClient? = null
+    private var socketManager: SocketManager? = null
+    private var targetUserId: String? = null
     
     val eglContext: EglBase.Context? get() = rtcClient?.rootEglBase?.eglBaseContext
     
-    // Mock signaling client for demonstration
+    fun setupSignaling(manager: SocketManager, targetId: String) {
+        this.socketManager = manager
+        this.targetUserId = targetId
+    }
+
     private val signalingClient = object : SignalingClient {
         override fun sendOffer(sdp: SessionDescription) {
-            // In a real app, send this to your backend via WebSocket/Retrofit
+            targetUserId?.let { socketManager?.sendCallOffer(it, sdp.description) }
         }
 
         override fun sendAnswer(sdp: SessionDescription) {
-            // In a real app, send this to your backend
+            targetUserId?.let { socketManager?.sendCallAnswer(it, sdp.description) }
         }
 
         override fun sendIceCandidate(candidate: IceCandidate) {
-            // In a real app, send this to your backend
+            targetUserId?.let { 
+                socketManager?.sendIceCandidate(
+                    it, 
+                    candidate.sdpMid, 
+                    candidate.sdpMLineIndex, 
+                    candidate.sdp
+                ) 
+            }
         }
     }
 
@@ -73,6 +87,15 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
             override fun onCreateFailure(s: String?) {}
             override fun onSetFailure(s: String?) {}
             override fun onCreateSuccess(desc: SessionDescription?) {}
+        })
+    }
+
+    fun onRemoteAnswerReceived(sdp: SessionDescription) {
+        rtcClient?.setRemoteDescription(sdp, object : SdpObserver {
+            override fun onSetSuccess() {}
+            override fun onCreateSuccess(desc: SessionDescription?) {}
+            override fun onCreateFailure(s: String?) {}
+            override fun onSetFailure(s: String?) {}
         })
     }
 

@@ -49,7 +49,32 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     android.util.Log.e("WhatsAppRepository", "Error parsing socket message", e)
                 }
             }
+            
+            onCallOfferReceived = { data ->
+                _incomingCall.value = data
+            }
+            onCallAnswerReceived = { data ->
+                _callAnswer.value = data
+            }
+            onIceCandidateReceived = { data ->
+                _iceCandidate.value = data
+            }
         }
+    }
+
+    private val _incomingCall = MutableStateFlow<JSONObject?>(null)
+    val incomingCall = _incomingCall.asStateFlow()
+
+    private val _callAnswer = MutableStateFlow<JSONObject?>(null)
+    val callAnswer = _callAnswer.asStateFlow()
+
+    private val _iceCandidate = MutableStateFlow<JSONObject?>(null)
+    val iceCandidate = _iceCandidate.asStateFlow()
+
+    fun clearCallSignals() {
+        _incomingCall.value = null
+        _callAnswer.value = null
+        _iceCandidate.value = null
     }
 
     private fun mapMessageDtoToEntity(dto: MessageDto): MessageEntity {
@@ -62,7 +87,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
             status = dto.status,
             messageType = dto.type,
             mediaUrl = dto.mediaUrl ?: "",
-            voiceDurationSeconds = dto.duration ?: 0
+            voiceDurationSeconds = dto.duration ?: 0,
+            isStarred = dto.isStarred,
+            isPinned = dto.isPinned
         )
     }
 
@@ -138,7 +165,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
                     lastMessage = dto.messages.firstOrNull()?.content ?: "",
                     lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
                     unreadCount = 0,
-                    isGroup = dto.isGroup
+                    isGroup = dto.isGroup,
+                    isMuted = dto.isMuted,
+                    customWallpaper = dto.wallpaper
                 )
             }
             _allChats.value = chatEntities
@@ -215,50 +244,89 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
-    suspend fun updateChatMuteStatus(chatId: String, isMuted: Boolean) {
-        _allChats.value = _allChats.value.map {
-            if (it.id == chatId) it.copy(isMuted = isMuted) else it
+    suspend fun updateChatWallpaper(chatId: String, wallpaper: String, token: String) {
+        try {
+            NetworkClient.apiService.updateChat("Bearer $token", chatId, UpdateChatRequest(wallpaper = wallpaper))
+            // Wallpaper state is usually managed in VM but we can cache it in chat entity if needed
+            _allChats.value = _allChats.value.map {
+                if (it.id == chatId) it.copy(customWallpaper = wallpaper) else it
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateChatMuteStatus(chatId: String, isMuted: Boolean, token: String) {
+        try {
+            NetworkClient.apiService.updateChat("Bearer $token", chatId, UpdateChatRequest(isMuted = isMuted))
+            _allChats.value = _allChats.value.map {
+                if (it.id == chatId) it.copy(isMuted = isMuted) else it
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     suspend fun getChatById(chatId: String): ChatEntity? = _allChats.value.find { it.id == chatId }
     suspend fun getMessageById(messageId: String): MessageEntity? = _currentChatMessages.value.values.flatten().find { it.id == messageId }
 
-    suspend fun deleteMessage(messageId: String) {
-        val currentMap = _currentChatMessages.value.toMutableMap()
-        for ((cId, msgList) in currentMap) {
-            val updated = msgList.filter { it.id != messageId }
-            if (updated.size != msgList.size) {
-                currentMap[cId] = updated
+    suspend fun deleteMessage(messageId: String, token: String) {
+        try {
+            NetworkClient.apiService.deleteMessage("Bearer $token", messageId)
+            val currentMap = _currentChatMessages.value.toMutableMap()
+            for ((cId, msgList) in currentMap) {
+                val updated = msgList.filter { it.id != messageId }
+                if (updated.size != msgList.size) {
+                    currentMap[cId] = updated
+                }
             }
-        }
-        _currentChatMessages.value = currentMap
-    }
-
-    suspend fun clearChat(chatId: String) {
-        val currentMap = _currentChatMessages.value.toMutableMap()
-        currentMap[chatId] = emptyList()
-        _currentChatMessages.value = currentMap
-        _allChats.value = _allChats.value.map {
-            if (it.id == chatId) it.copy(lastMessage = "", lastMessageTime = System.currentTimeMillis()) else it
+            _currentChatMessages.value = currentMap
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-    suspend fun deleteChat(chatId: String) {
-        _allChats.value = _allChats.value.filter { it.id != chatId }
-        val currentMap = _currentChatMessages.value.toMutableMap()
-        currentMap.remove(chatId)
-        _currentChatMessages.value = currentMap
+    suspend fun clearChat(chatId: String, token: String) {
+        try {
+            NetworkClient.apiService.clearChatMessages("Bearer $token", chatId)
+            val currentMap = _currentChatMessages.value.toMutableMap()
+            currentMap[chatId] = emptyList()
+            _currentChatMessages.value = currentMap
+            _allChats.value = _allChats.value.map {
+                if (it.id == chatId) it.copy(lastMessage = "", lastMessageTime = System.currentTimeMillis()) else it
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
-    suspend fun toggleStarMessage(message: MessageEntity) {
-        val currentMap = _currentChatMessages.value.toMutableMap()
-        val list = currentMap[message.chatId] ?: return
-        val updated = list.map {
-            if (it.id == message.id) it.copy(isStarred = !it.isStarred) else it
+    suspend fun deleteChat(chatId: String, token: String) {
+        try {
+            NetworkClient.apiService.deleteChat("Bearer $token", chatId)
+            _allChats.value = _allChats.value.filter { it.id != chatId }
+            val currentMap = _currentChatMessages.value.toMutableMap()
+            currentMap.remove(chatId)
+            _currentChatMessages.value = currentMap
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        currentMap[message.chatId] = updated
-        _currentChatMessages.value = currentMap
+    }
+
+    suspend fun toggleStarMessage(message: MessageEntity, token: String) {
+        try {
+            val newStarred = !message.isStarred
+            NetworkClient.apiService.updateMessage("Bearer $token", message.id, UpdateMessageRequest(isStarred = newStarred))
+            
+            val currentMap = _currentChatMessages.value.toMutableMap()
+            val list = currentMap[message.chatId] ?: return
+            val updated = list.map {
+                if (it.id == message.id) it.copy(isStarred = newStarred) else it
+            }
+            currentMap[message.chatId] = updated
+            _currentChatMessages.value = currentMap
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun updateContact(id: String, name: String, phone: String, about: String) {
@@ -270,47 +338,37 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
         }
     }
 
-    suspend fun createNewContact(name: String, phone: String, about: String): String {
-        val newId = "contact_${System.currentTimeMillis()}"
-        val newContact = ContactEntity(
-            id = newId,
-            name = name,
-            phoneNumber = phone,
-            aboutStatus = if (about.isNotBlank()) about else "Hey there! I am using VIBEZ.",
-            isOnline = true
-        )
-        _allContacts.value = (_allContacts.value.filter { it.phoneNumber != phone } + newContact)
-        
-        // Also ensure a chat entry exists or can be created
-        val existingChat = _allChats.value.find { it.contactId == newId || it.contactName == name }
-        if (existingChat == null) {
-            val newChat = ChatEntity(
-                id = "chat_${System.currentTimeMillis()}",
-                contactId = newId,
-                contactName = name,
-                lastMessage = about.ifBlank { "Tap to start conversation" },
-                lastMessageTime = System.currentTimeMillis(),
-                unreadCount = 0,
-                isGroup = false
-            )
-            _allChats.value = listOf(newChat) + _allChats.value
+    suspend fun createNewContact(name: String, phone: String, about: String, token: String): String {
+        return try {
+            val searchResults = NetworkClient.apiService.searchUsers("Bearer $token", phone)
+            val targetUser = searchResults.firstOrNull { it.phoneNumber == phone }
+            
+            if (targetUser != null) {
+                NetworkClient.apiService.createOrGetPrivateChat("Bearer $token", PrivateChatRequest(targetUserId = targetUser.id))
+                syncChats(token)
+                targetUser.id
+            } else {
+                // If user doesn't exist, we can't create a real HTTPS chat
+                throw Exception("User with phone $phone not found on server")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
         }
-        return newId
     }
 
-    suspend fun createGroupChat(groupName: String, contactIds: List<String>): String {
-        val newChatId = "group_${System.currentTimeMillis()}"
-        val newChat = ChatEntity(
-            id = newChatId,
-            contactId = "",
-            contactName = groupName,
-            lastMessage = "You created group \"$groupName\"",
-            lastMessageTime = System.currentTimeMillis(),
-            unreadCount = 0,
-            isGroup = true
-        )
-        _allChats.value = listOf(newChat) + _allChats.value
-        return newChatId
+    suspend fun createGroupChat(groupName: String, contactIds: List<String>, token: String): String {
+        return try {
+            // Filter out any local/mock IDs if they somehow leaked in
+            val memberIds = contactIds.filter { !it.contains("_") } 
+            val request = CreateGroupRequest(name = groupName, memberIds = memberIds)
+            val chatDto = NetworkClient.apiService.createGroupChat("Bearer $token", request)
+            syncChats(token)
+            chatDto.id
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
     }
 
     suspend fun syncContacts(phoneNumbers: List<String>, token: String): List<ContactEntity> {
@@ -757,7 +815,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao) { // Keeping dao for bina
 
     private val _allCallLogs = MutableStateFlow<List<CallLogEntity>>(emptyList())
     val allCallLogs: StateFlow<List<CallLogEntity>> = _allCallLogs.asStateFlow()
-    val starredMessages: Flow<List<MessageEntity>> = MutableStateFlow<List<MessageEntity>>(emptyList())
+    val starredMessages: Flow<List<MessageEntity>> = _currentChatMessages.map { map ->
+        map.values.flatten().filter { it.isStarred }
+    }
 
     suspend fun getAvailablePaymentProviders(token: String): List<PaymentProviderDto> {
         return NetworkClient.apiService.getAvailablePaymentProviders("Bearer $token")
