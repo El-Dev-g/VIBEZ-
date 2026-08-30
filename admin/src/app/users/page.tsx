@@ -1,10 +1,10 @@
-import { fetchUsers } from '../../services/api';
+import { fetchUsers, User } from '../../services/api';
 import UserTable from '../../components/UserTable';
 
 export const dynamic = 'force-dynamic';
 
 export default async function UsersPage() {
-  let users = null;
+  let users: User[] | null = null;
   try {
     users = await fetchUsers();
   } catch (e) {
