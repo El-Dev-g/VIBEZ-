@@ -330,6 +330,7 @@ fun VibezChatItemCard(
                     name = chat.contactName,
                     avatarUrl = chat.contactAvatar,
                     isGroup = chat.isGroup,
+                    isOfficial = chat.isOfficial,
                     isOnline = isOnline,
                     size = 52.dp
                 )

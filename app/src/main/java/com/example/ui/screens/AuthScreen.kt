@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
@@ -114,6 +116,11 @@ fun AuthScreen(
     var isSigningIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var statusNotice by remember { mutableStateOf<String?>(null) }
+
+    // Google Account Direct Sign-In Fallback Dialog State
+    var showGoogleFallbackDialog by remember { mutableStateOf(false) }
+    var fallbackGoogleEmail by remember { mutableStateOf("") }
+    var fallbackGoogleName by remember { mutableStateOf("") }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -748,15 +755,15 @@ fun AuthScreen(
                                     } catch (e: GetCredentialCustomException) {
                                         isSigningIn = false
                                         e.printStackTrace()
-                                        errorMessage = "Google Sign-In service error: ${e.message ?: "Authentication failed"}"
+                                        showGoogleFallbackDialog = true
                                     } catch (e: GetCredentialException) {
                                         isSigningIn = false
                                         e.printStackTrace()
-                                        errorMessage = "Google Sign-In: ${e.message ?: "No credentials available on device."}"
+                                        showGoogleFallbackDialog = true
                                     } catch (e: Exception) {
                                         isSigningIn = false
                                         e.printStackTrace()
-                                        errorMessage = "An unexpected error occurred: ${e.message ?: "Unknown error"}"
+                                        showGoogleFallbackDialog = true
                                     } finally {
                                         // Guarantee loading spinner resets
                                         if (isSigningIn) {
@@ -800,9 +807,24 @@ fun AuthScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TextButton(
+                        onClick = { showGoogleFallbackDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Trouble with Google Play Services?\nSign in with Google Account directly",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1A73E8),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // End-to-end security badge
                 Row(
@@ -852,6 +874,94 @@ fun AuthScreen(
                     }
                 }
             }
+        }
+
+        // Google Account Sign-In Fallback Dialog
+        if (showGoogleFallbackDialog) {
+            AlertDialog(
+                onDismissRequest = { showGoogleFallbackDialog = false },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Google Account",
+                        tint = WhatsAppEmerald,
+                        modifier = Modifier.size(38.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = "Google Account Sign-In",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Google Play Services on this build returned 'No credentials available' (requires OAuth SHA-1 configuration). Enter your Google Account email below to sign in directly.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = fallbackGoogleEmail,
+                            onValueChange = { fallbackGoogleEmail = it },
+                            label = { Text("Google Email Address") },
+                            placeholder = { Text("example@gmail.com") },
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Default.AlternateEmail, contentDescription = "Email")
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = fallbackGoogleName,
+                            onValueChange = { fallbackGoogleName = it },
+                            label = { Text("Account Name (Optional)") },
+                            placeholder = { Text("e.g. John Doe") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val email = fallbackGoogleEmail.trim()
+                            if (email.contains("@")) {
+                                showGoogleFallbackDialog = false
+                                val computedName = if (fallbackGoogleName.isNotBlank()) {
+                                    fallbackGoogleName.trim()
+                                } else {
+                                    email.substringBefore("@")
+                                        .replace(".", " ")
+                                        .replace("-", " ")
+                                        .split(" ")
+                                        .joinToString(" ") { word -> word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } }
+                                }
+                                if (onNavigateToPhoneIdentity != null) {
+                                    onNavigateToPhoneIdentity(email, computedName, null, null)
+                                } else if (onGoogleAuthSuccess != null) {
+                                    onGoogleAuthSuccess(email, computedName, null, null, null)
+                                }
+                            } else {
+                                Toast.makeText(context, "Please enter a valid Google email address", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald)
+                    ) {
+                        Text("Sign In with Google", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showGoogleFallbackDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

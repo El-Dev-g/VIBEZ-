@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
@@ -636,6 +637,8 @@ fun ChatDetailScreen(
                             AvatarView(
                                 name = chat.contactName,
                                 avatarUrl = chat.contactAvatar,
+                                isGroup = chat.isGroup,
+                                isOfficial = chat.isOfficial,
                                 size = 40.dp
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -655,6 +658,7 @@ fun ChatDetailScreen(
                                 Text(
                                     text = when {
                                         isTyping -> "typing..."
+                                        chat.isOfficial -> "Official Channel • Tap for info"
                                         chat.isGroup -> "Tap for group info"
                                         contact?.isOnline == true -> "Online"
                                         !contact?.lastSeen.isNullOrBlank() -> {
@@ -679,11 +683,13 @@ fun ChatDetailScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = onVideoCallClick) {
-                            Icon(imageVector = Icons.Default.Videocam, contentDescription = "Video Call")
-                        }
-                        IconButton(onClick = onVoiceCallClick) {
-                            Icon(imageVector = Icons.Default.Call, contentDescription = "Voice Call")
+                        if (!chat.isOfficial) {
+                            IconButton(onClick = onVideoCallClick) {
+                                Icon(imageVector = Icons.Default.Videocam, contentDescription = "Video Call")
+                            }
+                            IconButton(onClick = onVoiceCallClick) {
+                                Icon(imageVector = Icons.Default.Call, contentDescription = "Voice Call")
+                            }
                         }
                         Box {
                             IconButton(onClick = { showOptionsMenu = true }) {
@@ -1090,24 +1096,33 @@ fun ChatDetailScreen(
                     }
                 }
 
-                // Chat Input Bar
-                if (chat != null && chat.isOfficial && !chat.allowComments && !isAdmin) {
+                // Chat Input Bar - Channels are read-only for followers (broadcast only)
+                if (chat != null && chat.isOfficial && !isAdmin) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                            .padding(vertical = 14.dp, horizontal = 20.dp),
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .padding(vertical = 12.dp, horizontal = 18.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Only system administrators can send messages to this community.",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Campaign,
+                                contentDescription = "Channel Broadcast",
+                                tint = WhatsAppEmerald,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Only channel admins can post messages to this channel.",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
                 } else {
                     Row(

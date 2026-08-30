@@ -97,7 +97,7 @@ fun ContactInfoScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = if (chat?.isGroup == true) "Group info" else "Contact info", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = { Text(text = if (chat?.isOfficial == true) "Channel info" else if (chat?.isGroup == true) "Group info" else "Contact info", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -124,6 +124,7 @@ fun ContactInfoScreen(
                         name = chat?.contactName ?: contact?.name ?: "Contact",
                         avatarUrl = chat?.contactAvatar ?: contact?.avatarUrl ?: "",
                         isGroup = chat?.isGroup == true,
+                        isOfficial = chat?.isOfficial == true,
                         size = 110.dp
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -141,12 +142,14 @@ fun ContactInfoScreen(
                     }
                     if (chat?.isOfficial == true) {
                         Spacer(modifier = Modifier.height(6.dp))
-                        VerifiedBadgePill(label = "Official Verified Channel")
+                        VerifiedBadgePill(label = "Official Verified Broadcast Channel")
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (chat?.isGroup == true) {
-                            if (chat.isOfficial) "Official Community Channel" else "Group Chat"
+                        text = if (chat?.isOfficial == true) {
+                            "Public Broadcast Channel"
+                        } else if (chat?.isGroup == true) {
+                            "Group Chat"
                         } else {
                             contact?.phoneNumber ?: "+1 555-0100"
                         },
@@ -161,7 +164,7 @@ fun ContactInfoScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        if (chat?.isGroup != true) {
+                        if (chat?.isOfficial != true && chat?.isGroup != true) {
                             QuickInfoAction(icon = Icons.Default.Call, label = "Audio", onClick = onVoiceCallClick)
                             QuickInfoAction(icon = Icons.Default.Videocam, label = "Video", onClick = onVideoCallClick)
                         }
@@ -179,12 +182,10 @@ fun ContactInfoScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = if (chat?.isGroup == true) {
-                            if (chat.isOfficial) {
-                                "Official announcements, notifications and critical system updates for VIBEZ users. This channel is read-only for non-admin accounts."
-                            } else {
-                                "Welcome to the group chat! Share files, images, links and chat live with other group members."
-                            }
+                        text = if (chat?.isOfficial == true) {
+                            "Official announcements, notifications and critical system updates. Only channel admins can post to this channel."
+                        } else if (chat?.isGroup == true) {
+                            "Welcome to the group chat! Share files, images, links and chat live with other group members."
                         } else {
                             contact?.aboutStatus ?: "Hey there! I am using VIBEZ."
                         },
@@ -194,7 +195,7 @@ fun ContactInfoScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (chat?.isGroup == true) "Group description" else "About",
+                        text = if (chat?.isOfficial == true) "Channel description" else if (chat?.isGroup == true) "Group description" else "About",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )

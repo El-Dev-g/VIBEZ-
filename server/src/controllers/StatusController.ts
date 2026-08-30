@@ -55,7 +55,11 @@ export class StatusController {
       const { statusId } = req.params;
       const userId = req.user?.id as string;
 
-      await prisma.status.delete({
+      await prisma.statusView.deleteMany({
+        where: { statusId }
+      });
+
+      await prisma.status.deleteMany({
         where: { id: statusId, userId }
       });
 

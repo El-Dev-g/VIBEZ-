@@ -601,6 +601,15 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         authManager.updateProfile(name, status, avatarUrl ?: currentUserAvatar.value)
         
         viewModelScope.launch {
+            val userId = authManager.getUserId() ?: "ME"
+            
+            // Perform local Room database update/insert CRUD for current user
+            try {
+                repository.updateContact(userId, name, phone, status)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             val token = authManager.getAuthToken()
             if (!token.isNullOrBlank()) {
                 repository.updateUserProfile(name, status, avatarUrl ?: currentUserAvatar.value, token)
@@ -829,7 +838,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean) {
         viewModelScope.launch {
-            repository.logCall(contactId, contactName, callType, isIncoming, isMissed)
+            val token = authManager.getAuthToken()
+            repository.logCall(contactId, contactName, callType, isIncoming, isMissed, token)
         }
     }
 

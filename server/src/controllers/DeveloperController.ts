@@ -20,7 +20,7 @@ export class DeveloperController {
         return res.status(400).json({ success: false, error: 'Webhook signing secret is required' });
       }
 
-      const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      const payloadString = payload === undefined ? '' : (typeof payload === 'string' ? payload : JSON.stringify(payload));
       const contentToSign = timestamp ? `${timestamp}.${payloadString}` : payloadString;
 
       const computedSignature = crypto

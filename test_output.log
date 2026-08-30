@@ -1,0 +1,114 @@
+
+======================================================
+TESTING ALL HTTP METHODS ON: https://vibez-n5h1.onrender.com
+======================================================
+
+
+--- 1. HTTP HEAD & OPTIONS ---
+✅ [OPTIONS] /api/chats                                    -> HTTP 204 No Content
+✅ [HEAD   ] /health                                       -> HTTP 200 OK
+✅ [HEAD   ] /api/system/status                            -> HTTP 200 OK
+✅ [HEAD   ] /api/developer/health                         -> HTTP 200 OK
+✅ [HEAD   ] /api/config/public                            -> HTTP 200 OK
+
+--- 2. Public GET Endpoints ---
+✅ [GET    ] /health                                       -> HTTP 200 OK
+   Response: {"status":"ok","timestamp":"2026-08-30T22:06:48.229Z"}
+✅ [GET    ] /api/system/status                            -> HTTP 200 OK
+   Response: {"status":"online","maintenanceMode":false,"allowNewRegistrations":true,"badgePrice":5,"appDownloadU
+✅ [GET    ] /api/config/public                            -> HTTP 200 OK
+   Response: {"appName":"VIBEZ","appVersion":"1.0.0","appDownloadUrl":"","contactEmail":"support@vibez.chat","con
+✅ [GET    ] /api/app/download-info                        -> HTTP 200 OK
+   Response: {"appName":"VIBEZ","appVersion":"1.0.0","appDownloadUrl":"","contactEmail":"support@vibez.chat","con
+✅ [GET    ] /api/app/updates/latest                       -> HTTP 200 OK
+   Response: {"versionCode":1,"versionName":"1.0.0","updateTitle":"VIBEZ 1.0.0","updateMessage":"Welcome to the s
+✅ [GET    ] /api/broadcasts                               -> HTTP 200 OK
+   Response: [{"id":"acc01eda-871f-4627-8c5f-39b7fbb3a100","title":"Green Checkmark Badge Special","message":"Get
+✅ [GET    ] /api/announcements                            -> HTTP 200 OK
+   Response: [{"id":"acc01eda-871f-4627-8c5f-39b7fbb3a100","title":"Green Checkmark Badge Special","message":"Get
+✅ [GET    ] /api/payments/providers                       -> HTTP 200 OK
+   Response: [{"id":"3561f7d5-d79a-487e-9700-786907e67219","name":"STRIPE"}]
+✅ [GET    ] /api/developer/health                         -> HTTP 200 OK
+   Response: {"status":"healthy","serverType":"Custom Vibez Express + Prisma Server","uptimeSeconds":604,"timesta
+✅ [GET    ] /api/developer/server/health-check            -> HTTP 200 OK
+   Response: {"status":"healthy","serverType":"Custom Vibez Express + Prisma Server","uptimeSeconds":604,"timesta
+✅ [GET    ] /api/developer/metrics                        -> HTTP 200 OK
+   Response: {"success":true,"metrics":{"totalUsers":5,"totalChats":4,"totalMessages":13,"totalCommunities":4,"re
+
+--- 3. Public POST Endpoints ---
+✅ [POST   ] /api/contact                                  -> HTTP 200 OK
+   Response: {"success":true,"message":"Your message has been received! Our support team will get back to you sho
+✅ [POST   ] /api/subscribe                                -> HTTP 200 OK
+   Response: {"message":"Subscribed successfully"}
+⚠️ [POST   ] /api/developer/webhooks/verify                -> HTTP 500 Internal Server Error
+   Response: {"success":false,"error":"The \"data\" argument must be of type string or an instance of Buffer, Typ
+
+--- 4. Authentication (POST) ---
+⚠️ [POST   ] /api/auth/phone                               -> HTTP 429 Too Many Requests
+   Response: {"error":"Security Alert: Too many authentication attempts from this IP address. Please try again in
+
+--- 5. Authenticated GET Endpoints ---
+ℹ️ [GET    ] /api/auth/profile                             -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [GET    ] /api/users/search?q=Test                      -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [GET    ] /api/users/settings                           -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [GET    ] /api/chats                                    -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [GET    ] /api/statuses                                 -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [GET    ] /api/statuses/privacy                         -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [GET    ] /api/communities                              -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [GET    ] /api/calls                                    -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [GET    ] /api/payments/verification/status             -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+
+--- 6. Authenticated PUT & PATCH Endpoints ---
+ℹ️ [PUT    ] /api/users/profile                            -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [PUT    ] /api/users/settings                           -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [PUT    ] /api/statuses/privacy                         -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+
+--- 7. Authenticated POST Endpoints ---
+ℹ️ [POST   ] /api/statuses                                 -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [POST   ] /api/chats/group                              -> HTTP 404 Not Found
+   Response: <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<
+ℹ️ [POST   ] /api/communities                              -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [POST   ] /api/calls                                    -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [POST   ] /api/payments/create                          -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [POST   ] /api/media/upload-url                         -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+ℹ️ [POST   ] /api/users/report                             -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+
+--- 8. Authenticated DELETE Endpoints ---
+ℹ️ [DELETE ] /api/calls                                    -> HTTP 401 Unauthorized
+   Response: {"error":"Unauthorized: Authentication required."}
+
+--- 9. Admin Flow ---
+⚠️ [POST   ] /api/admin/login                              -> HTTP 429 Too Many Requests
+   Response: {"error":"Security Alert: Too many authentication attempts from this IP address. Please try again in
+
+======================================================
+SUMMARY OF TEST EXECUTION:
+Total Endpoints Tested: 41
+Methods covered: { OPTIONS: 1, HEAD: 4, GET: 20, POST: 12, PUT: 3, DELETE: 1 }
+======================================================
+

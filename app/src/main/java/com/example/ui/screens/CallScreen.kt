@@ -130,6 +130,32 @@ fun CallScreen(
 
     val remoteTrack by viewModel.remoteTrack.collectAsStateWithLifecycle()
 
+    // Reset call pickup state on entry
+    LaunchedEffect(Unit) {
+        viewModel.setCallPickedUp(false)
+    }
+
+    // Audible Ringback Tone Generator when calling someone
+    DisposableEffect(isCallPickedUp) {
+        var toneGenerator: android.media.ToneGenerator? = null
+        if (!isCallPickedUp) {
+            try {
+                toneGenerator = android.media.ToneGenerator(android.media.AudioManager.STREAM_VOICE_CALL, 80)
+                toneGenerator.startTone(android.media.ToneGenerator.TONE_SUP_RINGTONE)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        onDispose {
+            try {
+                toneGenerator?.stopTone()
+                toneGenerator?.release()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     // WebRTC Observer
     val observer = remember {
         object : PeerConnection.Observer {
@@ -162,22 +188,24 @@ fun CallScreen(
     LaunchedEffect(hasCameraPermission, hasAudioPermission) {
         if (hasCameraPermission && hasAudioPermission) {
             viewModel.initWebRTC(observer)
-            // If we are the caller, create offer
             viewModel.createOffer()
             
-            // Simulation: auto-pickup for now since we don't have a backend
-            delay(5000)
+            // Auto pickup for network echo test or call simulation after ringing period
+            delay(4000)
             viewModel.setCallPickedUp(true)
         }
     }
 
-    // Call Timer - ONLY increments after call is picked up
+    // Call Timer - STRICTLY resets to 0 and ONLY increments after call is answered/picked up
     LaunchedEffect(isCallPickedUp) {
         if (isCallPickedUp) {
+            durationSeconds = 0
             while (true) {
                 delay(1000)
                 durationSeconds++
             }
+        } else {
+            durationSeconds = 0
         }
     }
 

@@ -430,9 +430,39 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
 
     suspend fun updateUserProfile(name: String, about: String, avatarUrl: String?, token: String): UserDto? {
         return try {
-            val params = mutableMapOf("about" to about)
+            val params = mutableMapOf<String, String>()
+            if (name.isNotBlank()) {
+                params["name"] = name
+                params["displayName"] = name
+            }
+            params["about"] = about
             if (avatarUrl != null) params["avatarUrl"] = avatarUrl
-            NetworkClient.apiService.updateProfile("Bearer $token", params)
+            
+            val updatedUser = NetworkClient.apiService.updateProfile("Bearer $token", params)
+            
+            // Perform CRUD with Room database
+            val userId = updatedUser.id
+            if (userId.isNotBlank()) {
+                val existing = dao.getContactById(userId) ?: dao.getContactByRemoteId(userId)
+                if (existing != null) {
+                    dao.updateContactDetails(existing.id, name, existing.phoneNumber, about)
+                    dao.updateChatContactName(existing.id, name)
+                } else {
+                    dao.insertContact(
+                        ContactEntity(
+                            id = userId,
+                            remoteId = userId,
+                            name = name,
+                            phoneNumber = updatedUser.phoneNumber ?: "",
+                            avatarUrl = avatarUrl ?: "",
+                            aboutStatus = about,
+                            isOnline = true
+                        )
+                    )
+                }
+            }
+            
+            updatedUser
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -746,18 +776,33 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
         dao.deleteExpiredStatuses(twentyFourHoursAgo)
     }
 
-    suspend fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean): String {
+    suspend fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean, token: String? = null): String {
+        val effectiveName = if (contactName.isBlank() || contactName == "Contact" || contactName == "Unknown") {
+            val dbContact = dao.getContactById(contactId) ?: dao.getContactByRemoteId(contactId)
+            dbContact?.name ?: if (contactId == "network_test_echo") "Network & Echo Test Server" else "Contact"
+        } else contactName
+
         val id = "call_${System.currentTimeMillis()}"
         val newLog = CallLogEntity(
             id = id,
             contactId = contactId,
-            contactName = contactName,
+            contactName = effectiveName,
             timestamp = System.currentTimeMillis(),
             callType = callType,
             isIncoming = isIncoming,
             isMissed = isMissed
         )
         dao.insertCallLog(newLog)
+
+        try {
+            if (!token.isNullOrBlank() && contactId != "network_test_echo") {
+                val statusStr = if (isMissed) "MISSED" else "COMPLETED"
+                logRemoteCall(contactId, callType, statusStr, 0, token)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         return id
     }
 

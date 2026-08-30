@@ -16,10 +16,10 @@ const pendingPhoneChanges = new Map<string, PhoneChangeRequestItem>();
 export class UserController {
   async searchUsers(req: AuthRequest, res: Response) {
     try {
-      const { query } = req.query;
+      const queryParam = (req.query.q || req.query.query) as string;
       const currentUserId = req.user?.id;
 
-      if (!query || typeof query !== 'string') {
+      if (!queryParam || typeof queryParam !== 'string') {
         return res.status(400).json({ error: 'Search query is required' });
       }
 
@@ -29,8 +29,8 @@ export class UserController {
             { id: { not: currentUserId } },
             {
               OR: [
-                { phoneNumber: { contains: query, mode: 'insensitive' } },
-                { name: { contains: query, mode: 'insensitive' } }
+                { phoneNumber: { contains: queryParam, mode: 'insensitive' } },
+                { name: { contains: queryParam, mode: 'insensitive' } }
               ]
             }
           ]
@@ -46,17 +46,25 @@ export class UserController {
 
   async updateProfile(req: AuthRequest, res: Response) {
     try {
-      const { about, avatarUrl } = req.body;
+      const { name, displayName, about, avatarUrl } = req.body;
       const userId = req.user?.id as string;
 
-      // Notice: Name and PhoneNumber are immutable through basic profile edit.
-      // Phone number must be changed via dedicated verification request flow.
+      const newName = name !== undefined ? name : displayName;
+
+      const updateData: any = {};
+      if (newName !== undefined && newName !== null && String(newName).trim().length > 0) {
+        updateData.name = String(newName).trim();
+      }
+      if (about !== undefined) {
+        updateData.about = about;
+      }
+      if (avatarUrl !== undefined) {
+        updateData.avatarUrl = avatarUrl;
+      }
+
       const user = await prisma.user.update({
         where: { id: userId },
-        data: {
-          about: about !== undefined ? about : undefined,
-          avatarUrl: avatarUrl !== undefined ? avatarUrl : undefined
-        }
+        data: updateData
       });
 
       res.json(user);

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -32,6 +33,7 @@ fun AvatarView(
     avatarUrl: String = "",
     isOnline: Boolean = false,
     isGroup: Boolean = false,
+    isOfficial: Boolean = false,
     hasStatusUpdate: Boolean = false,
     isStatusViewed: Boolean = false,
     statusCount: Int = 1,
@@ -122,7 +124,14 @@ fun AvatarView(
                         .background(bgColor),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isGroup) {
+                    if (isOfficial) {
+                        Icon(
+                            imageVector = Icons.Default.Campaign,
+                            contentDescription = "Channel",
+                            tint = textColor,
+                            modifier = Modifier.size((size - contentPadding * 2) * 0.55f)
+                        )
+                    } else if (isGroup) {
                         Icon(
                             imageVector = Icons.Default.Group,
                             contentDescription = "Group",
