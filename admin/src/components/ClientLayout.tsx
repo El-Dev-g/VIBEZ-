@@ -8,8 +8,18 @@ import { usePathname } from 'next/navigation';
 
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const pathname = usePathname();
+  let pathname = '';
+  try {
+    pathname = usePathname() || '';
+  } catch (e) {
+    pathname = '';
+  }
   const isLoginPage = pathname === '/login';
+  const isNotFoundPage = pathname === '/404' || pathname === '/not-found' || pathname === '/_not-found' || pathname.startsWith('/_');
+
+  if (isLoginPage || isNotFoundPage) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (
@@ -30,7 +40,7 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
   }
 
   // If not logged in and not on login page, don't flash dashboard while redirecting
-  if (!isAuthenticated && !isLoginPage) {
+  if (!isAuthenticated) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-[#0b1120]">
         <div className="text-slate-400 text-xs font-bold uppercase tracking-widest animate-pulse">
@@ -38,10 +48,6 @@ function AuthenticatedContent({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
-  }
-
-  if (isLoginPage) {
-    return <>{children}</>;
   }
 
   return <DashboardShell>{children}</DashboardShell>;

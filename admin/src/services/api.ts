@@ -1085,7 +1085,7 @@ export interface AppUpdate {
 
 export const fetchLatestUpdate = async (): Promise<AppUpdate | null> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/system/updates/latest`, {
+    const res = await fetch(`${getApiBaseUrl()}/app/updates/latest`, {
       headers: getAdminHeaders(),
       cache: 'no-store'
     });
