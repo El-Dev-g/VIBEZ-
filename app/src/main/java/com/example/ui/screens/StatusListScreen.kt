@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.data.ContactEntity
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -80,6 +82,7 @@ data class GroupedStatus(
 @Composable
 fun StatusListScreen(
     statuses: List<StatusEntity>,
+    contacts: List<ContactEntity> = emptyList(),
     onStatusClick: (StatusEntity) -> Unit,
     onCreateTextStatusClick: () -> Unit,
     onCreatePhotoStatusClick: () -> Unit,
@@ -104,16 +107,19 @@ fun StatusListScreen(
     val myStatuses = remember(activeStatuses) { activeStatuses.filter { it.isMyStatus }.sortedBy { it.timestamp } }
     val myStatus = myStatuses.firstOrNull()
 
-    val contactStatusesGrouped = remember(activeStatuses) {
+    val contactStatusesGrouped = remember(activeStatuses, contacts) {
         activeStatuses.filter { !it.isMyStatus }
             .groupBy { it.contactId }
             .map { (contactId, list) ->
                 val sorted = list.sortedBy { it.timestamp }
                 val first = sorted.first()
+                val matchedContact = contacts.firstOrNull { c -> c.id == contactId || c.remoteId == contactId }
+                val displayName = matchedContact?.name ?: if (first.contactName != "Unknown") first.contactName else "Contact"
+                val displayAvatar = matchedContact?.avatarUrl.takeIf { !it.isNullOrBlank() } ?: first.contactAvatar
                 GroupedStatus(
                     contactId = contactId,
-                    contactName = first.contactName,
-                    contactAvatar = first.contactAvatar,
+                    contactName = displayName,
+                    contactAvatar = displayAvatar,
                     statuses = sorted
                 )
             }

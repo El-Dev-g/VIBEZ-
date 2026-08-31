@@ -425,6 +425,7 @@ fun MainTabScreen(
                 )
                 1 -> StatusListScreen(
                     statuses = statuses,
+                    contacts = contacts,
                     onStatusClick = onStatusClick,
                     onCreateTextStatusClick = onCreateTextStatusClick,
                     onCreatePhotoStatusClick = onCreatePhotoStatusClick,

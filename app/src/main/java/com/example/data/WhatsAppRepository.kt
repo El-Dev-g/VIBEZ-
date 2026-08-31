@@ -204,6 +204,10 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
 
     fun getMessagesFlow(chatId: String): Flow<List<MessageEntity>> = dao.getMessagesForChat(chatId)
 
+    suspend fun addLocalChat(chat: ChatEntity) {
+        dao.insertChat(chat)
+    }
+
     suspend fun addLocalMessage(message: MessageEntity) {
         dao.insertMessage(message)
         val chat = dao.getChatById(message.chatId)
@@ -372,20 +376,55 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
     }
 
     suspend fun createNewContact(name: String, phone: String, about: String, token: String): String {
+        val cleanPhone = phone.replace(Regex("[^0-9+]"), "").trim()
         return try {
-            val searchResults = NetworkClient.apiService.searchUsers("Bearer $token", phone)
-            val targetUser = searchResults.firstOrNull { it.phoneNumber == phone }
-            
-            if (targetUser != null) {
-                NetworkClient.apiService.createOrGetPrivateChat("Bearer $token", PrivateChatRequest(targetUserId = targetUser.id))
-                syncChats(token)
-                targetUser.id
-            } else {
-                throw Exception("User with phone $phone not found on server")
+            val searchResults = NetworkClient.apiService.searchUsers("Bearer $token", cleanPhone)
+            val targetUser = searchResults.firstOrNull { 
+                val userClean = (it.phoneNumber ?: "").replace(Regex("[^0-9+]"), "").trim()
+                userClean == cleanPhone || (cleanPhone.length >= 7 && userClean.endsWith(cleanPhone.takeLast(7)))
             }
+            
+            val finalContactId = targetUser?.id ?: "contact_${System.currentTimeMillis()}"
+            val finalPhone = targetUser?.phoneNumber ?: phone
+
+            // Always insert contact into Room database so they appear in contact list
+            dao.insertContact(
+                ContactEntity(
+                    id = finalContactId,
+                    remoteId = finalContactId,
+                    name = name,
+                    phoneNumber = finalPhone,
+                    avatarUrl = targetUser?.avatarUrl ?: "",
+                    aboutStatus = about,
+                    isOnline = true
+                )
+            )
+
+            if (targetUser != null) {
+                try {
+                    NetworkClient.apiService.createOrGetPrivateChat("Bearer $token", PrivateChatRequest(targetUserId = targetUser.id))
+                    syncChats(token)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            finalContactId
         } catch (e: Exception) {
             e.printStackTrace()
-            throw e
+            // Fallback: save contact locally
+            val localId = "contact_${System.currentTimeMillis()}"
+            dao.insertContact(
+                ContactEntity(
+                    id = localId,
+                    remoteId = localId,
+                    name = name,
+                    phoneNumber = phone,
+                    avatarUrl = "",
+                    aboutStatus = about,
+                    isOnline = false
+                )
+            )
+            localId
         }
     }
 

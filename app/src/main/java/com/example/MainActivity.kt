@@ -682,11 +682,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 initialStatus = activeStatusForViewer,
                 onCloseClick = { navController.popBackStack() },
                 onReplyToStatus = { targetStatus, replyText ->
-                    if (targetStatus.contactId.isNotEmpty()) {
-                        val targetChat = allChatsList.firstOrNull { it.contactId == targetStatus.contactId }
-                        if (targetChat != null) {
-                            viewModel.sendMessage(targetChat.id, "Replied to status: \"$replyText\"", "TEXT", "", 0)
-                        }
+                    viewModel.replyToStatus(targetStatus, replyText) { chatId ->
+                        navController.popBackStack()
+                        navController.navigate("chat/$chatId")
                     }
                 },
                 onStatusViewed = { statusId ->

@@ -836,6 +836,64 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         return statuses.value.firstOrNull { it.id == statusId }?.viewers ?: emptyList()
     }
 
+    fun replyToStatus(
+        targetStatus: StatusEntity,
+        replyText: String,
+        onComplete: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val token = authManager.getAuthToken() ?: ""
+                val contactId = targetStatus.contactId
+                val contactName = if (targetStatus.contactName != "Unknown") targetStatus.contactName else "Contact"
+                
+                // Find existing chat or create one
+                var targetChat = chats.value.firstOrNull { it.contactId == contactId || it.id == contactId }
+                
+                if (targetChat == null && contactId.isNotBlank()) {
+                    try {
+                        val dto = NetworkClient.apiService.createOrGetPrivateChat("Bearer $token", PrivateChatRequest(targetUserId = contactId))
+                        repository.syncChats(token)
+                        targetChat = chats.value.firstOrNull { it.id == dto.id || it.contactId == contactId }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                val chatId = targetChat?.id ?: if (contactId.isNotBlank()) contactId else "chat_${System.currentTimeMillis()}"
+
+                // Ensure local chat exists in Room DB if network call was offline
+                if (targetChat == null) {
+                    val fallbackChat = ChatEntity(
+                        id = chatId,
+                        remoteId = chatId,
+                        contactId = contactId,
+                        contactName = contactName,
+                        lastMessage = replyText,
+                        lastMessageTime = System.currentTimeMillis(),
+                        unreadCount = 0,
+                        isGroup = false
+                    )
+                    repository.addLocalChat(fallbackChat)
+                }
+
+                val statusSnippet = when {
+                    targetStatus.textCaption.isNotBlank() -> targetStatus.textCaption
+                    targetStatus.mediaType == "IMAGE" -> "📷 Photo Status"
+                    targetStatus.mediaType == "VIDEO" -> "🎥 Video Status"
+                    else -> "Status"
+                }
+
+                val formattedContent = "Replied to status ($statusSnippet):\n$replyText"
+                sendMessage(chatId, formattedContent, "TEXT")
+
+                onComplete(chatId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean) {
         viewModelScope.launch {
             val token = authManager.getAuthToken()
