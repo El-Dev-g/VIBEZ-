@@ -77,7 +77,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -104,6 +106,7 @@ import com.example.ui.theme.WhatsAppMinimalNavPill
 import com.example.ui.theme.WhatsAppMinimalPrimary
 import com.example.util.PhoneNumberValidator
 import com.example.util.ValidationResult
+import com.example.util.PhoneAuthPolicyManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.rememberCoroutineScope
 import com.google.firebase.auth.FirebaseAuth
@@ -162,12 +165,25 @@ fun PhoneIdentitySetupScreen(
     }
 
     // Page 1 State
-    var selectedCountry by remember { mutableStateOf(PhoneNumberValidator.COUNTRIES[0]) } // US (+1)
+    val policyVersion by PhoneAuthPolicyManager.policyVersion.collectAsState()
+    var selectedCountry by remember { mutableStateOf(PhoneAuthPolicyManager.getValidSelectedCountry(PhoneNumberValidator.COUNTRIES[0])) } // US (+1)
     var rawPhoneNumber by remember { mutableStateOf("") }
     var allowContactDiscovery by remember { mutableStateOf(true) }
     var autoSyncContacts by remember { mutableStateOf(true) }
     var showCountrySheet by remember { mutableStateOf(false) }
     var countrySearchQuery by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        PhoneAuthPolicyManager.syncWithBackend(context)
+    }
+
+    LaunchedEffect(policyVersion) {
+        if (!PhoneAuthPolicyManager.isCountryEnabled(selectedCountry.code)) {
+            selectedCountry = PhoneAuthPolicyManager.getValidSelectedCountry(selectedCountry)
+        }
+    }
 
     // Page 2 State: Profile Picture Upload or Automatic Initials Avatar
     var userName by remember { mutableStateOf(if (isPhoneAuth && initialName == "User") "" else initialName) }
@@ -178,7 +194,6 @@ fun PhoneIdentitySetupScreen(
     var isSubmitting by remember { mutableStateOf(false) }
 
     // Phone Verification State
-    val context = LocalContext.current
     val firebaseAuth = remember { FirebaseAuth.getInstance() }
     val scope = rememberCoroutineScope()
     var phoneVerificationStep by remember { mutableStateOf(0) } // 0 = Input Phone, 1 = Enter SMS Code
@@ -1460,8 +1475,9 @@ fun PhoneIdentitySetupScreen(
     if (showCountrySheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val filteredCountries = remember(countrySearchQuery) {
-            if (countrySearchQuery.isBlank()) PhoneNumberValidator.COUNTRIES
-            else PhoneNumberValidator.COUNTRIES.filter {
+            val enabled = PhoneAuthPolicyManager.getEnabledCountries()
+            if (countrySearchQuery.isBlank()) enabled
+            else enabled.filter {
                 it.name.contains(countrySearchQuery, ignoreCase = true) ||
                         it.dialCode.contains(countrySearchQuery) ||
                         it.code.contains(countrySearchQuery, ignoreCase = true)

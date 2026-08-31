@@ -274,6 +274,7 @@ model SystemSetting {
   termsOfServiceContent String? @default("")
   helpCenterUrl         String? @default("")
   faqUrl                String? @default("")
+  phoneAuthAllowedCountries String? @default("US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU")
 }
 
 model AppUpdate {

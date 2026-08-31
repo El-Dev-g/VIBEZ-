@@ -68,6 +68,7 @@ import com.example.ui.theme.WhatsAppMinimalNavPill
 import com.example.ui.theme.WhatsAppMinimalPrimary
 import com.example.util.PhoneNumberValidator
 import com.example.util.ValidationResult
+import com.example.util.PhoneAuthPolicyManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +79,7 @@ fun NewContactScreen(
     var name by remember { mutableStateOf("") }
     var rawPhone by remember { mutableStateOf("") }
     var about by remember { mutableStateOf("Hey there! I am using VIBEZ.") }
-    var selectedCountry by remember { mutableStateOf(PhoneNumberValidator.COUNTRIES[0]) } // US
+    var selectedCountry by remember { mutableStateOf(PhoneAuthPolicyManager.getValidSelectedCountry(PhoneNumberValidator.COUNTRIES[0])) } // US
     var showCountrySheet by remember { mutableStateOf(false) }
     var countrySearchQuery by remember { mutableStateOf("") }
 
@@ -272,8 +273,9 @@ fun NewContactScreen(
     if (showCountrySheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val filteredCountries = remember(countrySearchQuery) {
-            if (countrySearchQuery.isBlank()) PhoneNumberValidator.COUNTRIES
-            else PhoneNumberValidator.COUNTRIES.filter {
+            val enabled = PhoneAuthPolicyManager.getEnabledCountries()
+            if (countrySearchQuery.isBlank()) enabled
+            else enabled.filter {
                 it.name.contains(countrySearchQuery, ignoreCase = true) ||
                         it.dialCode.contains(countrySearchQuery) ||
                         it.code.contains(countrySearchQuery, ignoreCase = true)

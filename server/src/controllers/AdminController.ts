@@ -319,7 +319,8 @@ export class AdminController {
             privacyPolicyContent: '',
             termsOfServiceContent: '',
             helpCenterUrl: '',
-            faqUrl: ''
+            faqUrl: '',
+            phoneAuthAllowedCountries: 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'
           }
         });
       }
@@ -354,6 +355,7 @@ export class AdminController {
       const termsOfServiceContent = data.termsOfServiceContent !== undefined ? String(data.termsOfServiceContent) : undefined;
       const helpCenterUrl = data.helpCenterUrl !== undefined ? String(data.helpCenterUrl).trim() : undefined;
       const faqUrl = data.faqUrl !== undefined ? String(data.faqUrl).trim() : undefined;
+      const phoneAuthAllowedCountries = data.phoneAuthAllowedCountries !== undefined ? String(data.phoneAuthAllowedCountries).trim() : undefined;
 
       if (!target) {
         target = await prisma.systemSetting.create({
@@ -374,7 +376,8 @@ export class AdminController {
             privacyPolicyContent: privacyPolicyContent ?? '',
             termsOfServiceContent: termsOfServiceContent ?? '',
             helpCenterUrl: helpCenterUrl ?? '',
-            faqUrl: faqUrl ?? ''
+            faqUrl: faqUrl ?? '',
+            phoneAuthAllowedCountries: phoneAuthAllowedCountries ?? 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'
           }
         });
         return res.json(target);
@@ -398,6 +401,7 @@ export class AdminController {
       if (termsOfServiceContent !== undefined) updatePayload.termsOfServiceContent = termsOfServiceContent;
       if (helpCenterUrl !== undefined) updatePayload.helpCenterUrl = helpCenterUrl;
       if (faqUrl !== undefined) updatePayload.faqUrl = faqUrl;
+      if (phoneAuthAllowedCountries !== undefined) updatePayload.phoneAuthAllowedCountries = phoneAuthAllowedCountries;
 
       const updated = await prisma.systemSetting.update({
         where: { id: target.id },
@@ -423,6 +427,7 @@ export class AdminController {
         supportAddress: settings?.supportAddress || 'San Francisco, CA, USA',
         maintenanceMode: settings?.maintenanceMode || false,
         allowNewRegistrations: settings?.allowNewRegistrations ?? true,
+        phoneAuthAllowedCountries: settings?.phoneAuthAllowedCountries || 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'
       });
     } catch (error) {
       res.status(500).json({

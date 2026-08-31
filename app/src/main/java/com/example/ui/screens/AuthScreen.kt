@@ -51,10 +51,12 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import com.example.util.PhoneNumberValidator
 import com.example.util.ValidationResult
 import com.example.util.CountryValidationRule
+import com.example.util.PhoneAuthPolicyManager
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -115,16 +117,31 @@ fun AuthScreen(
     val isDemoMode = false // Set to true ONLY for internal testing/preview
     
     var activeTab by remember { mutableIntStateOf(1) } // 1 = Firebase Phone Auth (Default), 0 = Google Sign-In
+    val policyVersion by PhoneAuthPolicyManager.policyVersion.collectAsState()
     
     // Country Selector State
     var selectedCountry by remember {
         mutableStateOf(
-            PhoneNumberValidator.COUNTRIES.firstOrNull { it.code == "GH" }
-                ?: PhoneNumberValidator.COUNTRIES.first()
+            PhoneAuthPolicyManager.getValidSelectedCountry(
+                PhoneNumberValidator.COUNTRIES.firstOrNull { it.code == "GH" }
+                    ?: PhoneNumberValidator.COUNTRIES.first()
+            )
         )
     }
     var showCountrySheet by remember { mutableStateOf(false) }
     var countrySearchQuery by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        PhoneAuthPolicyManager.syncWithBackend(context)
+    }
+
+    LaunchedEffect(policyVersion) {
+        if (!PhoneAuthPolicyManager.isCountryEnabled(selectedCountry.code)) {
+            selectedCountry = PhoneAuthPolicyManager.getValidSelectedCountry(selectedCountry)
+        }
+    }
 
     // Phone Auth Form States
     var phoneName by remember { mutableStateOf("") }
@@ -160,7 +177,6 @@ fun AuthScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var statusNotice by remember { mutableStateOf<String?>(null) }
 
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember { CredentialManager.create(context) }
     val firebaseAuth = remember { 
@@ -978,8 +994,9 @@ fun AuthScreen(
     if (showCountrySheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val filteredCountries = remember(countrySearchQuery) {
-            if (countrySearchQuery.isBlank()) PhoneNumberValidator.COUNTRIES
-            else PhoneNumberValidator.COUNTRIES.filter {
+            val enabled = PhoneAuthPolicyManager.getEnabledCountries()
+            if (countrySearchQuery.isBlank()) enabled
+            else enabled.filter {
                 it.name.contains(countrySearchQuery, ignoreCase = true) ||
                         it.dialCode.contains(countrySearchQuery) ||
                         it.code.contains(countrySearchQuery, ignoreCase = true)

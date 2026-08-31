@@ -131,7 +131,8 @@ const handleSystemStatus = async (req: express.Request, res: express.Response) =
       privacyPolicyContent: setting?.privacyPolicyContent || '',
       termsOfServiceContent: setting?.termsOfServiceContent || '',
       helpCenterUrl: setting?.helpCenterUrl || '',
-      faqUrl: setting?.faqUrl || ''
+      faqUrl: setting?.faqUrl || '',
+      phoneAuthAllowedCountries: setting?.phoneAuthAllowedCountries || 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'
     });
   } catch (error) {
     res.status(500).json({ status: 'error', maintenanceMode: false });

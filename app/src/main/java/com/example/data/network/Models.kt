@@ -261,7 +261,8 @@ data class SystemStatusResponse(
     val status: String = "online",
     val maintenanceMode: Boolean = false,
     val allowNewRegistrations: Boolean = true,
-    val badgePrice: Double = 3.0
+    val badgePrice: Double = 3.0,
+    val phoneAuthAllowedCountries: String? = null
 )
 
 @JsonClass(generateAdapter = true)

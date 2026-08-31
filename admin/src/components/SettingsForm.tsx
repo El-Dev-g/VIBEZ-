@@ -199,6 +199,27 @@ export default function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
             <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-1 uppercase tracking-widest">System archival lifespan.</p>
           </div>
+
+          <div className="md:col-span-3 space-y-3 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
+                Firebase Phone Auth Permitted Countries (Developer Policy)
+              </label>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase">
+                Dynamic Policy
+              </span>
+            </div>
+            <input
+              type="text"
+              value={settings.phoneAuthAllowedCountries ?? 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'}
+              onChange={(e) => setSettings({ ...settings, phoneAuthAllowedCountries: e.target.value })}
+              placeholder="e.g. US, GH, NG, GB, CA, KE, ZA"
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
+            />
+            <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-1 uppercase tracking-widest">
+              Comma-separated ISO country codes (e.g. US, GH, NG). The app country picker will dynamically filter and display ONLY these enabled countries and dial prefixes. Disabled countries will not appear in the picker.
+            </p>
+          </div>
         </div>
       </div>
 

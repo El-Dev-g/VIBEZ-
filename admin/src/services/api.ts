@@ -330,6 +330,7 @@ export interface SystemSettings {
   termsOfServiceContent?: string;
   helpCenterUrl?: string;
   faqUrl?: string;
+  phoneAuthAllowedCountries?: string;
 }
 
 export const fetchReports = async (): Promise<Report[]> => {
