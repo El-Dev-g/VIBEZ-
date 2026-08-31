@@ -391,6 +391,7 @@ export const fetchSettings = async (): Promise<SystemSettings> => {
 };
 
 export const updateSettings = async (settings: Partial<SystemSettings>): Promise<SystemSettings | null> => {
+  let lastError = 'Failed to update settings';
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/settings`, {
       method: 'PATCH',
@@ -404,9 +405,13 @@ export const updateSettings = async (settings: Partial<SystemSettings>): Promise
         localStorage.setItem('vibez_system_settings', JSON.stringify(data));
       }
       return data;
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      lastError = errJson.error || `Server responded with status ${res.status}`;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('updateSettings PATCH error:', error);
+    lastError = error.message || 'Network error during PATCH settings';
   }
 
   try {
@@ -422,19 +427,16 @@ export const updateSettings = async (settings: Partial<SystemSettings>): Promise
         localStorage.setItem('vibez_system_settings', JSON.stringify(data));
       }
       return data;
+    } else {
+      const errJson = await resPost.json().catch(() => ({}));
+      lastError = errJson.error || `Server responded with status ${resPost.status}`;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('updateSettings POST error:', error);
+    lastError = error.message || 'Network error during POST settings';
   }
 
-  if (typeof window !== 'undefined') {
-    const current = await fetchSettings();
-    const merged = { ...current, ...settings } as SystemSettings;
-    localStorage.setItem('vibez_system_settings', JSON.stringify(merged));
-    return merged;
-  }
-
-  return null;
+  throw new Error(lastError);
 };
 
 export interface UserDetails extends User {
