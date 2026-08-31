@@ -33,8 +33,149 @@ class EmailService {
     return process.env.EMAIL_FROM_NAME || 'VIBEZ Support';
   }
 
+  private get fromAddress(): string {
+    return this.user || process.env.EMAIL_FROM || 'onboarding@resend.dev';
+  }
+
   private get appUrl(): string {
     return process.env.BACKEND_URL || 'https://vibez-n5h1.onrender.com';
+  }
+
+  /**
+   * Send email using Gmail REST API OAuth2 (Port 443 HTTPS - Unblockable on cloud platforms like Render)
+   */
+  private async sendViaGmailApi(
+    options: SendEmailOptions,
+    clientId: string,
+    clientSecret: string,
+    refreshToken: string,
+    userEmail: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // 1. Refresh OAuth2 access token
+      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) {
+        return { success: false, error: tokenData.error_description || 'Failed to refresh Gmail OAuth token' };
+      }
+
+      const accessToken = tokenData.access_token;
+
+      // 2. Build RFC 2822 email message
+      const utf8Subject = `=?utf-8?B?${Buffer.from(options.subject).toString('base64')}?=`;
+      const messageParts = [
+        `From: "${this.fromName}" <${userEmail}>`,
+        `To: ${options.to}`,
+        'Content-Type: text/html; charset=utf-8',
+        'MIME-Version: 1.0',
+        `Subject: ${utf8Subject}`,
+        '',
+        options.html,
+      ];
+      const rawMessage = messageParts.join('\r\n');
+      const encodedMessage = Buffer.from(rawMessage)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      // 3. Send email via Gmail API
+      const sendRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ raw: encodedMessage }),
+      });
+
+      const sendData = await sendRes.json();
+      if (!sendRes.ok) {
+        return { success: false, error: sendData.error?.message || JSON.stringify(sendData) };
+      }
+
+      console.log(`[EmailService] Delivered via Gmail API to ${options.to}:`, sendData.id);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[EmailService] Gmail API error:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Send email using Resend REST API (Port 443 HTTPS - Unblockable on cloud platforms like Render)
+   */
+  private async sendViaResend(options: SendEmailOptions, apiKey: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: `${this.fromName} <${process.env.EMAIL_FROM || 'onboarding@resend.dev'}>`,
+          to: [options.to],
+          subject: options.subject,
+          html: options.html,
+          text: options.text || options.html.replace(/<[^>]*>?/gm, ''),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return { success: false, error: data.message || JSON.stringify(data) };
+      }
+      console.log(`[EmailService] Delivered via Resend API to ${options.to}:`, data.id);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[EmailService] Resend API error:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Send email using SendGrid REST API (Port 443 HTTPS)
+   */
+  private async sendViaSendGrid(options: SendEmailOptions, apiKey: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: options.to }] }],
+          from: { email: this.fromAddress, name: this.fromName },
+          subject: options.subject,
+          content: [
+            { type: 'text/html', value: options.html },
+            { type: 'text/plain', value: options.text || options.html.replace(/<[^>]*>?/gm, '') }
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { success: false, error: errorText };
+      }
+      console.log(`[EmailService] Delivered via SendGrid API to ${options.to}`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[EmailService] SendGrid API error:', err);
+      return { success: false, error: err.message };
+    }
   }
 
   private getTransporter(): nodemailer.Transporter | null {
@@ -44,28 +185,72 @@ class EmailService {
     }
 
     if (!this.transporter) {
-      this.transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: this.user,
-          pass: this.pass.replace(/\s+/g, ''), // Strip spaces from App Password if formatted
-        },
-        connectionTimeout: 8000, // 8 seconds timeout
-        greetingTimeout: 8000,
-        socketTimeout: 10000,
-      });
+      const isCustomSmtp = Boolean(process.env.SMTP_HOST);
+      const cleanPass = this.pass.replace(/\s+/g, '');
+
+      if (isCustomSmtp) {
+        this.transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: Number(process.env.SMTP_PORT) || 465,
+          secure: (Number(process.env.SMTP_PORT) || 465) === 465,
+          auth: {
+            user: this.user,
+            pass: cleanPass,
+          },
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 20000,
+        });
+      } else {
+        // Direct Gmail SMTP host configuration (port 465 SSL is more resilient against cloud firewall egress blocks than 587)
+        this.transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true, // SSL/TLS
+          auth: {
+            user: this.user,
+            pass: cleanPass,
+          },
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 20000,
+        });
+      }
     }
 
     return this.transporter;
   }
 
   /**
-   * Generic sender via Gmail SMTP using nodemailer
+   * Generic sender via Gmail OAuth2 REST API, Resend API, SendGrid API, or SMTP
    */
   async sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
+    // 1. Try Gmail REST API OAuth2 (HTTPS Port 443 - zero SMTP timeouts, works seamlessly on Render)
+    const gmailClientId = process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID;
+    const gmailClientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET;
+    const gmailRefreshToken = process.env.GOOGLE_REFRESH_TOKEN || process.env.GMAIL_REFRESH_TOKEN;
+    const gmailUser = this.user || 'prigidcollection@gmail.com';
+
+    if (gmailClientId && gmailClientSecret && gmailRefreshToken) {
+      return await this.sendViaGmailApi(options, gmailClientId, gmailClientSecret, gmailRefreshToken, gmailUser);
+    }
+
+    // 2. Try Resend API if key is present (Fastest & unblockable over HTTPS)
+    const resendKey = process.env.RESEND_API_KEY;
+    if (resendKey) {
+      return await this.sendViaResend(options, resendKey);
+    }
+
+    // 3. Try SendGrid API if key is present
+    const sendGridKey = process.env.SENDGRID_API_KEY;
+    if (sendGridKey) {
+      return await this.sendViaSendGrid(options, sendGridKey);
+    }
+
+    // 4. Fallback to SMTP (Gmail / Custom SMTP)
     const transporter = this.getTransporter();
     if (!transporter) {
-      return { success: false, error: 'Gmail credentials (GMAIL_USER / GMAIL_APP_PASSWORD) not configured.' };
+      return { success: false, error: 'Email service credentials not configured. Please provide Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN), RESEND_API_KEY, or GMAIL_USER / GMAIL_APP_PASSWORD.' };
     }
 
     try {
@@ -77,9 +262,9 @@ class EmailService {
         text: options.text || options.html.replace(/<[^>]*>?/gm, ''),
       });
 
-      // 10s strict timeout to prevent hung HTTP requests
+      // 20s strict timeout to prevent hung HTTP requests
       const timeoutPromise = new Promise<{ success: boolean; error: string }>((_, reject) =>
-        setTimeout(() => reject(new Error('SMTP connection timed out after 10 seconds.')), 10000)
+        setTimeout(() => reject(new Error('SMTP connection timed out after 20 seconds.')), 20000)
       );
 
       await Promise.race([sendPromise, timeoutPromise]);
