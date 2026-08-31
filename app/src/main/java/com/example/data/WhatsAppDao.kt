@@ -1,6 +1,7 @@
 package com.example.data
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -60,11 +61,20 @@ interface WhatsAppDao {
     @Query("UPDATE chats SET unreadCount = 0 WHERE id = :chatId")
     suspend fun resetChatUnreadCount(chatId: String)
 
+    @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND senderId != :currentUserId")
+    suspend fun markMessagesAsRead(chatId: String, currentUserId: String)
+
+    @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND senderId = :currentUserId")
+    suspend fun markSentMessagesAsRead(chatId: String, currentUserId: String)
+
     @Query("DELETE FROM chats WHERE id = :chatId")
     suspend fun deleteChat(chatId: String)
 
     @Query("UPDATE chats SET isMuted = :isMuted WHERE id = :chatId")
     suspend fun updateChatMuteStatus(chatId: String, isMuted: Boolean)
+
+    @Query("UPDATE chats SET isPinned = :isPinned WHERE id = :chatId")
+    suspend fun updateChatPinStatus(chatId: String, isPinned: Boolean)
 
     // Messages
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")

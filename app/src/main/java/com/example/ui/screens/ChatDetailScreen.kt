@@ -136,6 +136,7 @@ fun ChatDetailScreen(
     customWallpaper: String? = null,
     wallpaperDimming: Float = 0.15f,
     isAdmin: Boolean = false,
+    currentUserId: String = "ME",
     onBackClick: () -> Unit,
     onContactInfoClick: () -> Unit,
     onWallpaperClick: () -> Unit = {},
@@ -150,7 +151,8 @@ fun ChatDetailScreen(
     onToggleMuteChat: (String) -> Unit = {},
     onClearChat: () -> Unit,
     onDeleteChat: () -> Unit = {},
-    onChatRead: () -> Unit = {}
+    onChatRead: () -> Unit = {},
+    onTypingStateChange: (Boolean) -> Unit = {}
 ) {
     if (chat == null) return
 
@@ -215,6 +217,16 @@ fun ChatDetailScreen(
     var showDisappearingDialog by remember { mutableStateOf(false) }
 
     var inputText by remember { mutableStateOf("") }
+
+    LaunchedEffect(inputText) {
+        if (inputText.isNotEmpty()) {
+            onTypingStateChange(true)
+            kotlinx.coroutines.delay(2000)
+            onTypingStateChange(false)
+        } else {
+            onTypingStateChange(false)
+        }
+    }
     var isRecordingVoice by remember { mutableStateOf(false) }
     var voiceRecordDuration by remember { mutableIntStateOf(0) }
     var isRecordingHoldActive by remember { mutableStateOf(false) }
@@ -900,6 +912,7 @@ fun ChatDetailScreen(
                             quotedMessage = quotedMsg,
                             contactName = chat.contactName,
                             isDarkMode = isDarkMode,
+                            currentUserId = currentUserId,
                             onLongClick = { selectedMessageForAction = msg },
                             onReply = { messageToReply ->
                                 replyingToMessage = messageToReply

@@ -61,6 +61,7 @@ export class CommunityController {
             create: {
               name: 'Announcements',
               isGroup: true,
+              allowComments: false,
               members: {
                 create: {
                   userId
@@ -175,6 +176,7 @@ export class CommunityController {
           data: {
             name: 'Announcements',
             isGroup: true,
+            allowComments: false,
             communityId,
             members: {
               create: {

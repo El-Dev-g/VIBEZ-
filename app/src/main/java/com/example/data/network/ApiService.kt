@@ -166,6 +166,12 @@ interface ApiService {
         @Body request: CreatePaymentRequest
     ): CreatePaymentResponse
 
+    @DELETE("api/communities/{communityId}")
+    suspend fun deleteCommunity(
+        @Header("Authorization") token: String,
+        @Path("communityId") communityId: String
+    )
+    
     @POST("api/chats/group")
     suspend fun createGroupChat(
         @Header("Authorization") token: String,

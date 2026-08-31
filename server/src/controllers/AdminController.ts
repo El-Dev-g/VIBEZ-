@@ -727,6 +727,7 @@ export class AdminController {
         data: {
           name: 'Announcements',
           isGroup: true,
+          allowComments: false,
           communityId: community.id,
           members: {
             create: {

@@ -1,8 +1,6 @@
 package com.example.data
 
 import android.content.Context
-import kotlinx.coroutines.flow.Flow
-
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -17,7 +15,7 @@ import androidx.room.TypeConverters
         StatusEntity::class,
         CommunityEntity::class
     ],
-    version = 1,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

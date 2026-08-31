@@ -26,7 +26,8 @@ data class ChatDto(
     val isMuted: Boolean = false,
     val wallpaper: String? = null,
     val isOfficial: Boolean = false,
-    val isVerified: Boolean = false
+    val isVerified: Boolean = false,
+    val allowComments: Boolean = true
 )
 
 @JsonClass(generateAdapter = true)

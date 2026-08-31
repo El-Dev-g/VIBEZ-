@@ -77,6 +77,7 @@ fun MessageBubble(
     quotedMessage: MessageEntity? = null,
     contactName: String = "Contact",
     isDarkMode: Boolean = false,
+    currentUserId: String = "ME",
     onLongClick: () -> Unit = {},
     onClick: () -> Unit = {},
     onReply: (MessageEntity) -> Unit = {},
@@ -108,7 +109,7 @@ fun MessageBubble(
         return
     }
 
-    val isSentByMe = message.senderId == "ME"
+    val isSentByMe = message.senderId == "ME" || (currentUserId.isNotBlank() && message.senderId == currentUserId)
     val coroutineScope = rememberCoroutineScope()
     val offsetX = remember { Animatable(0f) }
 

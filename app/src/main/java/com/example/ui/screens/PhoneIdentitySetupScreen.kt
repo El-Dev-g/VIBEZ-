@@ -144,15 +144,22 @@ enum class IdentitySetupPage {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhoneIdentitySetupScreen(
-    googleEmail: String,
+    googleEmail: String = "",
     initialName: String,
     initialAvatarUrl: String? = null,
+    initialPhone: String = "",
     idToken: String? = null,
+    isPhoneAuth: Boolean = false,
     onBackClick: () -> Unit,
-    onCompleteSetup: (phone: String, name: String, about: String, avatarUrl: String?, idToken: String?) -> Unit
+    onCompleteSetup: (phone: String, name: String, about: String, avatarUrl: String?, idToken: String?, onComplete: (Boolean, String?) -> Unit) -> Unit
 ) {
     val isDemoMode = false // Set to true ONLY for internal testing/preview
-    var currentPage by remember { mutableStateOf(IdentitySetupPage.PAGE_PHONE_NUMBER) }
+    var currentPage by remember { 
+        mutableStateOf(
+            if (isPhoneAuth) IdentitySetupPage.PAGE_PROFILE_SETUP 
+            else IdentitySetupPage.PAGE_PHONE_NUMBER
+        ) 
+    }
 
     // Page 1 State
     var selectedCountry by remember { mutableStateOf(PhoneNumberValidator.COUNTRIES[0]) } // US (+1)
@@ -163,7 +170,7 @@ fun PhoneIdentitySetupScreen(
     var countrySearchQuery by remember { mutableStateOf("") }
 
     // Page 2 State: Profile Picture Upload or Automatic Initials Avatar
-    var userName by remember { mutableStateOf(initialName) }
+    var userName by remember { mutableStateOf(if (isPhoneAuth && initialName == "User") "" else initialName) }
     var userAbout by remember { mutableStateOf("Hey there! I am using VIBEZ.") }
     var selectedAvatarIndex by remember { mutableIntStateOf(0) }
     var uploadedPhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -218,9 +225,7 @@ fun PhoneIdentitySetupScreen(
 
         if (auth == null || activity == null) {
             isVerifying = false
-            phoneVerificationStep = 1
-            verificationIdState = "fallback_vid_${System.currentTimeMillis()}"
-            statusNotice = "Verification code requested. Use test code 123456 to proceed."
+            errorMessage = "Firebase Auth service is unavailable on this device."
             return
         }
 
@@ -234,8 +239,17 @@ fun PhoneIdentitySetupScreen(
                         user.linkWithCredential(credential)
                             .addOnCompleteListener { task ->
                                 isVerifying = false
-                                currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
-                                statusNotice = "Phone number linked successfully!"
+                                if (task.isSuccessful) {
+                                    currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
+                                    statusNotice = "Phone number linked successfully!"
+                                } else {
+                                    val msg = task.exception?.localizedMessage ?: "Failed to link phone number."
+                                    if (msg.contains("credential already associated") || msg.contains("PROVIDER_ALREADY_LINKED")) {
+                                        currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
+                                    } else {
+                                        errorMessage = "Linking failed: $msg"
+                                    }
+                                }
                             }
                     } else {
                         currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
@@ -246,14 +260,8 @@ fun PhoneIdentitySetupScreen(
             override fun onVerificationFailed(e: FirebaseException) {
                 isVerifying = false
                 e.printStackTrace()
-                val rawMsg = e.message ?: "SMS service unavailable"
-                errorMessage = "Firebase SMS Notice: $rawMsg"
-                Toast.makeText(context, "SMS Notice: $rawMsg", Toast.LENGTH_LONG).show()
-
-                // Advance to Step 1 with test code option so physical device users are never stuck
-                phoneVerificationStep = 1
-                verificationIdState = "fallback_vid_${System.currentTimeMillis()}"
-                statusNotice = "SMS dispatch notice: Carrier SMS unfulfilled or restricted. Enter code 123456 to continue setup."
+                val rawMsg = e.message ?: "SMS delivery failed."
+                errorMessage = "Firebase SMS Error: $rawMsg"
             }
 
             override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
@@ -276,11 +284,7 @@ fun PhoneIdentitySetupScreen(
         } catch (e: Exception) {
             isVerifying = false
             e.printStackTrace()
-            errorMessage = "Verification request issue: ${e.message}"
-            Toast.makeText(context, "Verification issue: ${e.message}", Toast.LENGTH_LONG).show()
-            phoneVerificationStep = 1
-            verificationIdState = "fallback_vid_${System.currentTimeMillis()}"
-            statusNotice = "Verification code requested. Use test code 123456 to proceed."
+            errorMessage = "Verification request failed: ${e.message}"
         }
     }
 
@@ -296,28 +300,40 @@ fun PhoneIdentitySetupScreen(
         val vid = verificationIdState
         val auth = firebaseAuth
 
-        if (vid.isNotBlank() && !vid.startsWith("demo_") && !vid.startsWith("test_") && !vid.startsWith("fallback_") && auth?.currentUser != null) {
+        if (vid.isNotBlank() && auth != null) {
             val credential = PhoneAuthProvider.getCredential(vid, code)
-            auth.currentUser!!.linkWithCredential(credential)
-                .addOnCompleteListener { task ->
-                    isVerifying = false
-                    if (task.isSuccessful) {
-                        currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
-                        statusNotice = "Phone number linked successfully!"
-                    } else {
-                        // Proceed to profile setup so user is never stuck
-                        statusNotice = "Code verified! Proceeding to profile setup."
-                        currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
+            val user = auth.currentUser
+            if (user != null) {
+                user.linkWithCredential(credential)
+                    .addOnCompleteListener { task ->
+                        isVerifying = false
+                        if (task.isSuccessful) {
+                            currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
+                            statusNotice = "Phone number linked successfully!"
+                        } else {
+                            val msg = task.exception?.localizedMessage ?: "Invalid verification code."
+                            if (msg.contains("credential already associated") || msg.contains("PROVIDER_ALREADY_LINKED")) {
+                                currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
+                            } else {
+                                errorMessage = "Verification failed: $msg"
+                            }
+                        }
                     }
-                }
-        } else {
-            // Manual code or fallback
-            scope.launch {
-                kotlinx.coroutines.delay(300)
-                isVerifying = false
-                currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
-                statusNotice = "Phone number verified!"
+            } else {
+                auth.signInWithCredential(credential)
+                    .addOnCompleteListener { task ->
+                        isVerifying = false
+                        if (task.isSuccessful) {
+                            currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
+                            statusNotice = "Phone number verified!"
+                        } else {
+                            errorMessage = "Verification failed: ${task.exception?.localizedMessage ?: "Invalid verification code."}"
+                        }
+                    }
             }
+        } else {
+            isVerifying = false
+            errorMessage = "Invalid verification state. Please request a new code."
         }
     }
 
@@ -346,9 +362,13 @@ fun PhoneIdentitySetupScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = when (currentPage) {
-                                IdentitySetupPage.PAGE_PHONE_NUMBER -> "Page 1 of 2 • Contacts Discovery"
-                                IdentitySetupPage.PAGE_PROFILE_SETUP -> "Page 2 of 2 • Picture & Profile"
+                            text = if (isPhoneAuth) {
+                                "Set up your profile details"
+                            } else {
+                                when (currentPage) {
+                                    IdentitySetupPage.PAGE_PHONE_NUMBER -> "Page 1 of 2 • Contacts Discovery"
+                                    IdentitySetupPage.PAGE_PROFILE_SETUP -> "Page 2 of 2 • Picture & Profile"
+                                }
                             },
                             fontSize = 12.sp,
                             color = WhatsAppEmerald,
@@ -359,7 +379,7 @@ fun PhoneIdentitySetupScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (currentPage == IdentitySetupPage.PAGE_PROFILE_SETUP) {
+                            if (currentPage == IdentitySetupPage.PAGE_PROFILE_SETUP && !isPhoneAuth) {
                                 currentPage = IdentitySetupPage.PAGE_PHONE_NUMBER
                             } else {
                                 onBackClick()
@@ -377,24 +397,35 @@ fun PhoneIdentitySetupScreen(
                     if (currentPage == IdentitySetupPage.PAGE_PROFILE_SETUP) {
                         TextButton(
                             onClick = {
+                                isSubmitting = true
                                 val finalAvatar = if (useCustomPhoto) {
                                     uploadedPhotoUri?.toString() ?: initialAvatarUrl
                                 } else null
                                 onCompleteSetup(
-                                    fullE164Phone,
+                                    if (isPhoneAuth) initialPhone else fullE164Phone,
                                     userName.trim().ifEmpty { initialName },
                                     userAbout.trim(),
                                     finalAvatar,
                                     idToken
-                                )
+                                ) { success, error ->
+                                    isSubmitting = false
+                                    if (!success) {
+                                        errorMessage = error ?: "Failed to complete setup"
+                                    }
+                                }
                             },
+                            enabled = !isSubmitting,
                             modifier = Modifier.testTag("phone_identity_complete_btn")
                         ) {
-                            Text(
-                                text = "Complete",
-                                color = WhatsAppEmerald,
-                                fontWeight = FontWeight.Bold
-                            )
+                            if (isSubmitting) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 1.5.dp)
+                            } else {
+                                Text(
+                                    text = "Complete",
+                                    color = WhatsAppEmerald,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 },
@@ -407,31 +438,33 @@ fun PhoneIdentitySetupScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Step Progress Bar Indicator
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Step 1 pill
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = WhatsAppEmerald,
+            if (!isPhoneAuth) {
+                // Step Progress Bar Indicator
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(4.dp)
-                ) {}
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Step 1 pill
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = WhatsAppEmerald,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(4.dp)
+                    ) {}
 
-                // Step 2 pill
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = if (currentPage == IdentitySetupPage.PAGE_PROFILE_SETUP) WhatsAppEmerald else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(4.dp)
-                ) {}
+                    // Step 2 pill
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = if (currentPage == IdentitySetupPage.PAGE_PROFILE_SETUP) WhatsAppEmerald else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(4.dp)
+                    ) {}
+                }
             }
 
             AnimatedContent(
@@ -874,37 +907,6 @@ fun PhoneIdentitySetupScreen(
                                                 )
                                             }
                                         }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    TextButton(
-                                        onClick = {
-                                            phoneVerificationStep = 1
-                                            verificationIdState = "manual_vid_${System.currentTimeMillis()}"
-                                            statusNotice = "Enter verification code (or test code 123456)"
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = "Enter Verification Code Manually",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = WhatsAppEmerald
-                                        )
-                                    }
-
-                                    TextButton(
-                                        onClick = {
-                                            currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = "Skip SMS & Continue to Profile",
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
                                     }
                                 }
                             } else {
@@ -1407,7 +1409,12 @@ fun PhoneIdentitySetupScreen(
                                             userAbout.trim(),
                                             finalAvatar,
                                             idToken
-                                        )
+                                        ) { success, error ->
+                                            isSubmitting = false
+                                            if (!success) {
+                                                errorMessage = error ?: "Failed to complete setup"
+                                            }
+                                        }
                                     },
                                     enabled = !isSubmitting,
                                     shape = RoundedCornerShape(14.dp),

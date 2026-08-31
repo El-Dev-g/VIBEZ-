@@ -14,6 +14,8 @@ class SocketManager(private val userId: String) {
     var onCallOfferReceived: ((JSONObject) -> Unit)? = null
     var onCallAnswerReceived: ((JSONObject) -> Unit)? = null
     var onIceCandidateReceived: ((JSONObject) -> Unit)? = null
+    var onTypingReceived: ((String, String, Boolean) -> Unit)? = null
+    var onMessageReadReceived: ((String, String) -> Unit)? = null
 
     fun connect(onMessageReceived: (JSONObject) -> Unit) {
         try {
@@ -32,6 +34,29 @@ class SocketManager(private val userId: String) {
             socket?.on("receive_message") { args ->
                 val data = args[0] as JSONObject
                 onMessageReceived(data)
+            }
+
+            socket?.on("typing") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val chatId = data.optString("chatId", "")
+                    val senderId = data.optString("senderId", "")
+                    val isTyping = data.optBoolean("isTyping", false)
+                    onTypingReceived?.invoke(chatId, senderId, isTyping)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error handling typing event", e)
+                }
+            }
+
+            socket?.on("message_read") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val chatId = data.optString("chatId", "")
+                    val senderId = data.optString("senderId", "")
+                    onMessageReadReceived?.invoke(chatId, senderId)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error handling message_read event", e)
+                }
             }
 
             socket?.on("call_offer") { args ->
@@ -84,6 +109,14 @@ class SocketManager(private val userId: String) {
             put("isTyping", isTyping)
         }
         socket?.emit("typing", data)
+    }
+
+    fun emitMessageRead(chatId: String, senderId: String) {
+        val data = JSONObject().apply {
+            put("chatId", chatId)
+            put("senderId", senderId)
+        }
+        socket?.emit("message_read", data)
     }
 
     fun sendCallOffer(targetUserId: String, sdp: String) {

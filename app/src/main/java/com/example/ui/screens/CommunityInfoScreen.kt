@@ -45,7 +45,8 @@ fun CommunityInfoScreen(
     onChannelClick: (ChatEntity) -> Unit,
     onShareClick: () -> Unit = {},
     onToggleComments: (Boolean) -> Unit = {},
-    onToggleReactions: (Boolean) -> Unit = {}
+    onToggleReactions: (Boolean) -> Unit = {},
+    onDeleteCommunityClick: () -> Unit = {}
 ) {
     if (community == null) {
         Box(
@@ -466,6 +467,18 @@ fun CommunityInfoScreen(
                                     },
                                     colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = WhatsAppEmerald)
                                 )
+                            }
+                            
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                            
+                            TextButton(
+                                onClick = onDeleteCommunityClick,
+                                modifier = Modifier.fillMaxWidth().testTag("delete_community_button"),
+                                colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Delete Community", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
                         }
                     }

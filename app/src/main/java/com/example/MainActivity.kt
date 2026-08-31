@@ -188,6 +188,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     val currentUserPhone by viewModel.currentUserPhone.collectAsState()
     val currentUserName by viewModel.currentUserName.collectAsState()
     val currentUserStatus by viewModel.currentUserStatus.collectAsState()
+    val currentUserAvatar by viewModel.currentUserAvatar.collectAsState()
     val currentGoogleEmail by viewModel.currentGoogleEmail.collectAsState()
     val currentAuthProvider by viewModel.currentAuthProvider.collectAsState()
     val typingChatId by viewModel.typingChatId.collectAsState()
@@ -376,17 +377,58 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         // 0. User Authentication Screen (Firebase Phone Auth + Google Sign-In)
         composable("auth") {
             AuthScreen(
-                onAuthSuccess = { phone, name, about, firebaseIdToken ->
-                    viewModel.loginWithPhone(phone, name, about, avatarUrl = null, firebaseIdToken = firebaseIdToken) { success, _ ->
-                        navController.navigate("permissions_onboarding") {
-                            popUpTo("auth") { inclusive = true }
+                onAuthSuccess = { phone, name, about, firebaseIdToken, onComplete ->
+                    viewModel.loginWithPhone(phone, name, about, avatarUrl = null, firebaseIdToken = firebaseIdToken) { success, errMsg ->
+                        if (success) {
+                            val returnedName = viewModel.currentUserName.value
+                            val isFirstRegistrar = returnedName.isBlank() || returnedName == "User" || returnedName == phone
+                            
+                            if (isFirstRegistrar) {
+                                val encodedPhone = java.net.URLEncoder.encode(phone, "UTF-8")
+                                val encodedToken = if (firebaseIdToken != null) java.net.URLEncoder.encode(firebaseIdToken, "UTF-8") else ""
+                                navController.navigate("phone_identity_setup?phone=$encodedPhone&idToken=$encodedToken&isPhoneAuth=true") {
+                                    popUpTo("auth") { inclusive = true }
+                                }
+                                onComplete(true, null)
+                            } else {
+                                onComplete(true, null)
+                                navController.navigate("permissions_onboarding") {
+                                    popUpTo("auth") { inclusive = true }
+                                }
+                            }
+                        } else {
+                            onComplete(false, errMsg)
                         }
                     }
                 },
-                onGoogleAuthSuccess = { email, name, avatarUrl, phone, idToken ->
-                    viewModel.loginWithGoogle(email, name, avatarUrl, phone, idToken) { success, _ ->
-                        navController.navigate("permissions_onboarding") {
-                            popUpTo("auth") { inclusive = true }
+                onGoogleAuthSuccess = { email, name, avatarUrl, phone, idToken, onComplete ->
+                    viewModel.loginWithGoogle(email, name, avatarUrl, phone, idToken) { success, errMsg ->
+                        if (success) {
+                            val userPhone = viewModel.currentUserPhone.value
+                            if (userPhone.isNullOrBlank()) {
+                                // No phone number linked yet. User is a first registrar!
+                                viewModel.logoutUser()
+                                val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
+                                val encodedName = java.net.URLEncoder.encode(name, "UTF-8")
+                                val encodedAvatar = if (avatarUrl != null) java.net.URLEncoder.encode(avatarUrl, "UTF-8") else ""
+                                val encodedToken = if (idToken != null) java.net.URLEncoder.encode(idToken, "UTF-8") else ""
+                                navController.navigate("phone_identity_setup?email=$encodedEmail&name=$encodedName&avatar=$encodedAvatar&idToken=$encodedToken")
+                                onComplete(true, null)
+                            } else {
+                                // Existing user! No profile name requested.
+                                onComplete(true, null)
+                                navController.navigate("permissions_onboarding") {
+                                    popUpTo("auth") { inclusive = true }
+                                }
+                            }
+                        } else {
+                            // If direct login fails (e.g. phone required), redirect to setup
+                            val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
+                            val encodedName = java.net.URLEncoder.encode(name, "UTF-8")
+                            val encodedAvatar = if (avatarUrl != null) java.net.URLEncoder.encode(avatarUrl, "UTF-8") else ""
+                            val encodedToken = if (idToken != null) java.net.URLEncoder.encode(idToken, "UTF-8") else ""
+                            navController.navigate("phone_identity_setup?email=$encodedEmail&name=$encodedName&avatar=$encodedAvatar&idToken=$encodedToken")
+                            onComplete(true, null)
                         }
                     }
                 },
@@ -402,36 +444,57 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
         // 0b. Phone Number Identity Setup for Google-Authenticated Users (No SMS OTP Required)
         composable(
-            route = "phone_identity_setup?email={email}&name={name}&avatar={avatar}&idToken={idToken}",
+            route = "phone_identity_setup?email={email}&name={name}&avatar={avatar}&phone={phone}&idToken={idToken}&isPhoneAuth={isPhoneAuth}",
             arguments = listOf(
                 navArgument("email") { defaultValue = "" },
                 navArgument("name") { defaultValue = "" },
                 navArgument("avatar") { defaultValue = "" },
-                navArgument("idToken") { defaultValue = "" }
+                navArgument("phone") { defaultValue = "" },
+                navArgument("idToken") { defaultValue = "" },
+                navArgument("isPhoneAuth") { defaultValue = "false" }
             )
         ) { backStackEntry ->
             val rawEmail = backStackEntry.arguments?.getString("email") ?: ""
             val rawName = backStackEntry.arguments?.getString("name") ?: ""
             val rawAvatar = backStackEntry.arguments?.getString("avatar") ?: ""
+            val rawPhone = backStackEntry.arguments?.getString("phone") ?: ""
             val rawToken = backStackEntry.arguments?.getString("idToken") ?: ""
+            val isPhoneAuth = backStackEntry.arguments?.getString("isPhoneAuth") == "true"
 
             val email = java.net.URLDecoder.decode(rawEmail, "UTF-8")
             val name = java.net.URLDecoder.decode(rawName, "UTF-8")
             val avatar = if (rawAvatar.isNotEmpty()) java.net.URLDecoder.decode(rawAvatar, "UTF-8") else null
+            val phone = java.net.URLDecoder.decode(rawPhone, "UTF-8")
             val idToken = if (rawToken.isNotEmpty()) java.net.URLDecoder.decode(rawToken, "UTF-8") else null
 
             PhoneIdentitySetupScreen(
                 googleEmail = email,
                 initialName = name,
                 initialAvatarUrl = avatar,
+                initialPhone = phone,
                 idToken = idToken,
+                isPhoneAuth = isPhoneAuth,
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onCompleteSetup = { phone, updatedName, about, chosenAvatar, token ->
-                    viewModel.loginWithGoogle(email, updatedName, chosenAvatar, phone, token) { success, _ ->
-                        navController.navigate("permissions_onboarding") {
-                            popUpTo("auth") { inclusive = true }
+                onCompleteSetup = { phoneVal, updatedName, about, chosenAvatar, token, onComplete ->
+                    if (isPhoneAuth) {
+                        viewModel.updateCurrentUserProfile(updatedName, phoneVal, about, chosenAvatar) { success ->
+                            onComplete(success, if (success) null else "Failed to update profile")
+                            if (success) {
+                                navController.navigate("permissions_onboarding") {
+                                    popUpTo("auth") { inclusive = true }
+                                }
+                            }
+                        }
+                    } else {
+                        viewModel.loginWithGoogle(email, updatedName, chosenAvatar, phoneVal, token) { success, errMsg ->
+                            onComplete(success, errMsg)
+                            if (success) {
+                                navController.navigate("permissions_onboarding") {
+                                    popUpTo("auth") { inclusive = true }
+                                }
+                            }
                         }
                     }
                 }
@@ -521,17 +584,52 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onNewGroupClick = {
                     navController.navigate("new_group")
                 },
-                onAvatarClick = { contactId ->
-                    val contact = contacts.firstOrNull { it.id == contactId }
-                    if (contact != null && !contact.avatarUrl.isNullOrEmpty()) {
-                        previewAvatarUrl = contact.avatarUrl
-                        previewAvatarName = contact.name
+                onAvatarClick = { id ->
+                    val chat = allChatsList.firstOrNull { it.id == id }
+                    if (chat != null && (chat.isOfficial || chat.isGroup)) {
+                        val matchingCommunity = viewModel.communities.value.firstOrNull { 
+                            it.name.equals(chat.contactName, ignoreCase = true) || 
+                            chat.contactName.contains(it.name, ignoreCase = true) ||
+                            (chat.isOfficial && it.isOfficial)
+                        }
+                        if (matchingCommunity != null) {
+                            navController.navigate("community_info/${matchingCommunity.id}")
+                        } else {
+                            navController.navigate("contact_info/${chat.id}")
+                        }
                     } else {
-                        navController.navigate("user_profile/$contactId")
+                        val currentUserId = viewModel.authManager.getUserId() ?: ""
+                        val contactId = chat?.contactId?.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" } 
+                            ?: id.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" } 
+                            ?: id
+                        val contact = contacts.firstOrNull { it.id == contactId }
+                        if (contact != null && !contact.avatarUrl.isNullOrEmpty()) {
+                            previewAvatarUrl = contact.avatarUrl
+                            previewAvatarName = contact.name
+                        } else {
+                            navController.navigate("user_profile/$contactId")
+                        }
                     }
                 },
                 onDeleteChat = { cId ->
                     viewModel.deleteChat(cId)
+                },
+                onDeleteChatsBulk = { list ->
+                    viewModel.deleteChatsBulk(list)
+                },
+                onMuteChatsBulk = { list ->
+                    viewModel.toggleMuteChatsBulk(list)
+                },
+                onPinChatsBulk = { list ->
+                    viewModel.togglePinChatsBulk(list)
+                },
+                onMarkReadChatsBulk = { list ->
+                    viewModel.markChatsAsReadBulk(list)
+                },
+                onBroadcastMessage = { list, text ->
+                    list.forEach { chatId ->
+                        viewModel.sendMessage(chatId = chatId, content = text, messageType = "TEXT")
+                    }
                 },
                 onStatusPrivacyClick = {
                     navController.navigate("status_privacy")
@@ -608,6 +706,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 customWallpaper = customWallpaper,
                 wallpaperDimming = initialDimming,
                 isAdmin = isAdmin,
+                currentUserId = currentUserId,
                 onBackClick = { navController.popBackStack() },
                 onContactInfoClick = {
                     if (chat != null) {
@@ -623,7 +722,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                                 navController.navigate("contact_info/$chatId")
                             }
                         } else {
-                            navController.navigate("user_profile/${chat.contactId}")
+                            val currentUserId = viewModel.authManager.getUserId() ?: ""
+                            val contactId = chat.contactId.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" } ?: chatId
+                            navController.navigate("user_profile/$contactId")
                         }
                     } else {
                         navController.navigate("contact_info/$chatId")
@@ -671,6 +772,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onChatRead = {
                     viewModel.resetChatUnreadCount(chatId)
+                },
+                onTypingStateChange = { isTyping ->
+                    viewModel.setLocalUserTyping(chatId, isTyping)
                 }
             )
         }
@@ -992,6 +1096,10 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onToggleReactions = { isEnabled ->
                     android.widget.Toast.makeText(context, "Reactions ${if (isEnabled) "enabled" else "disabled"}", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                onDeleteCommunityClick = {
+                    viewModel.deleteCommunity(communityId)
+                    navController.popBackStack()
                 }
             )
         }
@@ -1393,10 +1501,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         ) { backStackEntry ->
             val contactId = backStackEntry.arguments?.getString("contactId") ?: "ME"
             val contact = contacts.firstOrNull { it.id == contactId }
-            val isCurrentUser = (contactId == "ME" || contact == null)
-            val effectiveContactName = if (isCurrentUser) currentUserName else (contact?.name ?: "Contact")
-            val effectivePhone = if (isCurrentUser) currentUserPhone else (contact?.phoneNumber ?: "+1 555-0100")
-            val effectiveAvatar = if (isCurrentUser) "" else (contact?.avatarUrl ?: "")
+            val currentUserId = viewModel.authManager.getUserId() ?: ""
+            val isCurrentUser = (contactId == "ME" || contactId == "me" || contactId == currentUserId || contactId.isBlank())
+            
+            val chat = allChatsList.firstOrNull { it.contactId == contactId || it.id == contactId }
+            val effectiveContactName = if (isCurrentUser) currentUserName else (contact?.name ?: chat?.contactName ?: "Contact")
+            val effectivePhone = if (isCurrentUser) currentUserPhone else (contact?.phoneNumber ?: (if (contactId.startsWith("+") || contactId.all { it.isDigit() || it == '+' || it == '-' || it == ' ' }) contactId else ""))
+            val effectiveAvatar = if (isCurrentUser) currentUserAvatar else (contact?.avatarUrl ?: chat?.contactAvatar ?: "")
             val effectiveStatus = if (isCurrentUser) currentUserStatus else (contact?.aboutStatus ?: "Hey there! I am using VIBEZ.")
 
             val effectiveVerified = if (isCurrentUser) isVerified else (contact?.isVerified == true)

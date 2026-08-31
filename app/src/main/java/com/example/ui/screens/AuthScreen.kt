@@ -35,6 +35,11 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,6 +47,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.derivedStateOf
+import com.example.util.PhoneNumberValidator
+import com.example.util.ValidationResult
+import com.example.util.CountryValidationRule
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -49,6 +62,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -94,18 +108,47 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
-    onAuthSuccess: (phone: String, name: String, about: String, firebaseIdToken: String?) -> Unit,
-    onGoogleAuthSuccess: ((email: String, name: String, avatarUrl: String?, phone: String?, idToken: String?) -> Unit)? = null,
+    onAuthSuccess: (phone: String, name: String, about: String, firebaseIdToken: String?, onComplete: (Boolean, String?) -> Unit) -> Unit,
+    onGoogleAuthSuccess: ((email: String, name: String, avatarUrl: String?, phone: String?, idToken: String?, onComplete: (Boolean, String?) -> Unit) -> Unit)? = null,
     onNavigateToPhoneIdentity: ((email: String, name: String, avatarUrl: String?, idToken: String?) -> Unit)? = null
 ) {
     val isDemoMode = false // Set to true ONLY for internal testing/preview
     
     var activeTab by remember { mutableIntStateOf(1) } // 1 = Firebase Phone Auth (Default), 0 = Google Sign-In
     
+    // Country Selector State
+    var selectedCountry by remember {
+        mutableStateOf(
+            PhoneNumberValidator.COUNTRIES.firstOrNull { it.code == "GH" }
+                ?: PhoneNumberValidator.COUNTRIES.first()
+        )
+    }
+    var showCountrySheet by remember { mutableStateOf(false) }
+    var countrySearchQuery by remember { mutableStateOf("") }
+
     // Phone Auth Form States
     var phoneName by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var verificationCode by remember { mutableStateOf("") }
+
+    val validationResult by remember(selectedCountry, phoneNumber) {
+        derivedStateOf {
+            PhoneNumberValidator.validate(selectedCountry, phoneNumber)
+        }
+    }
+
+    val isPhoneValid by remember(validationResult) {
+        derivedStateOf { validationResult is ValidationResult.Valid }
+    }
+
+    val fullE164Phone by remember(validationResult, selectedCountry, phoneNumber) {
+        derivedStateOf {
+            when (val res = validationResult) {
+                is ValidationResult.Valid -> res.formattedE164
+                else -> "${selectedCountry.dialCode}${PhoneNumberValidator.cleanDigits(phoneNumber)}"
+            }
+        }
+    }
     
     // Phone OTP Flow State: 0 = Input Phone & Name, 1 = Enter SMS OTP
     var phoneAuthStep by remember { mutableIntStateOf(0) }
@@ -140,9 +183,8 @@ fun AuthScreen(
         isSigningIn = true
         val auth = firebaseAuth
         if (auth == null) {
-            // Safe fallback if Firebase is not initialized
             isSigningIn = false
-            onAuthSuccess(phoneNumber.trim(), phoneName.trim(), "Hey there! I am using VIBEZ.", null)
+            errorMessage = "Firebase Authentication is unavailable on this device."
             return
         }
 
@@ -151,14 +193,18 @@ fun AuthScreen(
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     user?.getIdToken(false)?.addOnCompleteListener { tokenTask ->
-                        isSigningIn = false
                         val idToken = if (tokenTask.isSuccessful) tokenTask.result.token else null
-                        val finalPhone = user.phoneNumber?.ifBlank { phoneNumber.trim() } ?: phoneNumber.trim()
-                        val finalName = phoneName.trim()
-                        onAuthSuccess(finalPhone, finalName, "Hey there! I am using VIBEZ.", idToken)
+                        val finalPhone = user?.phoneNumber?.ifBlank { fullE164Phone.trim() } ?: fullE164Phone.trim()
+                        val finalName = phoneName.trim().ifBlank { "User" }
+                        onAuthSuccess(finalPhone, finalName, "Hey there! I am using VIBEZ.", idToken) { success, errorMsg ->
+                            isSigningIn = false
+                            if (!success) {
+                                errorMessage = errorMsg ?: "Backend authentication failed."
+                            }
+                        }
                     } ?: run {
                         isSigningIn = false
-                        onAuthSuccess(phoneNumber.trim(), phoneName.trim(), "Hey there! I am using VIBEZ.", null)
+                        errorMessage = "Could not retrieve Firebase authentication token."
                     }
                 } else {
                     isSigningIn = false
@@ -169,9 +215,12 @@ fun AuthScreen(
     }
 
     fun startFirebasePhoneVerification(isResend: Boolean = false) {
-        val cleanPhone = phoneNumber.trim()
-        if (cleanPhone.isBlank()) {
-            errorMessage = "Please enter a valid phone number with country code (e.g. +1 555-0199)"
+        val cleanPhone = fullE164Phone.trim()
+        if (cleanPhone.isBlank() || !isPhoneValid) {
+            errorMessage = when (val res = validationResult) {
+                is ValidationResult.Invalid -> res.errorMessage
+                else -> "Please enter a valid phone number"
+            }
             return
         }
 
@@ -183,16 +232,8 @@ fun AuthScreen(
         val activity = context as? Activity
 
         if (auth == null || activity == null) {
-            // If Firebase or Activity is unavailable in current preview, proceed gracefully
             isSigningIn = false
-            if (isDemoMode) {
-                phoneAuthStep = 1
-                verificationIdState = "demo_verification_id_${System.currentTimeMillis()}"
-                statusNotice = "Demo Mode: Firebase simulated SMS dispatched to $cleanPhone. Code: 123456"
-                Toast.makeText(context, "Demo Mode Active", Toast.LENGTH_SHORT).show()
-            } else {
-                errorMessage = "Firebase initialization failed. Please check your configuration."
-            }
+            errorMessage = "Firebase initialization failed. Please check your configuration."
             return
         }
 
@@ -218,13 +259,7 @@ fun AuthScreen(
                     else -> "Firebase SMS verification: ${e.message ?: "Failed to send SMS code."}"
                 }
                 
-                errorMessage = "$specificError\n\nTip: For development, you can use simulated verification codes for test numbers registered in Firebase."
-                
-                // Still allow user to proceed to code entry in demo environments
-                if (isDemoMode) {
-                    phoneAuthStep = 1
-                    verificationIdState = "demo_vid_${System.currentTimeMillis()}"
-                }
+                errorMessage = specificError
             }
 
             override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
@@ -252,14 +287,7 @@ fun AuthScreen(
         } catch (e: Exception) {
             isSigningIn = false
             e.printStackTrace()
-            // Fallback for emulator or non-Play Services container in demo mode
-            if (isDemoMode) {
-                phoneAuthStep = 1
-                verificationIdState = "demo_vid_${System.currentTimeMillis()}"
-                statusNotice = "Verification code requested for $cleanPhone (Demo code: 123456)"
-            } else {
-                errorMessage = "Verification request failed: ${e.message}"
-            }
+            errorMessage = "Verification request failed: ${e.message}"
         }
     }
 
@@ -398,11 +426,58 @@ fun AuthScreen(
                 if (activeTab == 1) {
                     // FIREBASE PHONE NUMBER AUTHENTICATION FLOW
                     if (phoneAuthStep == 0) {
-                        // Step 0: Phone Number Input Only
+                        // Step 0: Phone Number Input and Country Selection
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            // Country Selection Dropdown Trigger
+                            Surface(
+                                onClick = { showCountrySheet = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp)),
+                                color = MaterialTheme.colorScheme.surface
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(text = selectedCountry.flag, fontSize = 20.sp)
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = selectedCountry.name,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = selectedCountry.dialCode,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = WhatsAppEmerald
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "Select Country",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Phone Number Input Field
                             OutlinedTextField(
                                 value = phoneNumber,
                                 onValueChange = {
@@ -410,15 +485,28 @@ fun AuthScreen(
                                     errorMessage = null
                                 },
                                 label = { Text("Phone Number") },
-                                placeholder = { Text("+1 555-0199 or +44 7700 900077") },
+                                placeholder = { Text(selectedCountry.exampleFormat) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                 leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Phone,
-                                        contentDescription = "Phone",
-                                        tint = WhatsAppEmerald
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(start = 12.dp, end = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = selectedCountry.dialCode,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = WhatsAppEmerald
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .width(1.dp)
+                                                .height(20.dp)
+                                                .background(MaterialTheme.colorScheme.outlineVariant)
+                                        )
+                                    }
                                 },
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier
@@ -430,7 +518,29 @@ fun AuthScreen(
                                 )
                             )
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                            // Dynamic Helper/Error Text
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 6.dp)
+                            ) {
+                                val showErr = phoneNumber.isNotEmpty() && !isPhoneValid
+                                Text(
+                                    text = if (showErr) {
+                                        when (val res = validationResult) {
+                                            is ValidationResult.Invalid -> res.errorMessage
+                                            else -> "Invalid phone number format"
+                                        }
+                                    } else {
+                                        selectedCountry.helperText
+                                    },
+                                    color = if (showErr) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.align(Alignment.CenterStart)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             Button(
                                 onClick = {
@@ -441,7 +551,7 @@ fun AuthScreen(
                                     }
                                     startFirebasePhoneVerification(isResend = false)
                                 },
-                                enabled = !isSigningIn && phoneNumber.isNotBlank(),
+                                enabled = !isSigningIn && phoneNumber.isNotBlank() && isPhoneValid,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = WhatsAppEmerald,
                                     contentColor = Color.White
@@ -501,7 +611,7 @@ fun AuthScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = "Sent to ${phoneNumber.trim()}",
+                                text = "Sent to ${fullE164Phone.trim()}",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -558,24 +668,11 @@ fun AuthScreen(
                                     }
 
                                     val vid = verificationIdState
-                                    if (vid.isNotBlank() && !vid.startsWith("demo_") && !vid.startsWith("test_")) {
+                                    if (vid.isNotBlank()) {
                                         val credential = PhoneAuthProvider.getCredential(vid, code)
                                         completePhoneAuthWithCredential(credential)
-                                    } else if (isDemoMode) {
-                                        // Demo/Test fallback
-                                        isSigningIn = true
-                                        scope.launch {
-                                            delay(400)
-                                            isSigningIn = false
-                                            onAuthSuccess(
-                                                phoneNumber.trim(),
-                                                phoneName.trim(),
-                                                "Hey there! I am using VIBEZ.",
-                                                "demo_firebase_id_token_${System.currentTimeMillis()}"
-                                            )
-                                        }
                                     } else {
-                                        errorMessage = "Invalid verification state"
+                                        errorMessage = "Invalid verification state. Please request a new SMS code."
                                     }
                                 },
                                 enabled = !isSigningIn && verificationCode.length == 6,
@@ -718,13 +815,25 @@ fun AuthScreen(
                                                                 if (onNavigateToPhoneIdentity != null) {
                                                                     onNavigateToPhoneIdentity(email, name, avatar, firebaseIdToken)
                                                                 } else if (onGoogleAuthSuccess != null) {
-                                                                    onGoogleAuthSuccess(email, name, avatar, null, firebaseIdToken)
+                                                                    isSigningIn = true
+                                                                    onGoogleAuthSuccess(email, name, avatar, null, firebaseIdToken) { success, errorMsg ->
+                                                                        isSigningIn = false
+                                                                        if (!success) {
+                                                                            errorMessage = errorMsg ?: "Google authentication failed."
+                                                                        }
+                                                                    }
                                                                 }
                                                             } ?: run {
                                                                 if (onNavigateToPhoneIdentity != null) {
                                                                     onNavigateToPhoneIdentity(email, name, avatar, rawIdToken)
                                                                 } else if (onGoogleAuthSuccess != null) {
-                                                                    onGoogleAuthSuccess(email, name, avatar, null, rawIdToken)
+                                                                    isSigningIn = true
+                                                                    onGoogleAuthSuccess(email, name, avatar, null, rawIdToken) { success, errorMsg ->
+                                                                        isSigningIn = false
+                                                                        if (!success) {
+                                                                            errorMessage = errorMsg ?: "Google authentication failed."
+                                                                        }
+                                                                    }
                                                                 }
                                                             }
                                                         } else {
@@ -733,11 +842,19 @@ fun AuthScreen(
                                                         }
                                                     }
                                             } else {
-                                                isSigningIn = false
                                                 if (onNavigateToPhoneIdentity != null) {
+                                                    isSigningIn = false
                                                     onNavigateToPhoneIdentity(email, name, avatar, rawIdToken)
                                                 } else if (onGoogleAuthSuccess != null) {
-                                                    onGoogleAuthSuccess(email, name, avatar, null, rawIdToken)
+                                                    isSigningIn = true
+                                                    onGoogleAuthSuccess(email, name, avatar, null, rawIdToken) { success, errorMsg ->
+                                                        isSigningIn = false
+                                                        if (!success) {
+                                                            errorMessage = errorMsg ?: "Google authentication failed."
+                                                        }
+                                                    }
+                                                } else {
+                                                    isSigningIn = false
                                                 }
                                             }
                                         } else {
@@ -851,6 +968,129 @@ fun AuthScreen(
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(12.dp)
                         )
+                    }
+                }
+            }
+        }
+    }
+
+    // Country selection modal bottom sheet
+    if (showCountrySheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val filteredCountries = remember(countrySearchQuery) {
+            if (countrySearchQuery.isBlank()) PhoneNumberValidator.COUNTRIES
+            else PhoneNumberValidator.COUNTRIES.filter {
+                it.name.contains(countrySearchQuery, ignoreCase = true) ||
+                        it.dialCode.contains(countrySearchQuery) ||
+                        it.code.contains(countrySearchQuery, ignoreCase = true)
+            }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = {
+                showCountrySheet = false
+                countrySearchQuery = ""
+            },
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Select Country",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = {
+                        showCountrySheet = false
+                        countrySearchQuery = ""
+                    }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = countrySearchQuery,
+                    onValueChange = { countrySearchQuery = it },
+                    placeholder = { Text("Search country or code...") },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                    },
+                    trailingIcon = {
+                        if (countrySearchQuery.isNotEmpty()) {
+                            IconButton(onClick = { countrySearchQuery = "" }) {
+                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp)
+                ) {
+                    items(filteredCountries, key = { it.code + it.dialCode }) { country ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    selectedCountry = country
+                                    showCountrySheet = false
+                                    countrySearchQuery = ""
+                                },
+                            color = if (country == selectedCountry) WhatsAppEmerald.copy(alpha = 0.1f) else Color.Transparent
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(text = country.flag, fontSize = 22.sp)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = country.name,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = country.helperText,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = country.dialCode,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WhatsAppEmerald
+                                )
+                            }
+                        }
                     }
                 }
             }

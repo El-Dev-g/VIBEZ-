@@ -159,7 +159,19 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     init {
         val database = WhatsAppDatabase.getDatabase(application)
-        repository = WhatsAppRepository(database.whatsAppDao())
+        repository = WhatsAppRepository(database.whatsAppDao(), application)
+
+        viewModelScope.launch {
+            repository.typingEvent.collect { (chatId, isTyping) ->
+                typingChatId.value = if (isTyping) chatId else null
+            }
+        }
+
+        viewModelScope.launch {
+            repository.readReceiptEvent.collect { chatId ->
+                // Triggers flow updates automatically since messages list is collected from Room Flow
+            }
+        }
 
         viewModelScope.launch {
             repository.deleteExpiredStatuses()
@@ -765,6 +777,12 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         repository.socketManager?.joinChat(chatId)
     }
 
+    fun setLocalUserTyping(chatId: String, isTyping: Boolean) {
+        viewModelScope.launch {
+            repository.socketManager?.emitTyping(chatId, isTyping)
+        }
+    }
+
     fun deleteChat(chatId: String) {
         viewModelScope.launch {
             val token = authManager.getAuthToken() ?: ""
@@ -774,7 +792,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun resetChatUnreadCount(chatId: String) {
         viewModelScope.launch {
-            repository.resetChatUnreadCount(chatId)
+            val userId = authManager.getUserId() ?: "ME"
+            repository.resetChatUnreadCount(chatId, userId)
         }
     }
 
@@ -948,6 +967,13 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun deleteCommunity(communityId: String) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            repository.deleteCommunity(communityId, token)
+        }
+    }
+
     fun getCommunityChats(communityId: String, onComplete: (List<ChatEntity>) -> Unit) {
         viewModelScope.launch {
             authManager.getAuthToken()?.let { token ->
@@ -1016,6 +1042,56 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 if (chat != null) {
                     repository.updateChatMuteStatus(chatId, !chat.isMuted, token)
                 }
+            }
+        }
+    }
+
+    fun togglePinChat(chatId: String) {
+        viewModelScope.launch {
+            val chat = repository.getChatById(chatId)
+            if (chat != null) {
+                repository.updateChatPinStatus(chatId, !chat.isPinned)
+            }
+        }
+    }
+
+    fun deleteChatsBulk(chatIds: List<String>) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            chatIds.forEach { chatId ->
+                repository.deleteChat(chatId, token)
+            }
+        }
+    }
+
+    fun toggleMuteChatsBulk(chatIds: List<String>) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            chatIds.forEach { chatId ->
+                val chat = repository.getChatById(chatId)
+                if (chat != null) {
+                    repository.updateChatMuteStatus(chatId, !chat.isMuted, token)
+                }
+            }
+        }
+    }
+
+    fun togglePinChatsBulk(chatIds: List<String>) {
+        viewModelScope.launch {
+            chatIds.forEach { chatId ->
+                val chat = repository.getChatById(chatId)
+                if (chat != null) {
+                    repository.updateChatPinStatus(chatId, !chat.isPinned)
+                }
+            }
+        }
+    }
+
+    fun markChatsAsReadBulk(chatIds: List<String>) {
+        viewModelScope.launch {
+            val userId = authManager.getUserId() ?: "ME"
+            chatIds.forEach { chatId ->
+                repository.resetChatUnreadCount(chatId, userId)
             }
         }
     }

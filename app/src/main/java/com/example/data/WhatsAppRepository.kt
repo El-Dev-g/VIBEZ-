@@ -13,13 +13,34 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import com.example.data.network.*
+import com.example.util.AuthManager
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
-class WhatsAppRepository(private val dao: WhatsAppDao) {
+class WhatsAppRepository(private val dao: WhatsAppDao, private val context: android.content.Context? = null) {
 
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     var socketManager: SocketManager? = null
+
+    private fun getDeletedChatIds(): Set<String> {
+        val prefs = context?.getSharedPreferences("deleted_chats_prefs", android.content.Context.MODE_PRIVATE)
+        return prefs?.getStringSet("deleted_chat_ids", emptySet()) ?: emptySet()
+    }
+
+    private fun addDeletedChatId(chatId: String) {
+        val prefs = context?.getSharedPreferences("deleted_chats_prefs", android.content.Context.MODE_PRIVATE) ?: return
+        val current = prefs.getStringSet("deleted_chat_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+        current.add(chatId)
+        prefs.edit().putStringSet("deleted_chat_ids", current).apply()
+    }
+
+    private fun removeDeletedChatId(chatId: String) {
+        val prefs = context?.getSharedPreferences("deleted_chats_prefs", android.content.Context.MODE_PRIVATE) ?: return
+        val current = prefs.getStringSet("deleted_chat_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+        if (current.remove(chatId)) {
+            prefs.edit().putStringSet("deleted_chat_ids", current).apply()
+        }
+    }
 
     // Room-backed Flow streams
     val allChats: Flow<List<ChatEntity>> = dao.getAllChats()
@@ -29,6 +50,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
     val allCallLogs: Flow<List<CallLogEntity>> = dao.getAllCallLogs()
     val starredMessages: Flow<List<MessageEntity>> = dao.getStarredMessages()
 
+    val typingEvent = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, Boolean>>()
+    val readReceiptEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
+
     fun initSocket(userId: String, onNewMessage: (MessageEntity) -> Unit) {
         socketManager = SocketManager(userId).apply {
             connect { json ->
@@ -37,6 +61,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
                     val entity = mapMessageDtoToEntity(messageDto)
                     
                     repositoryScope.launch {
+                        removeDeletedChatId(entity.chatId)
                         dao.insertMessage(entity)
                         
                         // Update chat's last message
@@ -56,6 +81,19 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
                 }
             }
             
+            onTypingReceived = { chatId, senderId, isTyping ->
+                repositoryScope.launch {
+                    typingEvent.emit(Pair(chatId, isTyping))
+                }
+            }
+
+            onMessageReadReceived = { chatId, senderId ->
+                repositoryScope.launch {
+                    dao.markSentMessagesAsRead(chatId, userId)
+                    readReceiptEvent.emit(chatId)
+                }
+            }
+
             onCallOfferReceived = { data ->
                 _incomingCall.value = data
             }
@@ -161,15 +199,30 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
 
     suspend fun syncChats(token: String) {
         try {
+            val deletedIds = getDeletedChatIds()
             val remoteChats = NetworkClient.apiService.getChats("Bearer $token")
             remoteChats.forEach { dto ->
+                if (deletedIds.contains(dto.id)) {
+                    // Skip inserting deleted chat
+                    dao.deleteChat(dto.id)
+                    dao.clearChatMessages(dto.id)
+                    return@forEach
+                }
                 val isOff = dto.isOfficial || dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
                 val isVer = dto.isVerified || isOff || dto.members.any { it.user.isVerified }
+                val currentUserId = context?.let { AuthManager(it).getUserId() } ?: ""
+                val otherMember = if (!dto.isGroup) {
+                    dto.members.firstOrNull { it.userId != currentUserId && it.user.id != currentUserId && it.user.id != "ME" }
+                        ?: dto.members.firstOrNull { it.user.id != currentUserId }
+                } else null
+                val resolvedContactId = otherMember?.user?.id ?: otherMember?.userId ?: dto.members.firstOrNull { it.user.id != currentUserId }?.user?.id ?: dto.members.firstOrNull { it.user.phoneNumber != "" }?.user?.id ?: ""
+                val resolvedContactName = dto.name ?: otherMember?.user?.name ?: dto.members.firstOrNull { it.user.id != currentUserId }?.user?.name ?: "Unknown"
+
                 val entity = ChatEntity(
                     id = dto.id,
                     remoteId = dto.id,
-                    contactId = dto.members.firstOrNull { it.user.phoneNumber != "" }?.user?.id ?: "",
-                    contactName = dto.name ?: dto.members.firstOrNull { it.user.phoneNumber != "" }?.user?.name ?: "Unknown",
+                    contactId = resolvedContactId,
+                    contactName = resolvedContactName,
                     lastMessage = dto.messages.firstOrNull()?.content ?: "",
                     lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
                     unreadCount = 0,
@@ -177,7 +230,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
                     isMuted = dto.isMuted,
                     customWallpaper = dto.wallpaper,
                     isOfficial = isOff,
-                    isVerified = isVer
+                    isVerified = isVer,
+                    allowComments = dto.allowComments
                 )
                 dao.insertChat(entity)
                 
@@ -209,6 +263,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
     }
 
     suspend fun addLocalMessage(message: MessageEntity) {
+        removeDeletedChatId(message.chatId)
         dao.insertMessage(message)
         val chat = dao.getChatById(message.chatId)
         chat?.let {
@@ -228,6 +283,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
         token: String,
         id: String? = null
     ) {
+        removeDeletedChatId(chatId)
         socketManager?.sendMessage(chatId, senderId, receiverId, content, type, id = id)
     }
 
@@ -262,8 +318,10 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
         }
     }
 
-    suspend fun resetChatUnreadCount(chatId: String) {
+    suspend fun resetChatUnreadCount(chatId: String, userId: String) {
         dao.resetChatUnreadCount(chatId)
+        dao.markMessagesAsRead(chatId, userId)
+        socketManager?.emitMessageRead(chatId, userId)
     }
 
     suspend fun updateChatWallpaper(chatId: String, wallpaper: String, token: String) {
@@ -282,6 +340,14 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
         try {
             NetworkClient.apiService.updateChat("Bearer $token", chatId, UpdateChatRequest(isMuted = isMuted))
             dao.updateChatMuteStatus(chatId, isMuted)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateChatPinStatus(chatId: String, isPinned: Boolean) {
+        try {
+            dao.updateChatPinStatus(chatId, isPinned)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -350,11 +416,13 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
                     }
                 }
             }
+            addDeletedChatId(chatId)
             NetworkClient.apiService.deleteChat("Bearer $token", chatId)
             dao.deleteChat(chatId)
             dao.clearChatMessages(chatId)
         } catch (e: Exception) {
             e.printStackTrace()
+            addDeletedChatId(chatId)
             dao.deleteChat(chatId)
             dao.clearChatMessages(chatId)
         }
@@ -555,6 +623,23 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
         }
     }
 
+    suspend fun deleteCommunity(communityId: String, token: String) {
+        try {
+            // First fetch the associated chats to delete them locally
+            val chats = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
+            chats.forEach { chatDto ->
+                dao.clearChatMessages(chatDto.id)
+                dao.deleteChat(chatDto.id)
+            }
+            NetworkClient.apiService.deleteCommunity("Bearer $token", communityId)
+            dao.deleteCommunity(communityId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Ensure it's deleted locally even if network fails
+            dao.deleteCommunity(communityId)
+        }
+    }
+
     suspend fun getCommunityChats(communityId: String, token: String): List<ChatEntity> {
         return try {
             val dtos = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
@@ -570,7 +655,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao) {
                     unreadCount = 0,
                     isGroup = dto.isGroup,
                     isOfficial = isOff,
-                    isVerified = isOff || dto.isVerified
+                    isVerified = isOff || dto.isVerified,
+                    allowComments = dto.allowComments
                 )
             }
             entities.forEach { dao.insertChat(it) }

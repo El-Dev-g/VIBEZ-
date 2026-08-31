@@ -99,6 +99,11 @@ fun MainTabScreen(
     onNewGroupClick: () -> Unit,
     onAvatarClick: (String) -> Unit = {},
     onDeleteChat: (String) -> Unit = {},
+    onDeleteChatsBulk: (List<String>) -> Unit = {},
+    onMuteChatsBulk: (List<String>) -> Unit = {},
+    onPinChatsBulk: (List<String>) -> Unit = {},
+    onMarkReadChatsBulk: (List<String>) -> Unit = {},
+    onBroadcastMessage: (List<String>, String) -> Unit = { _, _ -> },
     onStatusPrivacyClick: () -> Unit = {},
     onMyStatusListClick: () -> Unit = {},
     onClearCallLogs: () -> Unit = {},
@@ -421,11 +426,17 @@ fun MainTabScreen(
                     onChatClick = onChatClick,
                     onNewChatClick = onNewChatClick,
                     onAvatarClick = onAvatarClick,
-                    onDeleteChat = onDeleteChat
+                    onDeleteChat = onDeleteChat,
+                    onDeleteChatsBulk = onDeleteChatsBulk,
+                    onMuteChatsBulk = onMuteChatsBulk,
+                    onPinChatsBulk = onPinChatsBulk,
+                    onMarkReadChatsBulk = onMarkReadChatsBulk,
+                    onBroadcastMessage = onBroadcastMessage
                 )
                 1 -> StatusListScreen(
                     statuses = statuses,
                     contacts = contacts,
+                    chats = chats,
                     onStatusClick = onStatusClick,
                     onCreateTextStatusClick = onCreateTextStatusClick,
                     onCreatePhotoStatusClick = onCreatePhotoStatusClick,

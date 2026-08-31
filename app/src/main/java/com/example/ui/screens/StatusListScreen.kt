@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import com.example.data.ContactEntity
+import com.example.data.ChatEntity
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -83,6 +84,7 @@ data class GroupedStatus(
 fun StatusListScreen(
     statuses: List<StatusEntity>,
     contacts: List<ContactEntity> = emptyList(),
+    chats: List<ChatEntity> = emptyList(),
     onStatusClick: (StatusEntity) -> Unit,
     onCreateTextStatusClick: () -> Unit,
     onCreatePhotoStatusClick: () -> Unit,
@@ -99,9 +101,27 @@ fun StatusListScreen(
         }
     }
 
-    val activeStatuses = remember(statuses, currentTime) {
+    val activeStatuses = remember(statuses, contacts, chats, currentTime) {
         val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
-        statuses.filter { (currentTime - it.timestamp) < twentyFourHoursMillis }
+        statuses.filter { status ->
+            // 1. Must be within the last 24 hours
+            val isRecent = (currentTime - status.timestamp) < twentyFourHoursMillis
+            if (!isRecent) return@filter false
+            
+            // 2. Always show our own status
+            if (status.isMyStatus) return@filter true
+            
+            // 3. Must have their number in our phone book (contacts)
+            val matchedContact = contacts.firstOrNull { c -> c.id == status.contactId || c.remoteId == status.contactId || c.phoneNumber == status.contactId }
+            val inPhoneBook = matchedContact != null
+            if (!inPhoneBook) return@filter false
+            
+            // 4. Must either: both have each other's number OR have chatted before
+            val chattedBefore = chats.any { !it.isGroup && (it.contactId == status.contactId || it.id == status.contactId) }
+            val bothHaveEachOtherNumber = matchedContact != null && !matchedContact.name.startsWith("+")
+            
+            bothHaveEachOtherNumber || chattedBefore
+        }
     }
 
     val myStatuses = remember(activeStatuses) { activeStatuses.filter { it.isMyStatus }.sortedBy { it.timestamp } }
