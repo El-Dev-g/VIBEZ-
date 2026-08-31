@@ -319,12 +319,12 @@ data class ReportUserResponse(
 
 @JsonClass(generateAdapter = true)
 data class AppUpdateDto(
-    val id: String,
-    val versionCode: Int,
-    val versionName: String,
-    val releaseNotes: String,
-    val downloadUrl: String,
+    val id: String? = null,
+    val versionCode: Int = 1,
+    val versionName: String = "1.0",
+    val releaseNotes: String = "Bug fixes and performance improvements.",
+    val downloadUrl: String = "",
     val isCritical: Boolean = false,
-    val createdAt: String
+    val createdAt: String? = null
 )
 

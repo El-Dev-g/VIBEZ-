@@ -324,6 +324,12 @@ export interface SystemSettings {
   contactEmail?: string;
   contactPhone?: string;
   supportAddress?: string;
+  privacyPolicyUrl?: string;
+  termsOfServiceUrl?: string;
+  privacyPolicyContent?: string;
+  termsOfServiceContent?: string;
+  helpCenterUrl?: string;
+  faqUrl?: string;
 }
 
 export const fetchReports = async (): Promise<Report[]> => {

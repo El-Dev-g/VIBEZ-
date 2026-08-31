@@ -125,7 +125,13 @@ const handleSystemStatus = async (req: express.Request, res: express.Response) =
       badgePrice: setting?.verificationBadgePrice ?? 3.00,
       appDownloadUrl: setting?.appDownloadUrl || '',
       appVersion: setting?.appVersion || '1.0.0',
-      appName: setting?.appName || 'VIBEZ'
+      appName: setting?.appName || 'VIBEZ',
+      privacyPolicyUrl: setting?.privacyPolicyUrl || '',
+      termsOfServiceUrl: setting?.termsOfServiceUrl || '',
+      privacyPolicyContent: setting?.privacyPolicyContent || '',
+      termsOfServiceContent: setting?.termsOfServiceContent || '',
+      helpCenterUrl: setting?.helpCenterUrl || '',
+      faqUrl: setting?.faqUrl || ''
     });
   } catch (error) {
     res.status(500).json({ status: 'error', maintenanceMode: false });

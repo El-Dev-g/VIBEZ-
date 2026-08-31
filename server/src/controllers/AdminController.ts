@@ -313,7 +313,13 @@ export class AdminController {
             appName: 'VIBEZ',
             contactEmail: 'support@vibez.chat',
             contactPhone: '+1 (800) 555-0199',
-            supportAddress: 'San Francisco, CA, USA'
+            supportAddress: 'San Francisco, CA, USA',
+            privacyPolicyUrl: '',
+            termsOfServiceUrl: '',
+            privacyPolicyContent: '',
+            termsOfServiceContent: '',
+            helpCenterUrl: '',
+            faqUrl: ''
           }
         });
       }
@@ -342,6 +348,12 @@ export class AdminController {
       const contactEmail = data.contactEmail !== undefined ? String(data.contactEmail).trim() : undefined;
       const contactPhone = data.contactPhone !== undefined ? String(data.contactPhone).trim() : undefined;
       const supportAddress = data.supportAddress !== undefined ? String(data.supportAddress).trim() : undefined;
+      const privacyPolicyUrl = data.privacyPolicyUrl !== undefined ? String(data.privacyPolicyUrl).trim() : undefined;
+      const termsOfServiceUrl = data.termsOfServiceUrl !== undefined ? String(data.termsOfServiceUrl).trim() : undefined;
+      const privacyPolicyContent = data.privacyPolicyContent !== undefined ? String(data.privacyPolicyContent) : undefined;
+      const termsOfServiceContent = data.termsOfServiceContent !== undefined ? String(data.termsOfServiceContent) : undefined;
+      const helpCenterUrl = data.helpCenterUrl !== undefined ? String(data.helpCenterUrl).trim() : undefined;
+      const faqUrl = data.faqUrl !== undefined ? String(data.faqUrl).trim() : undefined;
 
       if (!target) {
         target = await prisma.systemSetting.create({
@@ -356,7 +368,13 @@ export class AdminController {
             appName: appName ?? 'VIBEZ',
             contactEmail: contactEmail ?? 'support@vibez.chat',
             contactPhone: contactPhone ?? '+1 (800) 555-0199',
-            supportAddress: supportAddress ?? 'San Francisco, CA, USA'
+            supportAddress: supportAddress ?? 'San Francisco, CA, USA',
+            privacyPolicyUrl: privacyPolicyUrl ?? '',
+            termsOfServiceUrl: termsOfServiceUrl ?? '',
+            privacyPolicyContent: privacyPolicyContent ?? '',
+            termsOfServiceContent: termsOfServiceContent ?? '',
+            helpCenterUrl: helpCenterUrl ?? '',
+            faqUrl: faqUrl ?? ''
           }
         });
         return res.json(target);
@@ -374,6 +392,12 @@ export class AdminController {
       if (contactEmail !== undefined) updatePayload.contactEmail = contactEmail;
       if (contactPhone !== undefined) updatePayload.contactPhone = contactPhone;
       if (supportAddress !== undefined) updatePayload.supportAddress = supportAddress;
+      if (privacyPolicyUrl !== undefined) updatePayload.privacyPolicyUrl = privacyPolicyUrl;
+      if (termsOfServiceUrl !== undefined) updatePayload.termsOfServiceUrl = termsOfServiceUrl;
+      if (privacyPolicyContent !== undefined) updatePayload.privacyPolicyContent = privacyPolicyContent;
+      if (termsOfServiceContent !== undefined) updatePayload.termsOfServiceContent = termsOfServiceContent;
+      if (helpCenterUrl !== undefined) updatePayload.helpCenterUrl = helpCenterUrl;
+      if (faqUrl !== undefined) updatePayload.faqUrl = faqUrl;
 
       const updated = await prisma.systemSetting.update({
         where: { id: target.id },

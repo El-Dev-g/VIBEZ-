@@ -268,6 +268,12 @@ model SystemSetting {
   contactEmail          String? @default("support@vibez.chat")
   contactPhone          String? @default("+1 (800) 555-0199")
   supportAddress        String? @default("San Francisco, CA, USA")
+  privacyPolicyUrl      String? @default("")
+  termsOfServiceUrl     String? @default("")
+  privacyPolicyContent  String? @default("")
+  termsOfServiceContent String? @default("")
+  helpCenterUrl         String? @default("")
+  faqUrl                String? @default("")
 }
 
 model AppUpdate {

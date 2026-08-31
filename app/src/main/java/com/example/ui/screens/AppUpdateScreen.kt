@@ -129,7 +129,7 @@ fun AppUpdateScreen(
                                 fontSize = 14.sp
                             )
                             Text(
-                                text = latestUpdate.releaseNotes,
+                                text = latestUpdate.releaseNotes ?: "Bug fixes and performance improvements.",
                                 fontSize = 14.sp,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
