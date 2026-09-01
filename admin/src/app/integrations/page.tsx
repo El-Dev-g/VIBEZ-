@@ -83,7 +83,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Grid of integrations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Gmail Integration Card */}
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xl shadow-slate-200/50 flex flex-col justify-between hover:border-slate-300 transition-all relative overflow-hidden">
           {/* Status Indicator Bar */}
@@ -94,10 +94,14 @@ export default function IntegrationsPage() {
           <div className="space-y-4">
             {/* Header / Icon */}
             <div className="flex items-center justify-between">
-              <div className="p-3 bg-red-50 text-red-500 rounded-2xl border border-red-100 shrink-0">
-                {/* Custom Gmail Icon */}
-                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+              <div className="p-2.5 bg-white shadow-md shadow-slate-100 rounded-2xl border border-slate-100 shrink-0 flex items-center justify-center">
+                {/* Official Gmail Multicolor SVG Icon */}
+                <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 4H18V13.5L12 18L6 13.5V4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4Z" fill="#EAEAEA" />
+                  <path d="M22 6V13.5L18 10.5V4H20C21.1 4 22 4.9 22 6Z" fill="#C5221F" />
+                  <path d="M2 6V13.5L6 10.5V4H4C2.9 4 2 4.9 2 6Z" fill="#B31412" />
+                  <path d="M18 4H15V11L12 13L9 11V4H6V13.5L12 18L18 13.5V4Z" fill="#EA4335" />
+                  <path d="M12 13L6 8.5V4L12 8.5L18 4V8.5L12 13Z" fill="#F83A22" />
                 </svg>
               </div>
               <div className="flex items-center gap-2">
@@ -180,14 +184,16 @@ export default function IntegrationsPage() {
           </div>
         </div>
 
-        {/* Placeholder: Other integrations (e.g. Stripe, AWS) */}
+        {/* Placeholder: Stripe Integration Card */}
         <div className="bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 p-6 flex flex-col justify-between">
           <div className="space-y-4">
             {/* Header / Icon */}
             <div className="flex items-center justify-between">
-              <div className="p-3 bg-slate-100 text-slate-400 rounded-2xl shrink-0">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <div className="p-2.5 bg-white shadow-md shadow-slate-100 rounded-2xl border border-slate-100 shrink-0 flex items-center justify-center">
+                {/* Official Stripe SVG */}
+                <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none">
+                  <path d="M13.958 10.37c0-.7-.523-1.124-1.396-1.124-.954 0-1.865.261-2.617.653V7.27c.883-.326 1.897-.49 2.871-.49 2.502 0 4.103 1.157 4.103 3.493v6.791c0 .85.163 1.404.49 1.73v.164h-2.906a1.992 1.992 0 0 1-.163-.75c-.588.587-1.47.914-2.481.914-2.155 0-3.624-1.142-3.624-2.905 0-2.318 1.991-3.134 4.54-3.134.718 0 1.501.098 2.181.229v-.05zm0 1.959a4.802 4.802 0 0 0-1.436-.196c-1.339 0-2.09.424-2.09 1.257 0 .75.62 1.143 1.485 1.143.833 0 1.502-.327 1.874-.75v-1.454z" fill="#635BFF" />
+                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm1.47 14.153c0 .882-.718 1.143-1.893 1.143-.882 0-1.73-.228-2.384-.522v-1.991c.653.326 1.404.49 2.057.49.522 0 .783-.13.783-.424 0-.816-3.46-.685-3.46-3.003 0-1.502 1.306-2.481 3.264-2.481.784 0 1.502.13 2.122.392v1.893c-.555-.261-1.175-.392-1.763-.392-.457 0-.686.13-.686.392 0 .816 3.46.62 3.46 2.945v.057z" fill="#635BFF" />
                 </svg>
               </div>
               <span className="px-2.5 py-1 bg-slate-100 text-slate-400 text-xs font-bold uppercase tracking-wider rounded-lg">
@@ -211,14 +217,50 @@ export default function IntegrationsPage() {
           </div>
         </div>
 
-        {/* Placeholder: Backup Storage */}
+        {/* Placeholder: PayPal Integration Card */}
         <div className="bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 p-6 flex flex-col justify-between">
           <div className="space-y-4">
             {/* Header / Icon */}
             <div className="flex items-center justify-between">
-              <div className="p-3 bg-slate-100 text-slate-400 rounded-2xl shrink-0">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+              <div className="p-2.5 bg-white shadow-md shadow-slate-100 rounded-2xl border border-slate-100 shrink-0 flex items-center justify-center">
+                {/* Official PayPal Overlapping P SVG */}
+                <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none">
+                  <path d="M8 2.21C8.21 2.07 8.46 2 8.71 2H15.5C18.5 2 20.5 3.5 20.5 6.5C20.5 9.15 18.8 11.21 16.2 11.75C15.9 11.81 15.65 12 15.5 12.25L13.5 17.5C13.36 17.81 13.04 18 12.71 18H9.5C9.15 18 8.85 17.75 8.79 17.4L6.15 4.54C6.08 4.19 6.27 3.84 6.6 3.73L8 3.21V2.21Z" fill="#003087" opacity="0.15" />
+                  <path d="M14.5 7.5C14.5 9.43 12.93 11 11 11H8.5L7.22 4.6C7.15 4.25 7.42 3.92 7.78 3.92H11C12.93 3.92 14.5 5.49 14.5 7.5Z" fill="#003087" />
+                  <path d="M17.5 10.5C17.5 12.43 15.93 14 14 14H11.5L10.22 7.6C10.15 7.25 10.42 6.92 10.78 6.92H14C15.93 6.92 17.5 8.49 17.5 10.5Z" fill="#0079C1" />
+                </svg>
+              </div>
+              <span className="px-2.5 py-1 bg-slate-100 text-slate-400 text-xs font-bold uppercase tracking-wider rounded-lg">
+                Billing
+              </span>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-slate-400 tracking-tight">PayPal Platform</h3>
+              <p className="text-sm text-slate-400 font-medium leading-relaxed">
+                Connect your business PayPal merchant ID to support direct standard Express Checkout, smart debit/credit buttons, and invoice generation.
+              </p>
+            </div>
+          </div>
+          <div className="pt-6 mt-6 border-t border-slate-100">
+            <button
+              disabled
+              className="w-full py-3 px-4 bg-slate-100 text-slate-400 font-bold text-sm rounded-2xl cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              Coming Soon
+            </button>
+          </div>
+        </div>
+
+        {/* Placeholder: Backup Storage S3 */}
+        <div className="bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 p-6 flex flex-col justify-between">
+          <div className="space-y-4">
+            {/* Header / Icon */}
+            <div className="flex items-center justify-between">
+              <div className="p-2.5 bg-white shadow-md shadow-slate-100 rounded-2xl border border-slate-100 shrink-0 flex items-center justify-center">
+                {/* Official AWS S3 Bucket SVG */}
+                <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C6.48 2 2 4.24 2 7V17C2 19.76 6.48 22 12 22C17.52 22 22 19.76 22 17V7C22 4.24 17.52 2 12 2ZM20 7C20 8.04 16.42 9.5 12 9.5C7.58 9.5 4 8.04 4 7C4 5.96 7.58 4.5 12 4.5C16.42 4.5 20 5.96 20 7ZM4 9.82C5.91 10.87 8.84 11.5 12 11.5C15.16 11.5 18.09 10.87 20 9.82V12C20 13.04 16.42 14.5 12 14.5C7.58 14.5 4 13.04 4 12V9.82ZM4 14.82C5.91 15.87 8.84 16.5 12 16.5C15.16 16.5 18.09 15.87 20 14.82V17C20 18.04 16.42 19.5 12 19.5C7.58 19.5 4 18.04 4 17V14.82Z" fill="#FF9900" />
+                  <ellipse cx="12" cy="7" rx="5" ry="1.5" fill="#E07700" />
                 </svg>
               </div>
               <span className="px-2.5 py-1 bg-slate-100 text-slate-400 text-xs font-bold uppercase tracking-wider rounded-lg">
