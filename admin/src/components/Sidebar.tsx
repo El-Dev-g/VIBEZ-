@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
@@ -101,6 +102,21 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('vibez_sidebar_collapsed');
+    if (saved !== null) {
+      setIsCollapsed(saved === 'true');
+    }
+  }, []);
+
+  const toggleCollapse = () => {
+    const nextVal = !isCollapsed;
+    setIsCollapsed(nextVal);
+    localStorage.setItem('vibez_sidebar_collapsed', String(nextVal));
+  };
+
   let pathname = '';
   try {
     pathname = usePathname() || '';
@@ -133,21 +149,47 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       {/* Sidebar Container */}
-      <div className={`fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col bg-[#0f172a] text-white transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
-        isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+      <div className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col bg-[#0f172a] text-white transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        isCollapsed ? 'lg:w-20' : 'lg:w-72'
+      } ${
+        isOpen ? 'w-72 translate-x-0 shadow-2xl' : 'w-72 -translate-x-full lg:translate-x-0'
       }`}>
         {/* Branding */}
-        <div className="flex h-20 items-center justify-between px-8 border-b border-white/5">
+        <div className={`flex h-20 items-center justify-between border-b border-white/5 transition-all duration-300 ${
+          isCollapsed ? 'px-4 justify-center' : 'px-8'
+        }`}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#008069] to-[#25d366] p-0.5 shadow-lg shadow-emerald-500/20 overflow-hidden">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#008069] to-[#25d366] p-0.5 shadow-lg shadow-emerald-500/20 overflow-hidden shrink-0">
               <img 
                 src="/logo.jpg" 
                 alt="VIBEZ Logo" 
                 className="h-full w-full object-cover rounded-[10px]"
               />
             </div>
-            <h1 className="text-xl font-black tracking-tight text-white">VIBEZ <span className="text-emerald-500 text-xs font-bold uppercase tracking-widest ml-1">Admin</span></h1>
+            {!isCollapsed && (
+              <h1 className="text-xl font-black tracking-tight text-white animate-fadeIn">
+                VIBEZ <span className="text-emerald-500 text-xs font-bold uppercase tracking-widest ml-1">Admin</span>
+              </h1>
+            )}
           </div>
+          
+          {/* Collapse/Expand Toggle Button for Desktop */}
+          <button 
+            onClick={toggleCollapse}
+            className="hidden lg:flex rounded-xl p-2 hover:bg-white/5 text-gray-400 hover:text-white transition-all active:scale-95 border border-transparent hover:border-white/5 cursor-pointer"
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isCollapsed ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 19l-7-7 7-7M19 19l-7-7 7-7" />
+              </svg>
+            )}
+          </button>
+
           <button 
             onClick={onClose}
             className="rounded-lg p-2 hover:bg-white/5 transition-colors lg:hidden text-gray-400"
@@ -160,7 +202,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide space-y-1">
+        <nav className={`flex-1 overflow-y-auto py-6 scrollbar-hide space-y-1 ${
+          isCollapsed ? 'px-2' : 'px-4'
+        }`}>
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -168,54 +212,72 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 key={item.name}
                 href={item.href}
                 onClick={onClose}
-                className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200 ${
+                title={isCollapsed ? item.name : undefined}
+                className={`group flex items-center gap-3 rounded-xl py-3 text-sm font-bold transition-all duration-200 ${
                   isActive
                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm'
                     : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+                } ${
+                  isCollapsed ? 'justify-center px-0' : 'px-4'
                 }`}
               >
-                <div className={`transition-colors ${isActive ? 'text-emerald-400' : 'text-gray-500 group-hover:text-emerald-400'}`}>
+                <div className={`transition-colors shrink-0 ${isActive ? 'text-emerald-400' : 'text-gray-500 group-hover:text-emerald-400'}`}>
                   {item.icon}
                 </div>
-                {item.name}
+                {!isCollapsed && <span className="truncate animate-fadeIn">{item.name}</span>}
               </Link>
             );
           })}
         </nav>
 
         {/* User Profile */}
-        <div className="p-4 mt-auto">
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="relative">
+        <div className={`mt-auto transition-all duration-300 ${
+          isCollapsed ? 'p-2' : 'p-4'
+        }`}>
+          <div className={`bg-white/5 rounded-2xl border border-white/5 shadow-sm transition-all duration-300 ${
+            isCollapsed ? 'p-2' : 'p-4'
+          }`}>
+            <div className={`flex items-center gap-3 ${
+              isCollapsed ? 'flex-col justify-center text-center' : ''
+            }`}>
+              <div className="relative shrink-0">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-sm font-black shadow-lg shadow-emerald-500/20">
                   {initials}
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0f172a] rounded-full"></div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-white truncate">{displayName}</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">{displayRole}</span>
-                  <span className="text-gray-600">•</span>
-                  <span className="text-[11px] font-medium text-gray-400 truncate">{displayEmail}</span>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0 animate-fadeIn">
+                  <p className="text-sm font-black text-white truncate">{displayName}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">{displayRole}</span>
+                    <span className="text-gray-600">•</span>
+                    <span className="text-[11px] font-medium text-gray-400 truncate">{displayEmail}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
+            
             <button 
               onClick={() => logout()}
-              className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/10 text-xs font-black text-white hover:text-red-400 transition-all border border-white/5 hover:border-red-500/20 group"
+              title={isCollapsed ? "Sign Out Session" : undefined}
+              className={`w-full mt-4 flex items-center justify-center rounded-xl bg-white/5 hover:bg-red-500/10 text-xs font-black text-white hover:text-red-400 transition-all border border-white/5 hover:border-red-500/20 group cursor-pointer ${
+                isCollapsed ? 'p-2.5' : 'px-4 py-2.5 gap-2'
+              }`}
             >
-              <span>Sign Out</span>
-              <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {!isCollapsed && <span>Sign Out</span>}
+              <svg className="w-4 h-4 shrink-0 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
-            <div className="mt-3 text-center">
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                Powered by <span className="text-emerald-400 font-extrabold">PRIGID GROUP</span>
-              </p>
-            </div>
+            
+            {!isCollapsed && (
+              <div className="mt-3 text-center animate-fadeIn">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                  Powered by <span className="text-emerald-400 font-extrabold">PRIGID GROUP</span>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

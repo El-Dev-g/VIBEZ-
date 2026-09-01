@@ -296,6 +296,24 @@ export class GmailOAuthController {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
     try {
+      const currentToken = emailService.refreshToken;
+      
+      // If we have an active refresh token, send an HTTP POST request to Google's OAuth2 /revoke endpoint
+      // This immediately revokes the token and unlinks/uninstalls the service globally!
+      if (currentToken) {
+        try {
+          console.log('[GmailOAuth] Revoking token on Google servers...');
+          await fetch('https://oauth2.googleapis.com/revoke', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ token: currentToken }),
+          });
+          console.log('[GmailOAuth] Successfully revoked Google token.');
+        } catch (revokeErr: any) {
+          console.warn('[GmailOAuth] Could not automatically revoke token on Google servers (it may have already been expired or revoked):', revokeErr.message || revokeErr);
+        }
+      }
+
       emailService.clearDynamicCredentials();
 
       const adminEmail = (req as any).admin?.email || (req as any).user?.email || 'admin';
@@ -311,7 +329,7 @@ export class GmailOAuthController {
 
       return res.json({
         success: true,
-        message: 'Gmail Support Delivery integration disconnected successfully.',
+        message: 'Gmail Support Delivery integration disconnected and Google authorization unlinked successfully.',
       });
     } catch (error: any) {
       console.error('[GmailOAuth] Disconnect error:', error);
