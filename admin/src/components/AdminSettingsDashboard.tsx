@@ -33,7 +33,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   appName: 'VIBEZ',
   contactEmail: 'support@vibez.chat',
   contactPhone: '+1 (800) 555-0199',
-  supportAddress: 'San Francisco, CA, USA'
+  supportAddress: 'San Francisco, CA, USA',
+  phoneAuthAllowedCountries: 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'
 };
 
 export default function AdminSettingsDashboard({ initialSettings }: AdminSettingsDashboardProps) {
@@ -628,6 +629,31 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                     onChange={(e) => setSettings({ ...settings, retentionDays: parseInt(e.target.value) || 90 })}
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
                   />
+                </div>
+              </div>
+
+              {/* Firebase Phone Auth Restrictions */}
+              <div className="pt-6 border-t border-slate-100 space-y-4">
+                <div>
+                  <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <span>🔥</span> Firebase Phone Auth Allowed Countries
+                  </h4>
+                  <p className="text-xs font-bold text-slate-400 mt-1">
+                    Comma-separated list of permitted country ISO-2 codes. The mobile client application's country picker and prefix selector dynamically filters based on this whitelisted configuration.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Permitted ISO-2 Country Codes</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. US, GH, NG, GB, CA, KE, ZA"
+                    value={settings?.phoneAuthAllowedCountries ?? 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'}
+                    onChange={(e) => setSettings({ ...settings, phoneAuthAllowedCountries: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  />
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+                    Current active whitelist: {settings?.phoneAuthAllowedCountries || 'N/A'}
+                  </p>
                 </div>
               </div>
 
