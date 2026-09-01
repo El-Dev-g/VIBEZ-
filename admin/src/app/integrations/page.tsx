@@ -3,13 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchGmailOAuthStatus, disconnectGmailOAuth, GmailOAuthStatus } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function IntegrationsPage() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<GmailOAuthStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
 
+  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin';
+
   const loadStatus = async () => {
+    if (!isAdmin) return;
     setLoading(true);
     try {
       const res = await fetchGmailOAuthStatus();
@@ -23,9 +28,10 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     loadStatus();
-  }, []);
+  }, [user]);
 
   const handleUninstall = async () => {
+    if (!isAdmin) return;
     if (!window.confirm('Are you sure you want to disconnect and uninstall the Gmail Support Delivery integration?')) {
       return;
     }
@@ -46,6 +52,22 @@ export default function IntegrationsPage() {
   };
 
   const isConnected = status?.authorized === true;
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+        <div className="p-4 bg-red-50 text-red-500 rounded-3xl border border-red-100 mb-4 shadow-sm">
+          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Access Denied</h3>
+        <p className="text-slate-500 font-bold max-w-sm mt-2 text-sm leading-relaxed">
+          You do not have the necessary permissions to configure system integrations. Only authorized administrators can access this system.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 animate-fadeIn">

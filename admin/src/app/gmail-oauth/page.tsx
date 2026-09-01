@@ -3,11 +3,15 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getGmailOAuthStartUrl } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 function GmailOAuthContent() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const [connecting, setConnecting] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin';
 
   useEffect(() => {
     const statusParam = searchParams.get('status');
@@ -28,6 +32,7 @@ function GmailOAuthContent() {
   }, [searchParams]);
 
   const handleConnectGmail = async () => {
+    if (!isAdmin) return;
     setConnecting(true);
     setMessage(null);
     try {
@@ -46,6 +51,22 @@ function GmailOAuthContent() {
       setConnecting(false);
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+        <div className="p-4 bg-red-50 text-red-500 rounded-3xl border border-red-100 mb-4 shadow-sm">
+          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Access Denied</h3>
+        <p className="text-slate-500 font-bold max-w-sm mt-2 text-sm leading-relaxed">
+          You do not have the necessary permissions to configure system integrations. Only authorized administrators can access this system.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="gmail-oauth-container min-h-[70vh] flex flex-col items-center justify-center p-6">
