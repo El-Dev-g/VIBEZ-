@@ -20,9 +20,52 @@ interface SupportResponseOptions {
 
 class EmailService {
   private transporter: nodemailer.Transporter | null = null;
+  private dynamicRefreshToken: string | null = null;
+  private dynamicUserEmail: string | null = null;
+  private dynamicAuthorizedAt: Date | null = null;
+
+  public get clientId(): string | undefined {
+    return process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID;
+  }
+
+  public get clientSecret(): string | undefined {
+    return process.env.GOOGLE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET;
+  }
+
+  public get refreshToken(): string | undefined {
+    return this.dynamicRefreshToken || process.env.GOOGLE_REFRESH_TOKEN || process.env.GMAIL_REFRESH_TOKEN;
+  }
+
+  public setDynamicCredentials(refreshToken: string, userEmail?: string) {
+    this.dynamicRefreshToken = refreshToken;
+    if (userEmail) this.dynamicUserEmail = userEmail;
+    this.dynamicAuthorizedAt = new Date();
+  }
+
+  public getGmailStatus(): {
+    configured: boolean;
+    provider: string | null;
+    scope: string;
+    authorized: boolean;
+    userEmail?: string;
+    lastAuthorized?: string;
+  } {
+    const isConfigured = Boolean(this.clientId && this.clientSecret);
+    const hasToken = Boolean(this.refreshToken);
+    const isAuthorized = isConfigured && hasToken;
+
+    return {
+      configured: isConfigured,
+      provider: isAuthorized ? 'gmail_api' : null,
+      scope: 'https://www.googleapis.com/auth/gmail.send',
+      authorized: isAuthorized,
+      userEmail: this.dynamicUserEmail || this.user || 'prigidcollection@gmail.com',
+      lastAuthorized: this.dynamicAuthorizedAt ? this.dynamicAuthorizedAt.toISOString() : undefined,
+    };
+  }
 
   private get user(): string | undefined {
-    return process.env.GMAIL_USER || process.env.EMAIL_USER;
+    return this.dynamicUserEmail || process.env.GMAIL_USER || process.env.EMAIL_USER;
   }
 
   private get pass(): string | undefined {
@@ -222,13 +265,88 @@ class EmailService {
   }
 
   /**
+   * Dedicated Gmail REST API test sender - explicitly tests the Gmail API with NO fallback
+   */
+  async sendTestGmailEmail(recipientEmail: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    const clientId = this.clientId;
+    const clientSecret = this.clientSecret;
+    const refreshToken = this.refreshToken;
+    const userEmail = this.user || 'prigidcollection@gmail.com';
+
+    if (!clientId || !clientSecret) {
+      return {
+        success: false,
+        error: 'Google OAuth Client ID or Client Secret is not configured on this environment.'
+      };
+    }
+
+    if (!refreshToken) {
+      return {
+        success: false,
+        error: 'Gmail account is not authorized yet. Please click "Connect Gmail" to authorize VIBEZ Support.'
+      };
+    }
+
+    const testHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><title>VIBEZ Gmail API Test</title></head>
+      <body style="margin:0;padding:24px;background:#0b0f19;font-family:sans-serif;color:#f1f5f9;">
+        <div style="max-width:560px;margin:0 auto;background:#111827;border-radius:14px;border:1px solid #1f2937;padding:32px;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="display:inline-block;padding:8px 18px;background:#1e1b4b;border:1px solid #4338ca;border-radius:20px;color:#818cf8;font-size:12px;font-weight:700;letter-spacing:1px;">GMAIL REST API VERIFICATION</div>
+          </div>
+          <h2 style="color:#ffffff;margin:0 0 12px;font-size:22px;text-align:center;">VIBEZ Support Email Integration Test</h2>
+          <p style="color:#94a3b8;font-size:15px;line-height:1.6;margin:0 0 20px;">
+            This is an automated verification test email dispatched directly via the <strong>Gmail REST API (Port 443 HTTPS)</strong> using the authorized <code>https://www.googleapis.com/auth/gmail.send</code> scope.
+          </p>
+          <div style="background:#1e293b;border-radius:10px;padding:16px;border-left:4px solid #10b981;margin-bottom:24px;">
+            <div style="color:#10b981;font-weight:700;font-size:14px;margin-bottom:6px;">✓ End-to-End Status: Active & Healthy</div>
+            <div style="color:#cbd5e1;font-size:13px;">Authorized Sender: <strong>${userEmail}</strong></div>
+            <div style="color:#cbd5e1;font-size:13px;margin-top:4px;">Dispatched: <strong>${new Date().toUTCString()}</strong></div>
+          </div>
+          <p style="color:#64748b;font-size:12px;text-align:center;margin:0;">
+            VIBEZ Support Team &bull; Customer Success & Experience
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const result = await this.sendViaGmailApi(
+      {
+        to: recipientEmail,
+        subject: `[VIBEZ] Gmail API Integration Test Verification - ${new Date().toISOString().substring(11, 19)}`,
+        html: testHtml,
+        text: `VIBEZ Gmail API Integration Test Verification. Dispatched via https://www.googleapis.com/auth/gmail.send on ${new Date().toUTCString()}`,
+      },
+      clientId,
+      clientSecret,
+      refreshToken,
+      userEmail
+    );
+
+    if (result.success) {
+      return {
+        success: true,
+        message: `Gmail API test email delivered successfully to ${recipientEmail}`
+      };
+    } else {
+      return {
+        success: false,
+        error: `Gmail API test failed: ${result.error || 'Unknown error'}`
+      };
+    }
+  }
+
+  /**
    * Generic sender via Gmail OAuth2 REST API, Resend API, SendGrid API, or SMTP
    */
   async sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
     // 1. Try Gmail REST API OAuth2 (HTTPS Port 443 - zero SMTP timeouts, works seamlessly on Render)
-    const gmailClientId = process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID;
-    const gmailClientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET;
-    const gmailRefreshToken = process.env.GOOGLE_REFRESH_TOKEN || process.env.GMAIL_REFRESH_TOKEN;
+    const gmailClientId = this.clientId;
+    const gmailClientSecret = this.clientSecret;
+    const gmailRefreshToken = this.refreshToken;
     const gmailUser = this.user || 'prigidcollection@gmail.com';
 
     if (gmailClientId && gmailClientSecret && gmailRefreshToken) {

@@ -15,6 +15,7 @@ import { AdminController } from './controllers/AdminController';
 import { PaymentController } from './controllers/PaymentController';
 import { SubscriptionController } from './controllers/SubscriptionController';
 import { DeveloperController } from './controllers/DeveloperController';
+import { GmailOAuthController } from './controllers/GmailOAuthController';
 import { authenticate, authenticateAdmin } from './middleware/auth';
 import { checkMaintenanceMode } from './middleware/maintenance';
 import { securityHeaders, sanitizeInputs, checkSecretEntropy } from './middleware/security';
@@ -89,6 +90,7 @@ const admin = new AdminController();
 const payment = new PaymentController();
 const subscription = new SubscriptionController();
 const developer = new DeveloperController();
+const gmailOAuth = new GmailOAuthController();
 
 // Developer API & Server Integration Routes (Powered by PRIGID GROUP)
 app.get('/api/developer/health', (req, res) => developer.getDeveloperHealth(req, res));
@@ -277,6 +279,12 @@ app.get('/api/admin/sessions', authenticateAdmin, (req, res) => admin.getSession
 app.delete('/api/admin/sessions/:sessionId', authenticateAdmin, (req, res) => admin.revokeSession(req, res));
 app.post('/api/admin/2fa/toggle', authenticateAdmin, (req, res) => admin.toggleTwoFactor(req, res));
 app.get('/api/admin/security/health', authenticateAdmin, (req, res) => admin.getSecurityHealth(req, res));
+
+// Gmail OAuth Integration Routes (Dedicated Demo / Support Email Authorization)
+app.get('/api/admin/gmail-oauth/start', authenticateAdmin, (req, res) => gmailOAuth.startOAuth(req, res));
+app.get('/api/admin/gmail-oauth/callback', (req, res) => gmailOAuth.handleCallback(req, res));
+app.get('/api/admin/gmail-oauth/status', authenticateAdmin, (req, res) => gmailOAuth.getStatus(req, res));
+app.post('/api/admin/gmail-oauth/test-send', authenticateAdmin, (req, res) => gmailOAuth.testSend(req, res));
 
 // Media Routes
 app.post('/api/media/upload-url', authenticate, async (req, res) => {

@@ -1133,3 +1133,57 @@ export const clearAuditLogs = async (): Promise<boolean> => {
   }
 };
 
+export interface GmailOAuthStatus {
+  configured: boolean;
+  provider: string | null;
+  scope: string;
+  authorized: boolean;
+  userEmail?: string;
+  lastAuthorized?: string;
+}
+
+export const fetchGmailOAuthStatus = async (): Promise<GmailOAuthStatus | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/gmail-oauth/status`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error('fetchGmailOAuthStatus error:', error);
+  }
+  return null;
+};
+
+export const getGmailOAuthStartUrl = async (): Promise<string | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/gmail-oauth/start?format=json`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.url;
+    }
+  } catch (error) {
+    console.error('getGmailOAuthStartUrl error:', error);
+  }
+  return null;
+};
+
+export const sendGmailOAuthTestEmail = async (recipientEmail: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/gmail-oauth/test-send`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ recipientEmail })
+    });
+    const data = await res.json();
+    return data;
+  } catch (error: any) {
+    console.error('sendGmailOAuthTestEmail error:', error);
+    return { success: false, error: error.message || 'Failed to send test email' };
+  }
+};
+
+
