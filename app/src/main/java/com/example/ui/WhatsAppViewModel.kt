@@ -316,9 +316,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
                 // Initialize Socket & Sync
                 repository.initSocket(response.user.id) { }
-                repository.syncChats(response.token)
-                repository.syncStatuses(response.token, response.user.id)
-                repository.syncCommunities(response.token)
+                syncEverythingWithBackend()
 
                 onComplete?.invoke(true, null)
             } catch (e: Exception) {
@@ -367,9 +365,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
                 // Initialize Socket & Sync
                 repository.initSocket(response.user.id) { }
-                repository.syncChats(response.token)
-                repository.syncStatuses(response.token, response.user.id)
-                repository.syncCommunities(response.token)
+                syncEverythingWithBackend()
 
                 onComplete?.invoke(true, null)
             } catch (e: Exception) {

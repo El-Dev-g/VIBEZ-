@@ -405,7 +405,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     viewModel.loginWithGoogle(email, name, avatarUrl, phone, idToken) { success, errMsg ->
                         if (success) {
                             val userPhone = viewModel.currentUserPhone.value
-                            if (userPhone.isNullOrBlank()) {
+                            if (userPhone.isNullOrBlank() || userPhone.startsWith("g_")) {
                                 // No phone number linked yet. User is a first registrar!
                                 viewModel.logoutUser()
                                 val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")

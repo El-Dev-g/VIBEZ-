@@ -49,8 +49,13 @@ export class AuthController {
         let updatedName = user.name;
         if (name && typeof name === 'string') {
           const trimmed = name.trim();
-          if (trimmed.length > 0 && trimmed !== cleanPhone && trimmed !== user.phoneNumber) {
+          const isDefaultOrEmpty = !trimmed || trimmed === 'User' || trimmed === 'New User' || trimmed === cleanPhone || trimmed === user.phoneNumber;
+          const hasValidExistingName = user.name && user.name.trim().length > 0 && user.name !== 'User' && user.name !== 'New User' && user.name !== user.phoneNumber;
+
+          if (!isDefaultOrEmpty) {
             updatedName = trimmed;
+          } else if (hasValidExistingName) {
+            updatedName = user.name;
           }
         }
 
@@ -172,9 +177,20 @@ export class AuthController {
 
         const updateData: any = {
           lastSeen: new Date(),
-          avatarUrl: verifiedAvatar || user.avatarUrl,
-          name: (verifiedName && verifiedName.trim().length > 0 && verifiedName !== 'New User') ? verifiedName.trim() : user.name
+          avatarUrl: verifiedAvatar || user.avatarUrl
         };
+
+        const trimmedVerifiedName = verifiedName ? verifiedName.trim() : '';
+        const isDefaultOrEmpty = !trimmedVerifiedName || trimmedVerifiedName === 'User' || trimmedVerifiedName === 'New User' || trimmedVerifiedName === cleanPhone || trimmedVerifiedName === user.phoneNumber;
+        const hasValidExistingName = user.name && user.name.trim().length > 0 && user.name !== 'User' && user.name !== 'New User' && user.name !== user.phoneNumber;
+
+        if (!isDefaultOrEmpty) {
+          updateData.name = trimmedVerifiedName;
+        } else if (hasValidExistingName) {
+          updateData.name = user.name;
+        } else {
+          updateData.name = user.name || 'New User';
+        }
 
         if (verifiedEmail) {
           updateData.googleEmail = verifiedEmail;
