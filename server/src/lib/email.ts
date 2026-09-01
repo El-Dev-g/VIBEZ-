@@ -91,7 +91,7 @@ class EmailService {
   }
 
   private get appUrl(): string {
-    return process.env.BACKEND_URL || 'https://vibez-n5h1.onrender.com';
+    return process.env.FRONTEND_URL || process.env.APP_URL || process.env.BACKEND_URL || 'https://vibez-n5h1.onrender.com';
   }
 
   /**
@@ -789,7 +789,7 @@ Connect with us:
             <p>Thank you for subscribing to VIBEZ system & product updates.</p>
             <p>You'll now be the first to know when new releases, feature drops, and system status updates become available.</p>
             <p>If you have any questions or feedback, simply reply to this email or visit our status portal.</p>
-            <a href="https://vibez-n5h1.onrender.com" class="btn">Visit VIBEZ Hub</a>
+            <a href="${this.appUrl}" class="btn">Visit VIBEZ Hub</a>
           </div>
           <div class="footer">
             &copy; ${new Date().getFullYear()} VIBEZ Inc. All rights reserved.<br>

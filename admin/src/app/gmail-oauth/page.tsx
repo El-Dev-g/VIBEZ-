@@ -11,7 +11,8 @@ function GmailOAuthContent() {
   const [connecting, setConnecting] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin';
+  const adminRoles = ['SUPERADMIN', 'ADMIN', 'MODERATOR', 'SUPPORT'];
+  const isAdmin = !!user?.role && adminRoles.includes(user.role.toUpperCase());
 
   useEffect(() => {
     const statusParam = searchParams.get('status');

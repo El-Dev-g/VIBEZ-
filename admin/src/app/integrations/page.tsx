@@ -11,7 +11,8 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
 
-  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin';
+  const adminRoles = ['SUPERADMIN', 'ADMIN', 'MODERATOR', 'SUPPORT'];
+  const isAdmin = !!user?.role && adminRoles.includes(user.role.toUpperCase());
 
   const loadStatus = async () => {
     if (!isAdmin) return;
