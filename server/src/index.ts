@@ -285,6 +285,7 @@ app.get('/api/admin/gmail-oauth/start', authenticateAdmin, (req, res) => gmailOA
 app.get('/api/admin/gmail-oauth/callback', (req, res) => gmailOAuth.handleCallback(req, res));
 app.get('/api/admin/gmail-oauth/status', authenticateAdmin, (req, res) => gmailOAuth.getStatus(req, res));
 app.post('/api/admin/gmail-oauth/test-send', authenticateAdmin, (req, res) => gmailOAuth.testSend(req, res));
+app.post('/api/admin/gmail-oauth/disconnect', authenticateAdmin, (req, res) => gmailOAuth.disconnectOAuth(req, res));
 
 // Media Routes
 app.post('/api/media/upload-url', authenticate, async (req, res) => {

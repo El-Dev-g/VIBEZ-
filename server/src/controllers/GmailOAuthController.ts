@@ -274,4 +274,42 @@ export class GmailOAuthController {
       });
     }
   }
+
+  /**
+   * POST /api/admin/gmail-oauth/disconnect
+   * Clears OAuth credentials to disconnect/uninstall the integration
+   */
+  async disconnectOAuth(req: Request, res: Response) {
+    if (!this.isDemoEnabled()) {
+      return res.status(404).json({ error: 'Not Found' });
+    }
+
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
+    try {
+      emailService.clearDynamicCredentials();
+
+      const adminEmail = (req as any).admin?.email || (req as any).user?.email || 'admin';
+      try {
+        await prisma.auditLog.create({
+          data: {
+            adminEmail,
+            action: 'GMAIL_OAUTH_DISCONNECTED',
+            target: 'Gmail Support Delivery Integration',
+          },
+        });
+      } catch (logErr) {}
+
+      return res.json({
+        success: true,
+        message: 'Gmail Support Delivery integration disconnected successfully.',
+      });
+    } catch (error: any) {
+      console.error('[GmailOAuth] Disconnect error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to disconnect integration.',
+      });
+    }
+  }
 }

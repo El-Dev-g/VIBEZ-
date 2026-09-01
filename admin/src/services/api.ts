@@ -1186,4 +1186,18 @@ export const sendGmailOAuthTestEmail = async (recipientEmail: string): Promise<{
   }
 };
 
+export const disconnectGmailOAuth = async (): Promise<{ success: boolean; message?: string; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/gmail-oauth/disconnect`, {
+      method: 'POST',
+      headers: getAdminHeaders()
+    });
+    const data = await res.json();
+    return data;
+  } catch (error: any) {
+    console.error('disconnectGmailOAuth error:', error);
+    return { success: false, error: error.message || 'Failed to disconnect Gmail OAuth' };
+  }
+};
+
 

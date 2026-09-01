@@ -23,6 +23,7 @@ class EmailService {
   private dynamicRefreshToken: string | null = null;
   private dynamicUserEmail: string | null = null;
   private dynamicAuthorizedAt: Date | null = null;
+  private isDisconnectedManual = false;
 
   public get clientId(): string | undefined {
     return process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID;
@@ -33,6 +34,7 @@ class EmailService {
   }
 
   public get refreshToken(): string | undefined {
+    if (this.isDisconnectedManual) return undefined;
     return this.dynamicRefreshToken || process.env.GOOGLE_REFRESH_TOKEN || process.env.GMAIL_REFRESH_TOKEN;
   }
 
@@ -40,6 +42,14 @@ class EmailService {
     this.dynamicRefreshToken = refreshToken;
     if (userEmail) this.dynamicUserEmail = userEmail;
     this.dynamicAuthorizedAt = new Date();
+    this.isDisconnectedManual = false;
+  }
+
+  public clearDynamicCredentials() {
+    this.dynamicRefreshToken = null;
+    this.dynamicUserEmail = null;
+    this.dynamicAuthorizedAt = null;
+    this.isDisconnectedManual = true;
   }
 
   public getGmailStatus(): {
@@ -59,7 +69,7 @@ class EmailService {
       provider: isAuthorized ? 'gmail_api' : null,
       scope: 'https://www.googleapis.com/auth/gmail.send',
       authorized: isAuthorized,
-      userEmail: this.dynamicUserEmail || this.user || 'prigidcollection@gmail.com',
+      userEmail: isAuthorized ? (this.dynamicUserEmail || this.user || 'prigidcollection@gmail.com') : undefined,
       lastAuthorized: this.dynamicAuthorizedAt ? this.dynamicAuthorizedAt.toISOString() : undefined,
     };
   }
