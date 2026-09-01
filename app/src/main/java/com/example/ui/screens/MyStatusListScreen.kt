@@ -58,6 +58,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.PlayArrow
+import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.StatusEntity
 import com.example.ui.theme.WhatsAppEmerald
@@ -237,12 +239,41 @@ fun MyStatusListScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             if (status.mediaType == "IMAGE") {
-                                Image(
-                                    painter = painterResource(id = R.drawable.img_status_banner_1787278113131),
+                                AsyncImage(
+                                    model = status.mediaUrl,
                                     contentDescription = "Status photo preview",
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize(),
+                                    placeholder = painterResource(id = R.drawable.img_status_banner_1787278113131),
+                                    error = painterResource(id = R.drawable.img_status_banner_1787278113131)
                                 )
+                            } else if (status.mediaType == "VIDEO") {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AsyncImage(
+                                        model = status.mediaUrl.takeIf { it.isNotBlank() } ?: R.drawable.img_status_banner_1787278113131,
+                                        contentDescription = "Status video preview",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                        placeholder = painterResource(id = R.drawable.img_status_banner_1787278113131),
+                                        error = painterResource(id = R.drawable.img_status_banner_1787278113131)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.35f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Video Status",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
                             } else {
                                 Text(
                                     text = status.textCaption,

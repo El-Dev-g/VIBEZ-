@@ -275,6 +275,7 @@ model SystemSetting {
   helpCenterUrl         String? @default("")
   faqUrl                String? @default("")
   phoneAuthAllowedCountries String? @default("US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU")
+  showPhoneCountryPrefixes  Boolean @default(true)
 }
 
 model AppUpdate {

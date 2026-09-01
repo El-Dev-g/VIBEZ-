@@ -331,6 +331,7 @@ export interface SystemSettings {
   helpCenterUrl?: string;
   faqUrl?: string;
   phoneAuthAllowedCountries?: string;
+  showPhoneCountryPrefixes?: boolean;
 }
 
 export const fetchReports = async (): Promise<Report[]> => {
@@ -387,7 +388,8 @@ export const fetchSettings = async (): Promise<SystemSettings> => {
     maintenanceMode: false,
     maxGroupSize: 1024,
     retentionDays: 90,
-    verificationBadgePrice: 3.00
+    verificationBadgePrice: 3.00,
+    showPhoneCountryPrefixes: true
   };
 };
 

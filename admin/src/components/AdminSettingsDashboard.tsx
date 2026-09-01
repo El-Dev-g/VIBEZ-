@@ -239,6 +239,27 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
     setTimeout(() => setSettingsToast(null), 4000);
   };
 
+  const handleTogglePrefixVisibility = async (nextVal: boolean) => {
+    setSettings(prev => ({ ...prev, showPhoneCountryPrefixes: nextVal }));
+    setSettingsToast({
+      text: nextVal 
+        ? '✓ Country prefixes set to VISIBLE in mobile authentication.' 
+        : '⚠️ Country prefixes set to HIDDEN in mobile authentication.',
+      isError: false
+    });
+
+    try {
+      const res = await updateSettings({ showPhoneCountryPrefixes: nextVal });
+      if (res) {
+        setSettings(prev => ({ ...prev, ...res }));
+      }
+    } catch (e) {
+      console.error('Failed to toggle prefix visibility:', e);
+      setSettingsToast({ text: 'Failed to update country prefix visibility.', isError: true });
+    }
+    setTimeout(() => setSettingsToast(null), 4000);
+  };
+
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     setSettingsToast(null);
@@ -526,7 +547,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                 <p className="text-sm font-bold text-slate-400 mt-1">Configure user onboarding restrictions, badge pricing, and cluster limits.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Onboarding */}
                 <div className="flex items-center justify-between p-6 rounded-2xl bg-slate-50 border border-slate-100">
                   <div>
@@ -591,6 +612,37 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                     <div
                       className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
                         settings?.maintenanceMode ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Toggle 3: Firebase Phone Auth Prefix Visibility */}
+                <div className="flex items-center justify-between p-6 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Prefix Visibility</h4>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        settings?.showPhoneCountryPrefixes ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {settings?.showPhoneCountryPrefixes ? 'Visible' : 'Hidden'}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 mt-1">
+                      Toggle country dial prefixes in picker.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePrefixVisibility(!settings?.showPhoneCountryPrefixes)}
+                    className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${
+                      settings?.showPhoneCountryPrefixes ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-300'
+                    }`}
+                    title="Toggle Country Prefix Visibility"
+                  >
+                    <div
+                      className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-sm ${
+                        settings?.showPhoneCountryPrefixes ? 'translate-x-6' : 'translate-x-0'
                       }`}
                     />
                   </button>

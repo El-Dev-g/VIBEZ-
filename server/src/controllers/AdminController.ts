@@ -320,7 +320,8 @@ export class AdminController {
             termsOfServiceContent: '',
             helpCenterUrl: '',
             faqUrl: '',
-            phoneAuthAllowedCountries: 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'
+            phoneAuthAllowedCountries: 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU',
+            showPhoneCountryPrefixes: true
           }
         });
       }
@@ -356,6 +357,7 @@ export class AdminController {
       const helpCenterUrl = data.helpCenterUrl !== undefined ? String(data.helpCenterUrl).trim() : undefined;
       const faqUrl = data.faqUrl !== undefined ? String(data.faqUrl).trim() : undefined;
       const phoneAuthAllowedCountries = data.phoneAuthAllowedCountries !== undefined ? String(data.phoneAuthAllowedCountries).trim() : undefined;
+      const showPhoneCountryPrefixes = data.showPhoneCountryPrefixes !== undefined ? Boolean(data.showPhoneCountryPrefixes) : undefined;
 
       if (!target) {
         target = await prisma.systemSetting.create({
@@ -377,7 +379,8 @@ export class AdminController {
             termsOfServiceContent: termsOfServiceContent ?? '',
             helpCenterUrl: helpCenterUrl ?? '',
             faqUrl: faqUrl ?? '',
-            phoneAuthAllowedCountries: phoneAuthAllowedCountries ?? 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'
+            phoneAuthAllowedCountries: phoneAuthAllowedCountries ?? 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU',
+            showPhoneCountryPrefixes: showPhoneCountryPrefixes ?? true
           }
         });
         return res.json(target);
@@ -402,6 +405,7 @@ export class AdminController {
       if (helpCenterUrl !== undefined) updatePayload.helpCenterUrl = helpCenterUrl;
       if (faqUrl !== undefined) updatePayload.faqUrl = faqUrl;
       if (phoneAuthAllowedCountries !== undefined) updatePayload.phoneAuthAllowedCountries = phoneAuthAllowedCountries;
+      if (showPhoneCountryPrefixes !== undefined) updatePayload.showPhoneCountryPrefixes = showPhoneCountryPrefixes;
 
       const updated = await prisma.systemSetting.update({
         where: { id: target.id },
@@ -427,7 +431,8 @@ export class AdminController {
         supportAddress: settings?.supportAddress || 'San Francisco, CA, USA',
         maintenanceMode: settings?.maintenanceMode || false,
         allowNewRegistrations: settings?.allowNewRegistrations ?? true,
-        phoneAuthAllowedCountries: settings?.phoneAuthAllowedCountries || 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU'
+        phoneAuthAllowedCountries: settings?.phoneAuthAllowedCountries || 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU',
+        showPhoneCountryPrefixes: settings?.showPhoneCountryPrefixes ?? true
       });
     } catch (error) {
       res.status(500).json({

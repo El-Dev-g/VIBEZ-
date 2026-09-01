@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.StatusEntity
 import com.example.ui.components.AvatarView
+import com.example.ui.components.StatusPreviewView
 import com.example.ui.theme.WhatsAppEmerald
 import com.example.ui.theme.WhatsAppMinimalAccent
 import com.example.ui.theme.WhatsAppMinimalPrimary
@@ -274,14 +275,23 @@ fun StatusListScreen(
                                     .testTag("my_status_circle")
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    AvatarView(
-                                        name = myStatus?.contactName ?: "Me",
-                                        avatarUrl = myStatus?.contactAvatar ?: "",
-                                        hasStatusUpdate = myStatuses.isNotEmpty(),
-                                        isStatusViewed = myStatuses.all { it.isViewed },
-                                        statusCount = myStatuses.size,
-                                        size = 68.dp
-                                    )
+                                    if (myStatus != null) {
+                                        StatusPreviewView(
+                                            status = myStatus,
+                                            statusCount = myStatuses.size,
+                                            isStatusViewed = myStatuses.all { it.isViewed },
+                                            size = 68.dp
+                                        )
+                                    } else {
+                                        AvatarView(
+                                            name = "Me",
+                                            avatarUrl = "",
+                                            hasStatusUpdate = false,
+                                            isStatusViewed = false,
+                                            statusCount = 0,
+                                            size = 68.dp
+                                        )
+                                    }
 
                                     // Add badge icon if no active status or for quick adding
                                     if (myStatus == null) {
@@ -317,19 +327,17 @@ fun StatusListScreen(
 
                         // Contact Statuses connected directly to status viewer
                         items(contactStatusesGrouped, key = { "group_${it.contactId}" }) { statusGroup ->
-                            val latest = statusGroup.latestStatus
+                            val firstStatus = statusGroup.statuses.first()
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
                                     .width(72.dp)
-                                    .clickable { onStatusClick(latest) }
+                                    .clickable { onStatusClick(firstStatus) }
                             ) {
-                                AvatarView(
-                                    name = statusGroup.contactName,
-                                    avatarUrl = statusGroup.contactAvatar,
-                                    hasStatusUpdate = true,
-                                    isStatusViewed = statusGroup.isViewed,
+                                StatusPreviewView(
+                                    status = firstStatus,
                                     statusCount = statusGroup.statuses.size,
+                                    isStatusViewed = statusGroup.isViewed,
                                     size = 68.dp
                                 )
 
@@ -375,14 +383,23 @@ fun StatusListScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(contentAlignment = Alignment.BottomEnd) {
-                            AvatarView(
-                                name = myStatus?.contactName ?: "My status",
-                                avatarUrl = myStatus?.contactAvatar ?: "",
-                                hasStatusUpdate = myStatuses.isNotEmpty(),
-                                isStatusViewed = myStatuses.all { it.isViewed },
-                                statusCount = myStatuses.size,
-                                size = 52.dp
-                            )
+                            if (myStatus != null) {
+                                StatusPreviewView(
+                                    status = myStatus,
+                                    statusCount = myStatuses.size,
+                                    isStatusViewed = myStatuses.all { it.isViewed },
+                                    size = 52.dp
+                                )
+                            } else {
+                                AvatarView(
+                                    name = "My status",
+                                    avatarUrl = "",
+                                    hasStatusUpdate = false,
+                                    isStatusViewed = false,
+                                    statusCount = 0,
+                                    size = 52.dp
+                                )
+                            }
                             if (myStatus == null) {
                                 Box(
                                     modifier = Modifier
@@ -635,12 +652,10 @@ fun StatusItemRow(
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AvatarView(
-                name = group.contactName,
-                avatarUrl = group.contactAvatar,
-                hasStatusUpdate = true,
-                isStatusViewed = group.isViewed,
+            StatusPreviewView(
+                status = group.statuses.first(),
                 statusCount = group.statuses.size,
+                isStatusViewed = group.isViewed,
                 size = 52.dp
             )
 
