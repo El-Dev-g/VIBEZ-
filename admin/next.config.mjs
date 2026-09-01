@@ -14,8 +14,8 @@ const nextConfig = {
 
     return [
       {
-        source: '/admin/gmail-oauth',
-        destination: '/gmail-oauth',
+        source: '/admin/:path*',
+        destination: '/:path*',
       },
       {
         source: '/api/:path*',

@@ -28,7 +28,16 @@ export class GmailOAuthController {
     return process.env.GMAIL_OAUTH_DEMO_ENABLED !== 'false';
   }
 
-  private getAdminFrontendUrl(): string {
+  private getAdminFrontendUrl(req?: Request): string {
+    if (req) {
+      const host = req.get('host') || '';
+      const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+      
+      // If we are on our preview/dev environments or localhost, we route with the /admin path prefix on the same host!
+      if (host.includes('run.app') || host.includes('localhost') || host.includes('gitpod') || host.includes('github') || !process.env.ADMIN_FRONTEND_URL) {
+        return `${protocol}://${host}/admin`;
+      }
+    }
     const raw = process.env.ADMIN_FRONTEND_URL || 'https://vibez-admin.onrender.com';
     return raw.replace(/\/$/, '');
   }
@@ -103,18 +112,18 @@ export class GmailOAuthController {
     }
 
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    const adminFrontendUrl = this.getAdminFrontendUrl();
+    const adminFrontendUrl = this.getAdminFrontendUrl(req);
 
     const { code, state, error, error_description } = req.query;
 
     // Handle user or Google error / access denial
     if (error) {
       const errMsg = (error_description as string) || (error as string) || 'Access was denied by Google.';
-      return res.redirect(`${adminFrontendUrl}/gmail-oauth?status=error&message=${encodeURIComponent(errMsg)}`);
+      return res.redirect(`${adminFrontendUrl}/integrations?status=error&message=${encodeURIComponent(errMsg)}`);
     }
 
     if (!code || !state) {
-      return res.redirect(`${adminFrontendUrl}/gmail-oauth?status=error&message=${encodeURIComponent('Missing authorization code or state parameter.')}`);
+      return res.redirect(`${adminFrontendUrl}/integrations?status=error&message=${encodeURIComponent('Missing authorization code or state parameter.')}`);
     }
 
     const stateStr = String(state);
@@ -122,12 +131,12 @@ export class GmailOAuthController {
 
     // Validate state (CSRF / Replay protection)
     if (!storedState) {
-      return res.redirect(`${adminFrontendUrl}/gmail-oauth?status=error&message=${encodeURIComponent('Invalid or already used OAuth state. Please start again.')}`);
+      return res.redirect(`${adminFrontendUrl}/integrations?status=error&message=${encodeURIComponent('Invalid or already used OAuth state. Please start again.')}`);
     }
 
     if (storedState.expiresAt < Date.now()) {
       oauthStateStore.delete(stateStr);
-      return res.redirect(`${adminFrontendUrl}/gmail-oauth?status=error&message=${encodeURIComponent('OAuth authorization session expired. Please start again.')}`);
+      return res.redirect(`${adminFrontendUrl}/integrations?status=error&message=${encodeURIComponent('OAuth authorization session expired. Please start again.')}`);
     }
 
     // Delete state immediately after single-use validation
@@ -138,7 +147,7 @@ export class GmailOAuthController {
     const redirectUri = this.getRedirectUri(req);
 
     if (!clientId || !clientSecret) {
-      return res.redirect(`${adminFrontendUrl}/gmail-oauth?status=error&message=${encodeURIComponent('Google client credentials are not configured on server.')}`);
+      return res.redirect(`${adminFrontendUrl}/integrations?status=error&message=${encodeURIComponent('Google client credentials are not configured on server.')}`);
     }
 
     try {
@@ -159,7 +168,7 @@ export class GmailOAuthController {
 
       if (!tokenRes.ok) {
         console.error('[GmailOAuth] Token exchange failed:', tokenData.error_description || tokenData.error);
-        return res.redirect(`${adminFrontendUrl}/gmail-oauth?status=error&message=${encodeURIComponent(tokenData.error_description || 'Token exchange failed.')}`);
+        return res.redirect(`${adminFrontendUrl}/integrations?status=error&message=${encodeURIComponent(tokenData.error_description || 'Token exchange failed.')}`);
       }
 
       const refreshToken = tokenData.refresh_token;
@@ -204,10 +213,10 @@ export class GmailOAuthController {
       }
 
       // Redirect cleanly to admin dashboard with safe status (NO secrets in query params)
-      return res.redirect(`${adminFrontendUrl}/gmail-oauth?status=connected&email=${encodeURIComponent(authorizedEmail)}`);
+      return res.redirect(`${adminFrontendUrl}/integrations?status=connected&email=${encodeURIComponent(authorizedEmail)}`);
     } catch (err: any) {
       console.error('[GmailOAuth] Callback error:', err);
-      return res.redirect(`${adminFrontendUrl}/gmail-oauth?status=error&message=${encodeURIComponent('An unexpected error occurred during Google authorization.')}`);
+      return res.redirect(`${adminFrontendUrl}/integrations?status=error&message=${encodeURIComponent('An unexpected error occurred during Google authorization.')}`);
     }
   }
 

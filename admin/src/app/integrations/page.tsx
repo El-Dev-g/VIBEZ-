@@ -1,15 +1,17 @@
 'use client';
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { fetchGmailOAuthStatus, disconnectGmailOAuth, GmailOAuthStatus } from '../../services/api';
+import { useSearchParams } from 'next/navigation';
+import { fetchGmailOAuthStatus, disconnectGmailOAuth, getGmailOAuthStartUrl, GmailOAuthStatus } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
-export default function IntegrationsPage() {
+function IntegrationsContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<GmailOAuthStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const adminRoles = ['SUPERADMIN', 'ADMIN', 'MODERATOR', 'SUPPORT'];
   const isAdmin = !!user?.role && adminRoles.includes(user.role.toUpperCase());
@@ -31,6 +33,49 @@ export default function IntegrationsPage() {
     loadStatus();
   }, [user]);
 
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    const messageParam = searchParams.get('message');
+    const emailParam = searchParams.get('email');
+
+    if (statusParam === 'connected') {
+      setNotification({
+        type: 'success',
+        text: `Successfully Connected support account: ${emailParam || 'Gmail Authorized'}`
+      });
+    } else if (statusParam === 'error') {
+      setNotification({
+        type: 'error',
+        text: messageParam || 'Authorization failed'
+      });
+    }
+  }, [searchParams]);
+
+  const handleConnectGmail = async () => {
+    if (!isAdmin) return;
+    setActionLoading(true);
+    setNotification(null);
+    try {
+      const url = await getGmailOAuthStartUrl();
+      if (url) {
+        window.location.href = url;
+      } else {
+        setNotification({
+          type: 'error',
+          text: 'Failed to initiate Google OAuth. Please check server configuration.'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setNotification({
+        type: 'error',
+        text: 'Failed to connect to Google OAuth.'
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleUninstall = async () => {
     if (!isAdmin) return;
     if (!window.confirm('Are you sure you want to disconnect and uninstall the Gmail Support Delivery integration?')) {
@@ -41,6 +86,10 @@ export default function IntegrationsPage() {
       const res = await disconnectGmailOAuth();
       if (res?.success) {
         await loadStatus();
+        setNotification({
+          type: 'success',
+          text: 'Successfully disconnected and uninstalled the Gmail Support Delivery integration.'
+        });
       } else {
         alert(res?.error || 'Failed to disconnect integration.');
       }
@@ -81,6 +130,36 @@ export default function IntegrationsPage() {
           </p>
         </div>
       </div>
+
+      {/* Dynamic Toast/Banner Notification */}
+      {notification && (
+        <div className={`p-5 rounded-3xl border ${
+          notification.type === 'success' 
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-100' 
+            : 'bg-red-50 text-red-800 border-red-100'
+        } shadow-md flex items-center justify-between gap-4 animate-fadeIn`}>
+          <div className="flex items-center gap-3">
+            {notification.type === 'success' ? (
+              <svg className="w-6 h-6 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <p className="font-extrabold text-sm">{notification.text}</p>
+          </div>
+          <button 
+            onClick={() => setNotification(null)}
+            className="text-slate-400 hover:text-slate-600 transition"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Grid of integrations */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -171,15 +250,28 @@ export default function IntegrationsPage() {
                 )}
               </button>
             ) : (
-              <Link
-                href="/admin/gmail-oauth"
-                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 active:bg-black text-white font-extrabold text-sm rounded-2xl transition shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2"
+              <button
+                onClick={handleConnectGmail}
+                disabled={actionLoading}
+                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 active:bg-black text-white font-extrabold text-sm rounded-2xl transition shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                Configure Connection
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
+                {actionLoading ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Initiating...
+                  </>
+                ) : (
+                  <>
+                    Configure Connection
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
+              </button>
             )}
           </div>
         </div>
@@ -285,5 +377,19 @@ export default function IntegrationsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function IntegrationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-10 flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
+        </div>
+      }
+    >
+      <IntegrationsContent />
+    </Suspense>
   );
 }
