@@ -29,8 +29,11 @@ export interface User {
 export interface AdminUser {
   id: string;
   email: string;
-  role: 'SuperAdmin' | 'Moderator' | 'Support' | 'SUPERADMIN';
+  role: string;
   name?: string;
+  photo?: string;
+  twoFactorEnabled?: boolean;
+  createdAt?: string;
   token?: string;
 }
 
