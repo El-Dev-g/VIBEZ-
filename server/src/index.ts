@@ -128,6 +128,7 @@ const handleSystemStatus = async (req: express.Request, res: express.Response) =
       appDownloadUrl: setting?.appDownloadUrl || '',
       appVersion: setting?.appVersion || '1.0.0',
       appName: setting?.appName || 'VIBEZ',
+      contactEmail: setting?.contactEmail || 'support@vibez.chat',
       privacyPolicyUrl: setting?.privacyPolicyUrl || '',
       termsOfServiceUrl: setting?.termsOfServiceUrl || '',
       privacyPolicyContent: setting?.privacyPolicyContent || '',

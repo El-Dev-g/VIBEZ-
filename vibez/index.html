@@ -496,16 +496,16 @@
     </div>
   </div>
 
-  <!-- Enterprise Grade Footer (Preserved Required Text) -->
+  <!-- Enterprise Grade Footer (Configured via Admin Panel) -->
   <footer class="border-t border-white/10 py-10 bg-[#05080e] mt-12 text-center space-y-4">
     <div class="flex flex-wrap justify-center gap-6 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-      <a href="https://faq.whatsapp.com" class="hover:text-emerald-400 transition-colors">Help Center</a>
-      <a href="mailto:support@vibez.chat" class="hover:text-emerald-400 transition-colors">Contact Support</a>
-      <a href="https://www.whatsapp.com/legal" class="hover:text-emerald-400 transition-colors">Privacy Policy</a>
-      <a href="https://www.whatsapp.com/legal" class="hover:text-emerald-400 transition-colors">Terms of Service</a>
+      <a id="footer-help-center" href="https://support.vibez.chat" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition-colors">Help Center</a>
+      <a id="footer-contact-support" href="mailto:support@vibez.chat" class="hover:text-emerald-400 transition-colors">Contact Support</a>
+      <a id="footer-privacy-policy" href="https://vibez.chat/privacy" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition-colors">Privacy Policy</a>
+      <a id="footer-terms-of-service" href="https://vibez.chat/terms" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition-colors">Terms of Service</a>
     </div>
     <div class="space-y-2">
-      <p class="text-xs text-slate-400 font-bold">&copy; 2026 VIBEZ. All rights reserved. • <span class="text-emerald-400 font-extrabold">Powered by PRIGID GROUP</span></p>
+      <p class="text-xs text-slate-400 font-bold">&copy; 2026 <span id="footer-app-name">VIBEZ</span>. All rights reserved. • <span class="text-emerald-400 font-extrabold">Powered by PRIGID GROUP</span></p>
       <p class="text-[11px] text-slate-500 font-medium tracking-wide">Simple, fast, secure communication for everyone</p>
     </div>
   </footer>
@@ -589,11 +589,39 @@
         if (latencyTag) latencyTag.textContent = `${Math.max(roundtrip, 14)}ms`;
         if (lastUpdated) lastUpdated.textContent = new Date().toLocaleTimeString();
 
-        // Fetch live system status from server API
-        const statusRes = await fetch(`${BACKEND_URL}/api/system/status`).then(r => r.json()).catch(() => null);
-        if (statusRes) {
-          if (appVersionTag && statusRes.appVersion) {
-            appVersionTag.textContent = statusRes.appVersion;
+        // Fetch live system status & public config from server API
+        const [statusRes, configRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/api/system/status`).then(r => r.json()).catch(() => null),
+          fetch(`${BACKEND_URL}/api/config/public`).then(r => r.json()).catch(() => null)
+        ]);
+
+        const config = { ...(statusRes || {}), ...(configRes || {}) };
+
+        if (config) {
+          const helpLink = document.getElementById('footer-help-center');
+          const contactLink = document.getElementById('footer-contact-support');
+          const privacyLink = document.getElementById('footer-privacy-policy');
+          const termsLink = document.getElementById('footer-terms-of-service');
+          const footerAppName = document.getElementById('footer-app-name');
+
+          if (helpLink && (config.helpCenterUrl || config.faqUrl)) {
+            helpLink.href = config.helpCenterUrl || config.faqUrl;
+          }
+          if (contactLink && config.contactEmail) {
+            contactLink.href = config.contactEmail.startsWith('mailto:') ? config.contactEmail : `mailto:${config.contactEmail}`;
+          }
+          if (privacyLink && config.privacyPolicyUrl) {
+            privacyLink.href = config.privacyPolicyUrl;
+          }
+          if (termsLink && config.termsOfServiceUrl) {
+            termsLink.href = config.termsOfServiceUrl;
+          }
+          if (footerAppName && config.appName) {
+            footerAppName.textContent = config.appName;
+          }
+
+          if (appVersionTag && config.appVersion) {
+            appVersionTag.textContent = config.appVersion;
           }
 
           const banner = document.getElementById('overall-status-banner');
@@ -602,9 +630,9 @@
           const statusDot = document.getElementById('status-dot');
           const statusRing = document.getElementById('status-ring');
 
-          if (statusRes.maintenanceMode) {
+          if (config.maintenanceMode) {
             if (title) title.textContent = 'Scheduled System Maintenance';
-            if (desc) desc.textContent = `${statusRes.appName || 'VIBEZ'} ecosystem is currently undergoing scheduled maintenance (Version ${statusRes.appVersion || '1.0.0'}).`;
+            if (desc) desc.textContent = `${config.appName || 'VIBEZ'} ecosystem is currently undergoing scheduled maintenance (Version ${config.appVersion || '1.0.0'}).`;
             if (banner) {
               banner.className = 'relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-[#0d1322] border border-amber-500/30 transition-all duration-500 shadow-2xl shadow-amber-950/50';
             }
@@ -616,7 +644,7 @@
             }
           } else {
             if (title) title.textContent = 'All Systems Operational';
-            if (desc) desc.textContent = `${statusRes.appName || 'VIBEZ'} Core APIs, payment gateway, media storage, and real-time push streams are executing at 100% capacity.`;
+            if (desc) desc.textContent = `${config.appName || 'VIBEZ'} Core APIs, payment gateway, media storage, and real-time push streams are executing at 100% capacity.`;
             if (banner) {
               banner.className = 'relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-emerald-950/40 via-emerald-900/20 to-[#0d1322] border border-emerald-500/30 transition-all duration-500 shadow-2xl shadow-emerald-950/50';
             }

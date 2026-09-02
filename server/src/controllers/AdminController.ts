@@ -477,6 +477,10 @@ export class AdminController {
         contactEmail: settings?.contactEmail || 'support@vibez.chat',
         contactPhone: settings?.contactPhone || '+1 (800) 555-0199',
         supportAddress: settings?.supportAddress || 'San Francisco, CA, USA',
+        privacyPolicyUrl: settings?.privacyPolicyUrl || 'https://vibez.chat/privacy',
+        termsOfServiceUrl: settings?.termsOfServiceUrl || 'https://vibez.chat/terms',
+        helpCenterUrl: settings?.helpCenterUrl || 'https://support.vibez.chat',
+        faqUrl: settings?.faqUrl || 'https://vibez.chat/faq',
         maintenanceMode: settings?.maintenanceMode || false,
         allowNewRegistrations: settings?.allowNewRegistrations ?? true,
         phoneAuthAllowedCountries: settings?.phoneAuthAllowedCountries || 'US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU',
@@ -490,7 +494,11 @@ export class AdminController {
         inviteUrl: 'https://vibez.chat/join',
         contactEmail: 'support@vibez.chat',
         contactPhone: '+1 (800) 555-0199',
-        supportAddress: 'San Francisco, CA, USA'
+        supportAddress: 'San Francisco, CA, USA',
+        privacyPolicyUrl: 'https://vibez.chat/privacy',
+        termsOfServiceUrl: 'https://vibez.chat/terms',
+        helpCenterUrl: 'https://support.vibez.chat',
+        faqUrl: 'https://vibez.chat/faq'
       });
     }
   }

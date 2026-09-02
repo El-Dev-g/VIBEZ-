@@ -26,6 +26,23 @@ fun HelpSettingsScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     var showInfoDialog by remember { mutableStateOf(false) }
 
+    var helpCenterUrl by remember { mutableStateOf("https://support.vibez.chat") }
+    var legalUrl by remember { mutableStateOf("https://vibez.chat/privacy") }
+    var supportEmail by remember { mutableStateOf("support@vibez.chat") }
+
+    LaunchedEffect(Unit) {
+        try {
+            val config = com.example.data.network.NetworkClient.apiService.getPublicAppConfig()
+            if (!config.helpCenterUrl.isNullOrBlank()) helpCenterUrl = config.helpCenterUrl!!
+            else if (!config.faqUrl.isNullOrBlank()) helpCenterUrl = config.faqUrl!!
+            
+            if (!config.privacyPolicyUrl.isNullOrBlank()) legalUrl = config.privacyPolicyUrl!!
+            else if (!config.termsOfServiceUrl.isNullOrBlank()) legalUrl = config.termsOfServiceUrl!!
+            
+            if (!config.contactEmail.isNullOrBlank()) supportEmail = config.contactEmail!!
+        } catch (_: Exception) {}
+    }
+
     if (showInfoDialog) {
         AlertDialog(
             onDismissRequest = { showInfoDialog = false },
@@ -77,7 +94,7 @@ fun HelpSettingsScreen(
                     icon = Icons.Default.HelpCenter, 
                     title = "Help Center", 
                     subtitle = "Read our FAQs and guides",
-                    onClick = { uriHandler.openUri("https://faq.whatsapp.com") }
+                    onClick = { uriHandler.openUri(helpCenterUrl) }
                 )
                 HelpItem(
                     icon = Icons.Default.Group, 
@@ -85,7 +102,7 @@ fun HelpSettingsScreen(
                     subtitle = "Questions? Need help?",
                     onClick = {
                         val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
-                            data = android.net.Uri.parse("mailto:support@vibez.chat")
+                            data = android.net.Uri.parse("mailto:$supportEmail")
                             putExtra(android.content.Intent.EXTRA_SUBJECT, "VIBEZ Support - Android")
                         }
                         try {
@@ -99,7 +116,7 @@ fun HelpSettingsScreen(
                     icon = Icons.Default.Description, 
                     title = "Terms and Privacy Policy", 
                     subtitle = "How we protect your data",
-                    onClick = { uriHandler.openUri("https://www.whatsapp.com/legal") }
+                    onClick = { uriHandler.openUri(legalUrl) }
                 )
                 HelpItem(
                     icon = Icons.Default.Info, 

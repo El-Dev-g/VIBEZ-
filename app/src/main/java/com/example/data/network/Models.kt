@@ -337,6 +337,10 @@ data class PublicAppConfigDto(
     val appVersion: String? = "1.0.0",
     val appDownloadUrl: String? = null,
     val inviteUrl: String? = "https://vibez.chat/join",
-    val contactEmail: String? = "support@vibez.chat"
+    val contactEmail: String? = "support@vibez.chat",
+    val privacyPolicyUrl: String? = "https://vibez.chat/privacy",
+    val termsOfServiceUrl: String? = "https://vibez.chat/terms",
+    val helpCenterUrl: String? = "https://support.vibez.chat",
+    val faqUrl: String? = "https://vibez.chat/faq"
 )
 
