@@ -15,7 +15,10 @@ import {
   fetchAdminSessions,
   revokeAdminSession,
   toggleTwoFactor,
-  fetchSecurityHealth
+  fetchSecurityHealth,
+  EmailLinks,
+  fetchEmailLinks,
+  updateEmailLinks
 } from '../services/api';
 
 interface AdminSettingsDashboardProps {
@@ -40,7 +43,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
 export default function AdminSettingsDashboard({ initialSettings }: AdminSettingsDashboardProps) {
   const router = useRouter();
   const { logout, refreshProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'notifications' | 'security' | 'logs' | 'logout'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'notifications' | 'security' | 'logs' | 'logout' | 'email-links'>('profile');
   
   // Settings Tab state with reliable defaults
   const [settings, setSettings] = useState<SystemSettings>(() => ({
@@ -49,6 +52,21 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
   }));
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsToast, setSettingsToast] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Email Links Tab state
+  const [emailLinks, setEmailLinks] = useState<EmailLinks>({
+    app: 'https://vibez.chat',
+    billing: 'https://vibez.chat/billing',
+    supportEmail: 'support@vibez.chat',
+    twitter: 'https://x.com',
+    discord: 'https://discord.com',
+    instagram: 'https://instagram.com',
+    github: 'https://github.com',
+    linkedin: 'https://linkedin.com',
+    admin: 'https://admin.vibez.chat'
+  });
+  const [isSavingEmailLinks, setIsSavingEmailLinks] = useState(false);
+  const [emailLinksToast, setEmailLinksToast] = useState<{ text: string; isError: boolean } | null>(null);
 
   // Profile state
   const [profile, setProfile] = useState({
@@ -162,6 +180,17 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
       }
     }
 
+    async function loadEmailLinks() {
+      try {
+        const data = await fetchEmailLinks();
+        if (data) {
+          setEmailLinks(data);
+        }
+      } catch (err) {
+        console.error('Error loading email links:', err);
+      }
+    }
+
     if (activeTab === 'logs') {
       loadLogs();
     }
@@ -171,6 +200,9 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
     if (activeTab === 'security') {
       loadSessions();
       loadHealth();
+    }
+    if (activeTab === 'email-links') {
+      loadEmailLinks();
     }
   }, [activeTab]);
 
@@ -433,6 +465,21 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
             <div className="text-left">
               <p className="font-extrabold text-sm">Activity Log</p>
               <p className="text-[10px] font-bold opacity-60">Admin action audit log</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('email-links')}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-2xl transition-all ${
+              activeTab === 'email-links'
+                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-lg">🔗</span>
+            <div className="text-left">
+              <p className="font-extrabold text-sm">Template Links</p>
+              <p className="text-[10px] font-bold opacity-60">Redirects & dynamic URLs</p>
             </div>
           </button>
 
@@ -1168,6 +1215,183 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 5.5 EMAIL LINKS TAB */}
+          {activeTab === 'email-links' && (
+            <div className="space-y-8 animate-fadeIn">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Email Template Configurator</h3>
+                <p className="text-sm font-bold text-slate-400 mt-1">Configure redirects, social media coordinates, and platform endpoints dynamically injected into outgoing system emails.</p>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setIsSavingEmailLinks(true);
+                setEmailLinksToast(null);
+                try {
+                  const res = await updateEmailLinks(emailLinks);
+                  if (res.success) {
+                    setEmailLinksToast({ text: '✓ Email template links successfully synchronized.', isError: false });
+                    if (res.emailLinks) {
+                      setEmailLinks(res.emailLinks);
+                    }
+                  } else {
+                    setEmailLinksToast({ text: res.error || 'Failed to update email links.', isError: true });
+                  }
+                } catch (err: any) {
+                  setEmailLinksToast({ text: err.message || 'An unexpected error occurred.', isError: true });
+                } finally {
+                  setIsSavingEmailLinks(false);
+                  setTimeout(() => setEmailLinksToast(null), 5000);
+                }
+              }} className="space-y-6">
+                
+                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 lg:p-8 space-y-6">
+                  <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <span>🏠</span> Primary Destinations
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">App Landing / Home URL</label>
+                      <input
+                        type="url"
+                        value={emailLinks.app}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, app: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://vibez.chat"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Billing Portal URL</label>
+                      <input
+                        type="url"
+                        value={emailLinks.billing}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, billing: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://vibez.chat/billing"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Support Contact Email</label>
+                      <input
+                        type="email"
+                        value={emailLinks.supportEmail}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, supportEmail: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="support@vibez.chat"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Admin Panel URL</label>
+                      <input
+                        type="url"
+                        value={emailLinks.admin}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, admin: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://admin.vibez.chat"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 lg:p-8 space-y-6">
+                  <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <span>🌐</span> Social Networks & Community
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Twitter / X Profile</label>
+                      <input
+                        type="url"
+                        value={emailLinks.twitter}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, twitter: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://x.com/vibez"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Discord Invitation</label>
+                      <input
+                        type="url"
+                        value={emailLinks.discord}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, discord: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://discord.gg/vibez"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">Instagram Profile</label>
+                      <input
+                        type="url"
+                        value={emailLinks.instagram}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, instagram: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://instagram.com/vibez"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">GitHub Repository</label>
+                      <input
+                        type="url"
+                        value={emailLinks.github}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, github: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://github.com/vibez"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">LinkedIn Organization</label>
+                      <input
+                        type="url"
+                        value={emailLinks.linkedin}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, linkedin: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://linkedin.com/company/vibez"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <button
+                    type="submit"
+                    disabled={isSavingEmailLinks}
+                    className="px-8 py-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-slate-900/15 active:scale-95 flex items-center gap-2"
+                  >
+                    {isSavingEmailLinks ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                        Synchronizing...
+                      </>
+                    ) : (
+                      'Save Configurations'
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {emailLinksToast && (
+                <div className={`px-5 py-3 border rounded-2xl animate-fadeIn text-sm font-bold ${
+                  emailLinksToast.isError 
+                    ? 'bg-rose-50 border-rose-100 text-rose-700' 
+                    : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                }`}>
+                  {emailLinksToast.text}
                 </div>
               )}
             </div>

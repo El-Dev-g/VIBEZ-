@@ -1263,4 +1263,47 @@ export const disconnectGmailOAuth = async (): Promise<{ success: boolean; messag
   }
 };
 
+export interface EmailLinks {
+  app: string;
+  billing: string;
+  supportEmail: string;
+  twitter: string;
+  discord: string;
+  instagram: string;
+  github: string;
+  linkedin: string;
+  admin: string;
+}
+
+export const fetchEmailLinks = async (): Promise<EmailLinks | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/email-links`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.emailLinks || data;
+    }
+  } catch (error) {
+    console.error('fetchEmailLinks error:', error);
+  }
+  return null;
+};
+
+export const updateEmailLinks = async (links: Partial<EmailLinks>): Promise<{ success: boolean; emailLinks?: EmailLinks; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/email-links`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ emailLinks: links })
+    });
+    const data = await res.json();
+    return data;
+  } catch (error: any) {
+    console.error('updateEmailLinks error:', error);
+    return { success: false, error: error.message || 'Failed to update email links' };
+  }
+};
+
 

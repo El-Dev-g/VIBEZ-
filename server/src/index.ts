@@ -257,6 +257,8 @@ app.get('/api/admin/logs', authenticateAdmin, (req, res) => admin.getAuditLogs(r
 app.delete('/api/admin/logs', authenticateAdmin, (req, res) => admin.clearAuditLogs(req, res));
 
 app.get('/api/admin/settings', authenticateAdmin, (req, res) => admin.getSettings(req, res));
+app.get('/api/admin/email-links', authenticateAdmin, (req, res) => admin.getEmailLinks(req, res));
+app.post('/api/admin/email-links', authenticateAdmin, (req, res) => admin.updateEmailLinks(req, res));
 app.patch('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
 app.put('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));
 app.post('/api/admin/settings', authenticateAdmin, (req, res) => admin.updateSettings(req, res));

@@ -274,6 +274,7 @@ model SystemSetting {
   termsOfServiceContent String? @default("")
   helpCenterUrl         String? @default("")
   faqUrl                String? @default("")
+  emailLinks            Json?   @default("{}")
   phoneAuthAllowedCountries String? @default("US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU")
   showPhoneCountryPrefixes  Boolean @default(true)
 }

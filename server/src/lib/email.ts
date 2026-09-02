@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import prisma from './prisma';
 
 interface SendEmailOptions {
   to: string;
@@ -16,6 +17,68 @@ interface SupportResponseOptions {
   responseMessage: string;
   agentName?: string;
   agentTitle?: string;
+}
+
+interface OTPEmailOptions {
+  to: string;
+  code: string;
+}
+
+interface SecurityAlertOptions {
+  to: string;
+  device: string;
+  location: string;
+  ip: string;
+}
+
+interface PaymentReceiptOptions {
+  to: string;
+  amount: string;
+  item: string;
+  date: string;
+  txId: string;
+}
+
+interface PaymentFailureOptions {
+  to: string;
+  amount: string;
+  item: string;
+  reason: string;
+}
+
+interface CommunityInviteOptions {
+  to: string;
+  inviter: string;
+  community: string;
+  inviteLink: string;
+}
+
+interface ModerationNoticeOptions {
+  to: string;
+  action: string;
+  reason: string;
+  content?: string;
+}
+
+interface MissedCommOptions {
+  to: string;
+  missedChats: number;
+  missedCalls: number;
+}
+
+interface AnalyticsDigestOptions {
+  to: string;
+  date: string;
+  users: number;
+  activeCalls: number;
+  revenue: string;
+}
+
+interface SystemAlertOptions {
+  to: string;
+  component: string;
+  error: string;
+  time: string;
 }
 
 class EmailService {
@@ -92,6 +155,37 @@ class EmailService {
 
   private get appUrl(): string {
     return process.env.FRONTEND_URL || process.env.APP_URL || process.env.BACKEND_URL || 'https://vibez-n5h1.onrender.com';
+  }
+
+  private async getLinks(): Promise<any> {
+    try {
+      const settings = await prisma.systemSetting.findFirst();
+      const dbLinks = settings?.emailLinks as any || {};
+      
+      return {
+        app: dbLinks.app || this.appUrl,
+        billing: dbLinks.billing || 'https://vibez.chat/billing',
+        admin: dbLinks.admin || 'https://admin.vibez.chat/analytics',
+        twitter: dbLinks.twitter || 'https://x.com',
+        discord: dbLinks.discord || 'https://discord.com',
+        instagram: dbLinks.instagram || 'https://instagram.com',
+        github: dbLinks.github || 'https://github.com',
+        linkedin: dbLinks.linkedin || 'https://linkedin.com',
+        supportEmail: settings?.contactEmail || 'support@vibez.chat'
+      };
+    } catch (e) {
+      return {
+        app: this.appUrl,
+        billing: 'https://vibez.chat/billing',
+        admin: 'https://admin.vibez.chat/analytics',
+        twitter: 'https://x.com',
+        discord: 'https://discord.com',
+        instagram: 'https://instagram.com',
+        github: 'https://github.com',
+        linkedin: 'https://linkedin.com',
+        supportEmail: 'support@vibez.chat'
+      };
+    }
   }
 
   /**
@@ -419,6 +513,7 @@ class EmailService {
       agentTitle = 'Customer Experience & Success',
     } = options;
 
+    const links = await this.getLinks();
     const formattedResponse = responseMessage.replace(/\n/g, '<br/>');
     const formattedOriginal = originalMessage ? originalMessage.replace(/\n/g, '<br/>') : '';
 
@@ -680,7 +775,7 @@ class EmailService {
                 ` : ''}
 
                 <div style="text-align: center;">
-                  <a href="${this.appUrl}" class="action-btn" target="_blank">Open VIBEZ Hub</a>
+                  <a href="${links.app}" class="action-btn" target="_blank">Open VIBEZ Hub</a>
                 </div>
 
                 <!-- Agent Signature -->
@@ -696,11 +791,11 @@ class EmailService {
               <td class="social-section">
                 <div class="social-title">Connect with VIBEZ Community</div>
                 <div class="social-links">
-                  <a href="https://x.com" class="social-btn" target="_blank">&#120143; Twitter/X</a>
-                  <a href="https://discord.com" class="social-btn" target="_blank">&#128172; Discord</a>
-                  <a href="https://instagram.com" class="social-btn" target="_blank">&#128248; Instagram</a>
-                  <a href="https://github.com" class="social-btn" target="_blank">&#128187; GitHub</a>
-                  <a href="https://linkedin.com" class="social-btn" target="_blank">&#128188; LinkedIn</a>
+                  <a href="${links.twitter}" class="social-btn" target="_blank">&#120143; Twitter/X</a>
+                  <a href="${links.discord}" class="social-btn" target="_blank">&#128172; Discord</a>
+                  <a href="${links.instagram}" class="social-btn" target="_blank">&#128248; Instagram</a>
+                  <a href="${links.github}" class="social-btn" target="_blank">&#128187; GitHub</a>
+                  <a href="${links.linkedin}" class="social-btn" target="_blank">&#128188; LinkedIn</a>
                 </div>
               </td>
             </tr>
@@ -710,7 +805,7 @@ class EmailService {
               <td class="footer">
                 <div>&copy; ${new Date().getFullYear()} VIBEZ Inc. All rights reserved.</div>
                 <div style="margin-top: 4px;">
-                  San Francisco, CA, USA &bull; <a href="mailto:${this.user || 'support@vibez.chat'}">${this.user || 'support@vibez.chat'}</a>
+                  San Francisco, CA, USA &bull; <a href="mailto:${links.supportEmail}">${links.supportEmail}</a>
                 </div>
                 <div class="divider"></div>
                 <div style="font-size: 11px; color: #475569;">
@@ -740,14 +835,14 @@ ${originalMessage ? `\nYour original inquiry:\n"${originalMessage}"\n` : ''}
 Best regards,
 ${agentName}
 ${agentTitle} - VIBEZ Inc.
-${this.appUrl}
+${links.app}
 
 Connect with us:
-- Twitter/X: https://x.com
-- Discord: https://discord.com
-- Instagram: https://instagram.com
-- GitHub: https://github.com
-- LinkedIn: https://linkedin.com
+- Twitter/X: ${links.twitter}
+- Discord: ${links.discord}
+- Instagram: ${links.instagram}
+- GitHub: ${links.github}
+- LinkedIn: ${links.linkedin}
     `.trim();
 
     return this.sendEmail({
@@ -762,6 +857,7 @@ Connect with us:
    * Sends a styled subscription confirmation email to a new subscriber
    */
   async sendSubscriptionConfirmation(email: string): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
     const html = `
       <!DOCTYPE html>
       <html>
@@ -789,7 +885,7 @@ Connect with us:
             <p>Thank you for subscribing to VIBEZ system & product updates.</p>
             <p>You'll now be the first to know when new releases, feature drops, and system status updates become available.</p>
             <p>If you have any questions or feedback, simply reply to this email or visit our status portal.</p>
-            <a href="${this.appUrl}" class="btn">Visit VIBEZ Hub</a>
+            <a href="${links.app}" class="btn">Visit VIBEZ Hub</a>
           </div>
           <div class="footer">
             &copy; ${new Date().getFullYear()} VIBEZ Inc. All rights reserved.<br>
@@ -811,6 +907,7 @@ Connect with us:
    * Sends a notification to a staff member when they are assigned a new role
    */
   async sendRoleAssignmentNotification(email: string, role: string, entityName: string): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
     const html = `
       <!DOCTYPE html>
       <html>
@@ -838,7 +935,7 @@ Connect with us:
             <div class="role-badge">${role}</div>
             <p>Your permissions have been updated automatically. You can now access administrative tools and governance features for this entity.</p>
             <p>Please ensure you follow the platform's moderation and security guidelines at all times.</p>
-            <a href="${this.appUrl || 'https://vibez.chat'}" class="btn">Go to Dashboard</a>
+            <a href="${links.app}" class="btn">Go to Dashboard</a>
           </div>
           <div class="footer">
             &copy; ${new Date().getFullYear()} VIBEZ Inc. All rights reserved.<br>
@@ -854,6 +951,329 @@ Connect with us:
       subject: `VIBEZ Staff Enrollment: ${role}`,
       html,
     });
+  }
+
+  /**
+   * Sends an OTP verification email
+   */
+  /**
+   * Sends an OTP verification email
+   */
+  async sendOTPEmail(options: OTPEmailOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getOTPHtml(options.code, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `[VIBEZ] Your Verification Code: ${options.code}`,
+      html,
+    });
+  }
+
+  /**
+   * Sends a security alert for new device login
+   */
+  async sendSecurityAlert(options: SecurityAlertOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getSecurityAlertHtml(options, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `Security Alert: New Device Sign-in Detected`,
+      html,
+    });
+  }
+
+  /**
+   * Sends a payment receipt
+   */
+  async sendPaymentReceipt(options: PaymentReceiptOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getPaymentReceiptHtml(options, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `Your VIBEZ Receipt: ${options.item}`,
+      html,
+    });
+  }
+
+  /**
+   * Sends a payment failure notification
+   */
+  async sendPaymentFailure(options: PaymentFailureOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getPaymentFailureHtml(options, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `Action Required: Payment Failed for ${options.item}`,
+      html,
+    });
+  }
+
+  /**
+   * Sends a community invitation
+   */
+  async sendCommunityInvite(options: CommunityInviteOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getCommunityInviteHtml(options, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `Invite: Join ${options.community} on VIBEZ`,
+      html,
+    });
+  }
+
+  /**
+   * Sends a moderation notice
+   */
+  async sendModerationNotice(options: ModerationNoticeOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getModerationNoticeHtml(options, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `Moderation Notice regarding your content`,
+      html,
+    });
+  }
+
+  /**
+   * Sends a digest of missed communications
+   */
+  async sendMissedCommunicationDigest(options: MissedCommOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getMissedCommHtml(options, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `While you were away: ${options.missedChats + options.missedCalls} missed updates`,
+      html,
+    });
+  }
+
+  /**
+   * Sends a daily analytics digest to administrators
+   */
+  async sendDailyAnalyticsDigest(options: AnalyticsDigestOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getAnalyticsDigestHtml(options, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `Daily System Digest: ${options.date}`,
+      html,
+    });
+  }
+
+  /**
+   * Sends a critical system failure alert
+   */
+  async sendCriticalSystemAlert(options: SystemAlertOptions): Promise<{ success: boolean; error?: string }> {
+    const links = await this.getLinks();
+    const html = this.getSystemAlertHtml(options, links);
+    return this.sendEmail({
+      to: options.to,
+      subject: `CRITICAL ALERT: System Failure in ${options.component}`,
+      html,
+    });
+  }
+
+  // --- HTML TEMPLATES ---
+
+  private getBaseHtml(body: string, title: string, links?: any): string {
+    const twitter = links?.twitter || 'https://x.com';
+    const discord = links?.discord || 'https://discord.com';
+    const instagram = links?.instagram || 'https://instagram.com';
+    const github = links?.github || 'https://github.com';
+    const linkedin = links?.linkedin || 'https://linkedin.com';
+    const supportEmail = links?.supportEmail || 'support@vibez.chat';
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0f19; color: #cbd5e1; margin: 0; padding: 40px 20px; }
+          .container { max-width: 580px; margin: 0 auto; background: #111827; border-radius: 16px; border: 1px solid #1f2937; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+          .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #c026d3 100%); padding: 32px 24px; text-align: center; }
+          .header h1 { margin: 0; color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: 2px; }
+          .content { padding: 32px 24px; line-height: 1.6; }
+          .footer { padding: 20px 24px; background: #0d1322; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #1f2937; }
+          .footer a { color: #818cf8; text-decoration: none; }
+          .social-links { margin: 10px 0; text-align: center; }
+          .social-btn { display: inline-block; color: #94a3b8; text-decoration: none; font-size: 11px; margin: 0 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>VIBEZ</h1>
+          </div>
+          <div class="content">
+            ${body}
+          </div>
+          <div class="footer">
+            <div class="social-links">
+              <a href="${twitter}" class="social-btn" target="_blank">Twitter/X</a>
+              <a href="${discord}" class="social-btn" target="_blank">Discord</a>
+              <a href="${instagram}" class="social-btn" target="_blank">Instagram</a>
+              <a href="${github}" class="social-btn" target="_blank">GitHub</a>
+              <a href="${linkedin}" class="social-btn" target="_blank">LinkedIn</a>
+            </div>
+            &copy; ${new Date().getFullYear()} VIBEZ Inc. All rights reserved.<br>
+            San Francisco, CA, USA &bull; <a href="mailto:${supportEmail}">${supportEmail}</a>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private getOTPHtml(code: string, links?: any): string {
+    return this.getBaseHtml(`
+      <div style="text-align: center; padding: 20px;">
+        <p style="color: #64748b; font-size: 16px; margin-bottom: 24px;">Your verification code is below. For your security, do not share this code with anyone.</p>
+        <div style="background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 24px; display: inline-block;">
+          <span style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 900; color: #0f172a; letter-spacing: 8px;">${code}</span>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">This code will expire in 10 minutes.</p>
+      </div>
+    `, 'SECURITY VERIFICATION', links);
+  }
+
+  private getSecurityAlertHtml(data: SecurityAlertOptions, links?: any): string {
+    return this.getBaseHtml(`
+      <div style="background: #fff1f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <p style="color: #be123c; font-weight: bold; margin-bottom: 8px;">New Device Detected</p>
+        <p style="color: #9f1239; font-size: 14px;">We noticed a login to your account from a new device or location.</p>
+      </div>
+      <table width="100%" style="border-collapse: collapse;">
+        <tr><td style="padding: 8px 0; color: #64748b; font-size: 13px;">Device:</td><td style="padding: 8px 0; color: #0f172a; font-weight: bold; font-size: 13px;">${data.device}</td></tr>
+        <tr><td style="padding: 8px 0; color: #64748b; font-size: 13px;">Location:</td><td style="padding: 8px 0; color: #0f172a; font-weight: bold; font-size: 13px;">${data.location}</td></tr>
+        <tr><td style="padding: 8px 0; color: #64748b; font-size: 13px;">IP Address:</td><td style="padding: 8px 0; color: #0f172a; font-weight: bold; font-size: 13px;">${data.ip}</td></tr>
+      </table>
+      <p style="color: #64748b; font-size: 14px; margin-top: 20px;">If this was not you, please reset your password immediately and contact support.</p>
+    `, 'SECURITY ALERT', links);
+  }
+
+  private getPaymentReceiptHtml(data: PaymentReceiptOptions, links?: any): string {
+    return this.getBaseHtml(`
+      <div style="text-align: center; margin-bottom: 30px;">
+        <div style="width: 60px; height: 60px; background: #ecfdf5; border-radius: 30px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+          <span style="font-size: 30px;">✅</span>
+        </div>
+        <h2 style="margin: 0; color: #059669;">Payment Successful</h2>
+        <p style="color: #64748b;">Thanks for your purchase!</p>
+      </div>
+      <div style="background: #f8fafc; border-radius: 16px; padding: 24px;">
+        <table width="100%" style="border-collapse: collapse;">
+          <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">Item:</td><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: bold; text-align: right;">${data.item}</td></tr>
+          <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">Amount:</td><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: bold; text-align: right;">${data.amount}</td></tr>
+          <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">Date:</td><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: bold; text-align: right;">${data.date}</td></tr>
+          <tr><td style="padding: 10px 0; color: #64748b; font-size: 11px;">Transaction ID:</td><td style="padding: 10px 0; color: #64748b; font-size: 11px; text-align: right;">${data.txId}</td></tr>
+        </table>
+      </div>
+    `, 'PAYMENT RECEIPT', links);
+  }
+
+  private getPaymentFailureHtml(data: PaymentFailureOptions, links?: any): string {
+    const billingUrl = links?.billing || 'https://vibez.chat/billing';
+    return this.getBaseHtml(`
+      <div style="background: #fff1f2; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <p style="color: #be123c; font-weight: bold; margin-bottom: 8px;">Action Required: Payment Failed</p>
+        <p style="color: #9f1239; font-size: 14px;">We were unable to process your payment for <strong>${data.item}</strong>.</p>
+      </div>
+      <p style="color: #64748b; font-size: 14px;">Reason: <span style="color: #0f172a; font-weight: bold;">${data.reason}</span></p>
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${billingUrl}" style="background: #0f172a; color: white; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">Update Billing Info</a>
+      </div>
+    `, 'BILLING UPDATE', links);
+  }
+
+  private getCommunityInviteHtml(data: CommunityInviteOptions, links?: any): string {
+    return this.getBaseHtml(`
+      <div style="text-align: center;">
+        <p style="font-size: 18px; color: #1e293b;"><strong>${data.inviter}</strong> has invited you to join the</p>
+        <h2 style="color: #6366f1; margin: 10px 0;">${data.community}</h2>
+        <p style="color: #64748b; margin-bottom: 30px;">Join our community to connect, share, and VIBE with others.</p>
+        <a href="${data.inviteLink}" style="background: #6366f1; color: white; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">Accept Invitation</a>
+      </div>
+    `, 'COMMUNITY INVITE', links);
+  }
+
+  private getModerationNoticeHtml(data: ModerationNoticeOptions, links?: any): string {
+    return this.getBaseHtml(`
+      <div style="border-left: 4px solid #f59e0b; padding-left: 20px; margin-bottom: 24px;">
+        <h2 style="color: #d97706; margin: 0;">Moderation Update</h2>
+      </div>
+      <p style="color: #1e293b; font-weight: bold;">Action Taken: <span style="color: #64748b; font-weight: normal;">${data.action}</span></p>
+      <p style="color: #1e293b; font-weight: bold;">Reason: <span style="color: #64748b; font-weight: normal;">${data.reason}</span></p>
+      ${data.content ? `
+        <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
+          <p style="font-size: 12px; color: #64748b; margin-bottom: 8px;">Your Content:</p>
+          <p style="font-style: italic; color: #334155; margin: 0;">"${data.content}"</p>
+        </div>
+      ` : ''}
+      <p style="color: #94a3b8; font-size: 13px; margin-top: 30px;">If you believe this was a mistake, you can appeal this decision in your account settings.</p>
+    `, 'MODERATION NOTICE', links);
+  }
+
+  private getMissedCommHtml(data: MissedCommOptions, links?: any): string {
+    const appUrl = links?.app || 'https://vibez.chat/app';
+    return this.getBaseHtml(`
+      <div style="text-align: center;">
+        <h2 style="color: #0f172a;">Catch up on what you missed</h2>
+        <p style="color: #64748b; margin-bottom: 30px;">While you were away, your friends and communities were active.</p>
+        <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 30px;">
+          <div style="background: #f8fafc; padding: 20px; border-radius: 16px; flex: 1;">
+            <div style="font-size: 24px; font-weight: 900; color: #6366f1;">${data.missedChats}</div>
+            <div style="font-size: 12px; color: #64748b; font-weight: bold; text-transform: uppercase;">Messages</div>
+          </div>
+          <div style="background: #f8fafc; padding: 20px; border-radius: 16px; flex: 1;">
+            <div style="font-size: 24px; font-weight: 900; color: #f43f5e;">${data.missedCalls}</div>
+            <div style="font-size: 12px; color: #64748b; font-weight: bold; text-transform: uppercase;">Calls</div>
+          </div>
+        </div>
+        <a href="${appUrl}" style="background: #0f172a; color: white; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">Return to VIBEZ</a>
+      </div>
+    `, 'UNREAD ACTIVITY', links);
+  }
+
+  private getAnalyticsDigestHtml(data: AnalyticsDigestOptions, links?: any): string {
+    const adminUrl = links?.admin || 'https://admin.vibez.chat/analytics';
+    return this.getBaseHtml(`
+      <h2 style="color: #0f172a; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Daily System Report</h2>
+      <p style="color: #64748b;">Summary for ${data.date}</p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0;">
+        <div style="background: #f8fafc; padding: 15px; border-radius: 12px;">
+          <div style="font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase;">New Users</div>
+          <div style="font-size: 20px; font-weight: bold; color: #0f172a;">${data.users}</div>
+        </div>
+        <div style="background: #f8fafc; padding: 15px; border-radius: 12px;">
+          <div style="font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase;">Active Calls</div>
+          <div style="font-size: 20px; font-weight: bold; color: #0f172a;">${data.activeCalls}</div>
+        </div>
+        <div style="background: #f8fafc; padding: 15px; border-radius: 12px; grid-column: span 2;">
+          <div style="font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase;">Daily Revenue</div>
+          <div style="font-size: 20px; font-weight: bold; color: #059669;">${data.revenue}</div>
+        </div>
+      </div>
+      <a href="${adminUrl}" style="color: #6366f1; font-weight: bold; text-decoration: none; font-size: 14px;">View Full Admin Dashboard →</a>
+    `, 'ADMIN DIGEST', links);
+  }
+
+  private getSystemAlertHtml(data: SystemAlertOptions, links?: any): string {
+    return this.getBaseHtml(`
+      <div style="background: #ef4444; color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+        <h2 style="margin: 0; font-size: 18px;">🔴 CRITICAL SYSTEM ALERT</h2>
+      </div>
+      <table width="100%" style="border-collapse: collapse;">
+        <tr><td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">Component:</td><td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: bold;">${data.component}</td></tr>
+        <tr><td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b;">Timestamp:</td><td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: bold;">${data.time}</td></tr>
+      </table>
+      <div style="background: #0f172a; color: #10b981; font-family: 'Courier New', monospace; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 12px; overflow-x: auto;">
+        <p style="margin: 0;">$ stacktrace --analyze</p>
+        <p style="margin: 10px 0 0 0; color: #f87171;">ERROR: ${data.error}</p>
+      </div>
+    `, 'INFRASTRUCTURE ALERT', links);
   }
 }
 

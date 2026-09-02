@@ -418,6 +418,39 @@ export class AdminController {
     }
   }
 
+  async getEmailLinks(req: Request, res: Response) {
+    try {
+      const settings = await prisma.systemSetting.findFirst();
+      const links = settings?.emailLinks || {};
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch email links' });
+    }
+  }
+
+  async updateEmailLinks(req: Request, res: Response) {
+    try {
+      const links = req.body;
+      let settings = await prisma.systemSetting.findFirst();
+      
+      if (!settings) {
+        settings = await prisma.systemSetting.create({
+          data: { emailLinks: links }
+        });
+      } else {
+        settings = await prisma.systemSetting.update({
+          where: { id: settings.id },
+          data: { emailLinks: links }
+        });
+      }
+      
+      res.json(settings.emailLinks);
+    } catch (error) {
+      console.error('Update email links error:', error);
+      res.status(500).json({ error: 'Failed to update email links' });
+    }
+  }
+
   // Public config endpoint for Landing Page & Apps
   async getPublicAppConfig(req: Request, res: Response) {
     try {
