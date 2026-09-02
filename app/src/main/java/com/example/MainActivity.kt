@@ -570,11 +570,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     viewModel.logCall(contactId, foundName, if (isVideo) "VIDEO" else "VOICE", false, false)
                     navController.navigate("call/$contactId/$isVideo")
                 },
-                onIncomingCallSimulate = {
-                    val testId = "network_test_echo"
-                    viewModel.logCall(testId, "Network & Echo Test Server", "VOICE", false, false)
-                    navController.navigate("call/$testId/false")
-                },
+                onIncomingCallSimulate = {},
                 onSettingsClick = {
                     navController.navigate("settings")
                 },
@@ -1177,27 +1173,15 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         ) { backStackEntry ->
             val contactId = backStackEntry.arguments?.getString("contactId") ?: ""
             val isVideo = backStackEntry.arguments?.getBoolean("isVideo") ?: false
-            val contact = contacts.firstOrNull { it.id == contactId } ?: if (contactId == "network_test_echo") {
-                ContactEntity(
-                    id = "network_test_echo",
-                    remoteId = "network_test_echo",
-                    name = "Network & Echo Test Server",
-                    phoneNumber = "+1 800-VIBEZ-NET",
-                    avatarUrl = "",
-                    aboutStatus = "Audio Quality & Call Diagnostic Test",
-                    isOnline = true
-                )
-            } else {
-                ContactEntity(
-                    id = contactId,
-                    remoteId = contactId,
-                    name = "Contact",
-                    phoneNumber = "",
-                    avatarUrl = "",
-                    aboutStatus = "",
-                    isOnline = false
-                )
-            }
+            val contact = contacts.firstOrNull { it.id == contactId } ?: ContactEntity(
+                id = contactId,
+                remoteId = contactId,
+                name = "Contact",
+                phoneNumber = "",
+                avatarUrl = "",
+                aboutStatus = "",
+                isOnline = false
+            )
 
             LaunchedEffect(contactId) {
                 viewModel.repository.socketManager?.let {

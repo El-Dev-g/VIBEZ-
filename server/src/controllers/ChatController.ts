@@ -13,6 +13,7 @@ export class ChatController {
           }
         },
         include: {
+          community: true,
           members: {
             include: {
               user: true
@@ -24,7 +25,15 @@ export class ChatController {
           }
         }
       });
-      res.json(chats);
+      const mappedChats = chats.map(chat => {
+        const isCommunityOfficial = chat.community?.isOfficial || false;
+        return {
+          ...chat,
+          isOfficial: isCommunityOfficial || (chat as any).isOfficial || false,
+          isVerified: isCommunityOfficial || (chat as any).isVerified || false
+        };
+      });
+      res.json(mappedChats);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch chats' });
     }

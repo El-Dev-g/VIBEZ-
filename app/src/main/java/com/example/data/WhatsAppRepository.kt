@@ -904,7 +904,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     suspend fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean, token: String? = null): String {
         val effectiveName = if (contactName.isBlank() || contactName == "Contact" || contactName == "Unknown") {
             val dbContact = dao.getContactById(contactId) ?: dao.getContactByRemoteId(contactId)
-            dbContact?.name ?: if (contactId == "network_test_echo") "Network & Echo Test Server" else "Contact"
+            dbContact?.name ?: "Contact"
         } else contactName
 
         val id = "call_${System.currentTimeMillis()}"
@@ -920,7 +920,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         dao.insertCallLog(newLog)
 
         try {
-            if (!token.isNullOrBlank() && contactId != "network_test_echo") {
+            if (!token.isNullOrBlank()) {
                 val statusStr = if (isMissed) "MISSED" else "COMPLETED"
                 logRemoteCall(contactId, callType, statusStr, 0, token)
             }

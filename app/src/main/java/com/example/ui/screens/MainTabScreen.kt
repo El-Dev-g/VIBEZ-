@@ -271,13 +271,6 @@ fun MainTabScreen(
                                         }
                                         3 -> { // Calls
                                             DropdownMenuItem(
-                                                text = { Text("Network Test") },
-                                                onClick = {
-                                                    isMenuExpanded = false
-                                                    onIncomingCallSimulate()
-                                                }
-                                            )
-                                            DropdownMenuItem(
                                                 text = { Text("Clear call log") },
                                                 onClick = {
                                                     isMenuExpanded = false

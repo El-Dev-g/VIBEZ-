@@ -117,19 +117,26 @@ export class CommunityController {
         return res.status(404).json({ error: 'Community not found' });
       }
 
+      const isCommunityOfficial = (community as any).isOfficial || false;
+      const mappedChannels = (community.channels || []).map((channel: any) => ({
+        ...channel,
+        isOfficial: isCommunityOfficial || channel.isOfficial || false,
+        isVerified: isCommunityOfficial || channel.isVerified || false
+      }));
+
       res.json({
         id: community.id,
         name: community.name,
         description: community.description,
         avatarUrl: (community as any).avatarUrl,
         ownerId: community.ownerId,
-        isOfficial: (community as any).isOfficial,
+        isOfficial: isCommunityOfficial,
         allowComments: (community as any).allowComments,
         allowReactions: (community as any).allowReactions,
         createdAt: community.createdAt,
         membersCount: (community as any)._count?.members || community.members.length,
         members: community.members,
-        channels: community.channels
+        channels: mappedChannels
       });
     } catch (error) {
       console.error('Error fetching community details:', error);
@@ -156,6 +163,11 @@ export class CommunityController {
           }
         }).catch(() => {});
       }
+
+      const community = await prisma.community.findUnique({
+        where: { id: communityId }
+      });
+      const isCommunityOfficial = community?.isOfficial || false;
 
       let channels = await prisma.chat.findMany({
         where: { communityId, isGroup: true },
@@ -220,7 +232,13 @@ export class CommunityController {
         }
       }
 
-      res.json(channels);
+      const mappedChannels = channels.map(channel => ({
+        ...channel,
+        isOfficial: isCommunityOfficial || (channel as any).isOfficial || false,
+        isVerified: isCommunityOfficial || (channel as any).isVerified || false
+      }));
+
+      res.json(mappedChannels);
     } catch (error) {
       console.error('Error fetching community channels:', error);
       res.status(500).json({ error: 'Failed to fetch community channels' });

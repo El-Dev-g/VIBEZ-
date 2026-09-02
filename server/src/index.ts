@@ -368,6 +368,48 @@ io.on('connection', (socket) => {
     socket.to(`chat_${data.chatId}`).emit('user_typing', data);
   });
 
+  // WebRTC Call Signaling
+  socket.on('call_offer', async (data) => {
+    // data: { targetUserId, sdp }
+    if (data && data.targetUserId) {
+      let callerName = 'User';
+      if (userId) {
+        try {
+          const user = await prisma.user.findUnique({ where: { id: userId } });
+          if (user?.name) callerName = user.name;
+        } catch (e) {}
+      }
+      io.to(`user_${data.targetUserId}`).emit('call_offer', {
+        callerId: userId,
+        callerName,
+        sdp: data.sdp
+      });
+    }
+  });
+
+  socket.on('call_answer', (data) => {
+    // data: { targetUserId, sdp }
+    if (data && data.targetUserId) {
+      io.to(`user_${data.targetUserId}`).emit('call_answer', {
+        callerId: userId,
+        sdp: data.sdp
+      });
+    }
+  });
+
+  socket.on('ice_candidate', (data) => {
+    // data: { targetUserId, sdpMid, sdpMLineIndex, candidate }
+    if (data && data.targetUserId) {
+      io.to(`user_${data.targetUserId}`).emit('ice_candidate', data);
+    }
+  });
+
+  socket.on('end_call', (data) => {
+    if (data && data.targetUserId) {
+      io.to(`user_${data.targetUserId}`).emit('call_ended', { callerId: userId });
+    }
+  });
+
   socket.on('disconnect', async () => {
     if (userId) {
       try {

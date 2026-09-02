@@ -189,10 +189,6 @@ fun CallScreen(
         if (hasCameraPermission && hasAudioPermission) {
             viewModel.initWebRTC(observer)
             viewModel.createOffer()
-            
-            // Auto pickup for network echo test or call simulation after ringing period
-            delay(4000)
-            viewModel.setCallPickedUp(true)
         }
     }
 

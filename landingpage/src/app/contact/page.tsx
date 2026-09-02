@@ -73,11 +73,11 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="bg-[#0b141a] text-[#e9edef] selection:bg-[#00a884] selection:text-white">
+    <div className="bg-[#0b141a] text-[#e9edef] selection:bg-[#00a884] selection:text-white min-h-screen w-full relative overflow-hidden">
       
       {/* Hero & Form Section */}
-      <section className="relative pt-12 pb-24">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 blur-[140px] rounded-full -z-10" />
+      <section className="relative pt-12 pb-24 overflow-hidden w-full">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 blur-[140px] rounded-full -z-10 pointer-events-none select-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
@@ -94,10 +94,10 @@ export default function ContactPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 lg:gap-10 items-start max-w-6xl mx-auto">
             
             {/* Left Column: Direct Contact Info Cards */}
-            <div className="lg:col-span-5 space-y-6">
+            <div className="md:col-span-5 space-y-6">
               
               <div className="bg-[#111b21] p-6 rounded-2xl border border-[#202c33] space-y-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -177,7 +177,7 @@ export default function ContactPage() {
             </div>
 
             {/* Right Column: Interactive Contact Form */}
-            <div className="lg:col-span-7 bg-[#111b21] p-8 sm:p-10 rounded-3xl border border-[#202c33] shadow-2xl">
+            <div className="md:col-span-7 bg-[#111b21] p-6 sm:p-8 lg:p-10 rounded-3xl border border-[#202c33] shadow-2xl">
               <h2 className="text-xl font-black text-white mb-1">{t('contact.formTitle')}</h2>
               <p className="text-xs text-[#8696a0] mb-6">{t('contact.formSub')}</p>
 

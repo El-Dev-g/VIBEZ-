@@ -66,38 +66,11 @@ export class AuthController {
         // - Preserve the existing username/name unless the user is explicitly changing their profile through the profile-edit endpoint.
         // 4. Treat the "name", "about", and "avatarUrl" values sent during authentication as OPTIONAL bootstrap data, not authoritative profile data for an existing account.
         // 5. For an existing account, authentication should primarily update session-related information such as "lastSeen".
-        let updatedName = user.name;
-        const hasValidExistingName = user.name && user.name.trim().length > 0 && user.name !== 'User' && user.name !== 'New User' && user.name !== user.phoneNumber && user.name !== cleanPhone;
-        
-        if (!hasValidExistingName && name && typeof name === 'string') {
-          const trimmed = name.trim();
-          const isDefaultOrEmpty = !trimmed || trimmed === 'User' || trimmed === 'New User' || trimmed === cleanPhone || trimmed === user.phoneNumber;
-          if (!isDefaultOrEmpty) {
-            updatedName = trimmed;
-          }
-        }
-
-        let updatedAbout = user.about;
-        const hasValidExistingAbout = user.about && user.about.trim().length > 0 && user.about !== 'Hey there! I am using VIBEZ.';
-        if (!hasValidExistingAbout && about && typeof about === 'string') {
-          const trimmedAbout = about.trim();
-          if (trimmedAbout.length > 0 && trimmedAbout !== 'Hey there! I am using VIBEZ.') {
-            updatedAbout = trimmedAbout;
-          }
-        }
-
-        let updatedAvatar = user.avatarUrl;
-        if (!updatedAvatar && avatarUrl) {
-          updatedAvatar = avatarUrl;
-        }
-
+        // - DO NOT update name, about, or avatar from authentication request data.
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
-            lastSeen: new Date(),
-            name: updatedName,
-            about: updatedAbout || 'Hey there! I am using VIBEZ.',
-            avatarUrl: updatedAvatar
+            lastSeen: new Date()
           }
         });
       }
@@ -215,28 +188,12 @@ export class AuthController {
         }
 
         const updateData: any = {
-          lastSeen: new Date(),
-          avatarUrl: verifiedAvatar || user.avatarUrl
+          lastSeen: new Date()
         };
 
-        const trimmedVerifiedName = verifiedName ? verifiedName.trim() : '';
-        const isDefaultOrEmpty = !trimmedVerifiedName || trimmedVerifiedName === 'User' || trimmedVerifiedName === 'New User' || trimmedVerifiedName === cleanPhone || trimmedVerifiedName === user.phoneNumber;
-        const hasValidExistingName = user.name && user.name.trim().length > 0 && user.name !== 'User' && user.name !== 'New User' && user.name !== user.phoneNumber;
-
-        if (hasValidExistingName) {
-          updateData.name = user.name;
-        } else if (!isDefaultOrEmpty) {
-          updateData.name = trimmedVerifiedName;
-        } else {
-          updateData.name = user.name || 'New User';
-        }
-
-        if (verifiedEmail) {
+        if (verifiedEmail && !user.googleEmail) {
           updateData.googleEmail = verifiedEmail;
           updateData.authProvider = 'GOOGLE';
-        }
-        if (cleanPhone && !user.phoneNumber.startsWith('g_')) {
-          updateData.phoneNumber = cleanPhone;
         }
 
         user = await prisma.user.update({
