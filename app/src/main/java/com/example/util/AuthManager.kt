@@ -14,7 +14,8 @@ class AuthManager(context: Context) {
         userAbout: String? = null,
         userAvatar: String? = null,
         googleEmail: String? = null,
-        authProvider: String = "PHONE"
+        authProvider: String = "PHONE",
+        requiresProfileSetup: Boolean = false
     ) {
         prefs.edit().apply {
             putString("token", token)
@@ -25,9 +26,16 @@ class AuthManager(context: Context) {
             if (userAvatar != null) putString("user_avatar", userAvatar)
             if (googleEmail != null) putString("google_email", googleEmail)
             putString("auth_provider", authProvider)
+            putBoolean("requires_profile_setup", requiresProfileSetup)
             apply()
         }
     }
+
+    fun setRequiresProfileSetup(requires: Boolean) {
+        prefs.edit().putBoolean("requires_profile_setup", requires).apply()
+    }
+
+    fun getRequiresProfileSetup(): Boolean = prefs.getBoolean("requires_profile_setup", false)
 
     fun updateProfile(userName: String, userAbout: String, userAvatar: String? = null) {
         prefs.edit().apply {
@@ -72,6 +80,14 @@ class AuthManager(context: Context) {
     fun isLoggedIn(): Boolean = getAuthToken() != null
 
     fun logout() {
+        prefs.edit().apply {
+            remove("token")
+            remove("is_verified")
+            apply()
+        }
+    }
+
+    fun deleteLocalAccountData() {
         prefs.edit().clear().apply()
     }
 }

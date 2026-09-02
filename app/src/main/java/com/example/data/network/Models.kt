@@ -110,7 +110,9 @@ data class VerifyPhoneChangeResponse(
 @JsonClass(generateAdapter = true)
 data class LoginResponse(
     val user: UserDto,
-    val token: String
+    val token: String,
+    val isNewUser: Boolean? = null,
+    val requiresProfileSetup: Boolean? = null
 )
 
 @JsonClass(generateAdapter = true)

@@ -211,7 +211,7 @@ fun AuthScreen(
                     user?.getIdToken(false)?.addOnCompleteListener { tokenTask ->
                         val idToken = if (tokenTask.isSuccessful) tokenTask.result.token else null
                         val finalPhone = user?.phoneNumber?.ifBlank { fullE164Phone.trim() } ?: fullE164Phone.trim()
-                        val finalName = phoneName.trim().ifBlank { "User" }
+                        val finalName = phoneName.trim()
                         onAuthSuccess(finalPhone, finalName, "Hey there! I am using VIBEZ.", idToken) { success, errorMsg ->
                             isSigningIn = false
                             if (!success) {

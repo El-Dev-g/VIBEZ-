@@ -96,6 +96,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val currentUserAvatar = MutableStateFlow(authManager.getUserAvatar() ?: "")
     val currentGoogleEmail = MutableStateFlow(authManager.getGoogleEmail())
     val currentAuthProvider = MutableStateFlow(authManager.getAuthProvider())
+    val isNewUser = MutableStateFlow<Boolean?>(null)
+    val requiresProfileSetup = MutableStateFlow<Boolean?>(if (authManager.isLoggedIn()) authManager.getRequiresProfileSetup() else null)
     val typingChatId = MutableStateFlow<String?>(null)
 
     // Verification Badge State
@@ -291,9 +293,16 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     firebaseIdToken = firebaseIdToken
                 )
 
-                val effectiveName = response.user.name?.takeIf { it.isNotBlank() } ?: name.ifBlank { cleanPhone }
+                val effectiveName = response.user.name ?: ""
                 val effectiveAbout = response.user.about?.takeIf { it.isNotBlank() } ?: about
                 val effectiveAvatar = response.user.avatarUrl ?: avatarUrl ?: ""
+
+                isNewUser.value = response.isNewUser
+                requiresProfileSetup.value = response.requiresProfileSetup
+
+                if (com.example.BuildConfig.DEBUG) {
+                    android.util.Log.d("VibezAuth", "[loginWithPhone] Resolved User ID: ${response.user.id}, name: $effectiveName, isNewUser: ${response.isNewUser}, requiresProfileSetup: ${response.requiresProfileSetup}")
+                }
 
                 authManager.saveAuthData(
                     token = response.token,
@@ -303,7 +312,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     userAbout = effectiveAbout,
                     userAvatar = effectiveAvatar,
                     googleEmail = null,
-                    authProvider = "PHONE"
+                    authProvider = "PHONE",
+                    requiresProfileSetup = response.requiresProfileSetup ?: false
                 )
 
                 currentUserPhone.value = cleanPhone
@@ -344,6 +354,13 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 val finalAbout = response.user.about ?: "⚡ Connected with Google"
                 val finalAvatar = response.user.avatarUrl ?: avatarUrl ?: ""
 
+                isNewUser.value = response.isNewUser
+                requiresProfileSetup.value = response.requiresProfileSetup
+
+                if (com.example.BuildConfig.DEBUG) {
+                    android.util.Log.d("VibezAuth", "[loginWithGoogle] Resolved User ID: ${response.user.id}, name: $finalName, isNewUser: ${response.isNewUser}, requiresProfileSetup: ${response.requiresProfileSetup}")
+                }
+
                 authManager.saveAuthData(
                     token = response.token,
                     userId = response.user.id,
@@ -352,7 +369,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     userAbout = finalAbout,
                     userAvatar = finalAvatar,
                     googleEmail = email,
-                    authProvider = "GOOGLE"
+                    authProvider = "GOOGLE",
+                    requiresProfileSetup = response.requiresProfileSetup ?: false
                 )
                 
                 currentUserPhone.value = finalPhone
@@ -396,6 +414,22 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         currentUserAvatar.value = ""
         currentGoogleEmail.value = null
         currentAuthProvider.value = "PHONE"
+        requiresProfileSetup.value = null
+        isLoggedIn.value = false
+        isVerified.value = false
+        badgeStatus.value = null
+        repository.logout()
+    }
+
+    fun deleteAccountLocal() {
+        authManager.deleteLocalAccountData()
+        currentUserPhone.value = ""
+        currentUserName.value = ""
+        currentUserStatus.value = ""
+        currentUserAvatar.value = ""
+        currentGoogleEmail.value = null
+        currentAuthProvider.value = "PHONE"
+        requiresProfileSetup.value = null
         isLoggedIn.value = false
         isVerified.value = false
         badgeStatus.value = null
@@ -606,6 +640,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         if (avatarUrl != null) {
             currentUserAvatar.value = avatarUrl
         }
+        requiresProfileSetup.value = false
+        authManager.setRequiresProfileSetup(false)
         authManager.updateProfile(name, status, avatarUrl ?: currentUserAvatar.value)
         
         viewModelScope.launch {

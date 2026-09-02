@@ -10,25 +10,37 @@ export class AuthController {
   async phoneLogin(req: Request, res: Response) {
     try {
       const { phoneNumber, name, about, avatarUrl, firebaseIdToken } = req.body;
-      const cleanPhone = (phoneNumber || '').trim();
+      
+      // 1. Normalize the incoming phone number consistently before database lookup.
+      const cleanPhone = (phoneNumber || '').trim().replace(/[^\d+]/g, '');
 
       if (!cleanPhone) {
         return res.status(400).json({ error: 'Phone number is required' });
       }
 
+      // 2. Look up the existing "User" by the normalized unique "phoneNumber"
       let user = await prisma.user.findFirst({
         where: { phoneNumber: cleanPhone }
       });
 
+      let isNew = false;
+
       if (!user) {
+        // 12. Preserve "allowNewRegistrations"
         const settings = await prisma.systemSetting.findFirst();
         if (settings && settings.allowNewRegistrations === false) {
           return res.status(403).json({ error: 'New user registrations are currently disabled by system administrator.' });
         }
 
-        const initialName = (name && typeof name === 'string' && name.trim().length > 0 && name.trim() !== cleanPhone)
-          ? name.trim()
-          : cleanPhone;
+        isNew = true;
+
+        // 6. For a genuinely new account only:
+        // - Create the User.
+        // - Use the supplied valid name if available.
+        // - Otherwise use the existing new-user fallback.
+        const trimmedName = (name && typeof name === 'string') ? name.trim() : '';
+        const isDefaultOrEmpty = !trimmedName || trimmedName === 'User' || trimmedName === 'New User' || trimmedName === cleanPhone;
+        const initialName = !isDefaultOrEmpty ? trimmedName : cleanPhone;
 
         user = await prisma.user.create({
           data: {
@@ -41,35 +53,42 @@ export class AuthController {
           }
         });
       } else {
+        // 11. Preserve the existing banned-account check.
         if (user.isBanned) {
           return res.status(403).json({ error: 'Your account has been suspended by system administrator.' });
         }
 
-        // Preserve existing user name if client provides empty string, phone number, or placeholder
+        // 3. If the user exists:
+        // - NEVER create another User.
+        // - NEVER replace a valid existing "user.name" with "User".
+        // - NEVER replace a valid existing name with the phone number.
+        // - NEVER replace a valid existing name with "New User".
+        // - Preserve the existing username/name unless the user is explicitly changing their profile through the profile-edit endpoint.
+        // 4. Treat the "name", "about", and "avatarUrl" values sent during authentication as OPTIONAL bootstrap data, not authoritative profile data for an existing account.
+        // 5. For an existing account, authentication should primarily update session-related information such as "lastSeen".
         let updatedName = user.name;
-        if (name && typeof name === 'string') {
+        const hasValidExistingName = user.name && user.name.trim().length > 0 && user.name !== 'User' && user.name !== 'New User' && user.name !== user.phoneNumber && user.name !== cleanPhone;
+        
+        if (!hasValidExistingName && name && typeof name === 'string') {
           const trimmed = name.trim();
           const isDefaultOrEmpty = !trimmed || trimmed === 'User' || trimmed === 'New User' || trimmed === cleanPhone || trimmed === user.phoneNumber;
-          const hasValidExistingName = user.name && user.name.trim().length > 0 && user.name !== 'User' && user.name !== 'New User' && user.name !== user.phoneNumber;
-
           if (!isDefaultOrEmpty) {
             updatedName = trimmed;
-          } else if (hasValidExistingName) {
-            updatedName = user.name;
           }
         }
 
-        // Preserve existing about if client sends default placeholder and user already had customized about
         let updatedAbout = user.about;
-        if (about && typeof about === 'string') {
+        const hasValidExistingAbout = user.about && user.about.trim().length > 0 && user.about !== 'Hey there! I am using VIBEZ.';
+        if (!hasValidExistingAbout && about && typeof about === 'string') {
           const trimmedAbout = about.trim();
-          if (trimmedAbout.length > 0) {
-            if (user.about && user.about !== 'Hey there! I am using VIBEZ.' && trimmedAbout === 'Hey there! I am using VIBEZ.') {
-              updatedAbout = user.about;
-            } else {
-              updatedAbout = trimmedAbout;
-            }
+          if (trimmedAbout.length > 0 && trimmedAbout !== 'Hey there! I am using VIBEZ.') {
+            updatedAbout = trimmedAbout;
           }
+        }
+
+        let updatedAvatar = user.avatarUrl;
+        if (!updatedAvatar && avatarUrl) {
+          updatedAvatar = avatarUrl;
         }
 
         user = await prisma.user.update({
@@ -78,10 +97,21 @@ export class AuthController {
             lastSeen: new Date(),
             name: updatedName,
             about: updatedAbout || 'Hey there! I am using VIBEZ.',
-            avatarUrl: avatarUrl || user.avatarUrl
+            avatarUrl: updatedAvatar
           }
         });
       }
+
+      // 9. RequiresProfileSetup must be true ONLY when the existing/new account genuinely has no username/name.
+      // 10. Never use "User" as evidence that the account is new.
+      const isNewNameEmpty = !user.name || user.name.trim().length === 0 || user.name === user.phoneNumber || user.name === cleanPhone;
+      const requiresProfileSetup = isNewNameEmpty;
+
+      // Add server-side logging for development/testing
+      console.log(`[PhoneLogin] Authentication identity resolved for phone: ${cleanPhone}`);
+      console.log(`[PhoneLogin] Account status: ${isNew ? 'NEW' : 'EXISTING'} account`);
+      console.log(`[PhoneLogin] Resolved user ID: ${user.id}`);
+      console.log(`[PhoneLogin] Profile setup required: ${requiresProfileSetup}`);
 
       const token = jwt.sign(
         { id: user.id, phoneNumber: user.phoneNumber, firebaseVerified: !!firebaseIdToken },
@@ -89,7 +119,14 @@ export class AuthController {
         { expiresIn: '30d' }
       );
 
-      res.json({ user, token });
+      // 7. Return the complete persisted User object in the authentication response.
+      // 8. Add an explicit account state to the response, for example: "isNewUser: true/false" and/or "requiresProfileSetup: true/false".
+      res.json({ 
+        user, 
+        token,
+        isNewUser: isNew,
+        requiresProfileSetup
+      });
     } catch (error) {
       console.error('Phone login error:', error);
       res.status(500).json({ error: 'Phone authentication failed' });
@@ -136,6 +173,7 @@ export class AuthController {
       }
 
       let user = null;
+      let isNewUser = false;
 
       // 1. Search by verified Google email if present
       if (verifiedEmail) {
@@ -152,6 +190,7 @@ export class AuthController {
       }
 
       if (!user) {
+        isNewUser = true;
         const settings = await prisma.systemSetting.findFirst();
         if (settings && settings.allowNewRegistrations === false) {
           return res.status(403).json({ error: 'New user registrations are currently disabled by system administrator.' });
@@ -184,10 +223,10 @@ export class AuthController {
         const isDefaultOrEmpty = !trimmedVerifiedName || trimmedVerifiedName === 'User' || trimmedVerifiedName === 'New User' || trimmedVerifiedName === cleanPhone || trimmedVerifiedName === user.phoneNumber;
         const hasValidExistingName = user.name && user.name.trim().length > 0 && user.name !== 'User' && user.name !== 'New User' && user.name !== user.phoneNumber;
 
-        if (!isDefaultOrEmpty) {
-          updateData.name = trimmedVerifiedName;
-        } else if (hasValidExistingName) {
+        if (hasValidExistingName) {
           updateData.name = user.name;
+        } else if (!isDefaultOrEmpty) {
+          updateData.name = trimmedVerifiedName;
         } else {
           updateData.name = user.name || 'New User';
         }
@@ -196,7 +235,7 @@ export class AuthController {
           updateData.googleEmail = verifiedEmail;
           updateData.authProvider = 'GOOGLE';
         }
-        if (cleanPhone) {
+        if (cleanPhone && !user.phoneNumber.startsWith('g_')) {
           updateData.phoneNumber = cleanPhone;
         }
 
@@ -206,13 +245,27 @@ export class AuthController {
         });
       }
 
+      const isNewNameEmpty = !user.name || user.name.trim().length === 0 || user.name === user.phoneNumber || user.name === 'User' || user.name === 'New User';
+      const isPhoneDummy = user.phoneNumber.startsWith('g_');
+      const requiresProfileSetup = isNewNameEmpty || isPhoneDummy;
+
+      console.log(`[GoogleLogin] Authentication identity resolved for email: ${verifiedEmail}`);
+      console.log(`[GoogleLogin] Account status: ${isNewUser ? 'NEW' : 'EXISTING'} account`);
+      console.log(`[GoogleLogin] Resolved user ID: ${user.id}`);
+      console.log(`[GoogleLogin] Profile setup required: ${requiresProfileSetup}`);
+
       const token = jwt.sign(
         { id: user.id, phoneNumber: user.phoneNumber },
         process.env.JWT_SECRET || 'secret',
         { expiresIn: '30d' }
       );
 
-      res.json({ user, token });
+      res.json({ 
+        user, 
+        token,
+        isNewUser,
+        requiresProfileSetup
+      });
     } catch (error) {
       console.error('Google login error:', error);
       res.status(500).json({ error: 'Google authentication failed' });

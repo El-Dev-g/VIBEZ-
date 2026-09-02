@@ -366,7 +366,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         composable("splash") {
             SplashScreen(
                 onSplashComplete = {
-                    val nextDestination = if (isLoggedIn) "main" else "auth"
+                    val reqProfileSetup = viewModel.requiresProfileSetup.value ?: false
+                    val nextDestination = if (isLoggedIn && !reqProfileSetup) "main" else "auth"
                     navController.navigate(nextDestination) {
                         popUpTo("splash") { inclusive = true }
                     }
@@ -380,10 +381,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onAuthSuccess = { phone, name, about, firebaseIdToken, onComplete ->
                     viewModel.loginWithPhone(phone, name, about, avatarUrl = null, firebaseIdToken = firebaseIdToken) { success, errMsg ->
                         if (success) {
-                            val returnedName = viewModel.currentUserName.value
-                            val isFirstRegistrar = returnedName.isBlank() || returnedName == "User" || returnedName == phone
+                            val reqProfileSetup = viewModel.requiresProfileSetup.value ?: false
                             
-                            if (isFirstRegistrar) {
+                            if (reqProfileSetup) {
                                 val encodedPhone = java.net.URLEncoder.encode(phone, "UTF-8")
                                 val encodedToken = if (firebaseIdToken != null) java.net.URLEncoder.encode(firebaseIdToken, "UTF-8") else ""
                                 navController.navigate("phone_identity_setup?phone=$encodedPhone&idToken=$encodedToken&isPhoneAuth=true") {
@@ -404,9 +404,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onGoogleAuthSuccess = { email, name, avatarUrl, phone, idToken, onComplete ->
                     viewModel.loginWithGoogle(email, name, avatarUrl, phone, idToken) { success, errMsg ->
                         if (success) {
-                            val userPhone = viewModel.currentUserPhone.value
-                            if (userPhone.isNullOrBlank() || userPhone.startsWith("g_")) {
-                                // No phone number linked yet. User is a first registrar!
+                            val reqProfileSetup = viewModel.requiresProfileSetup.value ?: false
+                            if (reqProfileSetup) {
+                                // Account setup/phone linking required!
                                 viewModel.logoutUser()
                                 val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
                                 val encodedName = java.net.URLEncoder.encode(name, "UTF-8")
@@ -415,7 +415,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                                 navController.navigate("phone_identity_setup?email=$encodedEmail&name=$encodedName&avatar=$encodedAvatar&idToken=$encodedToken")
                                 onComplete(true, null)
                             } else {
-                                // Existing user! No profile name requested.
+                                // Fully setup existing user!
                                 onComplete(true, null)
                                 navController.navigate("permissions_onboarding") {
                                     popUpTo("auth") { inclusive = true }
@@ -1283,7 +1283,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onBackClick = { navController.popBackStack() },
                 onChangeNumberClick = { navController.navigate("change_phone") },
                 onDeleteAccountClick = {
-                    viewModel.logoutUser()
+                    viewModel.deleteAccountLocal()
                     navController.navigate("auth") { popUpTo(0) }
                 }
             )
