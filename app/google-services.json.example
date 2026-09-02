@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "YOUR_MOBILE_SDK_APP_ID",
         "android_client_info": {
-          "package_name": "com.aistudio.whatsappclone.app"
+          "package_name": "com.aistudio.vibez.app"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.aistudio.whatsappclone.app",
+            "package_name": "com.aistudio.vibez.app",
             "certificate_hash": []
           }
         }
