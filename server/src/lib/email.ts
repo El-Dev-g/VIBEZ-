@@ -164,6 +164,7 @@ class EmailService {
       
       return {
         app: dbLinks.app || this.appUrl,
+        inviteUrl: dbLinks.inviteUrl || 'https://vibez.chat/join',
         billing: dbLinks.billing || 'https://vibez.chat/billing',
         admin: dbLinks.admin || 'https://admin.vibez.chat/analytics',
         twitter: dbLinks.twitter || 'https://x.com',
@@ -904,10 +905,22 @@ Connect with us:
   }
 
   /**
-   * Sends a notification to a staff member when they are assigned a new role
+   * Sends a notification to a staff member when they are assigned a new role or onboarded
    */
-  async sendRoleAssignmentNotification(email: string, role: string, entityName: string): Promise<{ success: boolean; error?: string }> {
+  async sendRoleAssignmentNotification(email: string, role: string, entityName: string, temporaryPassword?: string): Promise<{ success: boolean; error?: string }> {
     const links = await this.getLinks();
+    const adminUrl = links.admin || links.app;
+
+    const passwordSection = temporaryPassword ? `
+      <div style="background: rgba(255, 255, 255, 0.05); border: 1px border #30363d; border-left: 4px solid #00a884; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: left;">
+        <div style="font-size: 11px; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Your Access Credentials</div>
+        <div style="font-size: 13px; color: #c9d1d9; margin-bottom: 4px;"><strong>Portal:</strong> <a href="${adminUrl}" style="color: #53bdeb; text-decoration: none;">${adminUrl}</a></div>
+        <div style="font-size: 13px; color: #c9d1d9; margin-bottom: 4px;"><strong>Username:</strong> ${email}</div>
+        <div style="font-size: 13px; color: #c9d1d9;"><strong>Temporary Password:</strong> <code style="background: #0d1117; padding: 2px 8px; border-radius: 4px; font-family: monospace; color: #00a884; font-size: 14px;">${temporaryPassword}</code></div>
+      </div>
+      <p style="font-size: 12px; color: #8b949e;">⚠️ For security reasons, please log in immediately and update your password under Account Settings.</p>
+    ` : '';
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -930,16 +943,16 @@ Connect with us:
             <h1>VIBEZ STAFF</h1>
           </div>
           <div class="content">
-            <h2>New Role Assigned!</h2>
-            <p>You have been assigned a new administrative role in <strong>${entityName}</strong>.</p>
+            <h2>Welcome to the VIBEZ Staff Team!</h2>
+            <p>You have been assigned an administrative staff role in <strong>${entityName}</strong>.</p>
             <div class="role-badge">${role}</div>
-            <p>Your permissions have been updated automatically. You can now access administrative tools and governance features for this entity.</p>
+            ${passwordSection}
             <p>Please ensure you follow the platform's moderation and security guidelines at all times.</p>
-            <a href="${links.app}" class="btn">Go to Dashboard</a>
+            <a href="${adminUrl}" class="btn">Log In to Admin Portal</a>
           </div>
           <div class="footer">
             &copy; ${new Date().getFullYear()} VIBEZ Inc. All rights reserved.<br>
-            This is a system notification for authorized staff members.
+            This is an automated enrollment notification for authorized staff members.
           </div>
         </div>
       </body>

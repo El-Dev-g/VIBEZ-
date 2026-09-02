@@ -218,4 +218,7 @@ interface ApiService {
 
     @GET("api/app/updates/latest")
     suspend fun getLatestUpdate(): AppUpdateDto
+
+    @GET("api/config/public")
+    suspend fun getPublicAppConfig(): PublicAppConfigDto
 }

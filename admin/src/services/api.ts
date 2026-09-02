@@ -116,6 +116,35 @@ export const toggleTwoFactor = async (enabled: boolean): Promise<{ success?: boo
   }
 };
 
+export const setupTwoFactor = async (): Promise<{ success?: boolean; secret?: string; otpauthUrl?: string; email?: string; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/2fa/setup`, {
+      method: 'POST',
+      headers: getAdminHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || 'Failed to initiate 2FA setup' };
+    return data;
+  } catch (e: any) {
+    return { error: 'Failed to initiate 2FA setup' };
+  }
+};
+
+export const confirmTwoFactor = async (secret: string, code: string): Promise<{ success?: boolean; twoFactorEnabled?: boolean; message?: string; error?: string }> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/2fa/confirm`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ secret, code })
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || 'Failed to confirm 2FA code' };
+    return data;
+  } catch (e: any) {
+    return { error: 'Failed to confirm 2FA code' };
+  }
+};
+
 export const fetchSecurityHealth = async (): Promise<any> => {
   try {
     const res = await fetch(`${getApiBaseUrl()}/admin/security/health`, {
@@ -1265,6 +1294,7 @@ export const disconnectGmailOAuth = async (): Promise<{ success: boolean; messag
 
 export interface EmailLinks {
   app: string;
+  inviteUrl?: string;
   billing: string;
   supportEmail: string;
   twitter: string;

@@ -6,6 +6,7 @@ import { EmailLinks, fetchEmailLinks, updateEmailLinks } from '../services/api';
 export default function TemplateLinksManager() {
   const [links, setLinks] = useState<EmailLinks>({
     app: 'https://vibez.chat',
+    inviteUrl: 'https://vibez.chat/join',
     billing: 'https://vibez.chat/billing',
     supportEmail: 'support@vibez.chat',
     twitter: 'https://x.com',
@@ -125,6 +126,19 @@ export default function TemplateLinksManager() {
                 required
               />
               <p className="text-xs text-gray-500">Used for "Return to VIBEZ", "Visit VIBEZ Hub", and main portal links.</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">App Invite & Join URL</label>
+              <input
+                type="url"
+                value={links.inviteUrl || ''}
+                onChange={(e) => handleChange('inviteUrl', e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-medium text-sm focus:outline-none focus:border-emerald-500"
+                placeholder="https://vibez.chat/join"
+                required
+              />
+              <p className="text-xs text-gray-500">Configures the shareable invite link injected into SMS and in-app contact invitation messages.</p>
             </div>
 
             <div className="space-y-2">

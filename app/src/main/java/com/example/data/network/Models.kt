@@ -331,3 +331,12 @@ data class AppUpdateDto(
     val createdAt: String? = null
 )
 
+@JsonClass(generateAdapter = true)
+data class PublicAppConfigDto(
+    val appName: String? = "VIBEZ",
+    val appVersion: String? = "1.0.0",
+    val appDownloadUrl: String? = null,
+    val inviteUrl: String? = "https://vibez.chat/join",
+    val contactEmail: String? = "support@vibez.chat"
+)
+

@@ -223,6 +223,7 @@ model Admin {
   photo            String?  @default("")
   role             String   @default("MODERATOR") // SUPERADMIN, MODERATOR, SUPPORT
   twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret  String?  @default("")
   createdAt        DateTime @default(now())
 }
 

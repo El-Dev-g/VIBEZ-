@@ -122,6 +122,18 @@ fun SelectContactScreen(
     }
 
     var rawDeviceContacts by remember { mutableStateOf<List<DeviceContactRaw>>(emptyList()) }
+    var inviteUrl by remember { mutableStateOf("https://vibez.chat/join") }
+
+    LaunchedEffect(Unit) {
+        try {
+            val config = com.example.data.network.NetworkClient.apiService.getPublicAppConfig()
+            if (!config.inviteUrl.isNullOrBlank()) {
+                inviteUrl = config.inviteUrl
+            }
+        } catch (_: Exception) {
+            // Fallback to default URL
+        }
+    }
 
     fun normalizeNumber(number: String): String {
         return number.replace(Regex("[^0-9+]"), "").trim()
@@ -205,17 +217,18 @@ fun SelectContactScreen(
     val totalContactsCount = filteredRegisteredContacts.size + unregisteredDeviceContacts.size
 
     fun sendInvite(phone: String, name: String) {
+        val inviteBody = "Hey! 👋 I’d love to connect with you on VIBEZ. Send messages instantly and stay connected securely. 🔒💬\n\nJoin me: $inviteUrl"
         try {
             val intent = Intent(Intent.ACTION_SENDTO).apply {
                 data = Uri.parse("smsto:$phone")
-                putExtra("sms_body", "Hey $name! Let's connect on VIBEZ for instant secure messaging: https://vibez.chat/join")
+                putExtra("sms_body", inviteBody)
             }
             context.startActivity(intent)
         } catch (e: Exception) {
             // Fallback to share intent
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "Hey $name! Let's connect on VIBEZ for instant secure messaging: https://vibez.chat/join")
+                putExtra(Intent.EXTRA_TEXT, inviteBody)
             }
             context.startActivity(Intent.createChooser(shareIntent, "Invite via"))
         }
@@ -640,7 +653,7 @@ fun SelectContactScreen(
                                     type = "text/plain"
                                     putExtra(
                                         Intent.EXTRA_TEXT,
-                                        "Let's chat on VIBEZ! It's a modern, ultra-fast and private messenger with music status: https://vibez.chat/join"
+                                        "Hey! 👋 I’d love to connect with you on VIBEZ. Send messages instantly and stay connected securely. 🔒💬\n\nJoin me: $inviteUrl"
                                     )
                                 }
                                 context.startActivity(Intent.createChooser(shareIntent, "Share VIBEZ link"))

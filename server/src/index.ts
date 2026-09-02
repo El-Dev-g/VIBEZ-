@@ -284,6 +284,8 @@ app.post('/api/admin/change-password', authenticateAdmin, (req, res) => admin.ch
 app.get('/api/admin/sessions', authenticateAdmin, (req, res) => admin.getSessions(req, res));
 app.delete('/api/admin/sessions/:sessionId', authenticateAdmin, (req, res) => admin.revokeSession(req, res));
 app.post('/api/admin/2fa/toggle', authenticateAdmin, (req, res) => admin.toggleTwoFactor(req, res));
+app.post('/api/admin/2fa/setup', authenticateAdmin, (req, res) => admin.generate2FASecret(req, res));
+app.post('/api/admin/2fa/confirm', authenticateAdmin, (req, res) => admin.confirm2FA(req, res));
 app.get('/api/admin/security/health', authenticateAdmin, (req, res) => admin.getSecurityHealth(req, res));
 
 // Gmail OAuth Integration Routes (Dedicated Demo / Support Email Authorization)

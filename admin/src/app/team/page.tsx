@@ -27,6 +27,9 @@ export default function TeamPage() {
     setLoading(false);
   };
 
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; name: string; role: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -38,15 +41,22 @@ export default function TeamPage() {
           setShowModal(false);
         }
       } else {
-        const res = await createAdmin(formData);
+        const res: any = await createAdmin(formData);
         if (res) {
-          setToast({ message: 'New staff member added. Enrollment email sent.' });
+          const generatedPassword = res.temporaryPassword || 'Generated & Emailed';
+          setToast({ message: 'New staff member added. Auto-generated password emailed.' });
+          setCreatedCredentials({
+            email: formData.email,
+            password: generatedPassword,
+            name: formData.name || 'Staff Member',
+            role: formData.role
+          });
           loadAdmins();
           setShowModal(false);
         }
       }
     } catch (err) {
-      setToast({ message: 'Operation failed. Please check credentials.', isError: true });
+      setToast({ message: 'Operation failed. Please try again.', isError: true });
     }
     setTimeout(() => setToast(null), 5000);
   };
@@ -225,16 +235,11 @@ export default function TeamPage() {
               </div>
 
               {!editingAdmin && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Temporary Password</label>
-                  <input
-                    type="password"
-                    required
-                    className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white transition-all"
-                    placeholder="Min 8 characters"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  />
+                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3">
+                  <span className="text-xl">✨</span>
+                  <p className="text-xs font-bold text-emerald-800 leading-relaxed">
+                    A secure temporary password will be <strong>automatically generated</strong> and emailed directly to the staff member upon creation.
+                  </p>
                 </div>
               )}
 
@@ -261,6 +266,63 @@ export default function TeamPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {createdCredentials && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden border border-white/20 animate-scaleIn p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto text-emerald-600 text-2xl font-black border border-emerald-100">
+                🎉
+              </div>
+              <h3 className="text-2xl font-black text-slate-900">Staff Account Authorized</h3>
+              <p className="text-xs font-bold text-slate-400">
+                An automated enrollment email containing access credentials has been sent directly to <strong className="text-slate-700">{createdCredentials.email}</strong>.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-3 text-left">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Staff Name:</span>
+                <span className="font-black text-slate-800">{createdCredentials.name}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Assigned Role:</span>
+                <span className="font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{createdCredentials.role}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Username:</span>
+                <span className="font-mono font-bold text-slate-800">{createdCredentials.email}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-200/60">
+                <span className="font-bold text-slate-400 uppercase tracking-wider">Temporary Password:</span>
+                <code className="bg-slate-900 text-emerald-400 px-3 py-1 rounded-lg font-mono font-bold text-sm">
+                  {createdCredentials.password}
+                </code>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  const textToCopy = `VIBEZ Staff Account Details:\nPortal: https://admin.vibez.chat\nEmail: ${createdCredentials.email}\nTemporary Password: ${createdCredentials.password}\nRole: ${createdCredentials.role}`;
+                  navigator.clipboard.writeText(textToCopy);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 3000);
+                }}
+                className="w-full py-3.5 bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+              >
+                {copied ? '✓ Credentials Copied to Clipboard!' : '📋 Copy Credentials for Direct Messaging'}
+              </button>
+
+              <button
+                onClick={() => setCreatedCredentials(null)}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

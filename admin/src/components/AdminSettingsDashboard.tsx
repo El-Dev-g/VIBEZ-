@@ -56,6 +56,7 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
   // Email Links Tab state
   const [emailLinks, setEmailLinks] = useState<EmailLinks>({
     app: 'https://vibez.chat',
+    inviteUrl: 'https://vibez.chat/join',
     billing: 'https://vibez.chat/billing',
     supportEmail: 'support@vibez.chat',
     twitter: 'https://x.com',
@@ -1263,6 +1264,18 @@ export default function AdminSettingsDashboard({ initialSettings }: AdminSetting
                         onChange={(e) => setEmailLinks(prev => ({ ...prev, app: e.target.value }))}
                         className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                         placeholder="https://vibez.chat"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">App Invite & Join URL</label>
+                      <input
+                        type="url"
+                        value={emailLinks.inviteUrl || ''}
+                        onChange={(e) => setEmailLinks(prev => ({ ...prev, inviteUrl: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 text-slate-800 text-sm font-bold rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        placeholder="https://vibez.chat/join"
                         required
                       />
                     </div>

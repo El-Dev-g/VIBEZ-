@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import jwt from 'jsonwebtoken';
 import { emailService } from '../lib/email';
+import { generateBase32Secret, generateOTPAuthUri, verifyTOTP } from '../lib/totp';
 
 export class AdminController {
   async login(req: Request, res: Response) {
@@ -56,13 +57,23 @@ export class AdminController {
             requires2FA: true
           });
         }
-        // Validate 6-digit 2FA code (accept 123456 or 888888 or any 6-digit code for 2FA verification)
         const cleanCode = twoFactorCode.toString().trim();
         if (cleanCode.length !== 6) {
           return res.status(401).json({
             error: 'Invalid 2FA Code: Code must be 6 digits.',
             requires2FA: true
           });
+        }
+
+        // If admin has an assigned 2FA TOTP secret, strictly verify TOTP code
+        if (admin.twoFactorSecret && admin.twoFactorSecret.trim().length > 0) {
+          const isValid = verifyTOTP(admin.twoFactorSecret, cleanCode);
+          if (!isValid) {
+            return res.status(401).json({
+              error: 'Invalid 2FA Authenticator Code. Please check your authenticator app and try again.',
+              requires2FA: true
+            });
+          }
         }
       }
 
@@ -455,10 +466,14 @@ export class AdminController {
   async getPublicAppConfig(req: Request, res: Response) {
     try {
       const settings = await prisma.systemSetting.findFirst();
+      const links = (settings?.emailLinks as any) || {};
+      const configuredInviteUrl = links.inviteUrl || links.app || 'https://vibez.chat/join';
+
       res.json({
         appName: settings?.appName || 'VIBEZ',
         appVersion: settings?.appVersion || '1.0.0',
         appDownloadUrl: settings?.appDownloadUrl || '',
+        inviteUrl: configuredInviteUrl,
         contactEmail: settings?.contactEmail || 'support@vibez.chat',
         contactPhone: settings?.contactPhone || '+1 (800) 555-0199',
         supportAddress: settings?.supportAddress || 'San Francisco, CA, USA',
@@ -472,6 +487,7 @@ export class AdminController {
         appName: 'VIBEZ',
         appVersion: '1.0.0',
         appDownloadUrl: '',
+        inviteUrl: 'https://vibez.chat/join',
         contactEmail: 'support@vibez.chat',
         contactPhone: '+1 (800) 555-0199',
         supportAddress: 'San Francisco, CA, USA'
@@ -1614,6 +1630,83 @@ export class AdminController {
     }
   }
 
+  async generate2FASecret(req: Request, res: Response) {
+    try {
+      const adminEmail = (req as any).admin?.email || (req as any).user?.email;
+      if (!adminEmail) {
+        return res.status(401).json({ error: 'Administrator authentication required.' });
+      }
+
+      const admin = await prisma.admin.findUnique({ where: { email: adminEmail } });
+      if (!admin) {
+        return res.status(404).json({ error: 'Admin account not found.' });
+      }
+
+      const secret = generateBase32Secret(32);
+      const otpauthUrl = generateOTPAuthUri(admin.email, secret, 'VIBEZ Admin');
+
+      res.json({
+        success: true,
+        secret,
+        otpauthUrl,
+        email: admin.email
+      });
+    } catch (error) {
+      console.error('Failed to generate 2FA secret:', error);
+      res.status(500).json({ error: 'Failed to generate 2FA secret' });
+    }
+  }
+
+  async confirm2FA(req: Request, res: Response) {
+    try {
+      const adminEmail = (req as any).admin?.email || (req as any).user?.email;
+      const { secret, code } = req.body;
+
+      if (!adminEmail) {
+        return res.status(401).json({ error: 'Administrator authentication required.' });
+      }
+
+      if (!secret || !code) {
+        return res.status(400).json({ error: 'Secret key and verification code are required.' });
+      }
+
+      const isValid = verifyTOTP(secret, code);
+      if (!isValid) {
+        return res.status(400).json({ error: 'Invalid 6-digit verification code. Please check your authenticator app.' });
+      }
+
+      const admin = await prisma.admin.findUnique({ where: { email: adminEmail } });
+      if (!admin) {
+        return res.status(404).json({ error: 'Admin account not found.' });
+      }
+
+      const updated = await prisma.admin.update({
+        where: { id: admin.id },
+        data: {
+          twoFactorEnabled: true,
+          twoFactorSecret: secret
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail,
+          action: 'ENABLE_2FA',
+          target: admin.id
+        }
+      });
+
+      res.json({
+        success: true,
+        twoFactorEnabled: true,
+        message: 'Two-Factor Authentication (2FA) is now ACTIVE on your admin account!'
+      });
+    } catch (error) {
+      console.error('Failed to confirm 2FA:', error);
+      res.status(500).json({ error: 'Failed to verify and activate 2FA' });
+    }
+  }
+
   async toggleTwoFactor(req: Request, res: Response) {
     try {
       const adminEmail = (req as any).admin?.email || (req as any).user?.email;
@@ -1631,15 +1724,19 @@ export class AdminController {
         return res.status(404).json({ error: 'Administrator account not found.' });
       }
 
+      const isEnabling = Boolean(enabled);
       const updated = await prisma.admin.update({
         where: { id: admin.id },
-        data: { twoFactorEnabled: Boolean(enabled) }
+        data: {
+          twoFactorEnabled: isEnabling,
+          twoFactorSecret: isEnabling ? admin.twoFactorSecret : ''
+        }
       });
 
       await prisma.auditLog.create({
         data: {
           adminEmail,
-          action: enabled ? 'ENABLE_2FA' : 'DISABLE_2FA',
+          action: isEnabling ? 'ENABLE_2FA' : 'DISABLE_2FA',
           target: admin.id
         }
       });
@@ -1942,8 +2039,8 @@ export class AdminController {
     try {
       const { email, password, name, role } = req.body;
 
-      if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
       }
 
       const existing = await prisma.admin.findUnique({ where: { email } });
@@ -1951,10 +2048,13 @@ export class AdminController {
         return res.status(400).json({ error: 'Admin with this email already exists' });
       }
 
+      // Auto-generate secure temporary password if not provided
+      const finalPassword = password || `Vibez#${Math.floor(100000 + Math.random() * 900000)}`;
+
       const newAdmin = await prisma.admin.create({
         data: {
           email,
-          password,
+          password: finalPassword,
           name: name || 'Team Member',
           role: role || 'MODERATOR'
         }
@@ -1968,13 +2068,14 @@ export class AdminController {
         }
       });
 
-      // Send automated notification to the staff member
+      // Send automated notification with temporary password to the staff member
       console.log(`[AdminController] Triggering enrollment notification for ${email} as ${newAdmin.role}`);
       try {
         const notifyResult = await emailService.sendRoleAssignmentNotification(
           email,
           newAdmin.role,
-          'VIBEZ Admin Portal'
+          'VIBEZ Admin Portal',
+          finalPassword
         );
         if (notifyResult.success) {
           console.log(`[AdminController] Enrollment notification sent successfully to ${email}`);
@@ -2003,7 +2104,8 @@ export class AdminController {
         id: newAdmin.id,
         email: newAdmin.email,
         name: newAdmin.name,
-        role: newAdmin.role
+        role: newAdmin.role,
+        temporaryPassword: finalPassword
       });
     } catch (error) {
       console.error('Failed to create admin:', error);
