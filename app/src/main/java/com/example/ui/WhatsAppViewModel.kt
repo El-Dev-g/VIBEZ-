@@ -948,10 +948,12 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 
                 // Find existing chat or create one
                 var targetChat = chats.value.firstOrNull { it.contactId == contactId || it.id == contactId }
+                var resolvedBackendChatId: String? = null
                 
                 if (targetChat == null && contactId.isNotBlank()) {
                     try {
                         val dto = NetworkClient.apiService.createOrGetPrivateChat("Bearer $token", PrivateChatRequest(targetUserId = contactId))
+                        resolvedBackendChatId = dto.id
                         repository.syncChats(token)
                         targetChat = chats.value.firstOrNull { it.id == dto.id || it.contactId == contactId }
                     } catch (e: Exception) {
@@ -959,7 +961,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     }
                 }
 
-                val chatId = targetChat?.id ?: if (contactId.isNotBlank()) contactId else "chat_${System.currentTimeMillis()}"
+                val chatId = targetChat?.id ?: resolvedBackendChatId ?: "chat_${contactId.ifBlank { System.currentTimeMillis().toString() }}"
 
                 // Ensure local chat exists in Room DB if network call was offline
                 if (targetChat == null) {

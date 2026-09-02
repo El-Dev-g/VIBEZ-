@@ -297,6 +297,8 @@ data class ReportUserRequest(
 
 @JsonClass(generateAdapter = true)
 data class UpdateChatRequest(
+    val name: String? = null,
+    val avatarUrl: String? = null,
     val isMuted: Boolean? = null,
     val wallpaper: String? = null
 )

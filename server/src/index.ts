@@ -20,6 +20,7 @@ import { authenticate, authenticateAdmin } from './middleware/auth';
 import { checkMaintenanceMode } from './middleware/maintenance';
 import { securityHeaders, sanitizeInputs, checkSecretEntropy } from './middleware/security';
 import { authRateLimiter, adminRateLimiter } from './middleware/rateLimiter';
+import { getChatRoomName, extractPureChatId } from './utils/socketHelpers';
 
 dotenv.config();
 checkSecretEntropy();
@@ -328,27 +329,163 @@ io.on('connection', (socket) => {
     console.log(`User ${userId} connected with socket ${socket.id}`);
   }
 
-  socket.on('join_chat', (chatId) => {
-    socket.join(`chat_${chatId}`);
-    console.log(`Socket ${socket.id} joined room chat_${chatId}`);
+  socket.on('join_chat', async (chatId) => {
+    if (!chatId) return;
+    const rawId = String(chatId);
+    const pureChatId = extractPureChatId(rawId);
+    let effectiveChatId = pureChatId;
+    let roomName = getChatRoomName(pureChatId);
+
+    // If a userId is associated with this socket connection, verify or resolve chat existence & membership
+    if (userId) {
+      try {
+        let chat = await prisma.chat.findUnique({
+          where: { id: pureChatId },
+          include: { members: true }
+        });
+
+        // Self-healing: if pureChatId is actually a contact's User ID, resolve/create the private chat
+        if (!chat) {
+          const targetUser = await prisma.user.findUnique({ where: { id: pureChatId } });
+          if (targetUser) {
+            chat = await prisma.chat.findFirst({
+              where: {
+                isGroup: false,
+                AND: [
+                  { members: { some: { userId } } },
+                  { members: { some: { userId: pureChatId } } }
+                ]
+              },
+              include: { members: true }
+            });
+
+            if (!chat) {
+              chat = await prisma.chat.create({
+                data: {
+                  isGroup: false,
+                  members: {
+                    create: [
+                      { userId },
+                      { userId: pureChatId }
+                    ]
+                  }
+                },
+                include: { members: true }
+              });
+            }
+          }
+        }
+
+        if (chat) {
+          effectiveChatId = chat.id;
+          roomName = getChatRoomName(chat.id);
+          const isMember = chat.members.some(m => m.userId === userId);
+          if (!isMember) {
+            await prisma.chatMember.create({
+              data: { chatId: chat.id, userId }
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error('[Socket.IO] Error validating join_chat:', err);
+      }
+    }
+
+    socket.join(roomName);
+    if (rawId !== roomName && rawId !== effectiveChatId) {
+      socket.join(`chat_${rawId}`);
+    }
+    console.log(`Socket ${socket.id} joined room ${roomName} (effective chat: ${effectiveChatId})`);
   });
  
   socket.on('send_message', async (data) => {
     // data: { id, chatId, senderId, receiverId, content, type, mediaUrl, duration }
-    console.log(`Message received from ${data.senderId} for chat ${data.chatId}: ${data.content?.substring(0, 20)}...`);
+    if (!data || !data.chatId || (!data.content && !data.mediaUrl)) {
+      return socket.emit('error', { message: 'Invalid message payload.' });
+    }
+
+    const rawChatId = String(data.chatId);
+    const pureChatId = extractPureChatId(rawChatId);
+    const senderId = data.senderId || userId;
+
+    console.log(`Message received from ${senderId} for chat ${pureChatId}: ${data.content?.substring(0, 20)}...`);
     try {
       const setting = await prisma.systemSetting.findFirst();
       if (setting?.maintenanceMode) {
         return socket.emit('error', { message: 'System is currently undergoing scheduled maintenance.' });
       }
- 
+
+      // Check if Chat exists in database
+      let chat = await prisma.chat.findUnique({
+        where: { id: pureChatId },
+        include: { members: true }
+      });
+
+      // Self-healing: If chat doesn't exist by pureChatId, check if pureChatId is a User ID or target receiver
+      if (!chat) {
+        const targetUserId = data.receiverId || (await prisma.user.findUnique({ where: { id: pureChatId } }))?.id;
+        if (targetUserId && senderId) {
+          chat = await prisma.chat.findFirst({
+            where: {
+              isGroup: false,
+              AND: [
+                { members: { some: { userId: senderId } } },
+                { members: { some: { userId: targetUserId } } }
+              ]
+            },
+            include: { members: true }
+          });
+
+          if (!chat) {
+            chat = await prisma.chat.create({
+              data: {
+                isGroup: false,
+                members: {
+                  create: [
+                    { userId: senderId },
+                    { userId: targetUserId }
+                  ]
+                }
+              },
+              include: { members: true }
+            });
+          }
+        }
+      }
+
+      if (!chat) {
+        console.warn(`[Socket.IO] Cannot save message: Chat ${pureChatId} does not exist in database.`);
+        return socket.emit('error', {
+          message: 'Chat does not exist. Please initialize the conversation first.',
+          chatId: pureChatId
+        });
+      }
+
+      const effectiveChatId = chat.id;
+      const roomName = getChatRoomName(effectiveChatId);
+
+      // Verify sender exists and is authorized
+      if (senderId) {
+        const isMember = chat.members.some(m => m.userId === senderId);
+        if (!isMember) {
+          const senderUser = await prisma.user.findUnique({ where: { id: senderId } });
+          if (senderUser) {
+            try {
+              await prisma.chatMember.create({
+                data: { chatId: effectiveChatId, userId: senderId }
+              });
+            } catch (memberErr) {}
+          }
+        }
+      }
+
       const message = await prisma.message.create({
         data: {
           id: data.id || undefined, // Use client-provided ID if available for optimistic UI sync
-          chatId: data.chatId,
-          senderId: data.senderId,
-          receiverId: data.receiverId,
-          content: data.content,
+          chatId: effectiveChatId,
+          senderId: senderId,
+          receiverId: data.receiverId || undefined,
+          content: data.content || '',
           type: data.type || 'TEXT',
           mediaUrl: data.mediaUrl,
           duration: data.duration,
@@ -359,26 +496,41 @@ io.on('connection', (socket) => {
         }
       });
  
-      // Broadcast to chat room
-      console.log(`Broadcasting message ${message.id} to room chat_${data.chatId}`);
-      io.to(`chat_${data.chatId}`).emit('receive_message', message);
+      // Broadcast to standard chat room
+      console.log(`Broadcasting message ${message.id} to room ${roomName} (chat: ${effectiveChatId})`);
+      io.to(roomName).emit('receive_message', message);
+      if (rawChatId !== effectiveChatId) {
+        io.to(`chat_${rawChatId}`).emit('receive_message', message);
+        io.to(getChatRoomName(rawChatId)).emit('receive_message', message);
+      }
       
       // Also notify receiver if it's a private chat for badge updates
-      if (data.receiverId) {
-        console.log(`Notifying receiver user_${data.receiverId} about new message`);
-        io.to(`user_${data.receiverId}`).emit('new_message_notification', {
-          chatId: data.chatId,
+      const receiverId = data.receiverId || chat.members.find(m => m.userId !== senderId)?.userId;
+      if (receiverId) {
+        console.log(`Notifying receiver user_${receiverId} about new message`);
+        io.to(`user_${receiverId}`).emit('new_message_notification', {
+          chatId: effectiveChatId,
           message
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving message:', error);
-      socket.emit('error', { message: 'Failed to send message' });
+      if (error?.code === 'P2003') {
+        socket.emit('error', {
+          message: 'Foreign key constraint violated: referenced chat or user does not exist.',
+          code: 'P2003',
+          chatId: pureChatId
+        });
+      } else {
+        socket.emit('error', { message: 'Failed to send message' });
+      }
     }
   });
 
   socket.on('typing', (data) => {
-    socket.to(`chat_${data.chatId}`).emit('user_typing', data);
+    if (!data?.chatId) return;
+    const roomName = getChatRoomName(data.chatId);
+    socket.to(roomName).emit('user_typing', { ...data, chatId: extractPureChatId(data.chatId) });
   });
 
   // WebRTC Call Signaling

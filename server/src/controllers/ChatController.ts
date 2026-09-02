@@ -42,8 +42,34 @@ export class ChatController {
   async getMessages(req: AuthRequest, res: Response) {
     try {
       const { chatId } = req.params;
+      const currentUserId = req.user?.id as string;
+      if (!chatId) return res.status(400).json({ error: 'Chat ID required' });
+
+      const cleanId = chatId.startsWith('chat_') ? chatId.replace(/^chat_+/, '') : chatId;
+
+      // Try finding by direct chat ID first
+      let chat = await prisma.chat.findUnique({ where: { id: cleanId } });
+
+      // If not found, check if cleanId is a target User ID and find the private 1-on-1 chat
+      if (!chat && currentUserId) {
+        const targetUser = await prisma.user.findUnique({ where: { id: cleanId } });
+        if (targetUser) {
+          chat = await prisma.chat.findFirst({
+            where: {
+              isGroup: false,
+              AND: [
+                { members: { some: { userId: currentUserId } } },
+                { members: { some: { userId: cleanId } } }
+              ]
+            }
+          });
+        }
+      }
+
+      const effectiveChatId = chat ? chat.id : cleanId;
+
       const messages = await prisma.message.findMany({
-        where: { chatId },
+        where: { chatId: effectiveChatId },
         orderBy: { createdAt: 'asc' },
         include: {
           sender: true
@@ -167,6 +193,27 @@ export class ChatController {
     try {
       const { chatId } = req.params;
       const { name, avatarUrl } = req.body;
+      const currentUserId = req.user?.id as string;
+
+      if (!chatId) {
+        return res.status(400).json({ error: 'Chat ID is required' });
+      }
+
+      // First verify chat existence
+      const existing = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { members: true }
+      });
+
+      if (!existing) {
+        return res.status(404).json({ error: 'Chat not found' });
+      }
+
+      // Verify user membership or admin status
+      const isMember = existing.members.some(m => m.userId === currentUserId);
+      if (!isMember && !req.user?.isAdmin) {
+        return res.status(403).json({ error: 'Access denied: not a member of this chat' });
+      }
 
       const updated = await prisma.chat.update({
         where: { id: chatId },
@@ -177,7 +224,10 @@ export class ChatController {
       });
 
       res.json(updated);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'P2025') {
+        return res.status(404).json({ error: 'Chat not found' });
+      }
       console.error('Failed to update chat:', error);
       res.status(500).json({ error: 'Failed to update chat' });
     }

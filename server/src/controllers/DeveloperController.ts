@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
 import { Server as SocketIOServer } from 'socket.io';
+import { getChatRoomName } from '../utils/socketHelpers';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'vibez_secret_jwt_key_2024';
 const DEV_HMAC_SECRET = process.env.VIBEZ_WEBHOOK_SECRET || 'whsec_99a8b7c6d5e4f3a2b1c0987654321fed';
@@ -146,7 +147,8 @@ export class DeveloperController {
 
             // Broadcast to active Socket.IO rooms
             if (io) {
-              io.to(`chat_${targetChatId}`).emit('receive_message', createdMessage);
+              const roomName = getChatRoomName(targetChatId);
+              io.to(roomName).emit('receive_message', createdMessage);
               if (recipientId) {
                 io.to(`user_${recipientId}`).emit('new_message_notification', {
                   chatId: targetChatId,

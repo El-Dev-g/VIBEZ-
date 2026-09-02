@@ -538,35 +538,12 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         removeDeletedChatId(contactId)
         if (!remoteId.isNullOrBlank()) removeDeletedChatId(remoteId)
 
-        // 1. Check existing local chats
-        val allLocalChats = try { dao.getAllChatsOneShot() } catch (_: Exception) { emptyList() }
-        val existingChat = allLocalChats.firstOrNull { chat ->
-            chat.contactId == contactId ||
-            (!remoteId.isNullOrBlank() && (chat.contactId == remoteId || chat.remoteId == remoteId)) ||
-            chat.id == contactId ||
-            (!remoteId.isNullOrBlank() && chat.id == remoteId) ||
-            (phone.isNotBlank() && (chat.contactId == phone || phonesMatch(chat.contactId, phone)))
-        }
-
-        if (existingChat != null) {
-            removeDeletedChatId(existingChat.id)
-            if (existingChat.contactName != name || (contact.avatarUrl.isNotBlank() && existingChat.contactAvatar != contact.avatarUrl)) {
-                val updated = existingChat.copy(
-                    contactName = name,
-                    contactAvatar = if (contact.avatarUrl.isNotBlank()) contact.avatarUrl else existingChat.contactAvatar,
-                    isVerified = contact.isVerified || existingChat.isVerified
-                )
-                dao.updateChat(updated)
-            }
-            return existingChat.id
-        }
-
-        // 2. Try backend API if token is present
+        // 1. Try backend API first if token is present to obtain the real Chat UUID
         var backendChatId: String? = null
         if (!token.isNullOrBlank()) {
             val targetUserId = if (!remoteId.isNullOrBlank() && !remoteId.startsWith("contact_")) {
                 remoteId
-            } else if (!contactId.startsWith("contact_")) {
+            } else if (!contactId.startsWith("contact_") && contactId.length > 15) {
                 contactId
             } else {
                 try {
@@ -607,6 +584,29 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                     e.printStackTrace()
                 }
             }
+        }
+
+        // 2. Check existing local chats
+        val allLocalChats = try { dao.getAllChatsOneShot() } catch (_: Exception) { emptyList() }
+        val existingChat = allLocalChats.firstOrNull { chat ->
+            chat.contactId == contactId ||
+            (!remoteId.isNullOrBlank() && (chat.contactId == remoteId || chat.remoteId == remoteId)) ||
+            chat.id == contactId ||
+            (!remoteId.isNullOrBlank() && chat.id == remoteId) ||
+            (phone.isNotBlank() && (chat.contactId == phone || phonesMatch(chat.contactId, phone)))
+        }
+
+        if (existingChat != null) {
+            removeDeletedChatId(existingChat.id)
+            if (existingChat.contactName != name || (contact.avatarUrl.isNotBlank() && existingChat.contactAvatar != contact.avatarUrl)) {
+                val updated = existingChat.copy(
+                    contactName = name,
+                    contactAvatar = if (contact.avatarUrl.isNotBlank()) contact.avatarUrl else existingChat.contactAvatar,
+                    isVerified = contact.isVerified || existingChat.isVerified
+                )
+                dao.updateChat(updated)
+            }
+            return existingChat.id
         }
 
         // 3. Guaranteed local fallback chat in Room
