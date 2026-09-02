@@ -1058,17 +1058,17 @@ export class AdminController {
       try {
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { email: true }
+          select: { googleEmail: true }
         });
 
-        if (user?.email && targetRole !== 'MEMBER') {
+        if (user?.googleEmail && targetRole !== 'MEMBER') {
           const community = await prisma.community.findUnique({
             where: { id: communityId },
             select: { name: true }
           });
 
           await emailService.sendRoleAssignmentNotification(
-            user.email,
+            user.googleEmail,
             targetRole,
             community?.name || 'Official Community'
           );
@@ -1128,17 +1128,17 @@ export class AdminController {
       try {
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { email: true }
+          select: { googleEmail: true }
         });
 
-        if (user?.email && targetRole !== 'MEMBER') {
+        if (user?.googleEmail && targetRole !== 'MEMBER') {
           const community = await prisma.community.findUnique({
             where: { id: communityId },
             select: { name: true }
           });
 
           await emailService.sendRoleAssignmentNotification(
-            user.email,
+            user.googleEmail,
             targetRole,
             community?.name || 'Official Community'
           );
