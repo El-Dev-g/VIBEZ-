@@ -170,9 +170,18 @@ fun SelectContactScreen(
         }
         rawDeviceContacts = list
 
-        // Trigger backend contact matching
+        // Trigger backend contact matching with all canonical forms
         if (list.isNotEmpty()) {
-            onSyncPhoneNumbers?.invoke(list.map { it.normalizedPhone })
+            val phoneBatch = mutableSetOf<String>()
+            list.forEach { c ->
+                phoneBatch.add(c.normalizedPhone)
+                val digits = c.normalizedPhone.replace(Regex("[^0-9]"), "")
+                if (digits.isNotBlank()) {
+                    phoneBatch.add(digits)
+                    phoneBatch.add(digits.replace(Regex("^0+"), ""))
+                }
+            }
+            onSyncPhoneNumbers?.invoke(phoneBatch.toList())
         }
     }
 

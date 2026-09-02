@@ -160,6 +160,8 @@ app.get('/api/auth/profile', authenticate, (req, res) => auth.getProfile(req, re
 
 // User Routes
 app.get('/api/users/search', authenticate, (req, res) => user.searchUsers(req, res));
+app.post('/api/users/sync-contacts', authenticate, (req, res) => user.syncContacts(req, res));
+app.post('/api/users/contacts/sync', authenticate, (req, res) => user.syncContacts(req, res));
 app.put('/api/users/profile', authenticate, (req, res) => user.updateProfile(req, res));
 app.post('/api/users/change-phone/request', authenticate, (req, res) => user.requestPhoneChange(req, res));
 app.post('/api/users/change-phone/verify', authenticate, (req, res) => user.verifyPhoneChange(req, res));

@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../lib/prisma';
 import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/auth';
+import { phonesMatch } from '../utils/phoneUtils';
 
 interface PhoneChangeRequestItem {
   userId: string;
@@ -287,6 +288,54 @@ export class UserController {
     } catch (error) {
       console.error('Failed to create user report:', error);
       res.status(500).json({ error: 'Failed to file user report' });
+    }
+  }
+
+  async syncContacts(req: AuthRequest, res: Response) {
+    try {
+      const currentUserId = req.user?.id;
+      const { phoneNumbers } = req.body;
+
+      if (!Array.isArray(phoneNumbers) || phoneNumbers.length === 0) {
+        return res.json([]);
+      }
+
+      // Fetch all registered users except current user
+      const allUsers = await prisma.user.findMany({
+        where: {
+          id: { not: currentUserId }
+        },
+        select: {
+          id: true,
+          name: true,
+          phoneNumber: true,
+          avatarUrl: true,
+          about: true,
+          lastSeen: true,
+          isVerified: true
+        }
+      });
+
+      const matchedUsersMap = new Map<string, typeof allUsers[0]>();
+
+      for (const rawNumber of phoneNumbers) {
+        if (!rawNumber || typeof rawNumber !== 'string') continue;
+        const cleanInput = rawNumber.trim();
+        if (!cleanInput) continue;
+
+        for (const user of allUsers) {
+          if (!user.phoneNumber) continue;
+          if (phonesMatch(user.phoneNumber, cleanInput)) {
+            matchedUsersMap.set(user.id, user);
+          }
+        }
+      }
+
+      const matchedUsers = Array.from(matchedUsersMap.values());
+      res.json(matchedUsers);
+    } catch (error) {
+      console.error('Error syncing contacts:', error);
+      res.status(500).json({ error: 'Failed to sync contacts' });
     }
   }
 }

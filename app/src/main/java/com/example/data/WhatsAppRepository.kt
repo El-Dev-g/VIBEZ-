@@ -443,30 +443,62 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         dao.updateChatContactName(id, name)
     }
 
+    private fun phonesMatch(phoneA: String?, phoneB: String?): Boolean {
+        if (phoneA.isNullOrBlank() || phoneB.isNullOrBlank()) return false
+        val digitsA = phoneA.replace(Regex("[^0-9]"), "")
+        val digitsB = phoneB.replace(Regex("[^0-9]"), "")
+        if (digitsA == digitsB && digitsA.isNotEmpty()) return true
+
+        val noZeroA = digitsA.replace(Regex("^0+"), "")
+        val noZeroB = digitsB.replace(Regex("^0+"), "")
+        if (noZeroA == noZeroB && noZeroA.isNotEmpty()) return true
+
+        val minLen = minOf(digitsA.length, digitsB.length)
+        if (minLen >= 7) {
+            val matchLen = minOf(minLen, 10)
+            return digitsA.takeLast(matchLen) == digitsB.takeLast(matchLen)
+        }
+        return false
+    }
+
     suspend fun createNewContact(name: String, phone: String, about: String, token: String): String {
         val cleanPhone = phone.replace(Regex("[^0-9+]"), "").trim()
+        val existingContacts = try { dao.getAllContactsOneShot() } catch (_: Exception) { emptyList() }
+
         return try {
             val searchResults = NetworkClient.apiService.searchUsers("Bearer $token", cleanPhone)
             val targetUser = searchResults.firstOrNull { 
                 val userClean = (it.phoneNumber ?: "").replace(Regex("[^0-9+]"), "").trim()
-                userClean == cleanPhone || (cleanPhone.length >= 7 && userClean.endsWith(cleanPhone.takeLast(7)))
+                userClean == cleanPhone || phonesMatch(it.phoneNumber, cleanPhone)
             }
-            
-            val finalContactId = targetUser?.id ?: "contact_${System.currentTimeMillis()}"
+
+            val existingLocal = existingContacts.firstOrNull { 
+                (targetUser != null && (it.id == targetUser.id || it.remoteId == targetUser.id)) || phonesMatch(it.phoneNumber, cleanPhone)
+            }
+
+            val finalContactId = targetUser?.id ?: existingLocal?.id ?: "contact_${System.currentTimeMillis()}"
             val finalPhone = targetUser?.phoneNumber ?: phone
 
-            // Always insert contact into Room database so they appear in contact list
-            dao.insertContact(
-                ContactEntity(
-                    id = finalContactId,
-                    remoteId = finalContactId,
-                    name = name,
-                    phoneNumber = finalPhone,
-                    avatarUrl = targetUser?.avatarUrl ?: "",
-                    aboutStatus = about,
-                    isOnline = true
-                )
+            val mergedContact = ContactEntity(
+                id = finalContactId,
+                remoteId = targetUser?.id ?: existingLocal?.remoteId ?: finalContactId,
+                name = if (name.isNotBlank()) name else (targetUser?.name ?: existingLocal?.name ?: finalPhone),
+                phoneNumber = finalPhone,
+                avatarUrl = targetUser?.avatarUrl ?: existingLocal?.avatarUrl ?: "",
+                aboutStatus = if (about.isNotBlank()) about else (targetUser?.about ?: existingLocal?.aboutStatus ?: "Hey there! I am using VIBEZ."),
+                isOnline = true,
+                lastSeen = targetUser?.lastSeen ?: existingLocal?.lastSeen ?: "Recently",
+                isVerified = (targetUser?.isVerified == true) || (existingLocal?.isVerified == true)
             )
+
+            if (existingLocal != null && existingLocal.id != finalContactId) {
+                dao.deleteContactById(existingLocal.id)
+                dao.updateChatContactIdAndName(existingLocal.id, finalContactId, mergedContact.name)
+            } else {
+                dao.updateChatContactName(finalContactId, mergedContact.name)
+            }
+
+            dao.insertContact(mergedContact)
 
             if (targetUser != null) {
                 try {
@@ -479,19 +511,20 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             finalContactId
         } catch (e: Exception) {
             e.printStackTrace()
-            // Fallback: save contact locally
-            val localId = "contact_${System.currentTimeMillis()}"
-            dao.insertContact(
-                ContactEntity(
-                    id = localId,
-                    remoteId = localId,
-                    name = name,
-                    phoneNumber = phone,
-                    avatarUrl = "",
-                    aboutStatus = about,
-                    isOnline = false
-                )
+            val existingLocal = existingContacts.firstOrNull { phonesMatch(it.phoneNumber, cleanPhone) }
+            val localId = existingLocal?.id ?: "contact_${System.currentTimeMillis()}"
+
+            val fallbackContact = ContactEntity(
+                id = localId,
+                remoteId = existingLocal?.remoteId ?: localId,
+                name = if (name.isNotBlank()) name else (existingLocal?.name ?: phone),
+                phoneNumber = phone,
+                avatarUrl = existingLocal?.avatarUrl ?: "",
+                aboutStatus = if (about.isNotBlank()) about else (existingLocal?.aboutStatus ?: "Hey there! I am using VIBEZ."),
+                isOnline = false
             )
+
+            dao.insertContact(fallbackContact)
             localId
         }
     }
@@ -512,23 +545,46 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     suspend fun syncContacts(phoneNumbers: List<String>, token: String): List<ContactEntity> {
         return try {
             val remoteUsers = NetworkClient.apiService.syncContacts("Bearer $token", SyncContactsRequest(phoneNumbers))
-            val mappedContacts = remoteUsers.map { user ->
-                ContactEntity(
-                    id = user.id,
-                    remoteId = user.id,
-                    name = user.name ?: user.phoneNumber,
-                    phoneNumber = user.phoneNumber,
-                    avatarUrl = user.avatarUrl ?: "",
-                    aboutStatus = user.about ?: "Hey there! I am using VIBEZ.",
+            val existingContacts = dao.getAllContactsOneShot()
+            val syncedList = mutableListOf<ContactEntity>()
+
+            for (user in remoteUsers) {
+                val userPhone = user.phoneNumber ?: continue
+                val remoteUserId = user.id
+
+                val existing = existingContacts.firstOrNull {
+                    it.id == remoteUserId || it.remoteId == remoteUserId || phonesMatch(it.phoneNumber, userPhone)
+                }
+
+                val contactName = when {
+                    existing != null && existing.name.isNotBlank() && existing.name != userPhone && existing.name != "Contact" -> existing.name
+                    !user.name.isNullOrBlank() -> user.name
+                    else -> userPhone
+                }
+
+                val mergedContact = ContactEntity(
+                    id = remoteUserId,
+                    remoteId = remoteUserId,
+                    name = contactName,
+                    phoneNumber = userPhone,
+                    avatarUrl = if (!user.avatarUrl.isNullOrEmpty()) user.avatarUrl else (existing?.avatarUrl ?: ""),
+                    aboutStatus = if (!user.about.isNullOrEmpty()) user.about else (existing?.aboutStatus ?: "Hey there! I am using VIBEZ."),
                     isOnline = true,
-                    lastSeen = user.lastSeen
+                    lastSeen = user.lastSeen ?: existing?.lastSeen ?: "Recently",
+                    isVerified = (user.isVerified == true) || (existing?.isVerified == true)
                 )
+
+                if (existing != null && existing.id != remoteUserId) {
+                    dao.deleteContactById(existing.id)
+                    dao.updateChatContactIdAndName(existing.id, remoteUserId, contactName)
+                } else {
+                    dao.updateChatContactName(remoteUserId, contactName)
+                }
+
+                dao.insertContact(mergedContact)
+                syncedList.add(mergedContact)
             }
-            
-            mappedContacts.forEach { 
-                dao.insertContact(it)
-            }
-            mappedContacts
+            syncedList
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

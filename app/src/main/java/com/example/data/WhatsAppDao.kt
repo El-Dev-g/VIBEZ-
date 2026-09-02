@@ -15,11 +15,17 @@ interface WhatsAppDao {
     @Query("SELECT * FROM contacts ORDER BY name ASC")
     fun getAllContacts(): Flow<List<ContactEntity>>
 
+    @Query("SELECT * FROM contacts")
+    suspend fun getAllContactsOneShot(): List<ContactEntity>
+
     @Query("SELECT * FROM contacts WHERE id = :id")
     suspend fun getContactById(id: String): ContactEntity?
 
     @Query("SELECT * FROM contacts WHERE remoteId = :remoteId")
     suspend fun getContactByRemoteId(remoteId: String): ContactEntity?
+
+    @Query("SELECT * FROM contacts WHERE phoneNumber = :phone")
+    suspend fun getContactByPhone(phone: String): ContactEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertContact(contact: ContactEntity)
@@ -27,11 +33,17 @@ interface WhatsAppDao {
     @Update
     suspend fun updateContact(contact: ContactEntity)
 
+    @Query("DELETE FROM contacts WHERE id = :id")
+    suspend fun deleteContactById(id: String)
+
     @Query("UPDATE contacts SET name = :name, phoneNumber = :phone, aboutStatus = :about WHERE id = :id")
     suspend fun updateContactDetails(id: String, name: String, phone: String, about: String)
 
     @Query("UPDATE chats SET contactName = :name WHERE contactId = :contactId")
     suspend fun updateChatContactName(contactId: String, name: String)
+
+    @Query("UPDATE chats SET contactId = :newContactId, contactName = :name WHERE contactId = :oldContactId")
+    suspend fun updateChatContactIdAndName(oldContactId: String, newContactId: String, name: String)
 
     @Query("SELECT COUNT(*) FROM contacts")
     suspend fun getContactCount(): Int
