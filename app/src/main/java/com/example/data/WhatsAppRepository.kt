@@ -1045,4 +1045,54 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     suspend fun getLatestUpdate(): AppUpdateDto {
         return NetworkClient.apiService.getLatestUpdate()
     }
+
+    suspend fun toggleCommunityVerifyPerk(communityId: String, token: String): Boolean {
+        return try {
+            val dto = NetworkClient.apiService.toggleCommunityVerifyPerk("Bearer $token", communityId)
+            dao.insertCommunity(
+                CommunityEntity(
+                    id = dto.id,
+                    name = dto.name,
+                    description = dto.description ?: "",
+                    avatarUrl = dto.avatarUrl ?: "",
+                    ownerId = dto.ownerId ?: "",
+                    isOfficial = dto.isOfficial,
+                    allowComments = dto.allowComments,
+                    allowReactions = dto.allowReactions,
+                    createdAt = parseDate(dto.createdAt),
+                    membersCount = dto.membersCount
+                )
+            )
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun toggleGroupVerifyPerk(chatId: String, token: String): Boolean {
+        return try {
+            val dto = NetworkClient.apiService.toggleGroupVerifyPerk("Bearer $token", chatId)
+            val existing = dao.getChatById(chatId)
+            val updated = existing?.copy(
+                isOfficial = dto.isOfficial,
+                isVerified = dto.isVerified
+            ) ?: ChatEntity(
+                id = dto.id,
+                remoteId = dto.id,
+                contactId = "",
+                contactName = dto.name ?: "Group",
+                lastMessage = "",
+                unreadCount = 0,
+                isGroup = dto.isGroup,
+                isOfficial = dto.isOfficial,
+                isVerified = dto.isVerified
+            )
+            dao.insertChat(updated)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }

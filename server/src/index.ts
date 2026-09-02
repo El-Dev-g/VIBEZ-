@@ -174,6 +174,7 @@ app.post('/api/chats/private', authenticate, (req, res) => chat.createOrGetPriva
 app.post('/api/chats/group', authenticate, (req, res) => chat.createGroupChat(req, res));
 app.delete('/api/chats/:chatId', authenticate, (req, res) => chat.deleteChat(req, res));
 app.patch('/api/chats/:chatId', authenticate, (req, res) => chat.updateChat(req, res));
+app.post('/api/chats/:chatId/verify-perk', authenticate, (req, res) => chat.toggleGroupVerifyPerk(req, res));
 
 // Status Routes
 app.get('/api/statuses', authenticate, (req, res) => status.getStatuses(req, res));
@@ -189,6 +190,7 @@ app.post('/api/communities', authenticate, (req, res) => community.createCommuni
 app.get('/api/communities/:communityId', authenticate, (req, res) => community.getCommunityDetails(req, res));
 app.post('/api/communities/:communityId/join', authenticate, (req, res) => community.joinCommunity(req, res));
 app.get('/api/communities/:communityId/chats', authenticate, (req, res) => community.getCommunityChannels(req, res));
+app.post('/api/communities/:communityId/verify-perk', authenticate, (req, res) => community.toggleCommunityVerifyPerk(req, res));
 
 // Call Routes
 app.get('/api/calls', authenticate, (req, res) => call.getCallLogs(req, res));

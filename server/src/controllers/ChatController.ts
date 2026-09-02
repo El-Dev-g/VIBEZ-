@@ -182,5 +182,68 @@ export class ChatController {
       res.status(500).json({ error: 'Failed to update chat' });
     }
   }
+
+  async toggleGroupVerifyPerk(req: AuthRequest, res: Response) {
+    try {
+      const { chatId } = req.params;
+      const userId = req.user?.id as string;
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user || !user.isVerified) {
+        return res.status(403).json({ error: 'Green Verification Badge required to verify group chats.' });
+      }
+
+      const chat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { members: true }
+      });
+
+      if (!chat || !chat.isGroup) {
+        return res.status(404).json({ error: 'Group chat not found' });
+      }
+
+      const isMember = chat.members.some(m => m.userId === userId);
+      if (!isMember) {
+        return res.status(403).json({ error: 'You must be a member of this group chat.' });
+      }
+
+      const newStatus = !((chat as any).isVerified || (chat as any).isOfficial);
+
+      if (newStatus) {
+        const existingGroup = await prisma.chat.findFirst({
+          where: {
+            isGroup: true,
+            isVerified: true,
+            id: { not: chatId },
+            members: { some: { userId } }
+          }
+        });
+        if (existingGroup) {
+          return res.status(400).json({ error: `Verified subscribers can verify up to 1 official group. Unverify "${existingGroup.name || 'Group'}" first.` });
+        }
+      }
+
+      const updated = await prisma.chat.update({
+        where: { id: chatId },
+        data: {
+          isVerified: newStatus,
+          isOfficial: newStatus
+        },
+        include: {
+          members: { include: { user: true } },
+          messages: { take: 1, orderBy: { createdAt: 'desc' } }
+        }
+      });
+
+      res.json({
+        ...updated,
+        isOfficial: newStatus,
+        isVerified: newStatus
+      });
+    } catch (error) {
+      console.error('Error toggling group verify perk:', error);
+      res.status(500).json({ error: 'Failed to update group verification badge' });
+    }
+  }
 }
 

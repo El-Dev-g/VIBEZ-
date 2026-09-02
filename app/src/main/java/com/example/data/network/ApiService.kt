@@ -221,4 +221,16 @@ interface ApiService {
 
     @GET("api/config/public")
     suspend fun getPublicAppConfig(): PublicAppConfigDto
+
+    @POST("api/communities/{communityId}/verify-perk")
+    suspend fun toggleCommunityVerifyPerk(
+        @Header("Authorization") token: String,
+        @Path("communityId") communityId: String
+    ): CommunityDto
+
+    @POST("api/chats/{chatId}/verify-perk")
+    suspend fun toggleGroupVerifyPerk(
+        @Header("Authorization") token: String,
+        @Path("chatId") chatId: String
+    ): ChatDto
 }

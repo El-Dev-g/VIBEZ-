@@ -86,7 +86,8 @@ fun ContactInfoScreen(
     onToggleMuteChat: (String) -> Unit = {},
     onClearChatClick: () -> Unit,
     onDeleteChatClick: () -> Unit,
-    onReportClick: (String, String) -> Unit = { _, _ -> }
+    onReportClick: (String, String) -> Unit = { _, _ -> },
+    onToggleGroupVerifyPerk: () -> Unit = {}
 ) {
     var isMuted by remember { mutableStateOf(chat?.isMuted == true) }
 
@@ -320,6 +321,62 @@ fun ContactInfoScreen(
                     }
                 }
                 Divider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+            }
+
+            // VIBEZ Pro Subscriber Official Group Perk
+            if (chat?.isGroup == true) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (chat.isVerified || chat.isOfficial) Color(0xFFECFDF5) else MaterialTheme.colorScheme.surface
+                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (chat.isVerified || chat.isOfficial) Color(0xFF10B981) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Official Group Badge",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = if (chat.isVerified || chat.isOfficial) Color(0xFF065F46) else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    VerifiedBadge(size = 18.dp)
+                                }
+                                Text(
+                                    text = if (chat.isVerified || chat.isOfficial)
+                                        "Official Green Checkmark active for this group chat."
+                                    else
+                                        "Apply your VIBEZ Pro perk to grant an Official Green Badge to 1 owned group.",
+                                    fontSize = 12.sp,
+                                    color = if (chat.isVerified || chat.isOfficial) Color(0xFF047857) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = chat.isVerified || chat.isOfficial,
+                                onCheckedChange = { onToggleGroupVerifyPerk() },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Color(0xFF10B981)
+                                )
+                            )
+                        }
+                    }
+                }
             }
 
             // Settings options list

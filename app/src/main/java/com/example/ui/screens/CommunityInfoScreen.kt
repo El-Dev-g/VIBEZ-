@@ -46,6 +46,7 @@ fun CommunityInfoScreen(
     onShareClick: () -> Unit = {},
     onToggleComments: (Boolean) -> Unit = {},
     onToggleReactions: (Boolean) -> Unit = {},
+    onToggleVerifyPerk: () -> Unit = {},
     onDeleteCommunityClick: () -> Unit = {}
 ) {
     if (community == null) {
@@ -251,6 +252,59 @@ fun CommunityInfoScreen(
                             color = MaterialTheme.colorScheme.onSurface,
                             lineHeight = 22.sp
                         )
+                    }
+                }
+            }
+
+            // VIBEZ Pro Subscriber Official Community Perk
+            if (isAdmin) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (community.isOfficial) Color(0xFFECFDF5) else MaterialTheme.colorScheme.surface
+                        ),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, if (community.isOfficial) Color(0xFF10B981) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Official Community Badge",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = if (community.isOfficial) Color(0xFF065F46) else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    VerifiedBadge(size = 18.dp)
+                                }
+                                Text(
+                                    text = if (community.isOfficial)
+                                        "Verified Badge active for this Community & Announcements Channel."
+                                    else
+                                        "Apply your VIBEZ Pro perk to grant an Official Green Badge to 1 owned community.",
+                                    fontSize = 12.sp,
+                                    color = if (community.isOfficial) Color(0xFF047857) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = community.isOfficial,
+                                onCheckedChange = { onToggleVerifyPerk() },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Color(0xFF10B981)
+                                )
+                            )
+                        }
                     }
                 }
             }

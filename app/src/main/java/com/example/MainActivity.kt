@@ -1032,6 +1032,15 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onReportClick = { reportedId, reportedName ->
                     val encodedName = java.net.URLEncoder.encode(reportedName, "UTF-8")
                     navController.navigate("report_user/$reportedId/$encodedName")
+                },
+                onToggleGroupVerifyPerk = {
+                    chatId.let { cId ->
+                        viewModel.toggleGroupVerifyPerk(cId) { success ->
+                            if (!success) {
+                                android.widget.Toast.makeText(context, "You need an active Verified Badge subscription to verify groups.", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
                 }
             )
         }
@@ -1092,6 +1101,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onToggleReactions = { isEnabled ->
                     android.widget.Toast.makeText(context, "Reactions ${if (isEnabled) "enabled" else "disabled"}", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                onToggleVerifyPerk = {
+                    viewModel.toggleCommunityVerifyPerk(communityId) { success ->
+                        if (!success) {
+                            android.widget.Toast.makeText(context, "You need an active Verified Badge subscription to verify communities.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
                 },
                 onDeleteCommunityClick = {
                     viewModel.deleteCommunity(communityId)
@@ -1257,6 +1273,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onAppUpdatesClick = {
                     navController.navigate("settings/updates")
+                },
+                onIconPickerClick = {
+                    navController.navigate("icon_picker")
                 }
             )
         }
@@ -1368,6 +1387,17 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             BadgesReceiptScreen(
                 badgeStatus = badgeStatus,
                 userName = currentUserName,
+                onBack = { navController.popBackStack() },
+                onGetBadgeClick = {
+                    navController.navigate("verification_checkout")
+                }
+            )
+        }
+
+        // App Icon Customizer Screen
+        composable("icon_picker") {
+            com.example.ui.screens.IconPickerScreen(
+                isVerified = isVerified,
                 onBack = { navController.popBackStack() },
                 onGetBadgeClick = {
                     navController.navigate("verification_checkout")

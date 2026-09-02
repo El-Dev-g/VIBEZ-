@@ -1266,4 +1266,26 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+    fun toggleCommunityVerifyPerk(communityId: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val success = repository.toggleCommunityVerifyPerk(communityId, token)
+            if (success) {
+                syncCommunities()
+            }
+            onResult(success)
+        }
+    }
+
+    fun toggleGroupVerifyPerk(chatId: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val success = repository.toggleGroupVerifyPerk(chatId, token)
+            if (success) {
+                repository.syncChats(token)
+            }
+            onResult(success)
+        }
+    }
 }

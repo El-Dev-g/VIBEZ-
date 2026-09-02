@@ -140,7 +140,8 @@ fun SettingsScreen(
     onPrivacyClick: () -> Unit = {},
     onHelpClick: () -> Unit = {},
     onStorageClick: () -> Unit = {},
-    onAppUpdatesClick: () -> Unit = {}
+    onAppUpdatesClick: () -> Unit = {},
+    onIconPickerClick: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -248,6 +249,12 @@ fun SettingsScreen(
                         title = "Verification & Badges",
                         subtitle = if (isVerified) "Verified Official Account • View receipt" else "Get Green Verification Checkmark badge",
                         onClick = if (isVerified) onViewBadgeReceiptClick else onGetBadgeClick
+                    )
+                    VibesSettingClickRow(
+                        icon = Icons.Default.Palette,
+                        title = "App Icon Customizer",
+                        subtitle = if (isVerified) "Switch home screen app icon (PRO)" else "Unlock custom app icons with Pro badge",
+                        onClick = onIconPickerClick
                     )
                     VibesSettingClickRow(
                         icon = Icons.Default.AccountBox,

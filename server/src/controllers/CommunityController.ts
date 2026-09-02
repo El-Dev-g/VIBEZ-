@@ -288,4 +288,67 @@ export class CommunityController {
       res.status(500).json({ error: 'Failed to join community' });
     }
   }
+
+  async toggleCommunityVerifyPerk(req: AuthRequest, res: Response) {
+    try {
+      const { communityId } = req.params;
+      const userId = req.user?.id as string;
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user || !user.isVerified) {
+        return res.status(403).json({ error: 'Green Verification Badge required to verify communities.' });
+      }
+
+      const community = await prisma.community.findUnique({ where: { id: communityId } });
+      if (!community) {
+        return res.status(404).json({ error: 'Community not found' });
+      }
+
+      if (community.ownerId !== userId) {
+        return res.status(403).json({ error: 'Only the community owner can apply the verification badge.' });
+      }
+
+      const newStatus = !(community as any).isOfficial;
+
+      if (newStatus) {
+        const existing = await prisma.community.findFirst({
+          where: {
+            ownerId: userId,
+            isOfficial: true,
+            id: { not: communityId }
+          }
+        });
+        if (existing) {
+          return res.status(400).json({ error: `Verified subscribers can verify up to 1 official community. Unverify "${existing.name}" first.` });
+        }
+      }
+
+      const updated = await prisma.community.update({
+        where: { id: communityId },
+        data: {
+          isOfficial: newStatus
+        },
+        include: {
+          channels: true,
+          _count: { select: { members: true } }
+        }
+      });
+
+      res.json({
+        id: updated.id,
+        name: updated.name,
+        description: updated.description,
+        avatarUrl: (updated as any).avatarUrl,
+        ownerId: updated.ownerId,
+        isOfficial: (updated as any).isOfficial,
+        allowComments: (updated as any).allowComments,
+        allowReactions: (updated as any).allowReactions,
+        createdAt: updated.createdAt,
+        membersCount: (updated as any)._count?.members || 0
+      });
+    } catch (error) {
+      console.error('Error toggling community verify perk:', error);
+      res.status(500).json({ error: 'Failed to update community verification badge' });
+    }
+  }
 }
