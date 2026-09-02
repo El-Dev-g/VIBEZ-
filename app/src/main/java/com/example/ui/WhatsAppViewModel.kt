@@ -767,9 +767,57 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     fun createNewContact(name: String, phone: String, about: String, onComplete: (String) -> Unit) {
         viewModelScope.launch {
-            authManager.getAuthToken()?.let { token ->
-                val contactId = repository.createNewContact(name, phone, about, token)
-                onComplete(contactId)
+            val token = authManager.getAuthToken() ?: ""
+            val contactId = repository.createNewContact(name, phone, about, token)
+            onComplete(contactId)
+        }
+    }
+
+    suspend fun getChatById(chatId: String): ChatEntity? {
+        return repository.getChatById(chatId)
+    }
+
+    fun getOrCreateChatForContact(contact: ContactEntity, onComplete: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val token = authManager.getAuthToken()
+                val chatId = repository.getOrCreateChatForContact(contact, token)
+                onComplete(chatId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                val fallbackId = "chat_${contact.id}"
+                val localChat = ChatEntity(
+                    id = fallbackId,
+                    contactId = contact.id,
+                    contactName = contact.name.ifBlank { contact.phoneNumber },
+                    contactAvatar = contact.avatarUrl,
+                    lastMessage = "",
+                    lastMessageTime = System.currentTimeMillis()
+                )
+                repository.addLocalChat(localChat)
+                onComplete(fallbackId)
+            }
+        }
+    }
+
+    fun getOrCreateChatForContactId(contactId: String, onComplete: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val token = authManager.getAuthToken()
+                val chatId = repository.getOrCreateChatForContactId(contactId, token)
+                onComplete(chatId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                val fallbackId = "chat_${contactId}"
+                val localChat = ChatEntity(
+                    id = fallbackId,
+                    contactId = contactId,
+                    contactName = "Contact",
+                    lastMessage = "",
+                    lastMessageTime = System.currentTimeMillis()
+                )
+                repository.addLocalChat(localChat)
+                onComplete(fallbackId)
             }
         }
     }

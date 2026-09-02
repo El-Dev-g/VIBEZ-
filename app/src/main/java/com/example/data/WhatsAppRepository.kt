@@ -529,6 +529,127 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         }
     }
 
+    suspend fun getOrCreateChatForContact(contact: ContactEntity, token: String?): String {
+        val contactId = contact.id
+        val remoteId = contact.remoteId
+        val phone = contact.phoneNumber
+        val name = contact.name.ifBlank { phone }
+
+        removeDeletedChatId(contactId)
+        if (!remoteId.isNullOrBlank()) removeDeletedChatId(remoteId)
+
+        // 1. Check existing local chats
+        val allLocalChats = try { dao.getAllChatsOneShot() } catch (_: Exception) { emptyList() }
+        val existingChat = allLocalChats.firstOrNull { chat ->
+            chat.contactId == contactId ||
+            (!remoteId.isNullOrBlank() && (chat.contactId == remoteId || chat.remoteId == remoteId)) ||
+            chat.id == contactId ||
+            (!remoteId.isNullOrBlank() && chat.id == remoteId) ||
+            (phone.isNotBlank() && (chat.contactId == phone || phonesMatch(chat.contactId, phone)))
+        }
+
+        if (existingChat != null) {
+            removeDeletedChatId(existingChat.id)
+            if (existingChat.contactName != name || (contact.avatarUrl.isNotBlank() && existingChat.contactAvatar != contact.avatarUrl)) {
+                val updated = existingChat.copy(
+                    contactName = name,
+                    contactAvatar = if (contact.avatarUrl.isNotBlank()) contact.avatarUrl else existingChat.contactAvatar,
+                    isVerified = contact.isVerified || existingChat.isVerified
+                )
+                dao.updateChat(updated)
+            }
+            return existingChat.id
+        }
+
+        // 2. Try backend API if token is present
+        var backendChatId: String? = null
+        if (!token.isNullOrBlank()) {
+            val targetUserId = if (!remoteId.isNullOrBlank() && !remoteId.startsWith("contact_")) {
+                remoteId
+            } else if (!contactId.startsWith("contact_")) {
+                contactId
+            } else {
+                try {
+                    val cleanPhone = phone.replace(Regex("[^0-9+]"), "").trim()
+                    if (cleanPhone.isNotBlank()) {
+                        val users = NetworkClient.apiService.searchUsers("Bearer $token", cleanPhone)
+                        users.firstOrNull { phonesMatch(it.phoneNumber, cleanPhone) }?.id
+                    } else null
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            if (!targetUserId.isNullOrBlank()) {
+                try {
+                    val dto = NetworkClient.apiService.createOrGetPrivateChat("Bearer $token", PrivateChatRequest(targetUserId = targetUserId))
+                    backendChatId = dto.id
+                    val isOff = (dto.name?.contains("VIBEZ Team", ignoreCase = true) == true) || dto.isOfficial
+                    val isVer = isOff || (dto.name?.contains("Channel", ignoreCase = true) == true) || contact.isVerified || dto.isVerified
+                    val entity = ChatEntity(
+                        id = dto.id,
+                        remoteId = dto.id,
+                        contactId = contactId,
+                        contactName = name,
+                        contactAvatar = contact.avatarUrl.ifBlank { dto.avatarUrl ?: "" },
+                        lastMessage = dto.messages.firstOrNull()?.content ?: "",
+                        lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
+                        unreadCount = 0,
+                        isGroup = false,
+                        isOfficial = isOff,
+                        isVerified = isVer
+                    )
+                    dao.insertContact(contact.copy(remoteId = targetUserId))
+                    dao.insertChat(entity)
+                    removeDeletedChatId(dto.id)
+                    return dto.id
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+
+        // 3. Guaranteed local fallback chat in Room
+        val fallbackChatId = backendChatId ?: "chat_${contactId}"
+        val localChat = ChatEntity(
+            id = fallbackChatId,
+            remoteId = remoteId ?: fallbackChatId,
+            contactId = contactId,
+            contactName = name,
+            contactAvatar = contact.avatarUrl,
+            lastMessage = "",
+            lastMessageTime = System.currentTimeMillis(),
+            unreadCount = 0,
+            isGroup = false,
+            isVerified = contact.isVerified
+        )
+        dao.insertContact(contact)
+        dao.insertChat(localChat)
+        removeDeletedChatId(fallbackChatId)
+        return fallbackChatId
+    }
+
+    suspend fun getOrCreateChatForContactId(contactId: String, token: String?): String {
+        val contact = dao.getContactById(contactId) ?: dao.getContactByRemoteId(contactId)
+        return if (contact != null) {
+            getOrCreateChatForContact(contact, token)
+        } else {
+            val existingChat = dao.getChatById(contactId) ?: dao.getChatByContactId(contactId)
+            if (existingChat != null) {
+                removeDeletedChatId(existingChat.id)
+                return existingChat.id
+            }
+
+            val placeholder = ContactEntity(
+                id = contactId,
+                name = "Contact",
+                phoneNumber = "",
+                aboutStatus = "Hey there! I am using VIBEZ."
+            )
+            getOrCreateChatForContact(placeholder, token)
+        }
+    }
+
     suspend fun createGroupChat(groupName: String, contactIds: List<String>, token: String): String {
         return try {
             val memberIds = contactIds.filter { !it.contains("_") } 

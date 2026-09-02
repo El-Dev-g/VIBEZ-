@@ -667,7 +667,17 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
-            val chat = allChatsList.firstOrNull { it.id == chatId }
+            var localChat by remember(chatId) {
+                mutableStateOf(
+                    allChatsList.firstOrNull { it.id == chatId || it.contactId == chatId || it.remoteId == chatId }
+                )
+            }
+            LaunchedEffect(chatId) {
+                if (localChat == null && chatId.isNotEmpty()) {
+                    localChat = viewModel.getChatById(chatId)
+                }
+            }
+            val chat = allChatsList.firstOrNull { it.id == chatId } ?: localChat
             val messagesFlow = remember(chatId) { viewModel.getMessagesForChat(chatId) }
             val messages by messagesFlow.collectAsState()
 
@@ -683,18 +693,32 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 }
             }
 
-            val contact = chat?.let { c -> contacts.firstOrNull { it.id == c.contactId } }
+            val contact = (chat?.contactId ?: chatId).let { cId ->
+                contacts.firstOrNull { it.id == cId || it.remoteId == cId }
+            }
+
+            val effectiveChat = chat ?: contact?.let { c ->
+                ChatEntity(
+                    id = chatId,
+                    remoteId = c.remoteId ?: chatId,
+                    contactId = c.id,
+                    contactName = c.name,
+                    contactAvatar = c.avatarUrl,
+                    lastMessage = "",
+                    lastMessageTime = System.currentTimeMillis()
+                )
+            }
 
             val currentUserId = viewModel.authManager.getUserId() ?: ""
             val matchingCommunity = communities.firstOrNull {
-                it.name.equals(chat?.contactName, ignoreCase = true) ||
-                chat?.contactName?.contains(it.name, ignoreCase = true) == true ||
-                (chat?.isOfficial == true && it.isOfficial)
+                it.name.equals(effectiveChat?.contactName, ignoreCase = true) ||
+                effectiveChat?.contactName?.contains(it.name, ignoreCase = true) == true ||
+                (effectiveChat?.isOfficial == true && it.isOfficial)
             }
             val isAdmin = matchingCommunity?.ownerId == currentUserId
 
             ChatDetailScreen(
-                chat = chat,
+                chat = effectiveChat,
                 contact = contact,
                 messages = messages,
                 isDarkMode = isDarkMode,
@@ -810,19 +834,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 viewers = viewers,
                 onBackClick = { navController.popBackStack() },
                 onViewerClick = { contactId ->
-                    val matchingChat = allChatsList.firstOrNull { it.contactId == contactId }
-                    if (matchingChat != null) {
-                        navController.navigate("chat/${matchingChat.id}")
-                    } else {
-                        val contact = contacts.firstOrNull { it.id == contactId }
-                        if (contact != null) {
-                            viewModel.createNewContact(contact.name, contact.phoneNumber, contact.aboutStatus) { newContactId ->
-                                val newChat = allChatsList.firstOrNull { it.contactId == newContactId }
-                                if (newChat != null) {
-                                    navController.navigate("chat/${newChat.id}")
-                                }
-                            }
-                        }
+                    viewModel.getOrCreateChatForContactId(contactId) { chatId ->
+                        navController.navigate("chat/$chatId")
                     }
                 },
                 onDeleteStatus = { sId ->
@@ -920,21 +933,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 syncStatusMessage = syncStatusMessage,
                 onBackClick = { navController.popBackStack() },
                 onContactSelect = { contact ->
-                    val existingChat = allChatsList.firstOrNull { it.contactId == contact.id || it.contactName == contact.name }
-                    if (existingChat != null) {
-                        navController.navigate("chat/${existingChat.id}") {
+                    viewModel.getOrCreateChatForContact(contact) { chatId ->
+                        navController.navigate("chat/$chatId") {
                             popUpTo("main")
-                        }
-                    } else {
-                        viewModel.createNewContact(contact.name, contact.phoneNumber, contact.aboutStatus) { newContactId ->
-                            val newChat = allChatsList.firstOrNull { it.contactId == newContactId }
-                            if (newChat != null) {
-                                navController.navigate("chat/${newChat.id}") {
-                                    popUpTo("main")
-                                }
-                            } else {
-                                navController.popBackStack()
-                            }
                         }
                     }
                 },
@@ -952,8 +953,12 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             NewContactScreen(
                 onBackClick = { navController.popBackStack() },
                 onSaveContact = { name, phone, about ->
-                    viewModel.createNewContact(name, phone, about) {
-                        navController.popBackStack()
+                    viewModel.createNewContact(name, phone, about) { newContactId ->
+                        viewModel.getOrCreateChatForContactId(newContactId) { chatId ->
+                            navController.navigate("chat/$chatId") {
+                                popUpTo("main")
+                            }
+                        }
                     }
                 }
             )
@@ -1554,17 +1559,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     navController.navigate("encryption_info")
                 },
                 onMessageClick = {
-                    val matchingChat = allChatsList.firstOrNull { it.contactId == contactId }
-                    if (matchingChat != null) {
-                        navController.navigate("chat/${matchingChat.id}")
-                    } else if (contact != null) {
-                        viewModel.createNewContact(contact.name, contact.phoneNumber, contact.aboutStatus) { newContactId ->
-                            val newChat = allChatsList.firstOrNull { it.contactId == newContactId }
-                            if (newChat != null) {
-                                navController.navigate("chat/${newChat.id}")
-                            } else {
-                                navController.popBackStack()
-                            }
+                    if (contact != null) {
+                        viewModel.getOrCreateChatForContact(contact) { chatId ->
+                            navController.navigate("chat/$chatId")
+                        }
+                    } else {
+                        viewModel.getOrCreateChatForContactId(contactId) { chatId ->
+                            navController.navigate("chat/$chatId")
                         }
                     }
                 },
