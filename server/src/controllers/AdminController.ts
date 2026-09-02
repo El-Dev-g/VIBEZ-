@@ -1841,4 +1841,131 @@ export class AdminController {
       res.status(500).json({ error: 'Failed to clear audit logs' });
     }
   }
+
+  async getAdmins(req: Request, res: Response) {
+    try {
+      const admins = await prisma.admin.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          photo: true,
+          role: true,
+          twoFactorEnabled: true,
+          createdAt: true
+        }
+      });
+      res.json(admins);
+    } catch (error) {
+      console.error('Failed to fetch admins:', error);
+      res.status(500).json({ error: 'Failed to fetch admin team' });
+    }
+  }
+
+  async createAdmin(req: Request, res: Response) {
+    try {
+      const { email, password, name, role } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+
+      const existing = await prisma.admin.findUnique({ where: { email } });
+      if (existing) {
+        return res.status(400).json({ error: 'Admin with this email already exists' });
+      }
+
+      const newAdmin = await prisma.admin.create({
+        data: {
+          email,
+          password,
+          name: name || 'Team Member',
+          role: role || 'MODERATOR'
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: (req as any).user?.email || 'system',
+          action: 'CREATE_ADMIN',
+          target: `New Admin: ${email} (${role})`
+        }
+      });
+
+      // Send automated notification to the staff member
+      try {
+        await emailService.sendRoleAssignmentNotification(
+          email,
+          newAdmin.role,
+          'VIBEZ Admin Portal'
+        );
+      } catch (notifyError) {
+        console.error('Failed to send enrollment email to new admin:', notifyError);
+      }
+
+      res.status(201).json({
+        id: newAdmin.id,
+        email: newAdmin.email,
+        name: newAdmin.name,
+        role: newAdmin.role
+      });
+    } catch (error) {
+      console.error('Failed to create admin:', error);
+      res.status(500).json({ error: 'Failed to create team member' });
+    }
+  }
+
+  async updateAdmin(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { name, role, email } = req.body;
+
+      const updated = await prisma.admin.update({
+        where: { id },
+        data: {
+          name,
+          role,
+          email
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: (req as any).user?.email || 'system',
+          action: 'UPDATE_ADMIN',
+          target: `Admin ID: ${id} updated to Role: ${role}`
+        }
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Failed to update admin:', error);
+      res.status(500).json({ error: 'Failed to update team member' });
+    }
+  }
+
+  async deleteAdmin(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      
+      const target = await prisma.admin.findUnique({ where: { id } });
+      if (!target) return res.status(404).json({ error: 'Admin not found' });
+
+      await prisma.admin.delete({ where: { id } });
+
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: (req as any).user?.email || 'system',
+          action: 'DELETE_ADMIN',
+          target: `Deleted Admin: ${target.email}`
+        }
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Failed to delete admin:', error);
+      res.status(500).json({ error: 'Failed to delete team member' });
+    }
+  }
 }

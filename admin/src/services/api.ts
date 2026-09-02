@@ -1135,6 +1135,60 @@ export const clearAuditLogs = async (): Promise<boolean> => {
   }
 };
 
+export const fetchAdmins = async (): Promise<AdminUser[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/admins`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store'
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error('fetchAdmins error:', error);
+  }
+  return [];
+};
+
+export const createAdmin = async (data: any): Promise<AdminUser | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/admins`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error('createAdmin error:', error);
+  }
+  return null;
+};
+
+export const updateAdmin = async (id: string, data: any): Promise<AdminUser | null> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/admins/${id}`, {
+      method: 'PUT',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (res.ok) return await res.json();
+  } catch (error) {
+    console.error('updateAdmin error:', error);
+  }
+  return null;
+};
+
+export const deleteAdmin = async (id: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/admins/${id}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders()
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('deleteAdmin error:', error);
+  }
+  return false;
+};
+
 export interface GmailOAuthStatus {
   configured: boolean;
   provider: string | null;

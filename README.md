@@ -38,7 +38,7 @@ Configure these variables in your root `.env` or in the **AI Studio Secrets pane
 
 | Variable | Description | Example / Recommended Value |
 | :--- | :--- | :--- |
-| `BACKEND_URL` | Production/Development Backend API URL | `https://vibez-n5h1.onrender.com/` |
+| `BACKEND_URL` | Production/Development Backend API URL | `https://vibez-server.onrender.com/` |
 | `GOOGLE_WEB_CLIENT_ID` | OAuth 2.0 Web Client ID for Google Sign-In | `31813758410-qtfe29f8ufi980db5a8qpeehl5cvntls.apps.googleusercontent.com` |
 | `GEMINI_API_KEY` | Gemini AI API Key (auto-injected in AI Studio) | `AIzaSy...` |
 
@@ -71,7 +71,7 @@ Configured in your Cloud/Render Web Service Environment Settings:
 ### 4. Next.js Admin Variables (`/admin`)
 | Variable | Description | Example |
 | :--- | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | Production URL pointing to your deployed backend API | `https://vibez-n5h1.onrender.com/api` |
+| `NEXT_PUBLIC_API_URL` | Production URL pointing to your deployed backend API | `https://vibez-server.onrender.com/api` |
 
 ### 5. Cloudflare R2 Media Storage *(Optional)*
 | Variable | Description |

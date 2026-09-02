@@ -272,6 +272,10 @@ app.put('/api/admin/communities/:communityId', authenticateAdmin, (req, res) => 
 app.patch('/api/admin/communities/:communityId', authenticateAdmin, (req, res) => admin.updateCommunity(req, res));
 
 // Admin Profile, Password & Sessions Routes
+app.get('/api/admin/admins', authenticateAdmin, (req, res) => admin.getAdmins(req, res));
+app.post('/api/admin/admins', authenticateAdmin, (req, res) => admin.createAdmin(req, res));
+app.put('/api/admin/admins/:id', authenticateAdmin, (req, res) => admin.updateAdmin(req, res));
+app.delete('/api/admin/admins/:id', authenticateAdmin, (req, res) => admin.deleteAdmin(req, res));
 app.get('/api/admin/profile', authenticateAdmin, (req, res) => admin.getProfile(req, res));
 app.put('/api/admin/profile', authenticateAdmin, (req, res) => admin.updateProfile(req, res));
 app.post('/api/admin/change-password', authenticateAdmin, (req, res) => admin.changePassword(req, res));
