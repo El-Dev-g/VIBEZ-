@@ -8,6 +8,7 @@ export default function LogsClient({ initialLogs }: { initialLogs?: AuditLog[] }
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
+  const [showFailuresOnly, setShowFailuresOnly] = useState(false);
   const [toast, setToast] = useState<{ message: string; isError?: boolean } | null>(null);
 
   const showToast = (message: string, isError = false) => {
@@ -68,6 +69,9 @@ export default function LogsClient({ initialLogs }: { initialLogs?: AuditLog[] }
 
   const filteredLogs = logs.filter(l => {
     const matchesAction = actionFilter === 'ALL' || l.action === actionFilter;
+    const isFailure = l.action.includes('FAILURE') || l.target.toLowerCase().includes('error');
+    const matchesFailureToggle = !showFailuresOnly || isFailure;
+    
     const query = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !query ||
@@ -76,7 +80,7 @@ export default function LogsClient({ initialLogs }: { initialLogs?: AuditLog[] }
       l.target.toLowerCase().includes(query) ||
       l.timestamp.toLowerCase().includes(query);
 
-    return matchesAction && matchesSearch;
+    return matchesAction && matchesSearch && matchesFailureToggle;
   });
 
   return (
@@ -87,6 +91,17 @@ export default function LogsClient({ initialLogs }: { initialLogs?: AuditLog[] }
           <p className="text-slate-500 font-bold mt-1">Track administrative actions, user moderations, and system configuration modifications across the ecosystem.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowFailuresOnly(!showFailuresOnly)}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-2xl border transition-all shadow-sm active:scale-95 ${
+              showFailuresOnly 
+              ? 'bg-red-500 border-red-500 text-white hover:bg-red-600' 
+              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span>🚨</span>
+            <span>{showFailuresOnly ? 'Showing Failures' : 'Show Failures Only'}</span>
+          </button>
           <button
             onClick={handleExportLogs}
             disabled={logs.length === 0}
@@ -173,30 +188,39 @@ export default function LogsClient({ initialLogs }: { initialLogs?: AuditLog[] }
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => (
-                  <tr key={log.id} className="group hover:bg-slate-50/50 transition-all duration-200">
-                    <td className="whitespace-nowrap px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-[10px]">
-                          {log.adminEmail.charAt(0).toUpperCase()}
+                filteredLogs.map((log) => {
+                  const isError = log.action.includes('FAILURE') || log.target.toLowerCase().includes('error');
+                  return (
+                    <tr key={log.id} className={`group transition-all duration-200 ${isError ? 'bg-red-50/30 hover:bg-red-50/50' : 'hover:bg-slate-50/50'}`}>
+                      <td className="whitespace-nowrap px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] ${isError ? 'bg-red-600 text-white' : 'bg-slate-900 text-white'}`}>
+                            {log.adminEmail.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="text-sm font-black text-slate-900">{log.adminEmail}</div>
                         </div>
-                        <div className="text-sm font-black text-slate-900">{log.adminEmail}</div>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-8 py-6">
-                      <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider border border-blue-100">
-                        <span className="w-1 h-1 rounded-full bg-blue-500"></span>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-8 py-6">
-                      <div className="text-sm font-bold text-slate-600 max-w-sm truncate">{log.target}</div>
-                    </td>
-                    <td className="whitespace-nowrap px-8 py-6 text-right font-mono text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      {log.timestamp}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="whitespace-nowrap px-8 py-6">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider border ${
+                          isError 
+                          ? 'bg-red-50 text-red-700 border-red-100' 
+                          : 'bg-blue-50 text-blue-700 border-blue-100'
+                        }`}>
+                          <span className={`w-1 h-1 rounded-full ${isError ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className={`text-sm font-bold max-w-xl break-words ${isError ? 'text-red-700' : 'text-slate-600'}`}>
+                          {log.target}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-8 py-6 text-right font-mono text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {log.timestamp}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

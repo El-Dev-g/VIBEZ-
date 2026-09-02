@@ -231,7 +231,42 @@ export class GmailOAuthController {
 
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     const status = emailService.getGmailStatus();
-    return res.json(status);
+    
+    // Perform a real health check if configured
+    let health = { ok: status.configured, message: status.configured ? 'Configured' : 'Not configured' };
+    
+    if (status.configured && emailService.refreshToken) {
+      try {
+        // Try to get a fresh access token to verify the refresh token is still valid
+        const clientId = emailService.clientId;
+        const clientSecret = emailService.clientSecret;
+        
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId || '',
+            client_secret: clientSecret || '',
+            refresh_token: emailService.refreshToken,
+            grant_type: 'refresh_token',
+          }),
+        });
+        
+        const data = await tokenRes.json();
+        if (!tokenRes.ok) {
+          health = { 
+            ok: false, 
+            message: data.error_description || data.error || 'Token invalid or expired' 
+          };
+        } else {
+          health = { ok: true, message: 'Token is valid and active' };
+        }
+      } catch (e: any) {
+        health = { ok: false, message: e.message || 'Connectivity issue during health check' };
+      }
+    }
+
+    return res.json({ ...status, health });
   }
 
   /**

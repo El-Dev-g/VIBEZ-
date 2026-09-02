@@ -102,6 +102,8 @@ function IntegrationsContent() {
   };
 
   const isConnected = status?.authorized === true;
+  const healthOk = status?.health?.ok !== false;
+  const healthMessage = status?.health?.message;
 
   if (!isAdmin) {
     return (
@@ -187,10 +189,17 @@ function IntegrationsContent() {
                 {loading ? (
                   <span className="w-2 h-2 rounded-full bg-slate-300 animate-pulse" />
                 ) : isConnected ? (
-                  <span className="px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    Connected
-                  </span>
+                  healthOk ? (
+                    <span className="px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                      Active
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 bg-red-50 border border-red-100 text-red-600 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                      Issue
+                    </span>
+                  )
                 ) : (
                   <span className="px-2.5 py-1 bg-red-50 border border-red-100 text-red-600 text-xs font-black uppercase tracking-wider rounded-lg">
                     Gmail API
@@ -206,9 +215,21 @@ function IntegrationsContent() {
                 Connect the official VIBEZ Support Email to Google OAuth2. Enables secure dispatch of account alerts, system verifications, and agent replies over Port 443 HTTPS.
               </p>
               {isConnected && status?.userEmail && (
-                <div className="mt-2 text-xs text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded-lg p-2 flex items-center gap-1.5">
-                  <span className="text-slate-400">Account:</span>
-                  <span className="text-slate-600 truncate font-mono">{status.userEmail}</span>
+                <div className="mt-2 space-y-2">
+                  <div className="text-xs text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded-lg p-2 flex items-center gap-1.5">
+                    <span className="text-slate-400">Account:</span>
+                    <span className="text-slate-600 truncate font-mono">{status.userEmail}</span>
+                  </div>
+                  {!healthOk && (
+                    <div className="p-2.5 bg-red-50 border border-red-100 rounded-xl text-[10px] font-black text-red-600 uppercase tracking-tight flex items-start gap-2">
+                      <span className="text-sm">⚠️</span>
+                      <div>
+                        <p>Connection Issue</p>
+                        <p className="opacity-70 normal-case font-bold">{healthMessage || 'Token has been expired or revoked.'}</p>
+                        <p className="mt-1 underline cursor-pointer" onClick={handleConnectGmail}>Click to Re-authenticate</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

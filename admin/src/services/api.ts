@@ -1199,6 +1199,10 @@ export interface GmailOAuthStatus {
   authorized: boolean;
   userEmail?: string;
   lastAuthorized?: string;
+  health?: {
+    ok: boolean;
+    message: string;
+  };
 }
 
 export const fetchGmailOAuthStatus = async (): Promise<GmailOAuthStatus | null> => {

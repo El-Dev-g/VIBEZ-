@@ -582,8 +582,8 @@ export class AdminController {
         await prisma.auditLog.create({
           data: {
             adminEmail,
-            action: 'REPLY_SUPPORT_INQUIRY',
-            target: `Inquiry:${inquiry.id} (${inquiry.email})`
+            action: emailResult.success ? 'REPLY_SUPPORT_INQUIRY' : 'EMAIL_DISPATCH_FAILURE',
+            target: `Inquiry:${inquiry.id} (${inquiry.email})${!emailResult.success ? ` - Error: ${emailResult.error}` : ''}`
           }
         });
       } catch (logErr) {}
@@ -1078,10 +1078,24 @@ export class AdminController {
             console.log(`[AdminController] Community role update notification sent successfully to ${user.googleEmail}`);
           } else {
             console.warn(`[AdminController] Community role update notification failed for ${user.googleEmail}:`, notifyResult.error);
+            await prisma.auditLog.create({
+              data: {
+                adminEmail: (req as any).user?.email || 'system',
+                action: 'EMAIL_DISPATCH_FAILURE',
+                target: `Community Role Update:${user.googleEmail} - Error: ${notifyResult.error}`
+              }
+            });
           }
         }
-      } catch (notifyError) {
+      } catch (notifyError: any) {
         console.error('[AdminController] Failed to send role notification:', notifyError);
+        await prisma.auditLog.create({
+          data: {
+            adminEmail: (req as any).user?.email || 'system',
+            action: 'EMAIL_DISPATCH_FAILURE',
+            target: `Community Role Update (Critical) - Error: ${notifyError.message || 'Unknown'}`
+          }
+        });
       }
 
       res.json({ success: true, userId, role: targetRole });
@@ -1155,10 +1169,24 @@ export class AdminController {
             console.log(`[AdminController] Community member add notification sent successfully to ${user.googleEmail}`);
           } else {
             console.warn(`[AdminController] Community member add notification failed for ${user.googleEmail}:`, notifyResult.error);
+            await prisma.auditLog.create({
+              data: {
+                adminEmail: (req as any).user?.email || 'system',
+                action: 'EMAIL_DISPATCH_FAILURE',
+                target: `Community Enrollment:${user.googleEmail} - Error: ${notifyResult.error}`
+              }
+            });
           }
         }
-      } catch (notifyError) {
+      } catch (notifyError: any) {
         console.error('[AdminController] Failed to send role notification:', notifyError);
+        await prisma.auditLog.create({
+          data: {
+            adminEmail: (req as any).user?.email || 'system',
+            action: 'EMAIL_DISPATCH_FAILURE',
+            target: `Community Enrollment (Critical) - Error: ${notifyError.message || 'Unknown'}`
+          }
+        });
       }
 
       res.json({ success: true, member });
@@ -1919,9 +1947,23 @@ export class AdminController {
           console.log(`[AdminController] Enrollment notification sent successfully to ${email}`);
         } else {
           console.warn(`[AdminController] Enrollment notification failed for ${email}:`, notifyResult.error);
+          await prisma.auditLog.create({
+            data: {
+              adminEmail: (req as any).user?.email || 'system',
+              action: 'EMAIL_DISPATCH_FAILURE',
+              target: `Staff Enrollment:${email} - Error: ${notifyResult.error}`
+            }
+          });
         }
-      } catch (notifyError) {
+      } catch (notifyError: any) {
         console.error('[AdminController] Failed to send enrollment email to new admin:', notifyError);
+        await prisma.auditLog.create({
+          data: {
+            adminEmail: (req as any).user?.email || 'system',
+            action: 'EMAIL_DISPATCH_FAILURE',
+            target: `Staff Enrollment:${email} - Critical: ${notifyError.message || 'Unknown'}`
+          }
+        });
       }
 
       res.status(201).json({
@@ -1963,9 +2005,23 @@ export class AdminController {
             console.log(`[AdminController] Role update notification sent successfully to ${updated.email}`);
           } else {
             console.warn(`[AdminController] Role update notification failed for ${updated.email}:`, notifyResult.error);
+            await prisma.auditLog.create({
+              data: {
+                adminEmail: (req as any).user?.email || 'system',
+                action: 'EMAIL_DISPATCH_FAILURE',
+                target: `Role Update:${updated.email} - Error: ${notifyResult.error}`
+              }
+            });
           }
-        } catch (notifyError) {
+        } catch (notifyError: any) {
           console.error('[AdminController] Failed to send role update email:', notifyError);
+          await prisma.auditLog.create({
+            data: {
+              adminEmail: (req as any).user?.email || 'system',
+              action: 'EMAIL_DISPATCH_FAILURE',
+              target: `Role Update:${updated.email} - Critical Error: ${notifyError.message}`
+            }
+          });
         }
       }
 
