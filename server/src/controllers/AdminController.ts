@@ -1054,6 +1054,29 @@ export class AdminController {
         }
       });
 
+      // Send automated notification to the staff member
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true }
+        });
+
+        if (user?.email && targetRole !== 'MEMBER') {
+          const community = await prisma.community.findUnique({
+            where: { id: communityId },
+            select: { name: true }
+          });
+
+          await emailService.sendRoleAssignmentNotification(
+            user.email,
+            targetRole,
+            community?.name || 'Official Community'
+          );
+        }
+      } catch (notifyError) {
+        console.error('Failed to send role notification:', notifyError);
+      }
+
       res.json({ success: true, userId, role: targetRole });
     } catch (error) {
       console.error('Error updating member role:', error);
@@ -1100,6 +1123,29 @@ export class AdminController {
           target: `User:${userId} Community:${communityId} Role:${targetRole}`
         }
       });
+
+      // Send automated notification to the staff member
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true }
+        });
+
+        if (user?.email && targetRole !== 'MEMBER') {
+          const community = await prisma.community.findUnique({
+            where: { id: communityId },
+            select: { name: true }
+          });
+
+          await emailService.sendRoleAssignmentNotification(
+            user.email,
+            targetRole,
+            community?.name || 'Official Community'
+          );
+        }
+      } catch (notifyError) {
+        console.error('Failed to send role notification:', notifyError);
+      }
 
       res.json({ success: true, member });
     } catch (error) {

@@ -806,6 +806,55 @@ Connect with us:
       html,
     });
   }
+
+  /**
+   * Sends a notification to a staff member when they are assigned a new role
+   */
+  async sendRoleAssignmentNotification(email: string, role: string, entityName: string): Promise<{ success: boolean; error?: string }> {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0d1117; color: #e6edf3; margin: 0; padding: 40px 20px; }
+          .container { max-width: 580px; margin: 0 auto; background: #161b22; border-radius: 16px; border: 1px solid #30363d; overflow: hidden; }
+          .header { background: linear-gradient(135deg, #00a884 0%, #53bdeb 100%); padding: 32px 24px; text-align: center; }
+          .header h1 { margin: 0; color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: 2px; }
+          .content { padding: 32px 24px; line-height: 1.6; color: #c9d1d9; }
+          .role-badge { display: inline-block; background: rgba(0, 168, 132, 0.2); border: 1px solid #00a884; color: #00a884; font-size: 14px; font-weight: 800; padding: 6px 16px; border-radius: 20px; margin: 16px 0; text-transform: uppercase; }
+          .btn { display: inline-block; background: #00a884; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: 600; margin-top: 24px; text-align: center; }
+          .footer { padding: 20px 24px; background: #0d1117; text-align: center; font-size: 12px; color: #8b949e; border-top: 1px solid #21262d; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>VIBEZ STAFF</h1>
+          </div>
+          <div class="content">
+            <h2>New Role Assigned!</h2>
+            <p>You have been assigned a new administrative role in <strong>${entityName}</strong>.</p>
+            <div class="role-badge">${role}</div>
+            <p>Your permissions have been updated automatically. You can now access administrative tools and governance features for this entity.</p>
+            <p>Please ensure you follow the platform's moderation and security guidelines at all times.</p>
+            <a href="${this.appUrl || 'https://vibez.chat'}" class="btn">Go to Dashboard</a>
+          </div>
+          <div class="footer">
+            &copy; ${new Date().getFullYear()} VIBEZ Inc. All rights reserved.<br>
+            This is a system notification for authorized staff members.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.sendEmail({
+      to: email,
+      subject: `VIBEZ Staff Enrollment: ${role}`,
+      html,
+    });
+  }
 }
 
 export const emailService = new EmailService();
