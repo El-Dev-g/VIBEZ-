@@ -1062,19 +1062,26 @@ export class AdminController {
         });
 
         if (user?.googleEmail && targetRole !== 'MEMBER') {
+          console.log(`[AdminController] Triggering community role update notification for ${user.googleEmail} to ${targetRole}`);
           const community = await prisma.community.findUnique({
             where: { id: communityId },
             select: { name: true }
           });
 
-          await emailService.sendRoleAssignmentNotification(
+          const notifyResult = await emailService.sendRoleAssignmentNotification(
             user.googleEmail,
             targetRole,
             community?.name || 'Official Community'
           );
+          
+          if (notifyResult.success) {
+            console.log(`[AdminController] Community role update notification sent successfully to ${user.googleEmail}`);
+          } else {
+            console.warn(`[AdminController] Community role update notification failed for ${user.googleEmail}:`, notifyResult.error);
+          }
         }
       } catch (notifyError) {
-        console.error('Failed to send role notification:', notifyError);
+        console.error('[AdminController] Failed to send role notification:', notifyError);
       }
 
       res.json({ success: true, userId, role: targetRole });
@@ -1132,19 +1139,26 @@ export class AdminController {
         });
 
         if (user?.googleEmail && targetRole !== 'MEMBER') {
+          console.log(`[AdminController] Triggering community member add notification for ${user.googleEmail} to ${targetRole}`);
           const community = await prisma.community.findUnique({
             where: { id: communityId },
             select: { name: true }
           });
 
-          await emailService.sendRoleAssignmentNotification(
+          const notifyResult = await emailService.sendRoleAssignmentNotification(
             user.googleEmail,
             targetRole,
             community?.name || 'Official Community'
           );
+          
+          if (notifyResult.success) {
+            console.log(`[AdminController] Community member add notification sent successfully to ${user.googleEmail}`);
+          } else {
+            console.warn(`[AdminController] Community member add notification failed for ${user.googleEmail}:`, notifyResult.error);
+          }
         }
       } catch (notifyError) {
-        console.error('Failed to send role notification:', notifyError);
+        console.error('[AdminController] Failed to send role notification:', notifyError);
       }
 
       res.json({ success: true, member });
@@ -1894,14 +1908,20 @@ export class AdminController {
       });
 
       // Send automated notification to the staff member
+      console.log(`[AdminController] Triggering enrollment notification for ${email} as ${newAdmin.role}`);
       try {
-        await emailService.sendRoleAssignmentNotification(
+        const notifyResult = await emailService.sendRoleAssignmentNotification(
           email,
           newAdmin.role,
           'VIBEZ Admin Portal'
         );
+        if (notifyResult.success) {
+          console.log(`[AdminController] Enrollment notification sent successfully to ${email}`);
+        } else {
+          console.warn(`[AdminController] Enrollment notification failed for ${email}:`, notifyResult.error);
+        }
       } catch (notifyError) {
-        console.error('Failed to send enrollment email to new admin:', notifyError);
+        console.error('[AdminController] Failed to send enrollment email to new admin:', notifyError);
       }
 
       res.status(201).json({
@@ -1929,6 +1949,25 @@ export class AdminController {
           email
         }
       });
+
+      // Send automated notification if role was updated
+      if (role) {
+        console.log(`[AdminController] Triggering role update notification for ${updated.email} to ${updated.role}`);
+        try {
+          const notifyResult = await emailService.sendRoleAssignmentNotification(
+            updated.email,
+            updated.role,
+            'VIBEZ Admin Portal'
+          );
+          if (notifyResult.success) {
+            console.log(`[AdminController] Role update notification sent successfully to ${updated.email}`);
+          } else {
+            console.warn(`[AdminController] Role update notification failed for ${updated.email}:`, notifyResult.error);
+          }
+        } catch (notifyError) {
+          console.error('[AdminController] Failed to send role update email:', notifyError);
+        }
+      }
 
       await prisma.auditLog.create({
         data: {
