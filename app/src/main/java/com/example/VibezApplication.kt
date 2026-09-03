@@ -12,6 +12,7 @@ class VibezApplication : Application() {
         super.onCreate()
         FirebaseApp.initializeApp(this)
         PhoneAuthPolicyManager.init(this)
+        com.example.service.InAppUpdateService.schedulePeriodicCheck(this)
         
         val firebaseAppCheck = FirebaseAppCheck.getInstance()
         if (BuildConfig.DEBUG) {

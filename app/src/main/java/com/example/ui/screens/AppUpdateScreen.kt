@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.network.AppUpdateDto
+import com.example.ui.WhatsAppViewModel.UpdateDownloadState
 import com.example.ui.theme.WhatsAppMinimalPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,7 +26,11 @@ fun AppUpdateScreen(
     latestUpdate: AppUpdateDto?,
     isChecking: Boolean,
     error: String?,
-    onCheckUpdate: () -> Unit
+    downloadState: UpdateDownloadState,
+    onCheckUpdate: () -> Unit,
+    onDownloadClick: (String) -> Unit,
+    onInstallClick: (String) -> Unit,
+    onResetState: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
     val currentVersionCode = 1 // Hardcoded for this applet
@@ -146,12 +151,86 @@ fun AppUpdateScreen(
                             
                             Spacer(modifier = Modifier.height(16.dp))
                             
-                            Button(
-                                onClick = { uriHandler.openUri(latestUpdate.downloadUrl) },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary)
-                            ) {
-                                Text("UPDATE NOW")
+                            when (downloadState) {
+                                is UpdateDownloadState.Idle -> {
+                                    Button(
+                                        onClick = { onDownloadClick(latestUpdate.downloadUrl) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary)
+                                    ) {
+                                        Text("DOWNLOAD & INSTALL")
+                                    }
+                                }
+                                is UpdateDownloadState.Downloading -> {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        LinearProgressIndicator(
+                                            progress = { downloadState.progress },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            color = WhatsAppMinimalPrimary
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Downloading update...",
+                                                fontSize = 12.sp,
+                                                color = Color.Gray
+                                            )
+                                            Text(
+                                                text = "${(downloadState.progress * 100).toInt()}%",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = WhatsAppMinimalPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                                is UpdateDownloadState.Completed -> {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Button(
+                                            onClick = { onInstallClick(downloadState.apkPath) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary)
+                                        ) {
+                                            Text("INSTALL NOW")
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        TextButton(
+                                            onClick = onResetState,
+                                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                                        ) {
+                                            Text("Reset", color = Color.Gray, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                                is UpdateDownloadState.Error -> {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Text(
+                                            text = downloadState.message,
+                                            color = Color.Red,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+                                        Row(modifier = Modifier.fillMaxWidth()) {
+                                            Button(
+                                                onClick = { onDownloadClick(latestUpdate.downloadUrl) },
+                                                modifier = Modifier.weight(1f),
+                                                colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary)
+                                            ) {
+                                                Text("RETRY")
+                                            }
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            OutlinedButton(
+                                                onClick = onResetState,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Text("CANCEL", color = WhatsAppMinimalPrimary)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

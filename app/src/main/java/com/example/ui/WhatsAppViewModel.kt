@@ -156,6 +156,16 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val isCheckingForUpdates = MutableStateFlow(false)
     val updateError = MutableStateFlow<String?>(null)
 
+    sealed interface UpdateDownloadState {
+        object Idle : UpdateDownloadState
+        data class Downloading(val progress: Float) : UpdateDownloadState
+        data class Completed(val apkPath: String) : UpdateDownloadState
+        data class Error(val message: String) : UpdateDownloadState
+    }
+
+    private val _updateDownloadState = MutableStateFlow<UpdateDownloadState>(UpdateDownloadState.Idle)
+    val updateDownloadState = _updateDownloadState.asStateFlow()
+
     val incomingNotification = MutableStateFlow<IncomingNotification?>(null)
     val repository: WhatsAppRepository
 
@@ -1015,6 +1025,97 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 isCheckingForUpdates.value = false
             }
         }
+    }
+
+    fun downloadUpdateApk(context: android.content.Context, downloadUrl: String) {
+        _updateDownloadState.value = UpdateDownloadState.Downloading(0f)
+        
+        try {
+            val downloadManager = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+            val destinationFile = java.io.File(context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS), "vibez-update.apk")
+            
+            if (destinationFile.exists()) {
+                destinationFile.delete()
+            }
+            
+            val uri = android.net.Uri.parse(downloadUrl)
+            val request = android.app.DownloadManager.Request(uri)
+                .setTitle("VIBEZ Update")
+                .setDescription("Downloading latest stable version...")
+                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE)
+                .setDestinationUri(android.net.Uri.fromFile(destinationFile))
+            
+            val downloadId = downloadManager.enqueue(request)
+            
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                var downloading = true
+                while (downloading) {
+                    val query = android.app.DownloadManager.Query().setFilterById(downloadId)
+                    val cursor = downloadManager.query(query)
+                    if (cursor != null && cursor.moveToFirst()) {
+                        val bytesDownloaded = cursor.getInt(cursor.getColumnIndexOrThrow(android.app.DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                        val bytesTotal = cursor.getInt(cursor.getColumnIndexOrThrow(android.app.DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(android.app.DownloadManager.COLUMN_STATUS))
+                        
+                        if (status == android.app.DownloadManager.STATUS_SUCCESSFUL) {
+                            downloading = false
+                            _updateDownloadState.value = UpdateDownloadState.Completed(destinationFile.absolutePath)
+                            // Auto-trigger installation
+                            launch(kotlinx.coroutines.Dispatchers.Main) {
+                                triggerInstallation(context, destinationFile)
+                            }
+                        } else if (status == android.app.DownloadManager.STATUS_FAILED) {
+                            downloading = false
+                            _updateDownloadState.value = UpdateDownloadState.Error("Download failed. Please check your internet connection and try again.")
+                        } else if (bytesTotal > 0) {
+                            val progress = bytesDownloaded.toFloat() / bytesTotal.toFloat()
+                            _updateDownloadState.value = UpdateDownloadState.Downloading(progress)
+                        }
+                        cursor.close()
+                    } else {
+                        downloading = false
+                        _updateDownloadState.value = UpdateDownloadState.Error("Failed to initiate update download.")
+                    }
+                    kotlinx.coroutines.delay(300)
+                }
+            }
+        } catch (e: Exception) {
+            _updateDownloadState.value = UpdateDownloadState.Error("Error: ${e.localizedMessage}")
+        }
+    }
+
+    fun triggerInstallation(context: android.content.Context, file: java.io.File) {
+        if (!file.exists()) return
+        
+        try {
+            // Check REQUEST_INSTALL_PACKAGES permission if Android Oreo or above
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                if (!context.packageManager.canRequestPackageInstalls()) {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = android.net.Uri.parse("package:${context.packageName}")
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                    return
+                }
+            }
+            
+            val authority = "${context.packageName}.fileprovider"
+            val apkUri = androidx.core.content.FileProvider.getUriForFile(context, authority, file)
+            
+            val installIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(installIntent)
+        } catch (e: Exception) {
+            android.util.Log.e("WhatsAppViewModel", "Failed to start installer", e)
+        }
+    }
+
+    fun resetUpdateDownloadState() {
+        _updateDownloadState.value = UpdateDownloadState.Idle
     }
 
     fun setSelectedTab(index: Int) {

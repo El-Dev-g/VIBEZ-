@@ -1378,13 +1378,19 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             val latestUpdate by viewModel.latestUpdate.collectAsState()
             val isChecking by viewModel.isCheckingForUpdates.collectAsState()
             val error by viewModel.updateError.collectAsState()
+            val downloadState by viewModel.updateDownloadState.collectAsState()
+            val context = androidx.compose.ui.platform.LocalContext.current
 
             AppUpdateScreen(
                 onBackClick = { navController.popBackStack() },
                 latestUpdate = latestUpdate,
                 isChecking = isChecking,
                 error = error,
-                onCheckUpdate = { viewModel.checkForUpdates() }
+                downloadState = downloadState,
+                onCheckUpdate = { viewModel.checkForUpdates() },
+                onDownloadClick = { url -> viewModel.downloadUpdateApk(context, url) },
+                onInstallClick = { path -> viewModel.triggerInstallation(context, java.io.File(path)) },
+                onResetState = { viewModel.resetUpdateDownloadState() }
             )
         }
 
