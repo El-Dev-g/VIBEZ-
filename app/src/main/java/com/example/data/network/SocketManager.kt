@@ -7,20 +7,24 @@ import io.socket.client.Socket
 import org.json.JSONObject
 import java.net.URISyntaxException
 
-class SocketManager(private val userId: String) {
+class SocketManager(private val userId: String, private val authToken: String? = null) {
     private var socket: Socket? = null
     private val TAG = "SocketManager"
     
     var onCallOfferReceived: ((JSONObject) -> Unit)? = null
     var onCallAnswerReceived: ((JSONObject) -> Unit)? = null
     var onIceCandidateReceived: ((JSONObject) -> Unit)? = null
+    var onCallEndedReceived: ((JSONObject) -> Unit)? = null
     var onTypingReceived: ((String, String, Boolean) -> Unit)? = null
     var onMessageReadReceived: ((String, String) -> Unit)? = null
 
     fun connect(onMessageReceived: (JSONObject) -> Unit) {
         try {
             val opts = IO.Options().apply {
-                query = "userId=$userId"
+                query = if (!authToken.isNullOrEmpty()) "userId=$userId&token=$authToken" else "userId=$userId"
+                if (!authToken.isNullOrEmpty()) {
+                    auth = mapOf("token" to authToken)
+                }
             }
             val rawUrl = BuildConfig.BACKEND_URL.ifEmpty { "https://your-backend-url.com/" }
             val baseUrl = if (rawUrl.endsWith("/")) rawUrl.substring(0, rawUrl.length - 1) else rawUrl
@@ -74,9 +78,19 @@ class SocketManager(private val userId: String) {
                 onIceCandidateReceived?.invoke(data)
             }
 
+            socket?.on("call_ended") { args ->
+                val data = if (args.isNotEmpty() && args[0] is JSONObject) args[0] as JSONObject else JSONObject()
+                onCallEndedReceived?.invoke(data)
+            }
+
             socket?.on("new_message_notification") { args ->
-                val data = args[0] as JSONObject
-                // Handle background notification or badge update
+                try {
+                    val data = args[0] as JSONObject
+                    val messageJson = data.optJSONObject("message") ?: data
+                    onMessageReceived(messageJson)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error handling new_message_notification", e)
+                }
             }
 
             socket?.connect()
@@ -119,10 +133,11 @@ class SocketManager(private val userId: String) {
         socket?.emit("message_read", data)
     }
 
-    fun sendCallOffer(targetUserId: String, sdp: String) {
+    fun sendCallOffer(targetUserId: String, sdp: String, isVideo: Boolean = true) {
         val data = JSONObject().apply {
             put("targetUserId", targetUserId)
             put("sdp", sdp)
+            put("isVideo", isVideo)
         }
         socket?.emit("call_offer", data)
     }
@@ -143,6 +158,13 @@ class SocketManager(private val userId: String) {
             put("candidate", candidate)
         }
         socket?.emit("ice_candidate", data)
+    }
+
+    fun endCall(targetUserId: String) {
+        val data = JSONObject().apply {
+            put("targetUserId", targetUserId)
+        }
+        socket?.emit("end_call", data)
     }
 
     fun disconnect() {

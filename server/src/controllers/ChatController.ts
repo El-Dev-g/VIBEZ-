@@ -48,7 +48,10 @@ export class ChatController {
       const cleanId = chatId.startsWith('chat_') ? chatId.replace(/^chat_+/, '') : chatId;
 
       // Try finding by direct chat ID first
-      let chat = await prisma.chat.findUnique({ where: { id: cleanId } });
+      let chat = await prisma.chat.findUnique({ 
+        where: { id: cleanId },
+        include: { members: true }
+      });
 
       // If not found, check if cleanId is a target User ID and find the private 1-on-1 chat
       if (!chat && currentUserId) {
@@ -61,8 +64,17 @@ export class ChatController {
                 { members: { some: { userId: currentUserId } } },
                 { members: { some: { userId: cleanId } } }
               ]
-            }
+            },
+            include: { members: true }
           });
+        }
+      }
+
+      if (chat) {
+        // Enforce membership authorization: user must be a member of the chat or an admin
+        const isMember = chat.members.some(m => m.userId === currentUserId);
+        if (!isMember && !req.user?.isAdmin) {
+          return res.status(403).json({ error: 'Forbidden: Access denied. You are not a participant in this conversation.' });
         }
       }
 
@@ -293,6 +305,119 @@ export class ChatController {
     } catch (error) {
       console.error('Error toggling group verify perk:', error);
       res.status(500).json({ error: 'Failed to update group verification badge' });
+    }
+  }
+
+  async clearChatMessages(req: AuthRequest, res: Response) {
+    try {
+      const { chatId } = req.params;
+      const currentUserId = req.user?.id as string;
+
+      if (!chatId) {
+        return res.status(400).json({ error: 'Chat ID is required' });
+      }
+
+      // Verify user membership in the chat
+      const isMember = await prisma.chatMember.findFirst({
+        where: { chatId, userId: currentUserId }
+      });
+
+      if (!isMember && !req.user?.isAdmin) {
+        return res.status(403).json({ error: 'Access denied: not a member of this chat' });
+      }
+
+      await prisma.message.deleteMany({
+        where: { chatId }
+      });
+
+      res.json({ success: true, message: 'Chat messages cleared successfully' });
+    } catch (error) {
+      console.error('Error clearing chat messages:', error);
+      res.status(500).json({ error: 'Failed to clear chat messages' });
+    }
+  }
+
+  async deleteMessage(req: AuthRequest, res: Response) {
+    try {
+      const { messageId } = req.params;
+      const currentUserId = req.user?.id as string;
+
+      if (!messageId) {
+        return res.status(400).json({ error: 'Message ID is required' });
+      }
+
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+        include: {
+          chat: {
+            include: { members: true }
+          }
+        }
+      });
+
+      if (!message) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+
+      // Verify the user is the message sender, a chat member, or an admin
+      const isSender = message.senderId === currentUserId;
+      const isMember = message.chat.members.some(m => m.userId === currentUserId);
+
+      if (!isSender && !isMember && !req.user?.isAdmin) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      await prisma.message.delete({
+        where: { id: messageId }
+      });
+
+      res.json({ success: true, message: 'Message deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      res.status(500).json({ error: 'Failed to delete message' });
+    }
+  }
+
+  async updateMessage(req: AuthRequest, res: Response) {
+    try {
+      const { messageId } = req.params;
+      const { content, status } = req.body;
+      const currentUserId = req.user?.id as string;
+
+      if (!messageId) {
+        return res.status(400).json({ error: 'Message ID is required' });
+      }
+
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+        include: {
+          chat: {
+            include: { members: true }
+          }
+        }
+      });
+
+      if (!message) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+
+      const isMember = message.chat.members.some(m => m.userId === currentUserId);
+      if (!isMember && !req.user?.isAdmin) {
+        return res.status(403).json({ error: 'Access denied: not a member of this chat' });
+      }
+
+      const updated = await prisma.message.update({
+        where: { id: messageId },
+        data: {
+          ...(content !== undefined && { content }),
+          ...(status !== undefined && { status })
+        }
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating message:', error);
+      res.status(500).json({ error: 'Failed to update message' });
     }
   }
 }

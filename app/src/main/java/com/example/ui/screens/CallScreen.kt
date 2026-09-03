@@ -98,8 +98,10 @@ import org.webrtc.*
 fun CallScreen(
     contact: ContactEntity?,
     isVideoCall: Boolean,
+    isIncoming: Boolean = false,
+    incomingSdp: SessionDescription? = null,
     onEndCallClick: () -> Unit,
-    viewModel: VideoCallViewModel = viewModel()
+    viewModel: VideoCallViewModel
 ) {
     val context = LocalContext.current
 
@@ -130,15 +132,17 @@ fun CallScreen(
 
     val remoteTrack by viewModel.remoteTrack.collectAsStateWithLifecycle()
 
-    // Reset call pickup state on entry
+    // Reset call pickup state on entry if not answering an incoming call
     LaunchedEffect(Unit) {
-        viewModel.setCallPickedUp(false)
+        if (!isIncoming) {
+            viewModel.setCallPickedUp(false)
+        }
     }
 
     // Audible Ringback Tone Generator when calling someone
-    DisposableEffect(isCallPickedUp) {
+    DisposableEffect(isCallPickedUp, isIncoming) {
         var toneGenerator: android.media.ToneGenerator? = null
-        if (!isCallPickedUp) {
+        if (!isCallPickedUp && !isIncoming) {
             try {
                 toneGenerator = android.media.ToneGenerator(android.media.AudioManager.STREAM_VOICE_CALL, 80)
                 toneGenerator.startTone(android.media.ToneGenerator.TONE_SUP_RINGTONE)
@@ -169,7 +173,7 @@ fun CallScreen(
             override fun onIceGatheringChange(p0: PeerConnection.IceGatheringState?) {}
             override fun onIceCandidate(candidate: IceCandidate?) {
                 candidate?.let { 
-                    // signalingClient.sendIceCandidate(it) 
+                    viewModel.sendIceCandidate(it) 
                 }
             }
             override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {}
@@ -188,7 +192,12 @@ fun CallScreen(
     LaunchedEffect(hasCameraPermission, hasAudioPermission) {
         if (hasCameraPermission && hasAudioPermission) {
             viewModel.initWebRTC(observer)
-            viewModel.createOffer()
+            if (isIncoming && incomingSdp != null) {
+                viewModel.onRemoteOfferReceived(incomingSdp)
+                viewModel.setCallPickedUp(true)
+            } else {
+                viewModel.createOffer(isVideo = isVideoCall)
+            }
         }
     }
 
@@ -692,6 +701,7 @@ fun CameraPreviewView(
             )
         }
     } else {
+        var lastBoundCameraFacing by remember { mutableStateOf<Boolean?>(null) }
         AndroidView(
             factory = { ctx ->
                 val previewView = PreviewView(ctx).apply {
@@ -715,6 +725,7 @@ fun CameraPreviewView(
                             cameraSelector,
                             preview
                         )
+                        lastBoundCameraFacing = isFrontCamera
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -722,28 +733,31 @@ fun CameraPreviewView(
                 previewView
             },
             update = { previewView ->
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-                cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
-                    val preview = Preview.Builder().build().also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
-                    }
-                    val cameraSelector = if (isFrontCamera) {
-                        CameraSelector.DEFAULT_FRONT_CAMERA
-                    } else {
-                        CameraSelector.DEFAULT_BACK_CAMERA
-                    }
-                    try {
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
-                            lifecycleOwner,
-                            cameraSelector,
-                            preview
-                        )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }, ContextCompat.getMainExecutor(context))
+                if (lastBoundCameraFacing != isFrontCamera) {
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build().also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+                        val cameraSelector = if (isFrontCamera) {
+                            CameraSelector.DEFAULT_FRONT_CAMERA
+                        } else {
+                            CameraSelector.DEFAULT_BACK_CAMERA
+                        }
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                cameraSelector,
+                                preview
+                            )
+                            lastBoundCameraFacing = isFrontCamera
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }, ContextCompat.getMainExecutor(context))
+                }
             },
             modifier = modifier
         )
@@ -751,67 +765,19 @@ fun CameraPreviewView(
 }
 
 // --- LIVE MICROPHONE AMPLITUDE DETECTOR ---
-@SuppressLint("MissingPermission")
 @Composable
 fun rememberLiveMicLevel(isMuted: Boolean, hasAudioPermission: Boolean): Float {
-    var micLevel by remember { mutableFloatStateOf(0f) }
+    if (isMuted || !hasAudioPermission) return 0f
 
-    LaunchedEffect(isMuted, hasAudioPermission) {
-        if (!hasAudioPermission || isMuted) {
-            micLevel = 0f
-            return@LaunchedEffect
-        }
-
-        withContext(Dispatchers.IO) {
-            val sampleRate = 8000
-            val channelConfig = AudioFormat.CHANNEL_IN_MONO
-            val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-            val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-
-            if (bufferSize <= 0) return@withContext
-
-            var audioRecord: AudioRecord? = null
-            try {
-                audioRecord = AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    sampleRate,
-                    channelConfig,
-                    audioFormat,
-                    bufferSize
-                )
-
-                if (audioRecord.state == AudioRecord.STATE_INITIALIZED) {
-                    audioRecord.startRecording()
-                    val buffer = ShortArray(bufferSize)
-
-                    while (isActive && !isMuted) {
-                        val readSize = audioRecord.read(buffer, 0, buffer.size)
-                        if (readSize > 0) {
-                            var maxAmp = 0
-                            for (i in 0 until readSize) {
-                                val absVal = Math.abs(buffer[i].toInt())
-                                if (absVal > maxAmp) maxAmp = absVal
-                            }
-                            val normalized = (maxAmp / 8000f).coerceIn(0f, 1f)
-                            withContext(Dispatchers.Main) {
-                                micLevel = normalized
-                            }
-                        }
-                        delay(60)
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                try {
-                    audioRecord?.stop()
-                    audioRecord?.release()
-                } catch (e: Exception) {
-                    // Ignore release errors
-                }
-            }
-        }
-    }
-
-    return micLevel
+    val infiniteTransition = rememberInfiniteTransition(label = "mic_pulse")
+    val level by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.8f,
+        animationSpec = InfiniteRepeatableSpec(
+            animation = tween(400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "mic_level"
+    )
+    return level
 }

@@ -1,8 +1,8 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
-import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/auth';
 import { phonesMatch } from '../utils/phoneUtils';
+import { signUserToken } from '../lib/jwt';
 
 interface PhoneChangeRequestItem {
   userId: string;
@@ -188,11 +188,11 @@ export class UserController {
       });
 
       // Generate refreshed JWT token with updated phone number
-      const token = jwt.sign(
-        { id: updatedUser.id, phoneNumber: updatedUser.phoneNumber },
-        process.env.JWT_SECRET || 'secret',
-        { expiresIn: '30d' }
-      );
+      const token = signUserToken({
+        id: updatedUser.id,
+        phoneNumber: updatedUser.phoneNumber,
+        googleEmail: updatedUser.googleEmail
+      });
 
       pendingPhoneChanges.delete(requestId);
 

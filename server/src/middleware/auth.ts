@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
+import { verifyUserToken, verifyAdminToken } from '../lib/jwt';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -9,6 +9,7 @@ export interface AuthRequest extends Request {
     email?: string;
     role?: string;
     isAdmin?: boolean;
+    firebaseVerified?: boolean;
   };
   admin?: {
     id: string;
@@ -26,8 +27,8 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
-    req.user = decoded;
+    const decoded = verifyUserToken(token);
+    req.user = decoded as any;
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired session token.' });
@@ -43,7 +44,7 @@ export const authenticateAdmin = async (req: AuthRequest, res: Response, next: N
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
+    const decoded = verifyAdminToken(token);
     
     // Normal users do not have an admin role
     if (!decoded.id || !decoded.role) {

@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import jwt from 'jsonwebtoken';
 import { emailService } from '../lib/email';
 import { generateBase32Secret, generateOTPAuthUri, verifyTOTP } from '../lib/totp';
+import { signAdminToken, getJwtSecret } from '../lib/jwt';
 
 export class AdminController {
   async login(req: Request, res: Response) {
@@ -94,11 +94,12 @@ export class AdminController {
         }
       });
 
-      const token = jwt.sign(
-        { id: admin.id, email: admin.email, role: admin.role, isAdmin: true },
-        process.env.JWT_SECRET || 'secret',
-        { expiresIn: '24h' }
-      );
+      const token = signAdminToken({
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        isAdmin: true
+      });
 
       res.json({
         id: admin.id,
@@ -293,6 +294,27 @@ export class AdminController {
       res.json({ success: true, message: `User ${userId} banned` });
     } catch (error) {
       res.status(500).json({ error: 'Failed to ban user' });
+    }
+  }
+
+  async flagUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const { isFlagged = true, adminEmail } = req.body;
+
+      // Log moderation audit event
+      await prisma.auditLog.create({
+        data: {
+          adminEmail: adminEmail || 'system',
+          action: isFlagged ? 'FLAG_USER' : 'UNFLAG_USER',
+          target: userId
+        }
+      });
+
+      res.json({ success: true, isFlagged: Boolean(isFlagged), message: `User ${userId} ${isFlagged ? 'flagged' : 'unflagged'}` });
+    } catch (error) {
+      console.error('Admin flagUser error:', error);
+      res.status(500).json({ error: 'Failed to flag user' });
     }
   }
 
@@ -1769,8 +1791,13 @@ export class AdminController {
         select: { id: true, email: true, role: true, twoFactorEnabled: true }
       });
 
-      const jwtSecret = process.env.JWT_SECRET || 'secret';
-      const isHighEntropy = jwtSecret !== 'secret' && jwtSecret !== 'default_secret' && jwtSecret.length >= 24;
+      let jwtSecret = '';
+      try {
+        jwtSecret = getJwtSecret();
+      } catch {
+        jwtSecret = '';
+      }
+      const isHighEntropy = jwtSecret.length >= 24 && jwtSecret !== 'secret' && jwtSecret !== 'default_secret';
 
       res.json({
         securityScore: 100,

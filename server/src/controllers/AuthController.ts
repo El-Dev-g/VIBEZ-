@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/auth';
 import { OAuth2Client } from 'google-auth-library';
+import { signUserToken } from '../lib/jwt';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -18,7 +18,42 @@ export class AuthController {
         return res.status(400).json({ error: 'Phone number is required' });
       }
 
-      // 2. Look up the existing "User" by the normalized unique "phoneNumber"
+      let isFirebaseVerified = false;
+
+      // 2. Cryptographically verify Firebase ID token if provided
+      if (firebaseIdToken && typeof firebaseIdToken === 'string') {
+        try {
+          const ticket = await client.verifyIdToken({
+            idToken: firebaseIdToken,
+            audience: process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLIENT_ID,
+          }).catch(async () => {
+            // Also attempt un-audienced token payload verification
+            const loginTicket = await client.verifySignedJwtWithCertsAsync(
+              firebaseIdToken,
+              {},
+              ['https://securetoken.google.com/' + (process.env.FIREBASE_PROJECT_ID || '')]
+            );
+            return loginTicket;
+          });
+
+          const payload = ticket?.getPayload();
+          if (payload) {
+            const tokenPhone = (payload as any).phone_number ? (payload as any).phone_number.replace(/[^\d+]/g, '') : '';
+            if (tokenPhone && tokenPhone !== cleanPhone) {
+              return res.status(401).json({ error: 'Phone number in verification token does not match provided phone number' });
+            }
+            isFirebaseVerified = true;
+          }
+        } catch (tokenErr) {
+          console.warn('[PhoneLogin] Firebase token verification note:', (tokenErr as any)?.message || tokenErr);
+          // In strict production mode with Firebase enabled, require successful cryptographic verification
+          if (process.env.REQUIRE_FIREBASE_VERIFICATION === 'true') {
+            return res.status(401).json({ error: 'Firebase phone verification token is invalid or expired.' });
+          }
+        }
+      }
+
+      // 3. Look up the existing "User" by the normalized unique "phoneNumber"
       let user = await prisma.user.findFirst({
         where: { phoneNumber: cleanPhone }
       });
@@ -26,7 +61,7 @@ export class AuthController {
       let isNew = false;
 
       if (!user) {
-        // 12. Preserve "allowNewRegistrations"
+        // Preserve "allowNewRegistrations"
         const settings = await prisma.systemSetting.findFirst();
         if (settings && settings.allowNewRegistrations === false) {
           return res.status(403).json({ error: 'New user registrations are currently disabled by system administrator.' });
@@ -34,10 +69,7 @@ export class AuthController {
 
         isNew = true;
 
-        // 6. For a genuinely new account only:
-        // - Create the User.
-        // - Use the supplied valid name if available.
-        // - Otherwise use the existing new-user fallback.
+        // For a genuinely new account only:
         const trimmedName = (name && typeof name === 'string') ? name.trim() : '';
         const isDefaultOrEmpty = !trimmedName || trimmedName === 'User' || trimmedName === 'New User' || trimmedName === cleanPhone;
         const initialName = !isDefaultOrEmpty ? trimmedName : cleanPhone;
@@ -53,20 +85,12 @@ export class AuthController {
           }
         });
       } else {
-        // 11. Preserve the existing banned-account check.
+        // Preserve the existing banned-account check.
         if (user.isBanned) {
           return res.status(403).json({ error: 'Your account has been suspended by system administrator.' });
         }
 
-        // 3. If the user exists:
-        // - NEVER create another User.
-        // - NEVER replace a valid existing "user.name" with "User".
-        // - NEVER replace a valid existing name with the phone number.
-        // - NEVER replace a valid existing name with "New User".
-        // - Preserve the existing username/name unless the user is explicitly changing their profile through the profile-edit endpoint.
-        // 4. Treat the "name", "about", and "avatarUrl" values sent during authentication as OPTIONAL bootstrap data, not authoritative profile data for an existing account.
-        // 5. For an existing account, authentication should primarily update session-related information such as "lastSeen".
-        // - DO NOT update name, about, or avatar from authentication request data.
+        // For an existing account, update lastSeen session info
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
@@ -75,25 +99,21 @@ export class AuthController {
         });
       }
 
-      // 9. RequiresProfileSetup must be true ONLY when the existing/new account genuinely has no username/name.
-      // 10. Never use "User" as evidence that the account is new.
       const isNewNameEmpty = !user.name || user.name.trim().length === 0 || user.name === user.phoneNumber || user.name === cleanPhone;
       const requiresProfileSetup = isNewNameEmpty;
 
-      // Add server-side logging for development/testing
       console.log(`[PhoneLogin] Authentication identity resolved for phone: ${cleanPhone}`);
       console.log(`[PhoneLogin] Account status: ${isNew ? 'NEW' : 'EXISTING'} account`);
       console.log(`[PhoneLogin] Resolved user ID: ${user.id}`);
       console.log(`[PhoneLogin] Profile setup required: ${requiresProfileSetup}`);
 
-      const token = jwt.sign(
-        { id: user.id, phoneNumber: user.phoneNumber, firebaseVerified: !!firebaseIdToken },
-        process.env.JWT_SECRET || 'secret',
-        { expiresIn: '30d' }
-      );
+      const token = signUserToken({
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        googleEmail: user.googleEmail,
+        firebaseVerified: isFirebaseVerified
+      });
 
-      // 7. Return the complete persisted User object in the authentication response.
-      // 8. Add an explicit account state to the response, for example: "isNewUser: true/false" and/or "requiresProfileSetup: true/false".
       res.json({ 
         user, 
         token,
@@ -129,9 +149,10 @@ export class AuthController {
           });
           const payload = ticket.getPayload();
           if (payload) {
-            verifiedEmail = payload.email || email;
-            verifiedName = payload.name || name;
-            verifiedAvatar = payload.picture || avatarUrl;
+            // Strictly use verified Google claims rather than unverified client values
+            verifiedEmail = payload.email || verifiedEmail;
+            verifiedName = payload.name || verifiedName;
+            verifiedAvatar = payload.picture || verifiedAvatar;
           }
         } catch (verificationError) {
           console.error('ID Token verification failed:', verificationError);
@@ -211,11 +232,11 @@ export class AuthController {
       console.log(`[GoogleLogin] Resolved user ID: ${user.id}`);
       console.log(`[GoogleLogin] Profile setup required: ${requiresProfileSetup}`);
 
-      const token = jwt.sign(
-        { id: user.id, phoneNumber: user.phoneNumber },
-        process.env.JWT_SECRET || 'secret',
-        { expiresIn: '30d' }
-      );
+      const token = signUserToken({
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        googleEmail: user.googleEmail
+      });
 
       res.json({ 
         user, 

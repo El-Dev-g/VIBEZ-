@@ -67,6 +67,7 @@ import com.example.data.MessageEntity
 import com.example.data.StatusEntity
 import com.example.ui.WhatsAppViewModel
 import com.example.ui.viewmodels.VideoCallViewModel
+import com.example.ui.viewmodels.IncomingCallData
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.BackendSyncScreen
@@ -255,11 +256,20 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     LaunchedEffect(Unit) {
         viewModel.repository.incomingCall.collect { json ->
             if (json != null) {
-                val callerName = json.optString("callerName", "Unknown")
+                val callerId = json.optString("callerId", "")
+                val callerName = json.optString("callerName", "Incoming Caller")
+                val isVideo = json.optBoolean("isVideo", true)
                 val sdp = json.optString("sdp")
-                if (sdp.isNotEmpty()) {
+                if (sdp.isNotEmpty() && callerId.isNotEmpty()) {
                     val offer = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.OFFER, sdp)
-                    videoCallViewModel.setIncomingCallOffer(callerName, offer)
+                    videoCallViewModel.setIncomingCallOffer(
+                        IncomingCallData(
+                            callerId = callerId,
+                            callerName = callerName,
+                            sdp = offer,
+                            isVideo = isVideo
+                        )
+                    )
                 }
             }
         }
@@ -279,12 +289,21 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         viewModel.repository.iceCandidate.collect { json ->
             if (json != null) {
                 val sdpMid = json.optString("sdpMid")
-                val sdpMLineIndex = json.optInt("sdpMLineIndex")
+                val sdpMLineIndex = json.optInt("sdpMLineIndex", 0)
                 val sdp = json.optString("candidate")
                 if (sdp.isNotEmpty()) {
                     val candidate = org.webrtc.IceCandidate(sdpMid, sdpMLineIndex, sdp)
                     videoCallViewModel.onRemoteIceCandidateReceived(candidate)
                 }
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.repository.callEnded.collect { json ->
+            if (json != null) {
+                videoCallViewModel.endCall()
+                videoCallViewModel.clearIncomingCall()
+                viewModel.repository.clearCallSignals()
             }
         }
     }
@@ -1186,23 +1205,32 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
         // 10. Call Screen
         composable(
-            route = "call/{contactId}/{isVideo}",
+            route = "call/{contactId}/{isVideo}?isIncoming={isIncoming}",
             arguments = listOf(
                 navArgument("contactId") { type = NavType.StringType },
-                navArgument("isVideo") { type = NavType.BoolType }
+                navArgument("isVideo") { type = NavType.BoolType },
+                navArgument("isIncoming") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                }
             )
         ) { backStackEntry ->
             val contactId = backStackEntry.arguments?.getString("contactId") ?: ""
             val isVideo = backStackEntry.arguments?.getBoolean("isVideo") ?: false
-            val contact = contacts.firstOrNull { it.id == contactId } ?: ContactEntity(
+            val isIncoming = backStackEntry.arguments?.getBoolean("isIncoming") ?: false
+            val contact = contacts.firstOrNull { it.id == contactId || it.remoteId == contactId } ?: ContactEntity(
                 id = contactId,
                 remoteId = contactId,
-                name = "Contact",
+                name = if (isIncoming && videoCallViewModel.incomingCallOffer.value?.callerName?.isNotEmpty() == true) {
+                    videoCallViewModel.incomingCallOffer.value?.callerName ?: "Caller"
+                } else "Contact",
                 phoneNumber = "",
                 avatarUrl = "",
                 aboutStatus = "",
                 isOnline = false
             )
+
+            val currentOffer = videoCallViewModel.incomingCallOffer.value?.sdp
 
             LaunchedEffect(contactId) {
                 viewModel.repository.socketManager?.let {
@@ -1213,7 +1241,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             CallScreen(
                 contact = contact,
                 isVideoCall = isVideo,
-                onEndCallClick = { navController.popBackStack() }
+                isIncoming = isIncoming,
+                incomingSdp = currentOffer,
+                onEndCallClick = { 
+                    videoCallViewModel.endCall()
+                    navController.popBackStack() 
+                },
+                viewModel = videoCallViewModel
             )
         }
 
@@ -1669,23 +1703,28 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     }
 
     // Incoming Call Overlay
-    incomingCallOffer?.let { offerPair ->
+    incomingCallOffer?.let { callData ->
         IncomingCallOverlay(
-            callerName = offerPair.first,
-            isVideo = true, // Default to video for now or parse from offer
+            callerName = callData.callerName,
+            isVideo = callData.isVideo,
             onAccept = {
-                // Navigate to Call Screen with the offer
-                val contact = contacts.firstOrNull { it.name == offerPair.first }
-                val contactId = contact?.id ?: "incoming_caller"
-                viewModel.logCall(contactId, offerPair.first, "VIDEO", isIncoming = true, isMissed = false)
-                videoCallViewModel.clearIncomingCall()
-                navController.navigate("call/$contactId/true")
+                val callerId = callData.callerId
+                val callerName = callData.callerName
+                viewModel.logCall(callerId, callerName, if (callData.isVideo) "VIDEO" else "VOICE", isIncoming = true, isMissed = false)
+                
+                viewModel.repository.socketManager?.let {
+                    videoCallViewModel.setupSignaling(it, callerId)
+                }
+                
+                navController.navigate("call/$callerId/${callData.isVideo}?isIncoming=true")
             },
             onReject = {
-                val contact = contacts.firstOrNull { it.name == offerPair.first }
-                val contactId = contact?.id ?: "incoming_caller"
-                viewModel.logCall(contactId, offerPair.first, "VIDEO", isIncoming = true, isMissed = true)
+                val callerId = callData.callerId
+                val callerName = callData.callerName
+                viewModel.logCall(callerId, callerName, if (callData.isVideo) "VIDEO" else "VOICE", isIncoming = true, isMissed = true)
+                viewModel.repository.socketManager?.endCall(callerId)
                 videoCallViewModel.clearIncomingCall()
+                viewModel.repository.clearIncomingCall()
             }
         )
     }

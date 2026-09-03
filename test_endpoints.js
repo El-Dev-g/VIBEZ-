@@ -5,7 +5,7 @@ const BASE_URL = 'https://vibez-n5h1.onrender.com';
 function request(method, path, data = null, headers = {}) {
   return new Promise((resolve) => {
     const url = new URL(path, BASE_URL);
-    const options萃 = {
+    const options = {
       method: method,
       headers: {
         'Content-Type': 'application/json',
@@ -14,12 +14,12 @@ function request(method, path, data = null, headers = {}) {
       }
     };
 
-    const req = https.request(url, options萃, (res) => {
+    const req = https.request(url, options, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
         let parsed = body;
-        try { parsed不易 = JSON.parse(body); parsed = parsed不易; } catch(e) {}
+        try { parsed = JSON.parse(body); } catch(e) {}
         resolve({
           method,
           path,
@@ -119,35 +119,35 @@ async function runTests() {
     console.log(`   -> Obtained User Auth Token for User ID: ${userId}`);
   }
 
-  const userHeaders夺 = userToken ? { 'Authorization': `Bearer ${userToken}` } : {};
+  const userHeaders = userToken ? { 'Authorization': `Bearer ${userToken}` } : {};
 
   // 5. Authenticated User GET Endpoints
   console.log(`\n--- 5. Authenticated GET Endpoints ---`);
-  await test('Get Current User Profile', 'GET', '/api/auth/profile', null, userHeaders夺);
-  await test('Search Users', 'GET', '/api/users/search?q=Test', null, userHeaders夺);
-  await test('Get User Settings', 'GET', '/api/users/settings', null, userHeaders夺);
-  await test('Get User Chats', 'GET', '/api/chats', null, userHeaders夺);
-  await test('Get User Statuses', 'GET', '/api/statuses', null, userHeaders夺);
-  await test('Get Status Privacy', 'GET', '/api/statuses/privacy', null, userHeaders夺);
-  await test('Get Communities', 'GET', '/api/communities', null, userHeaders夺);
-  await test('Get Call Logs', 'GET', '/api/calls', null, userHeaders夺);
-  await test('Get Verification Status', 'GET', '/api/payments/verification/status', null, userHeaders夺);
+  await test('Get Current User Profile', 'GET', '/api/auth/profile', null, userHeaders);
+  await test('Search Users', 'GET', '/api/users/search?q=Test', null, userHeaders);
+  await test('Get User Settings', 'GET', '/api/users/settings', null, userHeaders);
+  await test('Get User Chats', 'GET', '/api/chats', null, userHeaders);
+  await test('Get User Statuses', 'GET', '/api/statuses', null, userHeaders);
+  await test('Get Status Privacy', 'GET', '/api/statuses/privacy', null, userHeaders);
+  await test('Get Communities', 'GET', '/api/communities', null, userHeaders);
+  await test('Get Call Logs', 'GET', '/api/calls', null, userHeaders);
+  await test('Get Verification Status', 'GET', '/api/payments/verification/status', null, userHeaders);
 
   // 6. Authenticated User PUT & PATCH Endpoints
   console.log(`\n--- 6. Authenticated PUT & PATCH Endpoints ---`);
   await test('Update Profile (PUT)', 'PUT', '/api/users/profile', {
     displayName: 'Updated Test Runner',
     about: 'Updated status text via PUT test'
-  }, userHeaders夺);
+  }, userHeaders);
 
   await test('Update Settings (PUT)', 'PUT', '/api/users/settings', {
     theme: 'DARK',
     notifications: true
-  }, userHeaders夺);
+  }, userHeaders);
 
   await test('Update Status Privacy (PUT)', 'PUT', '/api/statuses/privacy', {
     privacy: 'CONTACTS'
-  }, userHeaders夺);
+  }, userHeaders);
 
   // 7. Authenticated User POST Endpoints (Create Chat, Group, Community, Status, Call)
   console.log(`\n--- 7. Authenticated POST Endpoints ---`);
@@ -155,35 +155,35 @@ async function runTests() {
     type: 'TEXT',
     content: 'Hello world status from test suite',
     backgroundColor: '#128C7E'
-  }, userHeaders夺);
+  }, userHeaders);
   const statusId = statusRes.data?.id;
 
   if (statusId) {
-    await test('View Status', 'POST', `/api/statuses/${statusId}/view`, {}, userHeaders夺);
+    await test('View Status', 'POST', `/api/statuses/${statusId}/view`, {}, userHeaders);
   }
 
   const groupChatRes = await test('Create Group Chat', 'POST', '/api/chats/group', {
     name: 'Automated Test Group'
-  }, userHeaders夺);
+  }, userHeaders);
   const chatId = groupChatRes.data?.id;
 
   if (chatId) {
-    await test('Get Chat Messages', 'GET', `/api/chats/${chatId}/messages`, null, userHeaders夺);
+    await test('Get Chat Messages', 'GET', `/api/chats/${chatId}/messages`, null, userHeaders);
     await test('Update Chat Details (PATCH)', 'PATCH', `/api/chats/${chatId}`, {
       name: 'Renamed Test Group'
-    }, userHeaders夺);
+    }, userHeaders);
   }
 
-  const commRes述 = await test('Create Community', 'POST', '/api/communities', {
+  const commRes = await test('Create Community', 'POST', '/api/communities', {
     name: 'Test Community Group',
     description: 'Community created during endpoint test'
-  }, userHeaders夺);
-  const commId = commRes述.data?.id;
+  }, userHeaders);
+  const commId = commRes.data?.id;
 
   if (commId) {
-    await test('Get Community Details', 'GET', `/api/communities/${commId}`, null, userHeaders夺);
-    await test('Get Community Channels', 'GET', `/api/communities/${commId}/chats`, null, userHeaders夺);
-    await test('Join Community', 'POST', `/api/communities/${commId}/join`, {}, userHeaders夺);
+    await test('Get Community Details', 'GET', `/api/communities/${commId}`, null, userHeaders);
+    await test('Get Community Channels', 'GET', `/api/communities/${commId}/chats`, null, userHeaders);
+    await test('Join Community', 'POST', `/api/communities/${commId}/join`, {}, userHeaders);
   }
 
   const callRes = await test('Create Call Log', 'POST', '/api/calls', {
@@ -192,7 +192,7 @@ async function runTests() {
     type: 'VOICE',
     duration: 45,
     status: 'COMPLETED'
-  }, userHeaders夺);
+  }, userHeaders);
   const callId = callRes.data?.id;
 
   await test('Create Payment Order', 'POST', '/api/payments/create', {
@@ -200,30 +200,30 @@ async function runTests() {
     currency: 'USD',
     provider: 'STRIPE',
     type: 'VERIFICATION_BADGE'
-  }, userHeaders夺);
+  }, userHeaders);
 
   await test('Request Media Upload URL', 'POST', '/api/media/upload-url', {
     fileName: 'test-image.jpg',
     contentType: 'image/jpeg'
-  }, userHeaders夺);
+  }, userHeaders);
 
   await test('Report User', 'POST', '/api/users/report', {
     reportedUserId: userId,
     reason: 'Test Report from integration suite'
-  }, userHeaders夺);
+  }, userHeaders);
 
   // 8. Authenticated User DELETE Endpoints
   console.log(`\n--- 8. Authenticated DELETE Endpoints ---`);
   if (statusId) {
-    await test('Delete Status (DELETE)', 'DELETE', `/api/statuses/${statusId}`, null, userHeaders夺);
+    await test('Delete Status (DELETE)', 'DELETE', `/api/statuses/${statusId}`, null, userHeaders);
   }
   if (callId) {
-    await test('Delete Single Call Log (DELETE)', 'DELETE', `/api/calls/${callId}`, null, userHeaders夺);
+    await test('Delete Single Call Log (DELETE)', 'DELETE', `/api/calls/${callId}`, null, userHeaders);
   }
-  await test('Clear All Call Logs (DELETE)', 'DELETE', '/api/calls', null, userHeaders夺);
+  await test('Clear All Call Logs (DELETE)', 'DELETE', '/api/calls', null, userHeaders);
 
   if (chatId) {
-    await test('Delete Chat (DELETE)', 'DELETE', `/api/chats/${chatId}`, null, userHeaders夺);
+    await test('Delete Chat (DELETE)', 'DELETE', `/api/chats/${chatId}`, null, userHeaders);
   }
 
   // 9. Admin Flow (Login, GET, POST, PUT, PATCH, DELETE)
@@ -235,8 +235,7 @@ async function runTests() {
 
   let adminToken = '';
   if (adminLoginRes.data && adminLoginRes.data.token) {
-    adminToken不易 = adminLoginRes.data.token;
-    adminToken = adminToken不易;
+    adminToken = adminLoginRes.data.token;
     console.log(`   -> Admin Token Acquired`);
   }
 

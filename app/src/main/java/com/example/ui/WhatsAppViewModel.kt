@@ -181,18 +181,13 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             checkSystemStatus()
             
             // If logged in, init socket and sync data
+            val token = authManager.getAuthToken()
             authManager.getUserId()?.let { uid ->
-                repository.initSocket(uid) { 
+                repository.initSocket(uid, token) { 
                     // Handle incoming
                 }
-                authManager.getAuthToken()?.let { token ->
-                    repository.syncStatuses(token, uid)
-                    repository.syncCommunities(token)
-                    
-                    // Trigger background contact sync if permission would likely be granted or just try
-                    // Note: Actual permission check happens in UI, but we can attempt to sync what we have
-                    // or just wait for the SelectContactScreen. 
-                    // Let's at least sync with backend for existing local contacts if any.
+                if (!token.isNullOrBlank()) {
+                    syncEverythingWithBackend()
                 }
             }
         }
@@ -325,7 +320,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 isLoggedIn.value = true
 
                 // Initialize Socket & Sync
-                repository.initSocket(response.user.id) { }
+                repository.initSocket(response.user.id, response.token) { }
                 syncEverythingWithBackend()
 
                 onComplete?.invoke(true, null)
@@ -382,7 +377,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 isLoggedIn.value = true
 
                 // Initialize Socket & Sync
-                repository.initSocket(response.user.id) { }
+                repository.initSocket(response.user.id, response.token) { }
                 syncEverythingWithBackend()
 
                 onComplete?.invoke(true, null)

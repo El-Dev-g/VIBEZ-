@@ -53,8 +53,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     val typingEvent = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, Boolean>>()
     val readReceiptEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
 
-    fun initSocket(userId: String, onNewMessage: (MessageEntity) -> Unit) {
-        socketManager = SocketManager(userId).apply {
+    fun initSocket(userId: String, token: String? = null, onNewMessage: (MessageEntity) -> Unit) {
+        socketManager = SocketManager(userId, token).apply {
             connect { json ->
                 try {
                     val messageDto = parseMessageJson(json)
@@ -64,14 +64,42 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                         removeDeletedChatId(entity.chatId)
                         dao.insertMessage(entity)
                         
-                        // Update chat's last message
-                        val chat = dao.getChatById(entity.chatId)
-                        chat?.let {
-                            dao.updateChat(it.copy(
+                        // Update chat's last message or create missing chat entity
+                        var chat = dao.getChatById(entity.chatId)
+                        if (chat != null) {
+                            dao.updateChat(chat.copy(
                                 lastMessage = entity.content,
                                 lastMessageTime = entity.timestamp,
-                                unreadCount = it.unreadCount + 1
+                                unreadCount = chat.unreadCount + 1
                             ))
+                        } else {
+                            val token = context?.let { AuthManager(it).getAuthToken() }
+                            if (!token.isNullOrBlank()) {
+                                try {
+                                    syncChats(token)
+                                    chat = dao.getChatById(entity.chatId)
+                                } catch (_: Exception) {}
+                            }
+                            
+                            if (chat == null) {
+                                val senderObj = json.optJSONObject("sender")
+                                val senderName = senderObj?.optString("name")?.ifBlank { null }
+                                    ?: json.optString("senderName", "").ifBlank { null }
+                                    ?: "Contact"
+                                val senderAvatar = senderObj?.optString("avatarUrl") ?: ""
+                                val newChat = ChatEntity(
+                                    id = entity.chatId,
+                                    remoteId = entity.chatId,
+                                    contactId = entity.senderId,
+                                    contactName = senderName,
+                                    contactAvatar = senderAvatar,
+                                    lastMessage = entity.content,
+                                    lastMessageTime = entity.timestamp,
+                                    unreadCount = 1,
+                                    isGroup = false
+                                )
+                                dao.insertChat(newChat)
+                            }
                         }
                     }
                     
@@ -103,6 +131,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             onIceCandidateReceived = { data ->
                 _iceCandidate.value = data
             }
+            onCallEndedReceived = { data ->
+                _callEnded.value = data
+            }
         }
     }
 
@@ -115,10 +146,18 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     private val _iceCandidate = MutableStateFlow<JSONObject?>(null)
     val iceCandidate = _iceCandidate.asStateFlow()
 
+    private val _callEnded = MutableStateFlow<JSONObject?>(null)
+    val callEnded = _callEnded.asStateFlow()
+
+    fun clearIncomingCall() {
+        _incomingCall.value = null
+    }
+
     fun clearCallSignals() {
         _incomingCall.value = null
         _callAnswer.value = null
         _iceCandidate.value = null
+        _callEnded.value = null
     }
 
     private fun mapMessageDtoToEntity(dto: MessageDto): MessageEntity {

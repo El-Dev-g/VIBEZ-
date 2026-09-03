@@ -1,24 +1,47 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
 import { Server as SocketIOServer } from 'socket.io';
 import { getChatRoomName } from '../utils/socketHelpers';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'vibez_secret_jwt_key_2024';
-const DEV_HMAC_SECRET = process.env.VIBEZ_WEBHOOK_SECRET || 'whsec_99a8b7c6d5e4f3a2b1c0987654321fed';
+import { getJwtSecret, signDeveloperToken, verifyDeveloperToken } from '../lib/jwt';
+import { DeveloperRequest } from '../middleware/developerAuth';
 
 export class DeveloperController {
   
   /**
    * HMAC-SHA256 Webhook Verification
+   * Securely validates webhook signature against server-stored webhook secrets or developer account
    */
   async verifyWebhook(req: Request, res: Response) {
     try {
-      const { secret = DEV_HMAC_SECRET, payload, signature, timestamp } = req.body;
+      const { endpointId, payload, signature, timestamp } = req.body;
+
+      if (!signature) {
+        return res.status(400).json({ success: false, error: 'Signature is required for verification.' });
+      }
+
+      let secret = '';
+
+      // 1. Look up endpoint secret from Prisma if endpointId is provided
+      if (endpointId) {
+        const endpoint = await prisma.webhookEndpoint.findUnique({
+          where: { id: endpointId }
+        });
+        if (endpoint && endpoint.secretKey) {
+          secret = endpoint.secretKey;
+        }
+      }
+
+      // 2. Fallback to developer-configured environment secret
+      if (!secret) {
+        secret = process.env.VIBEZ_WEBHOOK_SECRET || '';
+      }
 
       if (!secret) {
-        return res.status(400).json({ success: false, error: 'Webhook signing secret is required' });
+        return res.status(400).json({
+          success: false,
+          error: 'No registered webhook secret found for this endpoint. Please register a webhook endpoint first.'
+        });
       }
 
       const payloadString = payload === undefined ? '' : (typeof payload === 'string' ? payload : JSON.stringify(payload));
@@ -32,57 +55,45 @@ export class DeveloperController {
       const expectedHeader = `t=${timestamp || Math.floor(Date.now() / 1000)},v1=${computedSignature}`;
 
       let isValid = false;
-      if (signature) {
-        const cleanSig = signature.includes('v1=')
-          ? signature.split('v1=')[1].split(',')[0].trim()
-          : signature.trim();
+      const cleanSig = signature.includes('v1=')
+        ? signature.split('v1=')[1].split(',')[0].trim()
+        : signature.trim();
 
-        try {
-          const sigBuf = Buffer.from(cleanSig, 'hex');
-          const compBuf = Buffer.from(computedSignature, 'hex');
-          if (sigBuf.length === compBuf.length) {
-            isValid = crypto.timingSafeEqual(sigBuf, compBuf);
-          }
-        } catch {
-          isValid = false;
+      try {
+        const sigBuf = Buffer.from(cleanSig, 'hex');
+        const compBuf = Buffer.from(computedSignature, 'hex');
+        if (sigBuf.length === compBuf.length) {
+          isValid = crypto.timingSafeEqual(sigBuf, compBuf);
         }
+      } catch {
+        isValid = false;
       }
 
       return res.json({
         success: true,
         data: {
           isValid,
-          computedSignature,
-          formattedHeader: expectedHeader,
+          computedSignature: isValid ? computedSignature : 'REDACTED',
+          formattedHeader: isValid ? expectedHeader : 'INVALID_SIGNATURE',
           algorithm: 'HMAC-SHA256',
           timestamp: timestamp || Math.floor(Date.now() / 1000),
           verifiedAt: new Date().toISOString(),
-          server: 'Vibez Custom Backend (Express + Prisma)',
+          server: 'Vibez Backend Security Engine',
           poweredBy: 'PRIGID GROUP',
         },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, error: error.message || 'Verification error' });
+      return res.status(500).json({ success: false, error: error.message || 'Webhook verification error' });
     }
   }
 
   /**
    * Server-to-Server Message Dispatch
-   * Writes directly to Prisma database and broadcasts to active Socket.IO clients!
+   * Writes directly to Prisma database and broadcasts to active Socket.IO clients
    */
-  async dispatchServerMessage(req: Request, res: Response, io?: SocketIOServer) {
+  async dispatchServerMessage(req: DeveloperRequest, res: Response, io?: SocketIOServer) {
     try {
-      const authHeader = (typeof req.headers.authorization === 'string' ? req.headers.authorization : (req.header('authorization') || ''));
-      const { apiKey, channelId, recipientId, content, messageType = 'TEXT', metadata = {} } = req.body;
-
-      const key = apiKey || (authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : '');
-
-      if (!key) {
-        return res.status(401).json({
-          success: false,
-          error: 'Authentication required. Provide Bearer token or apiKey in request.'
-        });
-      }
+      const { channelId, recipientId, content, messageType = 'TEXT', metadata = {} } = req.body;
 
       if (!content || (!channelId && !recipientId)) {
         return res.status(400).json({
@@ -105,7 +116,6 @@ export class DeveloperController {
           });
 
           if (!user) {
-            // Find system bot user or any active user
             user = await prisma.user.findFirst();
           }
 
@@ -121,22 +131,27 @@ export class DeveloperController {
         }
 
         if (targetChatId) {
-          // Find or fallback sender user
-          let systemUser = await prisma.user.findFirst({
-            where: { name: { contains: 'System' } }
-          });
+          // Find system bot user or developer user
+          const senderUserId = req.developerAccount?.userId;
+          let senderUser = senderUserId ? await prisma.user.findUnique({ where: { id: senderUserId } }) : null;
 
-          if (!systemUser) {
-            systemUser = await prisma.user.findFirst();
+          if (!senderUser) {
+            senderUser = await prisma.user.findFirst({
+              where: { name: { contains: 'System' } }
+            });
           }
 
-          if (systemUser) {
+          if (!senderUser) {
+            senderUser = await prisma.user.findFirst();
+          }
+
+          if (senderUser) {
             createdMessage = await prisma.message.create({
               data: {
                 content,
                 type: messageType.toUpperCase(),
                 chatId: targetChatId,
-                senderId: systemUser.id,
+                senderId: senderUser.id,
                 receiverId: recipientId || undefined,
                 status: 'DELIVERED',
               },
@@ -159,7 +174,7 @@ export class DeveloperController {
           }
         }
       } catch (dbErr) {
-        console.warn('Prisma DB write note (in-memory fallback active):', dbErr);
+        console.warn('[DeveloperMessage] Prisma DB write note:', dbErr);
       }
 
       const generatedId = createdMessage?.id || `msg_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
@@ -187,12 +202,16 @@ export class DeveloperController {
 
   /**
    * WebRTC Room Token Generation & ICE Server Provisioning
+   * Derives caller identity securely
    */
-  async generateRtcToken(req: Request, res: Response) {
+  async generateRtcToken(req: DeveloperRequest, res: Response) {
     try {
-      const { roomId, userId, role = 'publisher', ttlSeconds = 3600 } = req.body;
+      const { roomId, userId: requestedUserId, role = 'publisher', ttlSeconds = 3600 } = req.body;
 
-      if (!roomId || !userId) {
+      // Securely resolve user ID: use authenticated session user ID if available, otherwise developer user
+      const effectiveUserId = (req as any).user?.id || req.developerAccount?.userId || requestedUserId;
+
+      if (!roomId || !effectiveUserId) {
         return res.status(400).json({
           success: false,
           error: 'roomId and userId are required to issue a WebRTC signaling token.'
@@ -200,32 +219,34 @@ export class DeveloperController {
       }
 
       const payload = {
-        sub: userId,
+        sub: effectiveUserId,
         room: roomId,
         role,
         iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (ttlSeconds || 3600),
+        exp: Math.floor(Date.now() / 1000) + Math.min(ttlSeconds || 3600, 86400),
         nonce: crypto.randomBytes(8).toString('hex'),
       };
 
-      const token = jwt.sign(payload, JWT_SECRET);
+      const token = signDeveloperToken({
+        id: effectiveUserId,
+        email: 'rtc@vibez.chat',
+        developerAccountId: req.developerAccount?.id || 'rtc_service',
+        role: 'rtc_user',
+        sub: effectiveUserId,
+        scope: 'rtc:signaling'
+      }, `${payload.exp - payload.iat}s`);
 
       return res.json({
         success: true,
         data: {
           token,
           roomId,
-          userId,
+          userId: effectiveUserId,
           role,
           expiresAt: payload.exp,
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            {
-              urls: 'turn:turn.vibez.chat:3478?transport=udp',
-              username: `user_${userId}`,
-              credential: crypto.randomBytes(12).toString('hex'),
-            }
+            { urls: 'stun:stun1.l.google.com:19302' }
           ],
           websocketSignalingUrl: `wss://api.vibez.chat/v1/rtc/signal?token=${token}`,
           poweredBy: 'PRIGID GROUP',
@@ -238,6 +259,7 @@ export class DeveloperController {
 
   /**
    * OAuth2 Token Exchange
+   * Validates client_id and client_secret against database applications
    */
   async issueOAuthToken(req: Request, res: Response) {
     try {
@@ -257,24 +279,52 @@ export class DeveloperController {
         });
       }
 
+      // 1. Look up ServerApplication in database
+      const app = await prisma.serverApplication.findUnique({
+        where: { clientId: client_id },
+        include: { developer: true }
+      });
+
+      if (!app) {
+        return res.status(401).json({
+          error: 'invalid_client',
+          error_description: 'Client authentication failed: unknown client_id.'
+        });
+      }
+
+      // 2. Validate client_secret against stored hash (SHA-256)
+      const secretHash = crypto.createHash('sha256').update(client_secret).digest('hex');
+      if (app.clientSecretHash !== secretHash && app.clientSecretHash !== client_secret) {
+        return res.status(401).json({
+          error: 'invalid_client',
+          error_description: 'Client authentication failed: invalid client_secret.'
+        });
+      }
+
+      if (app.developer.status !== 'ACTIVE') {
+        return res.status(403).json({
+          error: 'access_denied',
+          error_description: 'Developer account associated with this application is not active.'
+        });
+      }
+
       const expiresIn = 7200;
-      const accessToken = jwt.sign(
-        {
-          iss: 'https://auth.vibez.chat',
-          sub: client_id,
-          aud: 'https://api.vibez.chat',
-          scope,
-        },
-        JWT_SECRET,
-        { expiresIn }
-      );
+      const accessToken = signDeveloperToken({
+        id: app.developer.userId,
+        email: 'app@vibez.chat',
+        developerAccountId: app.developer.id,
+        role: 'ServerApp',
+        sub: client_id,
+        scope,
+        tier: app.developer.tier
+      }, `${expiresIn}s`);
 
       return res.json({
         access_token: accessToken,
         token_type: 'Bearer',
         expires_in: expiresIn,
         scope,
-        organization: 'PRIGID GROUP Developer Ecosystem',
+        organization: app.developer.organizationName || 'PRIGID GROUP Developer Ecosystem',
       });
     } catch (error: any) {
       return res.status(500).json({ error: 'server_error', error_description: error.message });
@@ -282,9 +332,21 @@ export class DeveloperController {
   }
 
   /**
-   * Custom Server Diagnostics & Health Check
+   * Server Health Check
+   * Returns clean operational health status
    */
   async getDeveloperHealth(req: Request, res: Response) {
+    const isInternalAuth = req.headers.authorization || req.headers['x-api-key'];
+
+    if (!isInternalAuth) {
+      // Clean, unprivileged public health response
+      return res.json({
+        status: 'healthy',
+        uptimeSeconds: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString()
+      });
+    }
+
     const startTime = Date.now();
     let dbStatus = 'disconnected';
     let userCount = 0;
@@ -308,10 +370,6 @@ export class DeveloperController {
         status: dbStatus,
         totalUsers: userCount,
         totalMessages: messageCount,
-      },
-      runtime: {
-        nodeVersion: process.version,
-        memoryUsage: process.memoryUsage(),
       },
       latencyMs: Date.now() - startTime,
       poweredBy: 'PRIGID GROUP',
@@ -337,9 +395,6 @@ export class DeveloperController {
           totalChats: chats,
           totalMessages: messages,
           totalCommunities: communities,
-          requestsPerMinute: 342,
-          successRate: '99.94%',
-          averageLatencyMs: 14,
           activeSdks: ['Kotlin', 'TypeScript', 'Python', 'Go'],
         },
         poweredBy: 'PRIGID GROUP',
@@ -351,18 +406,19 @@ export class DeveloperController {
 
   /**
    * Developer Login with Real DB Verification & JWT Session
+   * Login only authenticates existing developer accounts (does NOT silently create)
    */
   async developerLogin(req: Request, res: Response) {
     try {
-      const { email, password } = req.body;
+      const { email } = req.body;
       const cleanEmail = (email || '').trim().toLowerCase();
 
       if (!cleanEmail) {
         return res.status(400).json({ success: false, error: 'Developer email is required.' });
       }
 
-      // Look up user by email or developer account
-      let user = await prisma.user.findFirst({
+      // Look up user by email
+      const user = await prisma.user.findFirst({
         where: {
           OR: [
             { googleEmail: cleanEmail },
@@ -380,71 +436,25 @@ export class DeveloperController {
         }
       });
 
-      if (!user) {
-        // Create user and developer account
-        const phoneKey = `dev_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
-        const name = cleanEmail.split('@')[0].replace(/[._]/g, ' ');
-        user = await prisma.user.create({
-          data: {
-            googleEmail: cleanEmail,
-            phoneNumber: phoneKey,
-            name: name.charAt(0).toUpperCase() + name.slice(1),
-            authProvider: 'DEVELOPER',
-            developerAccount: {
-              create: {
-                organizationName: 'PRIGID Developer Org',
-                tier: 'ENTERPRISE',
-                monthlyRequestLimit: 10000000,
-              }
-            }
-          },
-          include: {
-            developerAccount: {
-              include: {
-                apiKeys: {
-                  where: { isActive: true }
-                }
-              }
-            }
-          }
+      if (!user || !user.developerAccount) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Developer account not found for this email. Please register for a developer account first.' 
         });
-      } else if (!user.developerAccount) {
-        // Attach developer account to existing user
-        const devAccount = await prisma.developerAccount.create({
-          data: {
-            userId: user.id,
-            organizationName: 'PRIGID Developer Org',
-            tier: 'ENTERPRISE',
-            monthlyRequestLimit: 10000000,
-          },
-          include: {
-            apiKeys: {
-              where: { isActive: true }
-            }
-          }
-        });
-        user = {
-          ...user,
-          developerAccount: devAccount
-        };
       }
 
-      if (user.isBanned) {
-        return res.status(403).json({ success: false, error: 'Developer account is suspended.' });
+      if (user.isBanned || user.developerAccount.status === 'SUSPENDED') {
+        return res.status(403).json({ success: false, error: 'Developer account is suspended by administrator.' });
       }
 
-      const devAccount = user.developerAccount!;
-      const token = jwt.sign(
-        {
-          id: user.id,
-          email: user.googleEmail || cleanEmail,
-          developerAccountId: devAccount.id,
-          role: 'Developer',
-          tier: devAccount.tier
-        },
-        JWT_SECRET,
-        { expiresIn: '30d' }
-      );
+      const devAccount = user.developerAccount;
+      const token = signDeveloperToken({
+        id: user.id,
+        email: user.googleEmail || cleanEmail,
+        developerAccountId: devAccount.id,
+        role: 'Developer',
+        tier: devAccount.tier
+      });
 
       const developerUser = {
         id: user.id,
@@ -492,10 +502,10 @@ export class DeveloperController {
    */
   async developerRegister(req: Request, res: Response) {
     try {
-      const { name, email, organization, primarySdk = 'Kotlin', password } = req.body;
+      const { name, email, organization, primarySdk = 'Kotlin' } = req.body;
       const cleanEmail = (email || '').trim().toLowerCase();
       const cleanName = (name || '').trim();
-      const cleanOrg = (organization || '').trim() || 'My Org';
+      const cleanOrg = (organization || '').trim() || 'Developer Org';
 
       if (!cleanEmail || !cleanName) {
         return res.status(400).json({ success: false, error: 'Name and email are required.' });
@@ -530,7 +540,7 @@ export class DeveloperController {
               create: {
                 organizationName: cleanOrg,
                 tier: 'FREE',
-                monthlyRequestLimit: 1000000,
+                monthlyRequestLimit: 100000,
               }
             }
           },
@@ -548,7 +558,7 @@ export class DeveloperController {
             userId: user.id,
             organizationName: cleanOrg,
             tier: 'FREE',
-            monthlyRequestLimit: 1000000,
+            monthlyRequestLimit: 100000,
           },
           include: {
             apiKeys: true
@@ -575,23 +585,19 @@ export class DeveloperController {
           name: `${cleanOrg} Primary Sandbox Key`,
           keyPrefix,
           keyHash,
-          scopes: ['messages:write', 'rtc:signaling', 'system:telemetry'],
+          scopes: ['messages:write', 'rtc:signaling'],
           rateLimitRpm: 600,
           isActive: true
         }
       });
 
-      const token = jwt.sign(
-        {
-          id: user.id,
-          email: cleanEmail,
-          developerAccountId: devAccount.id,
-          role: 'Developer',
-          tier: devAccount.tier
-        },
-        JWT_SECRET,
-        { expiresIn: '30d' }
-      );
+      const token = signDeveloperToken({
+        id: user.id,
+        email: cleanEmail,
+        developerAccountId: devAccount.id,
+        role: 'Developer',
+        tier: devAccount.tier
+      });
 
       const developerUser = {
         id: user.id,
@@ -637,43 +643,34 @@ export class DeveloperController {
   /**
    * Get Current Developer Profile & Synchronized API Keys
    */
-  async getDeveloperProfile(req: Request, res: Response) {
+  async getDeveloperProfile(req: DeveloperRequest, res: Response) {
     try {
-      const authHeader = (typeof req.headers.authorization === 'string' ? req.headers.authorization : (req.header('authorization') || ''));
-      const token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : '';
+      const devAccountId = req.developerAccount?.id || req.developerUser?.developerAccountId;
 
-      if (!token) {
-        return res.status(401).json({ success: false, error: 'Unauthorized. Token required.' });
+      if (!devAccountId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized. Developer account context required.' });
       }
 
-      const decoded: any = jwt.verify(token, JWT_SECRET);
-      if (!decoded || !decoded.id) {
-        return res.status(401).json({ success: false, error: 'Invalid authentication token.' });
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
+      const devAccount = await prisma.developerAccount.findUnique({
+        where: { id: devAccountId },
         include: {
-          developerAccount: {
-            include: {
-              apiKeys: {
-                where: { isActive: true },
-                orderBy: { createdAt: 'desc' }
-              }
-            }
+          user: true,
+          apiKeys: {
+            where: { isActive: true },
+            orderBy: { createdAt: 'desc' }
           }
         }
       });
 
-      if (!user || !user.developerAccount) {
+      if (!devAccount) {
         return res.status(404).json({ success: false, error: 'Developer account not found.' });
       }
 
-      const devAccount = user.developerAccount;
+      const user = devAccount.user;
       const developerUser = {
         id: user.id,
         name: user.name || 'Developer',
-        email: user.googleEmail || decoded.email || 'developer@vibez.chat',
+        email: user.googleEmail || 'developer@vibez.chat',
         organization: devAccount.organizationName || 'Developer Org',
         role: 'Owner' as const,
         primarySdk: 'Kotlin' as const,
@@ -712,30 +709,12 @@ export class DeveloperController {
   /**
    * Create New API Key with DB Hash Storage
    */
-  async createApiKey(req: Request, res: Response) {
+  async createApiKey(req: DeveloperRequest, res: Response) {
     try {
-      const authHeader = (typeof req.headers.authorization === 'string' ? req.headers.authorization : (req.header('authorization') || ''));
-      const token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : '';
-
-      let devAccountId = '';
-      if (token) {
-        try {
-          const decoded: any = jwt.verify(token, JWT_SECRET);
-          devAccountId = decoded.developerAccountId;
-        } catch {
-          // fallback
-        }
-      }
+      const devAccountId = req.developerAccount?.id || req.developerUser?.developerAccountId;
 
       if (!devAccountId) {
-        const firstAccount = await prisma.developerAccount.findFirst();
-        if (firstAccount) {
-          devAccountId = firstAccount.id;
-        }
-      }
-
-      if (!devAccountId) {
-        return res.status(400).json({ success: false, error: 'Developer account not found.' });
+        return res.status(401).json({ success: false, error: 'Developer authentication required to create API keys.' });
       }
 
       const { name, environment = 'sandbox', sdkTarget = 'Kotlin', scopes = ['messages:write'] } = req.body;
@@ -784,15 +763,21 @@ export class DeveloperController {
   /**
    * Revoke API Key
    */
-  async revokeApiKey(req: Request, res: Response) {
+  async revokeApiKey(req: DeveloperRequest, res: Response) {
     try {
       const { id } = req.params;
+      const devAccountId = req.developerAccount?.id || req.developerUser?.developerAccountId;
+
       if (!id) {
         return res.status(400).json({ success: false, error: 'Key ID is required.' });
       }
 
+      // Verify developer owns this key before revoking
       await prisma.apiKey.updateMany({
-        where: { id },
+        where: { 
+          id,
+          ...(devAccountId ? { developerId: devAccountId } : {})
+        },
         data: { isActive: false }
       });
 

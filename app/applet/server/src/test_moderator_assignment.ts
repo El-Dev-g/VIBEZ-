@@ -1,6 +1,6 @@
 
 import { PrismaClient } from '@prisma/client';
-import { emailService } from '../server/src/lib/email';
+import { emailService } from '../../../../server/src/lib/email';
 
 const prisma = new PrismaClient();
 

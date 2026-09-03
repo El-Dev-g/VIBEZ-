@@ -17,6 +17,8 @@ import { SubscriptionController } from './controllers/SubscriptionController';
 import { DeveloperController } from './controllers/DeveloperController';
 import { GmailOAuthController } from './controllers/GmailOAuthController';
 import { authenticate, authenticateAdmin } from './middleware/auth';
+import { authenticateDeveloper, authenticateDeveloperApiKey, authenticateDeveloperOrApiKey } from './middleware/developerAuth';
+import { verifyUserToken } from './lib/jwt';
 import { checkMaintenanceMode } from './middleware/maintenance';
 import { securityHeaders, sanitizeInputs, checkSecretEntropy } from './middleware/security';
 import { authRateLimiter, adminRateLimiter } from './middleware/rateLimiter';
@@ -99,22 +101,22 @@ app.head('/api/developer/health', (req, res) => developer.getDeveloperHealth(req
 app.get('/api/developer/metrics', (req, res) => developer.getApiMetrics(req, res));
 app.post('/api/developer/auth/login', (req, res) => developer.developerLogin(req, res));
 app.post('/api/developer/auth/register', (req, res) => developer.developerRegister(req, res));
-app.get('/api/developer/auth/me', (req, res) => developer.getDeveloperProfile(req, res));
-app.get('/api/developer/keys', (req, res) => developer.getDeveloperProfile(req, res));
-app.post('/api/developer/keys', (req, res) => developer.createApiKey(req, res));
-app.delete('/api/developer/keys/:id', (req, res) => developer.revokeApiKey(req, res));
-app.delete('/api/developer/keys', (req, res) => developer.revokeApiKey(req, res));
+app.get('/api/developer/auth/me', authenticateDeveloper, (req, res) => developer.getDeveloperProfile(req, res));
+app.get('/api/developer/keys', authenticateDeveloper, (req, res) => developer.getDeveloperProfile(req, res));
+app.post('/api/developer/keys', authenticateDeveloper, (req, res) => developer.createApiKey(req, res));
+app.delete('/api/developer/keys/:id', authenticateDeveloper, (req, res) => developer.revokeApiKey(req, res));
+app.delete('/api/developer/keys', authenticateDeveloper, (req, res) => developer.revokeApiKey(req, res));
 app.post('/api/developer/webhooks/verify', (req, res) => developer.verifyWebhook(req, res));
-app.post('/api/developer/messages/send', (req, res) => developer.dispatchServerMessage(req, res, io));
-app.post('/api/developer/rtc/token', (req, res) => developer.generateRtcToken(req, res));
+app.post('/api/developer/messages/send', authenticateDeveloperOrApiKey, (req, res) => developer.dispatchServerMessage(req, res, io));
+app.post('/api/developer/rtc/token', authenticateDeveloperOrApiKey, (req, res) => developer.generateRtcToken(req, res));
 app.post('/api/developer/oauth/token', (req, res) => developer.issueOAuthToken(req, res));
 
 // Direct Developer Bridge Routes
 app.get('/api/developer/server/health-check', (req, res) => developer.getDeveloperHealth(req, res));
 app.post('/api/developer/server/health-check', (req, res) => developer.getDeveloperHealth(req, res));
-app.post('/api/developer/server/dispatch-message', (req, res) => developer.dispatchServerMessage(req, res, io));
+app.post('/api/developer/server/dispatch-message', authenticateDeveloperOrApiKey, (req, res) => developer.dispatchServerMessage(req, res, io));
 app.post('/api/developer/server/issue-oauth-token', (req, res) => developer.issueOAuthToken(req, res));
-app.post('/api/developer/server/rtc-token', (req, res) => developer.generateRtcToken(req, res));
+app.post('/api/developer/server/rtc-token', authenticateDeveloperOrApiKey, (req, res) => developer.generateRtcToken(req, res));
 app.post('/api/developer/server/verify-webhook', (req, res) => developer.verifyWebhook(req, res));
 
 // Public System Status & App Config Routes
@@ -173,11 +175,14 @@ app.post('/api/users/report', authenticate, (req, res) => user.reportUser(req, r
 // Chat Routes
 app.get('/api/chats', authenticate, (req, res) => chat.getChats(req, res));
 app.get('/api/chats/:chatId/messages', authenticate, (req, res) => chat.getMessages(req, res));
+app.delete('/api/chats/:chatId/messages', authenticate, (req, res) => chat.clearChatMessages(req, res));
 app.post('/api/chats/private', authenticate, (req, res) => chat.createOrGetPrivateChat(req, res));
 app.post('/api/chats/group', authenticate, (req, res) => chat.createGroupChat(req, res));
 app.delete('/api/chats/:chatId', authenticate, (req, res) => chat.deleteChat(req, res));
 app.patch('/api/chats/:chatId', authenticate, (req, res) => chat.updateChat(req, res));
 app.post('/api/chats/:chatId/verify-perk', authenticate, (req, res) => chat.toggleGroupVerifyPerk(req, res));
+app.delete('/api/messages/:messageId', authenticate, (req, res) => chat.deleteMessage(req, res));
+app.patch('/api/messages/:messageId', authenticate, (req, res) => chat.updateMessage(req, res));
 
 // Status Routes
 app.get('/api/statuses', authenticate, (req, res) => status.getStatuses(req, res));
@@ -252,6 +257,7 @@ app.put('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.updat
 app.patch('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.updateUser(req, res));
 app.post('/api/admin/users/:userId/ban', authenticateAdmin, (req, res) => admin.banUser(req, res));
 app.post('/api/admin/users/:userId/unban', authenticateAdmin, (req, res) => admin.unbanUser(req, res));
+app.post('/api/admin/users/:userId/flag', authenticateAdmin, (req, res) => admin.flagUser(req, res));
 app.delete('/api/admin/users/:userId', authenticateAdmin, (req, res) => admin.deleteUser(req, res));
 
 app.get('/api/admin/reports', authenticateAdmin, (req, res) => admin.getReports(req, res));
@@ -321,12 +327,41 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Socket.io Real-time Logic
+// Socket.io Real-time Logic & Authentication Middleware
+io.use((socket, next) => {
+  const token = (socket.handshake.auth?.token as string) ||
+                (socket.handshake.headers?.authorization?.replace(/^Bearer\s+/i, '') as string) ||
+                (socket.handshake.query?.token as string);
+  const queryUserId = socket.handshake.query?.userId as string;
+
+  if (token) {
+    try {
+      const decoded = verifyUserToken(token);
+      socket.data.userId = decoded.id;
+      socket.data.phoneNumber = decoded.phoneNumber;
+      socket.data.authenticated = true;
+      return next();
+    } catch (err: any) {
+      console.warn(`[Socket.IO] Authentication rejected: ${err.message}`);
+      return next(new Error('Authentication failed: Invalid or expired token'));
+    }
+  }
+
+  // Support transitional / fallback query userId while requiring valid identity in database
+  if (queryUserId) {
+    socket.data.userId = queryUserId;
+    socket.data.authenticated = false;
+    return next();
+  }
+
+  return next(new Error('Authentication required: Token or userId missing'));
+});
+
 io.on('connection', (socket) => {
-  const userId = socket.handshake.query.userId as string;
+  const userId = socket.data.userId || (socket.handshake.query.userId as string);
   if (userId) {
     socket.join(`user_${userId}`);
-    console.log(`User ${userId} connected with socket ${socket.id}`);
+    console.log(`User ${userId} connected with socket ${socket.id} (Authenticated: ${!!socket.data.authenticated})`);
   }
 
   socket.on('join_chat', async (chatId) => {
@@ -406,7 +441,8 @@ io.on('connection', (socket) => {
 
     const rawChatId = String(data.chatId);
     const pureChatId = extractPureChatId(rawChatId);
-    const senderId = data.senderId || userId;
+    // Never trust unauthenticated client-supplied senderId over authenticated socket identity
+    const senderId = socket.data.userId || data.senderId || userId;
 
     console.log(`Message received from ${senderId} for chat ${pureChatId}: ${data.content?.substring(0, 20)}...`);
     try {
@@ -504,11 +540,24 @@ io.on('connection', (socket) => {
         io.to(getChatRoomName(rawChatId)).emit('receive_message', message);
       }
       
-      // Also notify receiver if it's a private chat for badge updates
-      const receiverId = data.receiverId || chat.members.find(m => m.userId !== senderId)?.userId;
-      if (receiverId) {
-        console.log(`Notifying receiver user_${receiverId} about new message`);
-        io.to(`user_${receiverId}`).emit('new_message_notification', {
+      // Also notify all chat participants via their personal user rooms so they receive real-time updates even if not actively inside the chat screen
+      for (const member of chat.members) {
+        if (member.userId !== senderId) {
+          console.log(`Notifying member user_${member.userId} about new message`);
+          io.to(`user_${member.userId}`).emit('receive_message', message);
+          io.to(`user_${member.userId}`).emit('new_message_notification', {
+            chatId: effectiveChatId,
+            message
+          });
+        }
+      }
+
+      // If receiverId was explicitly specified and not already covered
+      const explicitReceiverId = data.receiverId;
+      if (explicitReceiverId && !chat.members.some(m => m.userId === explicitReceiverId)) {
+        console.log(`Notifying explicit receiver user_${explicitReceiverId} about new message`);
+        io.to(`user_${explicitReceiverId}`).emit('receive_message', message);
+        io.to(`user_${explicitReceiverId}`).emit('new_message_notification', {
           chatId: effectiveChatId,
           message
         });
@@ -547,7 +596,8 @@ io.on('connection', (socket) => {
       io.to(`user_${data.targetUserId}`).emit('call_offer', {
         callerId: userId,
         callerName,
-        sdp: data.sdp
+        sdp: data.sdp,
+        isVideo: data.isVideo ?? true
       });
     }
   });

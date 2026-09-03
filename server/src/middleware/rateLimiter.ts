@@ -67,18 +67,18 @@ export const createRateLimiter = (options: {
   };
 };
 
-// Rate limiter for authentication attempts (e.g. 5 attempts per 15 minutes per IP)
+// Rate limiter for authentication attempts (e.g. 50 attempts per 15 minutes per IP)
 export const authRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 50,
   message: 'Security Alert: Too many authentication attempts from this IP address. Please try again in 15 minutes.',
   keyPrefix: 'auth_login'
 });
 
-// Rate limiter for general sensitive admin endpoints (e.g. 120 calls per 15 mins)
+// Rate limiter for general sensitive admin endpoints (e.g. 1000 calls per 15 mins)
 export const adminRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 120,
+  max: 1000,
   message: 'Security Alert: Rate limit exceeded for administrative API. Please throttle your requests.',
   keyPrefix: 'admin_api'
 });
