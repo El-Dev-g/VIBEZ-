@@ -61,6 +61,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.example.data.ChatEntity
 import com.example.data.MessageEntity
@@ -157,7 +158,7 @@ class MainActivity : ComponentActivity() {
         )
 
         val notification = androidx.core.app.NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(content)
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
@@ -348,7 +349,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                                     contentDescription = "Preview",
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                    error = painterResource(id = android.R.drawable.ic_menu_report_image)
+                                    error = painterResource(id = R.drawable.img_app_icon_1787278021236)
                                 )
                             }
                             Spacer(modifier = Modifier.height(20.dp))
@@ -1703,30 +1704,36 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     }
 
     // Incoming Call Overlay
-    incomingCallOffer?.let { callData ->
-        IncomingCallOverlay(
-            callerName = callData.callerName,
-            isVideo = callData.isVideo,
-            onAccept = {
-                val callerId = callData.callerId
-                val callerName = callData.callerName
-                viewModel.logCall(callerId, callerName, if (callData.isVideo) "VIDEO" else "VOICE", isIncoming = true, isMissed = false)
-                
-                viewModel.repository.socketManager?.let {
-                    videoCallViewModel.setupSignaling(it, callerId)
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+    val isInCallScreen = currentRoute?.startsWith("call") == true
+
+    if (!isInCallScreen) {
+        incomingCallOffer?.let { callData ->
+            IncomingCallOverlay(
+                callerName = callData.callerName,
+                isVideo = callData.isVideo,
+                onAccept = {
+                    val callerId = callData.callerId
+                    val callerName = callData.callerName
+                    viewModel.logCall(callerId, callerName, if (callData.isVideo) "VIDEO" else "VOICE", isIncoming = true, isMissed = false)
+                    
+                    viewModel.repository.socketManager?.let {
+                        videoCallViewModel.setupSignaling(it, callerId)
+                    }
+                    
+                    navController.navigate("call/$callerId/${callData.isVideo}?isIncoming=true")
+                },
+                onReject = {
+                    val callerId = callData.callerId
+                    val callerName = callData.callerName
+                    viewModel.logCall(callerId, callerName, if (callData.isVideo) "VIDEO" else "VOICE", isIncoming = true, isMissed = true)
+                    viewModel.repository.socketManager?.endCall(callerId)
+                    videoCallViewModel.clearIncomingCall()
+                    viewModel.repository.clearIncomingCall()
                 }
-                
-                navController.navigate("call/$callerId/${callData.isVideo}?isIncoming=true")
-            },
-            onReject = {
-                val callerId = callData.callerId
-                val callerName = callData.callerName
-                viewModel.logCall(callerId, callerName, if (callData.isVideo) "VIDEO" else "VOICE", isIncoming = true, isMissed = true)
-                viewModel.repository.socketManager?.endCall(callerId)
-                videoCallViewModel.clearIncomingCall()
-                viewModel.repository.clearIncomingCall()
-            }
-        )
+            )
+        }
     }
 }
 }

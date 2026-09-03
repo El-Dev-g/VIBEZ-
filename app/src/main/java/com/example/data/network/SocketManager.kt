@@ -68,6 +68,11 @@ class SocketManager(private val userId: String, private val authToken: String? =
                 onCallOfferReceived?.invoke(data)
             }
 
+            socket?.on("incoming_call") { args ->
+                val data = args[0] as JSONObject
+                onCallOfferReceived?.invoke(data)
+            }
+
             socket?.on("call_answer") { args ->
                 val data = args[0] as JSONObject
                 onCallAnswerReceived?.invoke(data)
@@ -79,6 +84,11 @@ class SocketManager(private val userId: String, private val authToken: String? =
             }
 
             socket?.on("call_ended") { args ->
+                val data = if (args.isNotEmpty() && args[0] is JSONObject) args[0] as JSONObject else JSONObject()
+                onCallEndedReceived?.invoke(data)
+            }
+
+            socket?.on("end_call") { args ->
                 val data = if (args.isNotEmpty() && args[0] is JSONObject) args[0] as JSONObject else JSONObject()
                 onCallEndedReceived?.invoke(data)
             }

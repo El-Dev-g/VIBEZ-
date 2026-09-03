@@ -253,7 +253,7 @@ fun SettingsScreen(
                     VibesSettingClickRow(
                         icon = Icons.Default.Palette,
                         title = "App Icon Customizer",
-                        subtitle = if (isVerified) "Switch home screen app icon (PRO)" else "Unlock custom app icons with Pro badge",
+                        subtitle = "Choose custom theme & launcher icon",
                         onClick = onIconPickerClick
                     )
                     VibesSettingClickRow(

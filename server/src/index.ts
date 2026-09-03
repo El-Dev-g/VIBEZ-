@@ -358,11 +358,39 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  const userId = socket.data.userId || (socket.handshake.query.userId as string);
+  const rawUserId = socket.data.userId || (socket.handshake.query.userId as string);
+  const userId = rawUserId ? extractPureChatId(rawUserId) : null;
   if (userId) {
     socket.join(`user_${userId}`);
-    console.log(`User ${userId} connected with socket ${socket.id} (Authenticated: ${!!socket.data.authenticated})`);
+    socket.join(`user_${rawUserId}`);
+    socket.join(userId);
+    console.log(`[Socket.IO] User ${userId} connected with socket ID ${socket.id} (Authenticated: ${!!socket.data.authenticated})`);
   }
+
+  // Helper to emit call signaling events explicitly to specific target user socket IDs and personal rooms
+  const emitCallEventToUser = (targetUserId: string, event: string, payload: any) => {
+    if (!targetUserId) return;
+    const cleanId = extractPureChatId(targetUserId);
+
+    // 1. Emit to room names
+    io.to(`user_${cleanId}`).emit(event, payload);
+    io.to(`user_${targetUserId}`).emit(event, payload);
+    io.to(cleanId).emit(event, payload);
+
+    // 2. Explicitly find all active matching socket instances for target user and emit directly to their socket IDs
+    let directSocketCount = 0;
+    const sockets = io.sockets.sockets;
+    for (const [sId, s] of sockets.entries()) {
+      const sRawUserId = s.data?.userId || (s.handshake?.query?.userId as string);
+      const sUserId = sRawUserId ? extractPureChatId(sRawUserId) : null;
+      if (sUserId === cleanId || sRawUserId === targetUserId) {
+        console.log(`[Socket.IO Call] Emitting event '${event}' directly to socket ID: ${sId} (User: ${targetUserId})`);
+        s.emit(event, payload);
+        directSocketCount++;
+      }
+    }
+    console.log(`[Socket.IO Call] Dispatched event '${event}' to target ${targetUserId} (${directSocketCount} active direct socket connections)`);
+  };
 
   socket.on('join_chat', async (chatId) => {
     if (!chatId) return;
@@ -584,7 +612,7 @@ io.on('connection', (socket) => {
 
   // WebRTC Call Signaling
   socket.on('call_offer', async (data) => {
-    // data: { targetUserId, sdp }
+    // data: { targetUserId, sdp, isVideo }
     if (data && data.targetUserId) {
       let callerName = 'User';
       if (userId) {
@@ -593,35 +621,71 @@ io.on('connection', (socket) => {
           if (user?.name) callerName = user.name;
         } catch (e) {}
       }
-      io.to(`user_${data.targetUserId}`).emit('call_offer', {
+
+      const offerPayload = {
         callerId: userId,
         callerName,
         sdp: data.sdp,
-        isVideo: data.isVideo ?? true
-      });
+        isVideo: data.isVideo ?? true,
+        type: (data.isVideo ?? true) ? 'VIDEO' : 'VOICE',
+        targetUserId: data.targetUserId
+      };
+
+      // Emit explicitly to specific target user socket IDs and personal rooms
+      emitCallEventToUser(data.targetUserId, 'call_offer', offerPayload);
+      emitCallEventToUser(data.targetUserId, 'incoming_call', offerPayload);
+    }
+  });
+
+  socket.on('incoming_call', async (data) => {
+    // Alias for call_offer
+    if (data && data.targetUserId) {
+      let callerName = 'User';
+      if (userId) {
+        try {
+          const user = await prisma.user.findUnique({ where: { id: userId } });
+          if (user?.name) callerName = user.name;
+        } catch (e) {}
+      }
+
+      const offerPayload = {
+        callerId: userId,
+        callerName,
+        sdp: data.sdp,
+        isVideo: data.isVideo ?? true,
+        type: (data.isVideo ?? true) ? 'VIDEO' : 'VOICE',
+        targetUserId: data.targetUserId
+      };
+
+      emitCallEventToUser(data.targetUserId, 'call_offer', offerPayload);
+      emitCallEventToUser(data.targetUserId, 'incoming_call', offerPayload);
     }
   });
 
   socket.on('call_answer', (data) => {
     // data: { targetUserId, sdp }
     if (data && data.targetUserId) {
-      io.to(`user_${data.targetUserId}`).emit('call_answer', {
+      const answerPayload = {
         callerId: userId,
-        sdp: data.sdp
-      });
+        sdp: data.sdp,
+        targetUserId: data.targetUserId
+      };
+      emitCallEventToUser(data.targetUserId, 'call_answer', answerPayload);
     }
   });
 
   socket.on('ice_candidate', (data) => {
     // data: { targetUserId, sdpMid, sdpMLineIndex, candidate }
     if (data && data.targetUserId) {
-      io.to(`user_${data.targetUserId}`).emit('ice_candidate', data);
+      emitCallEventToUser(data.targetUserId, 'ice_candidate', data);
     }
   });
 
   socket.on('end_call', (data) => {
     if (data && data.targetUserId) {
-      io.to(`user_${data.targetUserId}`).emit('call_ended', { callerId: userId });
+      const endPayload = { callerId: userId, targetUserId: data.targetUserId };
+      emitCallEventToUser(data.targetUserId, 'call_ended', endPayload);
+      emitCallEventToUser(data.targetUserId, 'end_call', endPayload);
     }
   });
 

@@ -92,6 +92,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.webrtc.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material.icons.filled.ScreenShare
+import androidx.compose.material.icons.filled.StopScreenShare
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -131,6 +134,18 @@ fun CallScreen(
     var actionToast by remember { mutableStateOf<String?>(null) }
 
     val remoteTrack by viewModel.remoteTrack.collectAsStateWithLifecycle()
+    val isScreenSharing by viewModel.isScreenSharing.collectAsStateWithLifecycle()
+
+    val screenCaptureLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK && result.data != null) {
+            viewModel.startScreenSharing(result.data!!)
+            actionToast = "Screen sharing started"
+        } else {
+            actionToast = "Screen sharing cancelled"
+        }
+    }
 
     // Reset call pickup state on entry if not answering an incoming call
     LaunchedEffect(Unit) {
@@ -195,6 +210,7 @@ fun CallScreen(
             if (isIncoming && incomingSdp != null) {
                 viewModel.onRemoteOfferReceived(incomingSdp)
                 viewModel.setCallPickedUp(true)
+                viewModel.clearIncomingCall()
             } else {
                 viewModel.createOffer(isVideo = isVideoCall)
             }
@@ -262,7 +278,15 @@ fun CallScreen(
     }
 
     val formattedDuration = String.format("%02d:%02d", durationSeconds / 60, durationSeconds % 60)
-    val statusSubtitle = if (isCallPickedUp) formattedDuration else "Ringing..."
+    val statusSubtitle = if (isCallPickedUp) {
+        if (isVideoCall && remoteTrack == null) {
+            "Connecting..."
+        } else {
+            formattedDuration
+        }
+    } else {
+        if (isIncoming) "Connecting..." else "Ringing..."
+    }
 
     Box(
         modifier = Modifier
@@ -612,6 +636,31 @@ fun CallScreen(
                             imageVector = Icons.Default.Cameraswitch,
                             contentDescription = "Switch Camera",
                             tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+
+                    // 4b. Screen Share Toggle
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(if (isScreenSharing) WhatsAppMinimalAccent else Color.White.copy(alpha = 0.2f))
+                            .clickable {
+                                if (isScreenSharing) {
+                                    viewModel.stopScreenSharing()
+                                    actionToast = "Screen sharing stopped"
+                                } else {
+                                    val mediaProjectionManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+                                    screenCaptureLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isScreenSharing) Icons.Default.StopScreenShare else Icons.Default.ScreenShare,
+                            contentDescription = "Toggle Screen Share",
+                            tint = if (isScreenSharing) Color.Black else Color.White,
                             modifier = Modifier.size(26.dp)
                         )
                     }

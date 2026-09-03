@@ -15,6 +15,7 @@ class WebRTCClient(
     private var localAudioSource: AudioSource? = null
     private var localAudioTrack: AudioTrack? = null
     private var videoCapturer: VideoCapturer? = null
+    private var surfaceTextureHelper: SurfaceTextureHelper? = null
 
     init {
         initPeerConnectionFactory(context)
@@ -58,9 +59,12 @@ class WebRTCClient(
     }
 
     fun startLocalVideo(view: SurfaceViewRenderer) {
+        val helper = SurfaceTextureHelper.create("CaptureThread", rootEglBase.eglBaseContext)
+        surfaceTextureHelper = helper
+
         videoCapturer = createVideoCapturer(context)
         localVideoSource = peerConnectionFactory?.createVideoSource(false)
-        videoCapturer?.initialize(SurfaceTextureHelper.create("CaptureThread", rootEglBase.eglBaseContext), context, localVideoSource?.capturerObserver)
+        videoCapturer?.initialize(helper, context, localVideoSource?.capturerObserver)
         videoCapturer?.startCapture(1280, 720, 30)
 
         localVideoTrack = peerConnectionFactory?.createVideoTrack("video_track", localVideoSource)
@@ -75,14 +79,73 @@ class WebRTCClient(
     }
 
     private fun createVideoCapturer(context: Context): VideoCapturer? {
-        val enumerator = Camera2Enumerator(context)
+        val enumerator = if (Camera2Enumerator.isSupported(context)) {
+            Camera2Enumerator(context)
+        } else {
+            Camera1Enumerator(true)
+        }
         val deviceNames = enumerator.deviceNames
+
+        // 1. Try Front-Facing camera
         for (deviceName in deviceNames) {
             if (enumerator.isFrontFacing(deviceName)) {
                 return enumerator.createCapturer(deviceName, null)
             }
         }
+
+        // 2. Try Rear/Back-Facing camera (ensuring physical or real camera gets used if front is missing)
+        for (deviceName in deviceNames) {
+            if (!enumerator.isFrontFacing(deviceName)) {
+                return enumerator.createCapturer(deviceName, null)
+            }
+        }
+
+        // 3. Fallback to any camera name available
+        if (deviceNames.isNotEmpty()) {
+            return enumerator.createCapturer(deviceNames[0], null)
+        }
+
         return null
+    }
+
+    fun startScreenShare(permissionIntent: android.content.Intent) {
+        try {
+            videoCapturer?.stopCapture()
+            videoCapturer?.dispose()
+
+            val screenCapturer = ScreenCapturerAndroid(permissionIntent, object : android.media.projection.MediaProjection.Callback() {
+                override fun onStop() {
+                    android.util.Log.d("WebRTCClient", "Screen capture stopped by system")
+                }
+            })
+
+            videoCapturer = screenCapturer
+            surfaceTextureHelper?.let { helper ->
+                screenCapturer.initialize(helper, context, localVideoSource?.capturerObserver)
+                screenCapturer.startCapture(1280, 720, 30)
+            }
+            android.util.Log.d("WebRTCClient", "Screen sharing started successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("WebRTCClient", "Failed to start screen share: ${e.message}", e)
+        }
+    }
+
+    fun stopScreenShare() {
+        try {
+            videoCapturer?.stopCapture()
+            videoCapturer?.dispose()
+
+            val cameraCapturer = createVideoCapturer(context)
+            videoCapturer = cameraCapturer
+
+            surfaceTextureHelper?.let { helper ->
+                cameraCapturer?.initialize(helper, context, localVideoSource?.capturerObserver)
+                cameraCapturer?.startCapture(1280, 720, 30)
+            }
+            android.util.Log.d("WebRTCClient", "Switched back to camera successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("WebRTCClient", "Failed to stop screen share and restart camera: ${e.message}", e)
+        }
     }
 
     fun createOffer(sdpObserver: SdpObserver) {

@@ -29,10 +29,15 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     private val _remoteTrack = MutableStateFlow<VideoTrack?>(null)
     val remoteTrack = _remoteTrack.asStateFlow()
 
+    private val _isScreenSharing = MutableStateFlow(false)
+    val isScreenSharing = _isScreenSharing.asStateFlow()
+
     private var rtcClient: WebRTCClient? = null
     private var socketManager: SocketManager? = null
     var targetUserId: String? = null
         private set
+    
+    private val queuedIceCandidates = java.util.Collections.synchronizedList(mutableListOf<IceCandidate>())
     
     val eglContext: EglBase.Context? get() = rtcClient?.rootEglBase?.eglBaseContext
     
@@ -74,6 +79,15 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
             rtcClient?.close()
             rtcClient = WebRTCClient(getApplication(), observer)
             Log.d(TAG, "WebRTC initialized")
+            
+            // Drain any queued ICE candidates that arrived before peer connection was ready
+            synchronized(queuedIceCandidates) {
+                queuedIceCandidates.forEach { candidate ->
+                    Log.d(TAG, "Applying queued remote ICE candidate")
+                    rtcClient?.addIceCandidate(candidate)
+                }
+                queuedIceCandidates.clear()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing WebRTC: ${e.message}", e)
         }
@@ -151,7 +165,13 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun onRemoteIceCandidateReceived(candidate: IceCandidate) {
-        rtcClient?.addIceCandidate(candidate)
+        val client = rtcClient
+        if (client != null) {
+            client.addIceCandidate(candidate)
+        } else {
+            Log.d(TAG, "Queueing remote ICE candidate because rtcClient is null")
+            queuedIceCandidates.add(candidate)
+        }
     }
 
     fun sendIceCandidate(candidate: IceCandidate) {
@@ -174,14 +194,30 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
         targetUserId?.let { target ->
             socketManager?.endCall(target)
         }
+        com.example.webrtc.ScreenShareService.stopService(getApplication())
         rtcClient?.close()
         _isCallPickedUp.value = false
         _remoteTrack.value = null
+        _isScreenSharing.value = false
+        queuedIceCandidates.clear()
     }
 
     override fun onCleared() {
         super.onCleared()
+        com.example.webrtc.ScreenShareService.stopService(getApplication())
         rtcClient?.close()
+    }
+
+    fun startScreenSharing(permissionIntent: android.content.Intent) {
+        com.example.webrtc.ScreenShareService.startService(getApplication())
+        rtcClient?.startScreenShare(permissionIntent)
+        _isScreenSharing.value = true
+    }
+
+    fun stopScreenSharing() {
+        rtcClient?.stopScreenShare()
+        com.example.webrtc.ScreenShareService.stopService(getApplication())
+        _isScreenSharing.value = false
     }
 
     fun setRemoteTrack(track: VideoTrack) {
