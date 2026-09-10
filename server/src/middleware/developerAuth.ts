@@ -157,3 +157,9 @@ export const requireScope = (scope: string) => {
     next();
   };
 };
+
+/**
+ * Alias for authenticateDeveloper supporting both Session JWT and API Key
+ */
+export const authenticateDeveloperOrApiKey = authenticateDeveloper;
+
