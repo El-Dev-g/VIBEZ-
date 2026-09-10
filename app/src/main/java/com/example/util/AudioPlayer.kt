@@ -1,6 +1,7 @@
 package com.example.util
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Log
@@ -15,24 +16,54 @@ class AudioPlayer(private val context: Context) {
 
     fun play(mediaUrl: String, onProgress: ((Float, Int) -> Unit)? = null) {
         stop()
+        if (mediaUrl.isBlank()) return
         try {
             mediaPlayer = MediaPlayer().apply {
-                if (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://") || mediaUrl.startsWith("content://") || mediaUrl.startsWith("file://")) {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+
+                setOnCompletionListener {
+                    this@AudioPlayer.isPlaying = false
+                    onCompletionListener?.invoke()
+                }
+
+                setOnErrorListener { _, what, extra ->
+                    Log.e("AudioPlayer", "MediaPlayer error: what=$what, extra=$extra")
+                    this@AudioPlayer.isPlaying = false
+                    onCompletionListener?.invoke()
+                    true
+                }
+
+                if (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://") || mediaUrl.startsWith("content://")) {
                     setDataSource(context, Uri.parse(mediaUrl))
+                    setOnPreparedListener { mp ->
+                        try {
+                            mp.start()
+                            this@AudioPlayer.isPlaying = true
+                        } catch (e: Exception) {
+                            Log.e("AudioPlayer", "Error starting async playback: ${e.message}", e)
+                        }
+                    }
+                    prepareAsync()
                 } else {
-                    val file = File(mediaUrl)
+                    val file = if (mediaUrl.startsWith("file://")) {
+                        File(Uri.parse(mediaUrl).path ?: mediaUrl.removePrefix("file://"))
+                    } else {
+                        File(mediaUrl)
+                    }
+
                     if (file.exists()) {
                         setDataSource(file.absolutePath)
                     } else {
                         setDataSource(context, Uri.parse(mediaUrl))
                     }
-                }
-                prepare()
-                start()
-                this@AudioPlayer.isPlaying = true
-                setOnCompletionListener {
-                    this@AudioPlayer.isPlaying = false
-                    onCompletionListener?.invoke()
+                    prepare()
+                    start()
+                    this@AudioPlayer.isPlaying = true
                 }
             }
         } catch (e: Exception) {
@@ -72,6 +103,6 @@ class AudioPlayer(private val context: Context) {
         }
     }
 
-    fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
-    fun getDuration(): Int = mediaPlayer?.duration ?: 0
+    fun getCurrentPosition(): Int = try { mediaPlayer?.currentPosition ?: 0 } catch (_: Exception) { 0 }
+    fun getDuration(): Int = try { mediaPlayer?.duration ?: 0 } catch (_: Exception) { 0 }
 }

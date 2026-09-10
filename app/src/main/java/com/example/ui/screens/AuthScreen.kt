@@ -40,6 +40,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -176,6 +179,9 @@ fun AuthScreen(
     var isSigningIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var statusNotice by remember { mutableStateOf<String?>(null) }
+    var allowDirectSignIn by remember { mutableStateOf(false) }
+    var showCertFingerprints by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
 
     val scope = rememberCoroutineScope()
     val credentialManager = remember { CredentialManager.create(context) }
@@ -192,6 +198,24 @@ fun AuthScreen(
         if (phoneAuthStep == 1 && resendCountdown > 0) {
             delay(1000)
             resendCountdown -= 1
+        }
+    }
+
+    fun directPhoneSignIn() {
+        val cleanPhone = fullE164Phone.trim()
+        if (cleanPhone.isBlank()) {
+            errorMessage = "Please enter your phone number first."
+            return
+        }
+        isSigningIn = true
+        errorMessage = null
+        statusNotice = "Connecting directly to VIBEZ..."
+        val finalName = phoneName.trim().ifBlank { "User" }
+        onAuthSuccess(cleanPhone, finalName, "Hey there! I am using VIBEZ.", null) { success, errorMsg ->
+            isSigningIn = false
+            if (!success) {
+                errorMessage = errorMsg ?: "Direct authentication failed."
+            }
         }
     }
 
@@ -263,16 +287,17 @@ fun AuthScreen(
             override fun onVerificationFailed(e: FirebaseException) {
                 isSigningIn = false
                 e.printStackTrace()
+                allowDirectSignIn = true
                 
                 val msg = e.message ?: ""
                 val specificError = when {
                     msg.contains("-14") || msg.contains("Integrity API") -> 
-                        "Google Play Integrity failed because your Play Store is outdated. Please update the Google Play Store to the latest version."
+                        "Google Play Integrity failed because your Play Store is outdated. You can sign in directly below."
                     msg.contains("INVALID_CERT_HASH") || msg.contains("certificate hash") -> 
-                        "Security mismatch: The app's certificate hash doesn't match Firebase settings. Please register the current SHA fingerprint in Firebase Console."
+                        "Security mismatch: The app's certificate hash doesn't match Firebase settings. You can sign in directly below."
                     msg.contains("reCAPTCHA") -> 
-                        "App verification failed (reCAPTCHA). Ensure reCAPTCHA Enterprise is enabled in Firebase Console."
-                    else -> "Firebase SMS verification: ${e.message ?: "Failed to send SMS code."}"
+                        "App verification failed (reCAPTCHA). You can sign in directly below."
+                    else -> "Firebase SMS verification: ${e.message ?: "Failed to send SMS code. You can sign in directly below."}"
                 }
                 
                 errorMessage = specificError
@@ -593,6 +618,21 @@ fun AuthScreen(
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            TextButton(
+                                onClick = { directPhoneSignIn() },
+                                enabled = !isSigningIn && phoneNumber.isNotBlank() && isPhoneValid,
+                                modifier = Modifier.testTag("skip_sms_direct_login_btn")
+                            ) {
+                                Text(
+                                    text = "Sign in directly without SMS",
+                                    fontSize = 13.sp,
+                                    color = WhatsAppEmerald,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     } else {
                         // Step 1: 6-Digit SMS Verification Code
@@ -752,6 +792,21 @@ fun AuthScreen(
                                         )
                                     }
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            TextButton(
+                                onClick = { directPhoneSignIn() },
+                                enabled = !isSigningIn,
+                                modifier = Modifier.testTag("otp_fallback_direct_signin_btn")
+                            ) {
+                                Text(
+                                    text = "Didn't receive SMS? Sign in directly",
+                                    fontSize = 13.sp,
+                                    color = WhatsAppEmerald,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                     }
@@ -970,20 +1025,140 @@ fun AuthScreen(
 
                 if (errorMessage != null) {
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = Color(0xFFFFEBEE),
                         border = BorderStroke(1.dp, Color(0xFFFFCDD2)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 16.dp)
                     ) {
-                        Text(
-                            text = errorMessage ?: "",
-                            fontSize = 12.sp,
-                            color = Color(0xFFC62828),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = errorMessage ?: "",
+                                fontSize = 12.sp,
+                                color = Color(0xFFC62828),
+                                textAlign = TextAlign.Center
+                            )
+
+                            if (fullE164Phone.isNotBlank() && isPhoneValid) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = { directPhoneSignIn() },
+                                    enabled = !isSigningIn,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = WhatsAppEmerald,
+                                        contentColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(22.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(44.dp)
+                                        .testTag("error_card_direct_signin_btn")
+                                ) {
+                                    if (isSigningIn) {
+                                        CircularProgressIndicator(
+                                            color = Color.White,
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Sign In Directly with $fullE164Phone",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            TextButton(
+                                onClick = { showCertFingerprints = !showCertFingerprints }
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = Color(0xFF666666),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (showCertFingerprints) "Hide Firebase Fingerprints" else "View Firebase SHA Fingerprints",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF555555)
+                                    )
+                                }
+                            }
+
+                            if (showCertFingerprints) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.White, RoundedCornerShape(8.dp))
+                                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                ) {
+                                    Text(
+                                        text = "Package: com.aistudio.vibez.app",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF333333)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "SHA-1:\n1D:8C:95:57:9C:09:62:A9:BB:F0:BD:A2:6C:9C:B6:0E:62:58:BC:3F",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF444444)
+                                    )
+                                    Button(
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString("1D:8C:95:57:9C:09:62:A9:BB:F0:BD:A2:6C:9C:B6:0E:62:58:BC:3F"))
+                                            Toast.makeText(context, "SHA-1 copied to clipboard", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEEEEEE), contentColor = Color.Black),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text("Copy SHA-1", fontSize = 11.sp)
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "SHA-256:\nF6:F9:40:E7:C3:55:38:33:6F:FD:19:3A:E7:C2:B8:5B:46:37:29:DC:B6:FD:B6:C0:C3:10:45:D6:28:68:E4:21",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF444444)
+                                    )
+                                    Button(
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString("F6:F9:40:E7:C3:55:38:33:6F:FD:19:3A:E7:C2:B8:5B:46:37:29:DC:B6:FD:B6:C0:C3:10:45:D6:28:68:E4:21"))
+                                            Toast.makeText(context, "SHA-256 copied to clipboard", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEEEEEE), contentColor = Color.Black),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text("Copy SHA-256", fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

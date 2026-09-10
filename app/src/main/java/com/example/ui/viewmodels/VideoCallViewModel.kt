@@ -23,11 +23,17 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isCallPickedUp = MutableStateFlow(false)
     val isCallPickedUp = _isCallPickedUp.asStateFlow()
 
+    private val _localVideoTrack = MutableStateFlow<VideoTrack?>(null)
+    val localVideoTrack = _localVideoTrack.asStateFlow()
+
     private val _incomingCallOffer = MutableStateFlow<IncomingCallData?>(null)
     val incomingCallOffer = _incomingCallOffer.asStateFlow()
 
     private val _remoteTrack = MutableStateFlow<VideoTrack?>(null)
     val remoteTrack = _remoteTrack.asStateFlow()
+
+    private val _eglBaseContext = MutableStateFlow<EglBase.Context?>(null)
+    val eglBaseContextState = _eglBaseContext.asStateFlow()
 
     private val _isScreenSharing = MutableStateFlow(false)
     val isScreenSharing = _isScreenSharing.asStateFlow()
@@ -39,7 +45,7 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     
     private val queuedIceCandidates = java.util.Collections.synchronizedList(mutableListOf<IceCandidate>())
     
-    val eglContext: EglBase.Context? get() = rtcClient?.rootEglBase?.eglBaseContext
+    val eglContext: EglBase.Context? get() = _eglBaseContext.value ?: rtcClient?.rootEglBase?.eglBaseContext
     
     fun setupSignaling(manager: SocketManager, targetId: String) {
         this.socketManager = manager
@@ -77,7 +83,9 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     fun initWebRTC(observer: PeerConnection.Observer) {
         try {
             rtcClient?.close()
-            rtcClient = WebRTCClient(getApplication(), observer)
+            val client = WebRTCClient(getApplication(), observer)
+            rtcClient = client
+            _eglBaseContext.value = client.rootEglBase.eglBaseContext
             Log.d(TAG, "WebRTC initialized")
             
             // Drain any queued ICE candidates that arrived before peer connection was ready
@@ -93,9 +101,10 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun startLocalVideo(view: SurfaceViewRenderer) {
+    fun startLocalVideo(view: SurfaceViewRenderer? = null) {
         try {
             rtcClient?.startLocalVideo(view)
+            _localVideoTrack.value = rtcClient?.getLocalVideoTrack()
         } catch (e: Exception) {
             Log.e(TAG, "Error starting local video: ${e.message}", e)
         }
@@ -197,7 +206,9 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
         com.example.webrtc.ScreenShareService.stopService(getApplication())
         rtcClient?.close()
         _isCallPickedUp.value = false
+        _localVideoTrack.value = null
         _remoteTrack.value = null
+        _eglBaseContext.value = null
         _isScreenSharing.value = false
         queuedIceCandidates.clear()
     }
@@ -206,6 +217,9 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
         super.onCleared()
         com.example.webrtc.ScreenShareService.stopService(getApplication())
         rtcClient?.close()
+        _localVideoTrack.value = null
+        _remoteTrack.value = null
+        _eglBaseContext.value = null
     }
 
     fun startScreenSharing(permissionIntent: android.content.Intent) {

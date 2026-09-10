@@ -620,6 +620,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 receiverId = null,
                 content = content,
                 type = messageType,
+                mediaUrl = if (mediaUrl.isNotBlank()) mediaUrl else null,
+                duration = if (voiceDurationSeconds > 0) voiceDurationSeconds else null,
                 token = authManager.getAuthToken() ?: "",
                 id = tempId
             )

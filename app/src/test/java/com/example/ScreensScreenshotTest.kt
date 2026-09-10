@@ -27,6 +27,10 @@ import org.robolectric.annotation.GraphicsMode
 @Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
 class ScreensScreenshotTest {
 
+  companion object {
+    private const val FIXED_TIMESTAMP = 1700000000000L
+  }
+
   @get:Rule val composeTestRule = createComposeRule()
 
   @Test
@@ -38,7 +42,7 @@ class ScreensScreenshotTest {
         contactName = "Sarah Jenkins",
         contactAvatar = "",
         lastMessage = "Hey! Did you check out the new design?",
-        lastMessageTime = System.currentTimeMillis(),
+        lastMessageTime = FIXED_TIMESTAMP,
         unreadCount = 2,
         isPinned = true,
         isVerified = true
@@ -49,7 +53,7 @@ class ScreensScreenshotTest {
         contactName = "VIBEZ Team",
         contactAvatar = "",
         lastMessage = "Welcome to VIBEZ Messaging Platform!",
-        lastMessageTime = System.currentTimeMillis() - 3600000,
+        lastMessageTime = FIXED_TIMESTAMP - 3600000,
         unreadCount = 0,
         isGroup = true,
         isOfficial = true
@@ -82,7 +86,7 @@ class ScreensScreenshotTest {
         callType = "VIDEO",
         isIncoming = true,
         isMissed = false,
-        timestamp = System.currentTimeMillis()
+        timestamp = FIXED_TIMESTAMP
       ),
       CallLogEntity(
         id = "call_2",
@@ -91,7 +95,7 @@ class ScreensScreenshotTest {
         callType = "VOICE",
         isIncoming = false,
         isMissed = false,
-        timestamp = System.currentTimeMillis() - 7200000
+        timestamp = FIXED_TIMESTAMP - 7200000
       )
     )
 
@@ -119,7 +123,7 @@ class ScreensScreenshotTest {
         contactAvatar = "",
         mediaUrl = "",
         textCaption = "Beautiful sunset today!",
-        timestamp = System.currentTimeMillis(),
+        timestamp = FIXED_TIMESTAMP,
         isViewed = false
       )
     )

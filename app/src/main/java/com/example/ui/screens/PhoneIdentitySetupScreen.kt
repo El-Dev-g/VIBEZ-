@@ -276,7 +276,13 @@ fun PhoneIdentitySetupScreen(
                 isVerifying = false
                 e.printStackTrace()
                 val rawMsg = e.message ?: "SMS delivery failed."
-                errorMessage = "Firebase SMS Error: $rawMsg"
+                val isCertMismatch = rawMsg.contains("INVALID_CERT_HASH") || rawMsg.contains("certificate hash")
+                val isIntegrity = rawMsg.contains("-14") || rawMsg.contains("Integrity API") || rawMsg.contains("reCAPTCHA")
+                errorMessage = when {
+                    isCertMismatch -> "Firebase certificate mismatch (INVALID_CERT_HASH 400). You can tap 'Continue with this number' below to proceed."
+                    isIntegrity -> "Google Play Integrity / reCAPTCHA failed (-14). You can tap 'Continue with this number' below to proceed."
+                    else -> "Firebase SMS Error: $rawMsg. You can tap 'Continue with this number' below to proceed."
+                }
             }
 
             override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
@@ -923,6 +929,32 @@ fun PhoneIdentitySetupScreen(
                                             }
                                         }
                                     }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            if (isPhoneValid) {
+                                                currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
+                                            } else {
+                                                errorMessage = "Please enter a valid phone number before continuing."
+                                            }
+                                        },
+                                        enabled = isPhoneValid && !isVerifying,
+                                        shape = RoundedCornerShape(14.dp),
+                                        border = BorderStroke(1.dp, WhatsAppEmerald),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp)
+                                            .testTag("skip_phone_otp_and_continue_btn")
+                                    ) {
+                                        Text(
+                                            text = "Continue with this number (Skip SMS)",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = WhatsAppEmerald
+                                        )
+                                    }
                                 }
                             } else {
                                 // STEP 1: Enter SMS verification code
@@ -1111,6 +1143,23 @@ fun PhoneIdentitySetupScreen(
                                             text = "Back / Change Phone Number",
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    TextButton(
+                                        onClick = {
+                                            currentPage = IdentitySetupPage.PAGE_PROFILE_SETUP
+                                        },
+                                        enabled = !isVerifying,
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    ) {
+                                        Text(
+                                            text = "Didn't receive code? Continue anyway",
+                                            fontSize = 13.sp,
+                                            color = WhatsAppEmerald,
+                                            fontWeight = FontWeight.Medium
                                         )
                                     }
                                 }

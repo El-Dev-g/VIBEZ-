@@ -83,6 +83,9 @@ import com.example.ui.components.AvatarView
 import com.example.ui.viewmodels.VideoCallViewModel
 import com.example.ui.theme.WhatsAppDarkHeader
 import com.example.ui.theme.WhatsAppMinimalAccent
+import android.util.Log
+import androidx.compose.material3.CircularProgressIndicator
+import com.example.ui.theme.WhatsAppEmerald
 import com.example.ui.theme.WhatsAppMinimalPrimary
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -133,7 +136,9 @@ fun CallScreen(
     var durationSeconds by remember { mutableIntStateOf(0) }
     var actionToast by remember { mutableStateOf<String?>(null) }
 
+    val localTrack by viewModel.localVideoTrack.collectAsStateWithLifecycle()
     val remoteTrack by viewModel.remoteTrack.collectAsStateWithLifecycle()
+    val eglContext by viewModel.eglBaseContextState.collectAsStateWithLifecycle()
     val isScreenSharing by viewModel.isScreenSharing.collectAsStateWithLifecycle()
 
     val screenCaptureLauncher = rememberLauncherForActivityResult(
@@ -193,20 +198,28 @@ fun CallScreen(
             }
             override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {}
             override fun onAddStream(stream: MediaStream?) {
-                stream?.videoTracks?.get(0)?.let {
+                stream?.videoTracks?.firstOrNull()?.let {
                     viewModel.setRemoteTrack(it)
                 }
             }
             override fun onRemoveStream(p0: MediaStream?) {}
             override fun onDataChannel(p0: DataChannel?) {}
             override fun onRenegotiationNeeded() {}
-            override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {}
+            override fun onAddTrack(receiver: RtpReceiver?, mediaStreams: Array<out MediaStream>?) {
+                val track = receiver?.track()
+                if (track is VideoTrack) {
+                    viewModel.setRemoteTrack(track)
+                }
+            }
         }
     }
 
-    LaunchedEffect(hasCameraPermission, hasAudioPermission) {
+    LaunchedEffect(hasCameraPermission, hasAudioPermission, isVideoCall) {
         if (hasCameraPermission && hasAudioPermission) {
             viewModel.initWebRTC(observer)
+            if (isVideoCall) {
+                viewModel.startLocalVideo()
+            }
             if (isIncoming && incomingSdp != null) {
                 viewModel.onRemoteOfferReceived(incomingSdp)
                 viewModel.setCallPickedUp(true)
@@ -302,17 +315,17 @@ fun CallScreen(
                         if (isCallPickedUp && remoteTrack != null) {
                             WebRTCSurfaceView(
                                 videoTrack = remoteTrack,
-                                isLocal = false,
+                                eglContext = eglContext,
                                 modifier = Modifier.fillMaxSize(),
-                                onSurfaceReady = { /* Remote doesn't need startLocalVideo */ }
+                                isMirror = false
                             )
                         } else {
                             // Waiting screen / Local Preview fullscreen while ringing
                             WebRTCSurfaceView(
-                                videoTrack = null,
-                                isLocal = true,
+                                videoTrack = localTrack,
+                                eglContext = eglContext,
                                 modifier = Modifier.fillMaxSize(),
-                                onSurfaceReady = { viewModel.startLocalVideo(it) }
+                                isMirror = isFrontCamera
                             )
                         }
                     }
@@ -405,7 +418,7 @@ fun CallScreen(
                 }
 
                 // Floating PIP Card overlay (Switch to Local Preview if picked up)
-                if (isCallPickedUp) {
+                if (isCallPickedUp && remoteTrack != null) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -414,14 +427,14 @@ fun CallScreen(
                             .height(140.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.Black.copy(alpha = 0.6f))
-                            .border(2.dp, WhatsAppMinimalPrimary, RoundedCornerShape(16.dp)),
+                            .border(2.dp, WhatsAppEmerald, RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         WebRTCSurfaceView(
-                            videoTrack = null,
-                            isLocal = true,
+                            videoTrack = localTrack,
+                            eglContext = eglContext,
                             modifier = Modifier.fillMaxSize(),
-                            onSurfaceReady = { viewModel.startLocalVideo(it) }
+                            isMirror = isFrontCamera
                         )
                     }
                 }
@@ -605,6 +618,9 @@ fun CallScreen(
                                     permissionsState.launchMultiplePermissionRequest()
                                 } else {
                                     isVideoEnabled = !isVideoEnabled
+                                    if (isVideoEnabled && viewModel.localVideoTrack.value == null) {
+                                        viewModel.startLocalVideo()
+                                    }
                                     viewModel.toggleVideo(isVideoEnabled)
                                     actionToast = if (isVideoEnabled) "Video Enabled" else "Video Paused"
                                 }
@@ -693,35 +709,72 @@ fun CallScreen(
 @Composable
 fun WebRTCSurfaceView(
     videoTrack: VideoTrack?,
-    isLocal: Boolean,
+    eglContext: EglBase.Context?,
     modifier: Modifier = Modifier,
-    onSurfaceReady: (SurfaceViewRenderer) -> Unit,
-    viewModel: VideoCallViewModel = viewModel()
+    isMirror: Boolean = false
 ) {
-    val eglContext by remember { mutableStateOf(viewModel.eglContext) }
-    
+    if (eglContext == null) {
+        Box(
+            modifier = modifier.background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                color = WhatsAppEmerald,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+        return
+    }
+
+    var rendererRef by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+
+    DisposableEffect(videoTrack, rendererRef) {
+        val renderer = rendererRef
+        if (renderer != null && videoTrack != null) {
+            try {
+                videoTrack.addSink(renderer)
+            } catch (e: Exception) {
+                Log.e("WebRTCSurfaceView", "Error adding sink: ${e.message}")
+            }
+        }
+        onDispose {
+            if (renderer != null && videoTrack != null) {
+                try {
+                    videoTrack.removeSink(renderer)
+                } catch (e: Exception) {
+                    Log.e("WebRTCSurfaceView", "Error removing sink: ${e.message}")
+                }
+            }
+        }
+    }
+
     AndroidView(
         factory = { ctx ->
             SurfaceViewRenderer(ctx).apply {
-                eglContext?.let { init(it, null) }
-                setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
-                setEnableHardwareScaler(true)
-                onSurfaceReady(this)
-                videoTrack?.addSink(this)
+                try {
+                    init(eglContext, null)
+                    setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+                    setEnableHardwareScaler(true)
+                    setMirror(isMirror)
+                } catch (e: Exception) {
+                    Log.e("WebRTCSurfaceView", "Failed to init SurfaceViewRenderer: ${e.message}")
+                }
+                rendererRef = this
             }
         },
         update = { view ->
-            // If eglContext was null during factory but is now available
-            if (viewModel.eglContext != null && eglContext == null) {
-                // This is a bit tricky since we can't easily re-init without releasing
-                // But in our flow, initWebRTC is called in LaunchedEffect(Unit)
-                // so it should be available very quickly.
-            }
-            videoTrack?.addSink(view)
+            try {
+                view.setMirror(isMirror)
+            } catch (_: Exception) {}
+            rendererRef = view
         },
         onRelease = { view ->
-            videoTrack?.removeSink(view)
-            view.release()
+            rendererRef = null
+            try {
+                view.release()
+            } catch (e: Exception) {
+                Log.e("WebRTCSurfaceView", "Error releasing SurfaceViewRenderer: ${e.message}")
+            }
         },
         modifier = modifier
     )

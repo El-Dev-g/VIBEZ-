@@ -53,11 +53,11 @@ fun VoiceNotePlayer(
     var currentProgress by remember { mutableFloatStateOf(0f) }
     val audioPlayer = remember { AudioPlayer(context) }
 
-    val hasRealFile = remember(mediaUrl) {
+    val hasPlayableMedia = remember(mediaUrl) {
         if (mediaUrl.isBlank()) false
         else {
-            val f = File(mediaUrl)
-            f.exists() && f.length() > 0
+            val f = if (mediaUrl.startsWith("file://")) File(android.net.Uri.parse(mediaUrl).path ?: mediaUrl.removePrefix("file://")) else File(mediaUrl)
+            (f.exists() && f.length() > 0) || mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://") || mediaUrl.startsWith("content://")
         }
     }
 
@@ -69,12 +69,20 @@ fun VoiceNotePlayer(
 
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
-            if (hasRealFile) {
+            if (hasPlayableMedia) {
                 audioPlayer.onCompletionListener = {
                     isPlaying = false
                     currentProgress = 0f
                 }
                 audioPlayer.play(mediaUrl)
+
+                // Wait up to 1.5s for player to prepare
+                var waitCount = 0
+                while (isPlaying && !audioPlayer.isPlaying && waitCount < 30) {
+                    delay(50)
+                    waitCount++
+                }
+
                 while (isPlaying && audioPlayer.isPlaying) {
                     val dur = audioPlayer.getDuration()
                     val pos = audioPlayer.getCurrentPosition()
@@ -82,6 +90,11 @@ fun VoiceNotePlayer(
                         currentProgress = (pos.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
                     }
                     delay(100)
+                }
+
+                if (!audioPlayer.isPlaying) {
+                    isPlaying = false
+                    currentProgress = 0f
                 }
             } else {
                 // Fallback simulation timer

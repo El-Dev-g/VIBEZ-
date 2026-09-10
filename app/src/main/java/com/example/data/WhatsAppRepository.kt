@@ -319,11 +319,22 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         receiverId: String?,
         content: String,
         type: String = "TEXT",
+        mediaUrl: String? = null,
+        duration: Int? = null,
         token: String,
         id: String? = null
     ) {
         removeDeletedChatId(chatId)
-        socketManager?.sendMessage(chatId, senderId, receiverId, content, type, id = id)
+        socketManager?.sendMessage(
+            chatId = chatId,
+            senderId = senderId,
+            receiverId = receiverId,
+            content = content,
+            type = type,
+            mediaUrl = mediaUrl,
+            duration = duration,
+            id = id
+        )
     }
 
     private fun parseMessageJson(json: JSONObject): MessageDto {

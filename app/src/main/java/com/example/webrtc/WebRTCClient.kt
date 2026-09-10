@@ -58,51 +58,120 @@ class WebRTCClient(
         view.setEnableHardwareScaler(true)
     }
 
-    fun startLocalVideo(view: SurfaceViewRenderer) {
-        val helper = SurfaceTextureHelper.create("CaptureThread", rootEglBase.eglBaseContext)
-        surfaceTextureHelper = helper
+    fun startLocalVideo(view: SurfaceViewRenderer? = null) {
+        if (localVideoTrack == null) {
+            try {
+                val helper = SurfaceTextureHelper.create("CaptureThread", rootEglBase.eglBaseContext)
+                surfaceTextureHelper = helper
 
-        videoCapturer = createVideoCapturer(context)
-        localVideoSource = peerConnectionFactory?.createVideoSource(false)
-        videoCapturer?.initialize(helper, context, localVideoSource?.capturerObserver)
-        videoCapturer?.startCapture(1280, 720, 30)
+                videoCapturer = createVideoCapturer(context)
+                localVideoSource = peerConnectionFactory?.createVideoSource(false)
+                videoCapturer?.initialize(helper, context, localVideoSource?.capturerObserver)
+                try {
+                    videoCapturer?.startCapture(1280, 720, 30)
+                } catch (e: Exception) {
+                    android.util.Log.w("WebRTCClient", "1280x720 capture failed, trying 640x480: ${e.message}")
+                    try {
+                        videoCapturer?.startCapture(640, 480, 30)
+                    } catch (e2: Exception) {
+                        android.util.Log.e("WebRTCClient", "Fallback capture also failed: ${e2.message}", e2)
+                    }
+                }
 
-        localVideoTrack = peerConnectionFactory?.createVideoTrack("video_track", localVideoSource)
-        localVideoTrack?.addSink(view)
+                localVideoTrack = peerConnectionFactory?.createVideoTrack("video_track", localVideoSource)
+                localVideoTrack?.let { peerConnection?.addTrack(it, listOf("local_stream")) }
+            } catch (e: Exception) {
+                android.util.Log.e("WebRTCClient", "Error setting up local video: ${e.message}", e)
+            }
+        }
 
-        localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
-        localAudioTrack = peerConnectionFactory?.createAudioTrack("audio_track", localAudioSource)
+        if (localAudioTrack == null) {
+            try {
+                localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
+                localAudioTrack = peerConnectionFactory?.createAudioTrack("audio_track", localAudioSource)
+                localAudioTrack?.let { peerConnection?.addTrack(it, listOf("local_stream")) }
+            } catch (e: Exception) {
+                android.util.Log.e("WebRTCClient", "Error setting up local audio: ${e.message}", e)
+            }
+        }
 
-        // Use addTrack instead of addStream for Unified Plan
-        localVideoTrack?.let { peerConnection?.addTrack(it, listOf("local_stream")) }
-        localAudioTrack?.let { peerConnection?.addTrack(it, listOf("local_stream")) }
+        if (view != null && localVideoTrack != null) {
+            try {
+                localVideoTrack?.addSink(view)
+            } catch (e: Exception) {
+                android.util.Log.e("WebRTCClient", "Error adding sink to local video track: ${e.message}", e)
+            }
+        }
     }
 
+    fun getLocalVideoTrack(): VideoTrack? = localVideoTrack
+
     private fun createVideoCapturer(context: Context): VideoCapturer? {
-        val enumerator = if (Camera2Enumerator.isSupported(context)) {
-            Camera2Enumerator(context)
-        } else {
-            Camera1Enumerator(true)
+        // Try Camera2 first if supported
+        if (Camera2Enumerator.isSupported(context)) {
+            try {
+                val enumerator = Camera2Enumerator(context)
+                val capturer = findCapturerInEnumerator(enumerator)
+                if (capturer != null) {
+                    android.util.Log.d("WebRTCClient", "Created Camera2 capturer successfully")
+                    return capturer
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("WebRTCClient", "Camera2Enumerator failed: ${e.message}")
+            }
         }
-        val deviceNames = enumerator.deviceNames
+
+        // Fallback to Camera1 (crucial for emulators and older devices)
+        try {
+            val enumerator = Camera1Enumerator(true)
+            val capturer = findCapturerInEnumerator(enumerator)
+            if (capturer != null) {
+                android.util.Log.d("WebRTCClient", "Created Camera1 capturer successfully")
+                return capturer
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("WebRTCClient", "Camera1Enumerator failed: ${e.message}")
+        }
+
+        return null
+    }
+
+    private fun findCapturerInEnumerator(enumerator: CameraEnumerator): VideoCapturer? {
+        val deviceNames = enumerator.deviceNames ?: return null
+        if (deviceNames.isEmpty()) return null
 
         // 1. Try Front-Facing camera
         for (deviceName in deviceNames) {
             if (enumerator.isFrontFacing(deviceName)) {
-                return enumerator.createCapturer(deviceName, null)
+                try {
+                    val capturer = enumerator.createCapturer(deviceName, null)
+                    if (capturer != null) return capturer
+                } catch (e: Exception) {
+                    android.util.Log.w("WebRTCClient", "Failed to create front capturer for $deviceName: ${e.message}")
+                }
             }
         }
 
-        // 2. Try Rear/Back-Facing camera (ensuring physical or real camera gets used if front is missing)
+        // 2. Try Back-Facing camera
         for (deviceName in deviceNames) {
             if (!enumerator.isFrontFacing(deviceName)) {
-                return enumerator.createCapturer(deviceName, null)
+                try {
+                    val capturer = enumerator.createCapturer(deviceName, null)
+                    if (capturer != null) return capturer
+                } catch (e: Exception) {
+                    android.util.Log.w("WebRTCClient", "Failed to create back capturer for $deviceName: ${e.message}")
+                }
             }
         }
 
-        // 3. Fallback to any camera name available
-        if (deviceNames.isNotEmpty()) {
-            return enumerator.createCapturer(deviceNames[0], null)
+        // 3. Fallback to any available device name
+        for (deviceName in deviceNames) {
+            try {
+                val capturer = enumerator.createCapturer(deviceName, null)
+                if (capturer != null) return capturer
+            } catch (e: Exception) {
+                android.util.Log.w("WebRTCClient", "Failed to create capturer for $deviceName: ${e.message}")
+            }
         }
 
         return null
