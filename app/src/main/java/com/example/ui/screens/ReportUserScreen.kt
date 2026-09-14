@@ -171,7 +171,7 @@ fun ReportUserScreen(
                                 )
                             }
                             if (reason != reasons.last()) {
-                                Divider(color = WhatsAppDivider, thickness = 1.dp)
+                                HorizontalDivider(color = WhatsAppDivider, thickness = 1.dp)
                             }
                         }
                     }

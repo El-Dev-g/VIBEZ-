@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.CallMade
@@ -331,7 +332,7 @@ fun CallLogItemRow(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val icon = if (call.isIncoming) Icons.Default.CallReceived else Icons.Default.CallMade
+                    val icon = if (call.isIncoming) Icons.AutoMirrored.Filled.CallReceived else Icons.AutoMirrored.Filled.CallMade
                     val iconTint = if (call.isMissed) Color(0xFFEF4444) else WhatsAppMinimalAccent
 
                     Icon(

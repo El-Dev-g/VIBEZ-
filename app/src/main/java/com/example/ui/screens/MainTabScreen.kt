@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
@@ -310,7 +312,7 @@ fun MainTabScreen(
                     icon = {
                         Box {
                             Icon(
-                                imageVector = if (selectedTab == 0) Icons.Filled.Chat else Icons.Outlined.Chat,
+                                imageVector = if (selectedTab == 0) Icons.AutoMirrored.Filled.Chat else Icons.AutoMirrored.Outlined.Chat,
                                 contentDescription = "Chats"
                             )
                             if (totalUnread > 0) {

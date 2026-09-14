@@ -31,7 +31,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -172,7 +172,7 @@ fun ContactInfoScreen(
                         QuickInfoAction(icon = Icons.Default.Search, label = "Search") {}
                     }
                 }
-                Divider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+                HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
             // About status or Group description
@@ -201,7 +201,7 @@ fun ContactInfoScreen(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }
-                Divider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+                HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
             // Media, links, and docs
@@ -320,7 +320,7 @@ fun ContactInfoScreen(
                         }
                     }
                 }
-                Divider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+                HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
             // VIBEZ Pro Subscriber Official Group Perk
@@ -449,7 +449,7 @@ fun ContactInfoScreen(
                     Text(text = "Starred messages", fontSize = 16.sp)
                 }
 
-                Divider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+                HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
             // Destructive Actions

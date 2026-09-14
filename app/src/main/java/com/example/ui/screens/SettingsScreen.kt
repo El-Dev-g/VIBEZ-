@@ -24,8 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CleanHands
@@ -269,7 +268,7 @@ fun SettingsScreen(
                         onClick = onPrivacyClick
                     )
                     VibesSettingClickRow(
-                        icon = Icons.Default.Chat,
+                        icon = Icons.AutoMirrored.Filled.Chat,
                         title = "Chats",
                         subtitle = "Wallpapers and chat history",
                         onClick = onWallpaperClick
@@ -293,7 +292,7 @@ fun SettingsScreen(
                         onClick = onStorageClick
                     )
                     VibesSettingClickRow(
-                        icon = Icons.Default.HelpOutline,
+                        icon = Icons.AutoMirrored.Filled.HelpOutline,
                         title = "Help",
                         subtitle = "Help center, privacy policy",
                         onClick = onHelpClick

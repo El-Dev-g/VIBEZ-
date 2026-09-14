@@ -34,8 +34,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,7 +47,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -462,14 +461,14 @@ fun AdvancedMusicSelectorOverlay(
                     // Volume
                     Text("Music volume", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.VolumeDown, contentDescription = null, tint = Color.Gray)
+                        Icon(Icons.AutoMirrored.Filled.VolumeDown, contentDescription = null, tint = Color.Gray)
                         Slider(
                             value = trackVolume,
                             onValueChange = { trackVolume = it },
                             modifier = Modifier.weight(1f),
                             colors = SliderDefaults.colors(thumbColor = WhatsAppEmerald, activeTrackColor = WhatsAppEmerald)
                         )
-                        Icon(Icons.Default.VolumeUp, contentDescription = null, tint = Color.Gray)
+                        Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, tint = Color.Gray)
                     }
 
                     Spacer(modifier = Modifier.weight(1f))

@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Chat
@@ -284,7 +285,7 @@ fun ChatsListScreen(
                     modifier = Modifier.padding(bottom = 12.dp, end = 4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Chat,
+                        imageVector = Icons.AutoMirrored.Filled.Chat,
                         contentDescription = "New chat"
                     )
                 }
@@ -361,7 +362,7 @@ fun ChatsListScreen(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.VolumeOff,
+                                    imageVector = Icons.AutoMirrored.Filled.VolumeOff,
                                     contentDescription = "Toggle Mute Selected",
                                     tint = Color.White
                                 )
@@ -388,7 +389,7 @@ fun ChatsListScreen(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Send,
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
                                     contentDescription = "Forward or Broadcast Message",
                                     tint = Color.White
                                 )
@@ -504,7 +505,7 @@ fun ChatsListScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    imageVector = Icons.Default.Chat,
+                                    imageVector = Icons.AutoMirrored.Filled.Chat,
                                     contentDescription = "No chats",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                     modifier = Modifier.size(54.dp)
@@ -689,7 +690,7 @@ fun VibezChatItemCard(
 
                         if (chat.isMuted) {
                             Icon(
-                                imageVector = Icons.Default.VolumeOff,
+                                imageVector = Icons.AutoMirrored.Filled.VolumeOff,
                                 contentDescription = "Muted",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.size(15.dp)
