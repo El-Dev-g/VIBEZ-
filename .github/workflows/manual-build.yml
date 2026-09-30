@@ -8,6 +8,11 @@ on:
         required: true
         type: boolean
         default: true
+      build_ios:
+        description: 'Build iOS Application (.ipa & Xcode Project)'
+        required: true
+        type: boolean
+        default: true
       android_build_type:
         description: 'Android Build Type'
         required: true
@@ -400,3 +405,81 @@ jobs:
             landingpage/package-lock.json
           if-no-files-found: error
           retention-days: 7
+
+  build-ios:
+    name: Build iOS Application (.ipa)
+    if: ${{ inputs.build_ios }}
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Show Xcode Version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen &> /dev/null; then
+            brew install xcodegen
+          fi
+
+      - name: Generate Vibez.xcodeproj
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build iOS App for Device
+        working-directory: ios
+        run: |
+          xcodebuild clean build \
+            -project Vibez.xcodeproj \
+            -scheme Vibez \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package iOS .ipa and Xcode Project Bundle
+        working-directory: ios
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/Vibez.app Payload/
+          zip -r VIBEZ-ios.ipa Payload
+          rm -rf Payload
+          zip -r Vibez-Xcode-Project.zip Vibez.xcodeproj
+
+      - name: Upload iOS .ipa & Project Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibez-ios-ipa
+          path: |
+            ios/VIBEZ-ios.ipa
+            ios/Vibez-Xcode-Project.zip
+          retention-days: 14
+
+      - name: Determine Release Tag
+        if: ${{ inputs.create_github_release }}
+        id: release_meta
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG_NAME="${{ inputs.release_tag }}"
+          else
+            TAG_NAME="v1.0.0-build-${{ github.run_number }}"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Attach iOS IPA to GitHub Release
+        if: ${{ inputs.create_github_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
+          name: "VIBEZ Release ${{ steps.release_meta.outputs.tag_name }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ios/VIBEZ-ios.ipa
+            ios/Vibez-Xcode-Project.zip
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

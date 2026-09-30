@@ -1,12 +1,26 @@
-name: Build VIBEZ iOS App (.ipa)
+name: Build & Publish VIBEZ iOS App (.ipa)
 
 on:
   workflow_dispatch:
+    inputs:
+      create_github_release:
+        description: 'Publish .ipa to GitHub Releases'
+        required: true
+        type: boolean
+        default: true
+      release_tag:
+        description: 'Release Tag (leave blank for automatic tag)'
+        required: false
+        type: string
+        default: ''
   push:
     branches: [ main, master ]
     paths:
       - 'ios/**'
       - '.github/workflows/ios-build.yml'
+
+permissions:
+  contents: write
 
 jobs:
   build-ios:
@@ -29,7 +43,7 @@ jobs:
         working-directory: ios
         run: xcodegen generate
 
-      - name: Build iOS App for Device (Unsigned Archive)
+      - name: Build iOS App for Device (Release Architecture)
         working-directory: ios
         run: |
           xcodebuild clean build \
@@ -42,18 +56,45 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Package Unsigned .ipa Artifact
+      - name: Package iOS .ipa and Xcode Project Bundle
         working-directory: ios
         run: |
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/Vibez.app Payload/
-          zip -r Vibez-unsigned.ipa Payload
+          zip -r VIBEZ-ios.ipa Payload
           rm -rf Payload
+          zip -r Vibez-Xcode-Project.zip Vibez.xcodeproj
 
       - name: Upload iOS .ipa & .xcodeproj Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Vibez-iOS-Build
+          name: vibez-ios-build
           path: |
-            ios/Vibez-unsigned.ipa
-            ios/Vibez.xcodeproj
+            ios/VIBEZ-ios.ipa
+            ios/Vibez-Xcode-Project.zip
+          retention-days: 14
+
+      - name: Determine Release Tag
+        id: release_meta
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG_NAME="${{ inputs.release_tag }}"
+          else
+            TAG_NAME="v1.0.0-ios-${{ github.run_number }}"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Automatically Publish iOS GitHub Release
+        if: ${{ github.event_name == 'push' || inputs.create_github_release != false }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
+          name: "VIBEZ iOS Build ${{ steps.release_meta.outputs.tag_name }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ios/VIBEZ-ios.ipa
+            ios/Vibez-Xcode-Project.zip
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
