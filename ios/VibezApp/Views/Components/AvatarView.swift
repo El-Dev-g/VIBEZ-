@@ -1,6 +1,27 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Rounded Corner Shape Helper
+
+struct RoundedCornerShape: Shape {
+    var radius: CGFloat
+    var corners: UIRectCorner
+
+    init(_ radius: CGFloat = 12, corners: UIRectCorner = .allCorners) {
+        self.radius = radius
+        self.corners = corners
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(path.cgPath)
+    }
+}
+
 // MARK: - Theme Colors
 
 enum VibezTheme {

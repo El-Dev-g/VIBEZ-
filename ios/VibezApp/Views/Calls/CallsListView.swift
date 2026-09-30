@@ -8,7 +8,7 @@ struct CallsListView: View {
             Group {
                 if store.callLogs.isEmpty {
                     VStack(spacing: 12) {
-                        Image(systemName: "phone.Wave.2.fill")
+                        Image(systemName: "phone.badge.waveform")
                             .font(.system(size: 46))
                             .foregroundStyle(.secondary)
                         Text("No recent calls")
