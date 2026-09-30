@@ -26,12 +26,22 @@ class InAppUpdateWorker(
         Log.d(TAG, "InAppUpdateWorker starting background update check...")
         try {
             val latestUpdate = NetworkClient.apiService.getLatestUpdate()
-            val currentVersionCode = 1 // Hardcoded version code of current installed app
+            val currentVersionCode = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode.toInt()
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionCode
+                }
+            } catch (e: Exception) {
+                1
+            }
 
             if (latestUpdate.versionCode > currentVersionCode) {
                 Log.d(TAG, "Newer version detected: v${latestUpdate.versionName} (${latestUpdate.versionCode})")
                 
-                val apkFile = File(context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS), "vibez-update.apk")
+                val downloadDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+                val apkFile = File(downloadDir, "vibez-update.apk")
                 if (apkFile.exists()) {
                     apkFile.delete()
                 }

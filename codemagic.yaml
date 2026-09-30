@@ -1,0 +1,35 @@
+workflows:
+  vibez-ios-workflow:
+    name: VIBEZ iOS Cloud Build & TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      xcode: 15.4
+      vars:
+        BUNDLE_ID: "com.aistudio.vibez.ios"
+        XCODE_PROJECT: "Vibez.xcodeproj"
+        XCODE_SCHEME: "Vibez"
+    scripts:
+      - name: Generate Xcode Project with XcodeGen
+        script: |
+          cd ios
+          brew install xcodegen || true
+          xcodegen generate
+      - name: Build Unsigned iOS IPA (or Signed if App Store Connect Configured)
+        script: |
+          cd ios
+          xcodebuild clean build \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/Vibez.app Payload/
+          zip -r Vibez-ios.ipa Payload
+    artifacts:
+      - ios/Vibez-ios.ipa
+      - ios/build/Build/Products/**/*.app

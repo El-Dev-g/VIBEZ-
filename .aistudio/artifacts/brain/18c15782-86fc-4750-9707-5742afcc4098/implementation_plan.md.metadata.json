@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan for building the native SwiftUI iOS application in `/ios` connected to the VIBEZ Node.js/Prisma/Socket.IO backend, along with Cloud CI/CD workflows (GitHub Actions and Codemagic) for building and signing `.ipa` packages without a local Mac.",
+  "updatedAt": "2026-09-30T04:13:18.328153357Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
