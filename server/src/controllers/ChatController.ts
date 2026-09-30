@@ -26,11 +26,13 @@ export class ChatController {
         }
       });
       const mappedChats = chats.map(chat => {
-        const isCommunityOfficial = chat.community?.isOfficial || false;
+        const isCommunityOfficial = Boolean(chat.isGroup && chat.community?.isOfficial);
+        const isGroupOfficial = Boolean(chat.isGroup && (isCommunityOfficial || (chat as any).isOfficial));
+        const otherMemberVerified = !chat.isGroup && chat.members.some(m => m.userId !== userId && m.user?.isVerified);
         return {
           ...chat,
-          isOfficial: isCommunityOfficial || (chat as any).isOfficial || false,
-          isVerified: isCommunityOfficial || (chat as any).isVerified || false
+          isOfficial: isGroupOfficial,
+          isVerified: isGroupOfficial || Boolean((chat as any).isVerified) || otherMemberVerified
         };
       });
       res.json(mappedChats);
@@ -106,6 +108,15 @@ export class ChatController {
             { members: { some: { userId: currentUserId } } },
             { members: { some: { userId: targetUserId } } }
           ]
+        },
+        include: {
+          members: {
+            include: { user: true }
+          },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' }
+          }
         }
       });
 
@@ -122,6 +133,15 @@ export class ChatController {
               { userId: currentUserId },
               { userId: targetUserId }
             ]
+          }
+        },
+        include: {
+          members: {
+            include: { user: true }
+          },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' }
           }
         }
       });

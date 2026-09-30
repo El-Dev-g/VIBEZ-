@@ -772,6 +772,7 @@ fun WebRTCSurfaceView(
         onRelease = { view ->
             rendererRef = null
             try {
+                Log.d("WebRTCSurfaceView", "Releasing SurfaceViewRenderer")
                 view.release()
             } catch (e: Exception) {
                 Log.e("WebRTCSurfaceView", "Error releasing SurfaceViewRenderer: ${e.message}")

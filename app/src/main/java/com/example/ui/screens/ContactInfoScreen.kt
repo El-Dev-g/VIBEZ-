@@ -95,10 +95,22 @@ fun ContactInfoScreen(
         isMuted = chat?.isMuted == true
     }
 
+    val isGroupChat = chat?.isGroup == true
+    val isChannel = isGroupChat && chat?.isOfficial == true
+    val displayName = chat?.contactName?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+        ?: contact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+        ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
+        ?: chat?.contactName?.takeIf { it.isNotBlank() }
+        ?: contact?.name?.takeIf { it.isNotBlank() }
+        ?: "User"
+    val displayAvatar = contact?.avatarUrl?.takeIf { it.isNotBlank() }
+        ?: chat?.contactAvatar?.takeIf { it.isNotBlank() }
+        ?: ""
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = if (chat?.isOfficial == true) "Channel info" else if (chat?.isGroup == true) "Group info" else "Contact info", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = { Text(text = if (isChannel) "Channel info" else if (isGroupChat) "Group info" else "Contact info", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -122,37 +134,38 @@ fun ContactInfoScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     AvatarView(
-                        name = chat?.contactName ?: contact?.name ?: "Contact",
-                        avatarUrl = chat?.contactAvatar ?: contact?.avatarUrl ?: "",
-                        isGroup = chat?.isGroup == true,
-                        isOfficial = chat?.isOfficial == true,
+                        name = displayName,
+                        avatarUrl = displayAvatar,
+                        isGroup = isGroupChat,
+                        isOfficial = isChannel,
+                        isVerified = isChannel || chat?.isVerified == true || contact?.isVerified == true,
                         size = 110.dp
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = chat?.contactName ?: contact?.name ?: "Contact",
+                            text = displayName,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        if (chat?.isOfficial == true || chat?.isVerified == true || contact?.isVerified == true) {
+                        if (isChannel || chat?.isVerified == true || contact?.isVerified == true) {
                             Spacer(modifier = Modifier.width(6.dp))
                             VerifiedBadge(size = 22.dp)
                         }
                     }
-                    if (chat?.isOfficial == true) {
+                    if (isChannel) {
                         Spacer(modifier = Modifier.height(6.dp))
                         VerifiedBadgePill(label = "Official Verified Broadcast Channel")
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (chat?.isOfficial == true) {
+                        text = if (isChannel) {
                             "Public Broadcast Channel"
-                        } else if (chat?.isGroup == true) {
+                        } else if (isGroupChat) {
                             "Group Chat"
                         } else {
-                            contact?.phoneNumber ?: "+1 555-0100"
+                            contact?.phoneNumber?.takeIf { it.isNotBlank() } ?: ""
                         },
                         fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -165,7 +178,7 @@ fun ContactInfoScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        if (chat?.isOfficial != true && chat?.isGroup != true) {
+                        if (!isChannel && !isGroupChat) {
                             QuickInfoAction(icon = Icons.Default.Call, label = "Audio", onClick = onVoiceCallClick)
                             QuickInfoAction(icon = Icons.Default.Videocam, label = "Video", onClick = onVideoCallClick)
                         }
@@ -183,12 +196,12 @@ fun ContactInfoScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = if (chat?.isOfficial == true) {
+                        text = if (isChannel) {
                             "Official announcements, notifications and critical system updates. Only channel admins can post to this channel."
-                        } else if (chat?.isGroup == true) {
+                        } else if (isGroupChat) {
                             "Welcome to the group chat! Share files, images, links and chat live with other group members."
                         } else {
-                            contact?.aboutStatus ?: "Hey there! I am using VIBEZ."
+                            contact?.aboutStatus?.takeIf { it.isNotBlank() } ?: "Hey there! I am using VIBEZ."
                         },
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
@@ -196,7 +209,7 @@ fun ContactInfoScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (chat?.isOfficial == true) "Channel description" else if (chat?.isGroup == true) "Group description" else "About",
+                        text = if (isChannel) "Channel description" else if (isGroupChat) "Group description" else "About",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -331,12 +344,12 @@ fun ContactInfoScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (chat.isVerified || chat.isOfficial) Color(0xFFECFDF5) else MaterialTheme.colorScheme.surface
+                            containerColor = if (chat.isVerified || chat.isOfficial) Color(0xFF1D9BF0).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
                         ),
                         shape = RoundedCornerShape(20.dp),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (chat.isVerified || chat.isOfficial) Color(0xFF10B981) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            if (chat.isVerified || chat.isOfficial) Color(0xFF1D9BF0).copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                     ) {
                         Row(
@@ -352,18 +365,18 @@ fun ContactInfoScreen(
                                         text = "Official Group Badge",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp,
-                                        color = if (chat.isVerified || chat.isOfficial) Color(0xFF065F46) else MaterialTheme.colorScheme.onSurface
+                                        color = if (chat.isVerified || chat.isOfficial) Color(0xFF1D9BF0) else MaterialTheme.colorScheme.onSurface
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     VerifiedBadge(size = 18.dp)
                                 }
                                 Text(
                                     text = if (chat.isVerified || chat.isOfficial)
-                                        "Official Green Checkmark active for this group chat."
+                                        "Official Verified Badge active for this group chat."
                                     else
-                                        "Apply your VIBEZ Pro perk to grant an Official Green Badge to 1 owned group.",
+                                        "Apply your VIBEZ Pro perk to grant an Official Verified Badge to 1 owned group.",
                                     fontSize = 12.sp,
-                                    color = if (chat.isVerified || chat.isOfficial) Color(0xFF047857) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (chat.isVerified || chat.isOfficial) Color(0xFF1D9BF0) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Switch(
@@ -371,7 +384,7 @@ fun ContactInfoScreen(
                                 onCheckedChange = { onToggleGroupVerifyPerk() },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF10B981)
+                                    checkedTrackColor = Color(0xFF1D9BF0)
                                 )
                             )
                         }
@@ -453,7 +466,7 @@ fun ContactInfoScreen(
             }
 
             // Destructive Actions
-            if (chat?.isOfficial != true) {
+            if (!isChannel) {
                 item {
                     Row(
                         modifier = Modifier
@@ -464,10 +477,10 @@ fun ContactInfoScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(text = if (chat?.isGroup == true) "Exit group" else "Delete chat", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                        Text(text = if (isGroupChat) "Exit group" else "Delete chat", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
                     }
 
-                    if (chat?.isGroup != true) {
+                    if (!isGroupChat) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -484,8 +497,8 @@ fun ContactInfoScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    val targetId = chat?.contactId ?: contact?.id ?: ""
-                                    val targetName = chat?.contactName ?: contact?.name ?: "User"
+                                    val targetId = chat?.contactId?.takeIf { it.isNotBlank() } ?: contact?.id ?: ""
+                                    val targetName = displayName
                                     onReportClick(targetId, targetName)
                                 }
                                 .padding(horizontal = 16.dp, vertical = 14.dp),

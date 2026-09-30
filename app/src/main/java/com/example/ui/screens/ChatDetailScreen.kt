@@ -123,6 +123,10 @@ import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.ui.graphics.Brush
 import coil.compose.AsyncImage
 import com.example.data.ContactEntity
+import com.google.android.gms.location.LocationServices
+import android.provider.ContactsContract
+import android.location.Geocoder
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -238,8 +242,6 @@ fun ChatDetailScreen(
     var selectedEmojiCategory by remember { mutableIntStateOf(0) }
     var selectedMessageForAction by remember { mutableStateOf<MessageEntity?>(null) }
     var replyingToMessage by remember { mutableStateOf<MessageEntity?>(null) }
-    var showLocationDialog by remember { mutableStateOf(false) }
-    var showContactDialog by remember { mutableStateOf(false) }
 
     val audioRecorder = remember { AudioRecorder(context) }
     var recordedAudioFile by remember { mutableStateOf<File?>(null) }
@@ -347,6 +349,79 @@ fun ChatDetailScreen(
             }
         } else {
             Toast.makeText(context, "Microphone permission is required to record voice notes.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Location Permission Launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        ) {
+            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    if (location != null) {
+                        coroutineScope.launch {
+                            val lat = location.latitude
+                            val lng = location.longitude
+                            var addressText = "Shared Location"
+                            try {
+                                val geocoder = Geocoder(context, Locale.getDefault())
+                                val addresses = geocoder.getFromLocation(lat, lng, 1)
+                                if (!addresses.isNullOrEmpty()) {
+                                    val address = addresses[0]
+                                    addressText = address.getAddressLine(0) ?: "Shared Location"
+                                }
+                            } catch (e: Exception) {
+                                // Fallback if geocoding fails
+                            }
+                            onSendMessage("📍 $addressText", "LOCATION", "geo:$lat,$lng", 0, replyingToMessage?.id)
+                            replyingToMessage = null
+                        }
+                    } else {
+                        Toast.makeText(context, "Could not fetch current location.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: SecurityException) {
+                Toast.makeText(context, "Location permission required.", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Location permission is required to share your location.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Contact Picker Launcher
+    val pickContactLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact()
+    ) { contactUri ->
+        if (contactUri != null) {
+            val cursor = context.contentResolver.query(contactUri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val nameIndex = it.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+                    val idIndex = it.getColumnIndex(ContactsContract.Contacts._ID)
+                    val name = it.getString(nameIndex)
+                    val contactId = it.getString(idIndex)
+
+                    val phones = context.contentResolver.query(
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        null,
+                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                        arrayOf(contactId),
+                        null
+                    )
+                    phones?.use { pCursor ->
+                        if (pCursor.moveToFirst()) {
+                            val phoneIndex = pCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                            val phone = pCursor.getString(phoneIndex)
+                            onSendMessage("👤 $name\n$phone", "CONTACT", phone, 0, replyingToMessage?.id)
+                            replyingToMessage = null
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -496,107 +571,6 @@ fun ChatDetailScreen(
         )
     }
 
-    // Location Picker Dialog
-    if (showLocationDialog) {
-        AlertDialog(
-            onDismissRequest = { showLocationDialog = false },
-            title = { Text("Share Location") },
-            text = {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    Text("Select a location to share in this chat:", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                showLocationDialog = false
-                                onSendMessage("📍 Current Location\nGoogle HQ, 1600 Amphitheatre Pkwy, Mountain View, CA", "LOCATION", "geo:37.4220,-122.0841", 0, replyingToMessage?.id)
-                                replyingToMessage = null
-                            }
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Current Location", tint = Color(0xFF00C853))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text("Share Current Location", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text("Accurate to 5 meters", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                showLocationDialog = false
-                                onSendMessage("📍 Office • Metropolis Tower, 5th Floor", "LOCATION", "geo:37.7749,-122.4194", 0, replyingToMessage?.id)
-                                replyingToMessage = null
-                            }
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Office", tint = WhatsAppMinimalPrimary)
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text("Share Work Address", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text("Metropolis Tower, 5th Floor", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showLocationDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    // Contact Card Picker Dialog
-    if (showContactDialog) {
-        AlertDialog(
-            onDismissRequest = { showContactDialog = false },
-            title = { Text("Share Contact Card") },
-            text = {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    Text("Select a contact to share:", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    listOf(
-                        "Alex Morgan" to "+1 (555) 234-5678",
-                        "Sarah Connor" to "+1 (555) 987-6543",
-                        "Tech Support Team" to "+1 (800) 555-0199"
-                    ).forEach { (name, phone) ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clickable {
-                                    showContactDialog = false
-                                    onSendMessage("👤 $name\n$phone", "CONTACT", phone, 0, replyingToMessage?.id)
-                                    replyingToMessage = null
-                                }
-                        ) {
-                            Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                AvatarView(name = name, avatarUrl = "", size = 36.dp)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text(phone, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showContactDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -637,6 +611,13 @@ fun ChatDetailScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
                 )
             } else {
+                val isChannel = chat.isGroup && chat.isOfficial
+                val headerName = chat.contactName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                    ?: contact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                    ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
+                    ?: chat.contactName.ifBlank { "User" }
+                val headerAvatar = chat.contactAvatar.ifBlank { contact?.avatarUrl ?: "" }
+
                 TopAppBar(
                     title = {
                         Row(
@@ -646,22 +627,23 @@ fun ChatDetailScreen(
                                 .padding(vertical = 4.dp)
                         ) {
                             AvatarView(
-                                name = chat.contactName,
-                                avatarUrl = chat.contactAvatar,
+                                name = headerName,
+                                avatarUrl = headerAvatar,
                                 isGroup = chat.isGroup,
-                                isOfficial = chat.isOfficial,
+                                isOfficial = isChannel,
+                                isVerified = chat.isVerified || isChannel || contact?.isVerified == true,
                                 size = 40.dp
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = chat.contactName,
+                                        text = headerName,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    if (chat.isVerified || chat.isOfficial || contact?.isVerified == true) {
+                                    if (chat.isVerified || isChannel || contact?.isVerified == true) {
                                         Spacer(modifier = Modifier.width(4.dp))
                                         VerifiedBadge(size = 18.dp)
                                     }
@@ -669,14 +651,14 @@ fun ChatDetailScreen(
                                 Text(
                                     text = when {
                                         isTyping -> "typing..."
-                                        chat.isOfficial -> "Official Channel • Tap for info"
+                                        isChannel -> "Official Channel • Tap for info"
                                         chat.isGroup -> "Tap for group info"
                                         contact?.isOnline == true -> "Online"
                                         !contact?.lastSeen.isNullOrBlank() -> {
                                             if (contact!!.lastSeen.equals("Online", ignoreCase = true)) "Online"
                                             else "last seen ${contact!!.lastSeen}"
                                         }
-                                        else -> "offline"
+                                        else -> "Tap here for contact info"
                                     },
                                     fontSize = 12.sp,
                                     fontWeight = if (isTyping) FontWeight.Bold else FontWeight.Normal,
@@ -694,7 +676,7 @@ fun ChatDetailScreen(
                         }
                     },
                     actions = {
-                        if (!chat.isOfficial) {
+                        if (!isChannel) {
                             IconButton(onClick = onVideoCallClick) {
                                 Icon(imageVector = Icons.Default.Videocam, contentDescription = "Video Call")
                             }
@@ -1019,7 +1001,12 @@ fun ChatDetailScreen(
                                     bgColor = Color(0xFF00C853)
                                 ) {
                                     showAttachmentMenu = false
-                                    showLocationDialog = true
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
                                 }
                                 AttachmentOptionItem(
                                     icon = Icons.Default.Person,
@@ -1027,7 +1014,7 @@ fun ChatDetailScreen(
                                     bgColor = Color(0xFF0091EA)
                                 ) {
                                     showAttachmentMenu = false
-                                    showContactDialog = true
+                                    pickContactLauncher.launch(null)
                                 }
                             }
                         }
@@ -1109,7 +1096,7 @@ fun ChatDetailScreen(
                 }
 
                 // Chat Input Bar - Channels are read-only for followers (broadcast only)
-                if (chat != null && chat.isOfficial && !isAdmin) {
+                if (chat != null && chat.isGroup && chat.isOfficial && !isAdmin) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

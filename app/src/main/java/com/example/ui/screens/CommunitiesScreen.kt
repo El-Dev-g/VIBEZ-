@@ -241,7 +241,7 @@ private fun CommunityItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isOfficial) Color(0xFFF1F8E9) else MaterialTheme.colorScheme.surface)
+            .background(if (isOfficial) Color(0xFFE3F2FD) else MaterialTheme.colorScheme.surface)
     ) {
         // Community Header
         Row(
@@ -255,7 +255,7 @@ private fun CommunityItem(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isOfficial) WhatsAppEmerald else Color(0xFF00897B)),
+                    .background(if (isOfficial) Color(0xFF1D9BF0) else Color(0xFF00897B)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -279,27 +279,14 @@ private fun CommunityItem(
                         overflow = TextOverflow.Ellipsis
                     )
                     if (isOfficial) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .background(WhatsAppEmerald),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Verified",
-                                tint = Color.White,
-                                modifier = Modifier.size(10.dp)
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        com.example.ui.components.VerifiedBadge(size = 16.dp)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "OFFICIAL",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
-                            color = WhatsAppEmerald,
+                            color = Color(0xFF1D9BF0),
                             letterSpacing = 1.sp
                         )
                     }

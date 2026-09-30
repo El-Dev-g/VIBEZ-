@@ -602,18 +602,26 @@ fun VibezChatItemCard(
                 )
             }
 
-            val contact = contacts.firstOrNull { it.id == chat.contactId }
+            val contact = contacts.firstOrNull {
+                chat.contactId.isNotBlank() && (it.id == chat.contactId || it.remoteId == chat.contactId)
+            }
             val isOnline = contact?.isOnline == true
+            val displayName = chat.contactName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                ?: contact?.name?.takeIf { it.isNotBlank() }
+                ?: chat.contactName.ifBlank { "Contact" }
+            val displayAvatar = chat.contactAvatar.ifBlank { contact?.avatarUrl ?: "" }
+            val isChannel = chat.isGroup && chat.isOfficial
 
             // Avatar with Active Indicator - Clicking Avatar opens User Profile
             Box(
                 modifier = Modifier.clickable(onClick = onAvatarClick)
             ) {
                 AvatarView(
-                    name = chat.contactName,
-                    avatarUrl = chat.contactAvatar,
+                    name = displayName,
+                    avatarUrl = displayAvatar,
                     isGroup = chat.isGroup,
-                    isOfficial = chat.isOfficial,
+                    isOfficial = isChannel,
+                    isVerified = chat.isVerified || isChannel || contact?.isVerified == true,
                     isOnline = isOnline,
                     size = 52.dp
                 )
@@ -633,14 +641,14 @@ fun VibezChatItemCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = chat.contactName,
+                            text = displayName,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (chat.isVerified || chat.isOfficial || contact?.isVerified == true) {
+                        if (chat.isVerified || isChannel || contact?.isVerified == true) {
                             Spacer(modifier = Modifier.width(4.dp))
                             VerifiedBadge(size = 18.dp)
                         }
@@ -665,8 +673,15 @@ fun VibezChatItemCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val isTyping = (typingChatId == chat.id)
+                    val displayMessage = if (isTyping) "typing..." else {
+                        when {
+                            chat.lastMessage.startsWith("📍 ") -> "📍 Location"
+                            chat.lastMessage.startsWith("👤 ") -> "👤 Contact: ${chat.lastMessage.substringBefore("\n").removePrefix("👤 ")}"
+                            else -> chat.lastMessage
+                        }
+                    }
                     Text(
-                        text = if (isTyping) "typing..." else chat.lastMessage,
+                        text = displayMessage,
                         fontSize = 14.sp,
                         fontWeight = if (isTyping) FontWeight.Bold else FontWeight.Normal,
                         color = if (isTyping) WhatsAppMinimalPrimary else MaterialTheme.colorScheme.onSurfaceVariant,

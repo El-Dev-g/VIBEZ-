@@ -542,23 +542,21 @@ fun SelectContactScreen(
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                AvatarView(
+                                 AvatarView(
                                     name = contact.name,
                                     avatarUrl = contact.avatarUrl,
                                     isOnline = contact.isOnline,
+                                    isVerified = contact.isVerified,
                                     size = 48.dp
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(text = contact.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Icon(
-                                            imageVector = Icons.Default.Verified,
-                                            contentDescription = "Verified VIBEZ user",
-                                            tint = WhatsAppMinimalPrimary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
+                                        if (contact.isVerified) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            com.example.ui.components.VerifiedBadge(size = 16.dp)
+                                        }
                                     }
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(

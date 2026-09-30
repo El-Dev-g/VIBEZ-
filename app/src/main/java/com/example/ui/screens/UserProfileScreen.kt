@@ -45,6 +45,7 @@ fun UserProfileScreen(
     contactStatus: String = "⚡ Vibing in VIBEZ",
     isCurrentUser: Boolean = false,
     isGroup: Boolean = false,
+    isOfficial: Boolean = false,
     isVerified: Boolean = false,
     onBackClick: () -> Unit,
     onChangePhoneClick: (() -> Unit)? = null,
@@ -56,6 +57,8 @@ fun UserProfileScreen(
     onQrScanClick: (() -> Unit)? = null,
     onMediaClick: (() -> Unit)? = null,
     onEncryptionClick: (() -> Unit)? = null,
+    onToggleMute: (() -> Unit)? = null,
+    isMuted: Boolean = false,
     onGetBadgeClick: () -> Unit = {},
     onViewBadgeReceiptClick: () -> Unit = {}
 ) {
@@ -106,8 +109,15 @@ fun UserProfileScreen(
         topBar = {
             TopAppBar(
                 title = {
+                    val topBarTitle = if (isCurrentUser) {
+                        "Profile"
+                    } else {
+                        currentName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                            ?: currentPhone.takeIf { it.isNotBlank() }
+                            ?: "User Profile"
+                    }
                     Text(
-                        text = if (isCurrentUser) "Profile" else "Contact Info",
+                        text = topBarTitle,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -149,9 +159,11 @@ fun UserProfileScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             AvatarView(
-                                name = currentName,
+                                name = currentName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" } ?: currentPhone.ifBlank { "User" },
                                 avatarUrl = currentAvatar,
-                                isGroup = isGroup,
+                                isGroup = false,
+                                isOfficial = false,
+                                isVerified = isVerified,
                                 size = 150.dp
                             )
                         }
@@ -225,26 +237,42 @@ fun UserProfileScreen(
             } else {
                 // CONTACT VIEW (For other users / Viewers - Read Only)
                 item {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val resolvedDisplayName = currentName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                            ?: currentPhone.takeIf { it.isNotBlank() }
+                            ?: "User"
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(bottom = 4.dp)
                         ) {
                             Text(
-                                text = currentName,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
+                                text = resolvedDisplayName,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                             if (isVerified) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                VerifiedBadge(size = 22.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                VerifiedBadge(size = 24.dp)
                             }
                         }
-                        Text(
-                            text = currentPhone,
-                            fontSize = 16.sp,
-                            color = Color.Gray
-                        )
+                        
+                        if (currentPhone.isNotBlank() && currentPhone != resolvedDisplayName) {
+                            Text(
+                                text = currentPhone,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         
                         Spacer(modifier = Modifier.height(20.dp))
                         
@@ -283,11 +311,11 @@ fun UserProfileScreen(
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isVerified) Color(0xFF10B981).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            containerColor = if (isVerified) Color(0xFF1D9BF0).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         ),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isVerified) Color(0xFF10B981).copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            if (isVerified) Color(0xFF1D9BF0).copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                     ) {
                         Row(
@@ -311,7 +339,7 @@ fun UserProfileScreen(
                                         text = if (isVerified) "Official Verified Badge" else "Get Verified Badge",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isVerified) Color(0xFF047857) else MaterialTheme.colorScheme.onSurface
+                                        color = if (isVerified) Color(0xFF1D9BF0) else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(2.dp))
@@ -327,7 +355,7 @@ fun UserProfileScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = if (isVerified) Color(0xFF10B981) else Color.Gray
+                                tint = if (isVerified) Color(0xFF1D9BF0) else Color.Gray
                             )
                         }
                     }
@@ -352,6 +380,23 @@ fun UserProfileScreen(
                     leadingContent = { Icon(Icons.Default.Lock, contentDescription = null, tint = WhatsAppMinimalPrimary) },
                     modifier = Modifier.clickable { onEncryptionClick?.invoke() }
                 )
+            }
+
+            if (!isCurrentUser && onToggleMute != null) {
+                item {
+                    ListItem(
+                        headlineContent = { Text("Mute notifications") },
+                        leadingContent = { Icon(if (isMuted) Icons.Default.NotificationsOff else Icons.Default.Notifications, contentDescription = null, tint = WhatsAppMinimalPrimary) },
+                        trailingContent = {
+                            Switch(
+                                checked = isMuted,
+                                onCheckedChange = { onToggleMute() },
+                                colors = SwitchDefaults.colors(checkedThumbColor = WhatsAppMinimalPrimary)
+                            )
+                        },
+                        modifier = Modifier.clickable { onToggleMute() }
+                    )
+                }
             }
 
             if (!isCurrentUser) {
@@ -461,7 +506,7 @@ fun UserProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF10B981).copy(alpha = 0.1f),
+                        color = Color(0xFF1D9BF0).copy(alpha = 0.1f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -480,12 +525,12 @@ fun UserProfileScreen(
                                     text = "Status: Authentic & Active",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF047857)
+                                    color = Color(0xFF1D9BF0)
                                 )
                                 Text(
                                     text = "Authenticity certificate verified",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF047857).copy(alpha = 0.8f)
+                                    color = Color(0xFF1D9BF0).copy(alpha = 0.8f)
                                 )
                             }
                         }
@@ -494,7 +539,7 @@ fun UserProfileScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showTrustDialog = false }) {
-                    Text("Done", fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                    Text("Done", fontWeight = FontWeight.Bold, color = Color(0xFF1D9BF0))
                 }
             }
         )

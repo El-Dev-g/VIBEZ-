@@ -30,6 +30,7 @@ export class UserController {
             { id: { not: currentUserId } },
             {
               OR: [
+                { id: { equals: queryParam } },
                 { phoneNumber: { contains: queryParam, mode: 'insensitive' } },
                 { name: { contains: queryParam, mode: 'insensitive' } }
               ]

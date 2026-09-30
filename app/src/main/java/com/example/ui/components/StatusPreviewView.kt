@@ -36,6 +36,7 @@ fun StatusPreviewView(
     status: StatusEntity?,
     statusCount: Int,
     isStatusViewed: Boolean,
+    isVerified: Boolean = false,
     size: Dp = 50.dp,
     modifier: Modifier = Modifier
 ) {
@@ -189,6 +190,16 @@ fun StatusPreviewView(
                     )
                 }
             }
+        }
+        
+        // 3. Verification Badge Overlay
+        if (isVerified) {
+            VerifiedBadge(
+                size = size * 0.32f,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
+            )
         }
     }
 }

@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.sp
 fun VerifiedBadge(
     modifier: Modifier = Modifier,
     size: Dp = 18.dp,
-    badgeColor: Color = Color(0xFF10B981), // Emerald / WhatsApp Green
+    badgeColor: Color = Color(0xFF1D9BF0), // Twitter/Verified Blue
     checkColor: Color = Color.White
 ) {
     Box(
@@ -55,8 +55,8 @@ fun VerifiedBadgePill(
         onClick = { onClick?.invoke() },
         enabled = onClick != null,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-        color = Color(0xFF10B981).copy(alpha = 0.12f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f)),
+        color = Color(0xFF1D9BF0).copy(alpha = 0.12f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D9BF0).copy(alpha = 0.35f)),
         modifier = modifier
     ) {
         Row(
@@ -69,7 +69,7 @@ fun VerifiedBadgePill(
                 text = label,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF047857) // Dark Emerald text
+                color = Color(0xFF1D9BF0) // Blue text
             )
         }
     }

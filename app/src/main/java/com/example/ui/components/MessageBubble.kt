@@ -341,31 +341,34 @@ fun MessageBubble(
                 }
                 "LOCATION" -> {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isDarkMode) Color(0xFF1F2C33) else Color(0xFFE9EDEF),
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isDarkMode) Color(0xFF1F2C33) else Color(0xFFFFFFFF),
+                        tonalElevation = 2.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
                     ) {
                         Column {
-                            // Location Placeholder
+                            // Location Header with Icon
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(120.dp)
+                                    .height(140.dp)
                                     .background(if (isDarkMode) Color(0xFF232D36) else Color(0xFFF0F2F5)),
                                 contentAlignment = Alignment.Center
                             ) {
+                                // Background pattern placeholder
                                 Icon(
                                     imageVector = Icons.Default.LocationOn,
                                     contentDescription = null,
-                                    tint = WhatsAppEmerald.copy(alpha = 0.3f),
-                                    modifier = Modifier.size(64.dp)
+                                    tint = WhatsAppEmerald.copy(alpha = 0.1f),
+                                    modifier = Modifier.size(100.dp)
                                 )
+                                // Main Marker
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(44.dp)
                                         .clip(CircleShape)
                                         .background(Color.White),
                                     contentAlignment = Alignment.Center
@@ -373,29 +376,47 @@ fun MessageBubble(
                                     Icon(
                                         imageVector = Icons.Default.LocationOn,
                                         contentDescription = null,
-                                        tint = Color(0xFF00C853),
-                                        modifier = Modifier.size(20.dp)
+                                        tint = Color(0xFFE53935), // Red marker
+                                        modifier = Modifier.size(28.dp)
                                     )
                                 }
                             }
                             
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                val locationTitle = message.content.substringBefore("\n").removePrefix("📍 ")
+                                val locationAddress = message.content.substringAfter("\n", "")
+                                
+                                Text(
+                                    text = locationTitle,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (locationAddress.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = message.content.substringBefore("\n"),
+                                        text = locationAddress,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(10.dp))
+                                
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = WhatsAppMinimalPrimary.copy(alpha = 0.1f),
+                                    modifier = Modifier.fillMaxWidth().clickable { /* Open Map */ }
+                                ) {
+                                    Text(
+                                        text = "View Location",
+                                        color = WhatsAppMinimalPrimary,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = message.content.substringAfter("\n", ""),
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
                                 }
                             }
@@ -404,55 +425,73 @@ fun MessageBubble(
                 }
                 "CONTACT" -> {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isDarkMode) Color(0xFF1F2C33) else Color(0xFFE9EDEF),
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isDarkMode) Color(0xFF1F2C33) else Color(0xFFFFFFFF),
+                        tonalElevation = 2.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp)
+                            .padding(vertical = 4.dp)
                     ) {
                         Column {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                val contactName = message.content.substringBefore("\n").removePrefix("👤 ")
+                                val contactPhone = message.content.substringAfter("\n", "")
+                                
                                 AvatarView(
-                                    name = message.content.substringBefore("\n").removePrefix("👤 "),
+                                    name = contactName,
                                     avatarUrl = "",
-                                    size = 40.dp
+                                    size = 48.dp
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(14.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = message.content.substringBefore("\n"),
-                                        fontSize = 14.sp,
+                                        text = contactName,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = message.content.substringAfter("\n", ""),
-                                        fontSize = 12.sp,
+                                        text = contactPhone,
+                                        fontSize = 14.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                             
                             HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 12.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp),
                                 thickness = 0.5.dp,
                                 color = MaterialTheme.colorScheme.outlineVariant
                             )
                             
-                            Text(
-                                text = "Message",
-                                color = WhatsAppMinimalPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { /* Message action */ }
-                                    .padding(vertical = 10.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Message",
+                                    color = WhatsAppMinimalPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { /* Message action */ }
+                                        .padding(vertical = 12.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Box(modifier = Modifier.width(0.5.dp).height(40.dp).background(MaterialTheme.colorScheme.outlineVariant).align(Alignment.CenterVertically))
+                                Text(
+                                    text = "Call",
+                                    color = WhatsAppMinimalPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { /* Call action */ }
+                                        .padding(vertical = 12.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }

@@ -75,6 +75,7 @@ data class GroupedStatus(
     val contactId: String,
     val contactName: String,
     val contactAvatar: String,
+    val isVerified: Boolean = false,
     val statuses: List<StatusEntity>
 ) {
     val isViewed: Boolean get() = statuses.all { it.isViewed }
@@ -141,6 +142,7 @@ fun StatusListScreen(
                     contactId = contactId,
                     contactName = displayName,
                     contactAvatar = displayAvatar,
+                    isVerified = matchedContact?.isVerified == true,
                     statuses = sorted
                 )
             }
@@ -338,6 +340,7 @@ fun StatusListScreen(
                                     status = firstStatus,
                                     statusCount = statusGroup.statuses.size,
                                     isStatusViewed = statusGroup.isViewed,
+                                    isVerified = statusGroup.isVerified,
                                     size = 68.dp
                                 )
 
@@ -656,6 +659,7 @@ fun StatusItemRow(
                 status = group.statuses.first(),
                 statusCount = group.statuses.size,
                 isStatusViewed = group.isViewed,
+                isVerified = group.isVerified,
                 size = 52.dp
             )
 

@@ -784,6 +784,15 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         return repository.getChatById(chatId)
     }
 
+    fun refreshContactProfile(contactId: String) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken()
+            if (!token.isNullOrBlank()) {
+                repository.refreshContactProfile(contactId, token)
+            }
+        }
+    }
+
     fun getOrCreateChatForContact(contact: ContactEntity, onComplete: (String) -> Unit) {
         viewModelScope.launch {
             try {

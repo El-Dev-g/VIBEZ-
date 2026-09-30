@@ -53,6 +53,42 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     val typingEvent = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, Boolean>>()
     val readReceiptEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
 
+    init {
+        repositoryScope.launch {
+            try {
+                val localChats = dao.getAllChatsOneShot()
+                val localContacts = dao.getAllContactsOneShot()
+                localChats.forEach { localChat ->
+                    if (localChat.isGroup && localChat.contactId.isNotBlank()) {
+                        dao.updateChat(localChat.copy(contactId = ""))
+                    } else if (!localChat.isGroup) {
+                        val matchedContact = localContacts.firstOrNull {
+                            (localChat.contactId.isNotBlank() && (it.id == localChat.contactId || it.remoteId == localChat.contactId)) ||
+                            it.id == localChat.id || it.remoteId == localChat.id
+                        }
+                        val fixedName = localChat.contactName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                            ?: matchedContact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                            ?: matchedContact?.phoneNumber?.takeIf { it.isNotBlank() }
+                            ?: localChat.contactName
+                        val fixedAvatar = localChat.contactAvatar.ifBlank { matchedContact?.avatarUrl ?: "" }
+                        val fixedContactId = localChat.contactId.ifBlank { matchedContact?.id ?: "" }
+                        if (localChat.isOfficial || fixedName != localChat.contactName || fixedAvatar != localChat.contactAvatar || fixedContactId != localChat.contactId) {
+                            dao.updateChat(
+                                localChat.copy(
+                                    isOfficial = false,
+                                    contactId = fixedContactId,
+                                    contactName = fixedName,
+                                    contactAvatar = fixedAvatar,
+                                    isVerified = localChat.isVerified || matchedContact?.isVerified == true
+                                )
+                            )
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     fun initSocket(userId: String, token: String? = null, onNewMessage: (MessageEntity) -> Unit) {
         socketManager = SocketManager(userId, token).apply {
             connect { json ->
@@ -239,6 +275,20 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     suspend fun syncChats(token: String) {
         try {
             val deletedIds = getDeletedChatIds()
+            val currentUserId = context?.let { AuthManager(it).getUserId() } ?: ""
+
+            // Clean up any previously corrupted local chats where group chats had a contactId or 1:1 chats were marked official
+            try {
+                val localChats = dao.getAllChatsOneShot()
+                localChats.forEach { localChat ->
+                    if (localChat.isGroup && localChat.contactId.isNotBlank()) {
+                        dao.updateChat(localChat.copy(contactId = ""))
+                    } else if (!localChat.isGroup && localChat.isOfficial) {
+                        dao.updateChat(localChat.copy(isOfficial = false))
+                    }
+                }
+            } catch (_: Exception) {}
+
             val remoteChats = NetworkClient.apiService.getChats("Bearer $token")
             remoteChats.forEach { dto ->
                 if (deletedIds.contains(dto.id)) {
@@ -247,21 +297,85 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                     dao.clearChatMessages(dto.id)
                     return@forEach
                 }
-                val isOff = dto.isOfficial || dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
-                val isVer = dto.isVerified || isOff || dto.members.any { it.user.isVerified }
-                val currentUserId = context?.let { AuthManager(it).getUserId() } ?: ""
+                if (dto.id.isBlank()) return@forEach
+                val isOff = dto.isGroup && (dto.isOfficial || dto.id.contains("system_official", ignoreCase = true))
                 val otherMember = if (!dto.isGroup) {
                     dto.members.firstOrNull { it.userId != currentUserId && it.user.id != currentUserId && it.user.id != "ME" }
                         ?: dto.members.firstOrNull { it.user.id != currentUserId }
                 } else null
-                val resolvedContactId = otherMember?.user?.id ?: otherMember?.userId ?: dto.members.firstOrNull { it.user.id != currentUserId }?.user?.id ?: dto.members.firstOrNull { it.user.phoneNumber != "" }?.user?.id ?: ""
-                val resolvedContactName = dto.name ?: otherMember?.user?.name ?: dto.members.firstOrNull { it.user.id != currentUserId }?.user?.name ?: "Unknown"
+                val otherUser = otherMember?.user
+
+                val isVer = if (dto.isGroup) {
+                    dto.isVerified || isOff
+                } else {
+                    otherUser?.isVerified == true || dto.isVerified
+                }
+
+                val resolvedContactId = if (dto.isGroup || isOff) {
+                    ""
+                } else {
+                    otherUser?.id?.takeIf { it.isNotBlank() }
+                        ?: otherMember?.userId?.takeIf { it.isNotBlank() }
+                        ?: ""
+                }
+
+                // Sync 1-on-1 chat partner into contacts so public users have name, avatar, phone, about, and verification badge
+                var existingContact = if (resolvedContactId.isNotBlank()) {
+                    dao.getContactById(resolvedContactId) ?: dao.getContactByRemoteId(resolvedContactId)
+                } else null
+
+                if (!dto.isGroup && otherUser != null && otherUser.id.isNotBlank()) {
+                    val userRealName = otherUser.name?.takeIf { it.isNotBlank() }
+                        ?: otherUser.phoneNumber.takeIf { it.isNotBlank() }
+                        ?: "User"
+                    val effectiveName = if (existingContact != null && existingContact.name.isNotBlank() && existingContact.name != "Contact" && existingContact.name != "Unknown") {
+                        existingContact.name
+                    } else {
+                        userRealName
+                    }
+                    val effectiveAvatar = otherUser.avatarUrl?.takeIf { it.isNotBlank() } ?: existingContact?.avatarUrl ?: ""
+                    val effectivePhone = otherUser.phoneNumber.takeIf { it.isNotBlank() } ?: existingContact?.phoneNumber ?: ""
+                    val effectiveAbout = otherUser.about?.takeIf { it.isNotBlank() } ?: existingContact?.aboutStatus ?: "Hey there! I am using VIBEZ."
+                    val updatedContact = ContactEntity(
+                        id = existingContact?.id ?: otherUser.id,
+                        remoteId = otherUser.id,
+                        name = effectiveName,
+                        phoneNumber = effectivePhone,
+                        avatarUrl = effectiveAvatar,
+                        aboutStatus = effectiveAbout,
+                        isOnline = existingContact?.isOnline ?: false,
+                        lastSeen = otherUser.lastSeen.takeIf { it.isNotBlank() } ?: existingContact?.lastSeen ?: "Recently",
+                        isVerified = otherUser.isVerified || existingContact?.isVerified == true
+                    )
+                    dao.insertContact(updatedContact)
+                    existingContact = updatedContact
+                }
+
+                val resolvedContactName = if (dto.isGroup) {
+                    dto.name?.takeIf { it.isNotBlank() } ?: "Group"
+                } else {
+                    existingContact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                        ?: otherUser?.name?.takeIf { it.isNotBlank() }
+                        ?: dto.name?.takeIf { it.isNotBlank() }
+                        ?: otherUser?.phoneNumber?.takeIf { it.isNotBlank() }
+                        ?: "Unknown"
+                }
+
+                val resolvedContactAvatar = if (dto.isGroup) {
+                    dto.avatarUrl?.takeIf { it.isNotBlank() } ?: ""
+                } else {
+                    otherUser?.avatarUrl?.takeIf { it.isNotBlank() }
+                        ?: existingContact?.avatarUrl?.takeIf { it.isNotBlank() }
+                        ?: dto.avatarUrl?.takeIf { it.isNotBlank() }
+                        ?: ""
+                }
 
                 val entity = ChatEntity(
                     id = dto.id,
                     remoteId = dto.id,
                     contactId = resolvedContactId,
                     contactName = resolvedContactName,
+                    contactAvatar = resolvedContactAvatar,
                     lastMessage = dto.messages.firstOrNull()?.content ?: "",
                     lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
                     unreadCount = 0,
@@ -269,7 +383,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                     isMuted = dto.isMuted,
                     customWallpaper = dto.wallpaper,
                     isOfficial = isOff,
-                    isVerified = isVer,
+                    isVerified = isVer || existingContact?.isVerified == true,
                     allowComments = dto.allowComments
                 )
                 dao.insertChat(entity)
@@ -611,22 +725,40 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 try {
                     val dto = NetworkClient.apiService.createOrGetPrivateChat("Bearer $token", PrivateChatRequest(targetUserId = targetUserId))
                     backendChatId = dto.id
-                    val isOff = (dto.name?.contains("VIBEZ Team", ignoreCase = true) == true) || dto.isOfficial
-                    val isVer = isOff || (dto.name?.contains("Channel", ignoreCase = true) == true) || contact.isVerified || dto.isVerified
+                    val otherUser = dto.members.firstOrNull { it.userId == targetUserId || it.user.id == targetUserId }?.user
+                    val resolvedName = name.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                        ?: otherUser?.name?.takeIf { it.isNotBlank() }
+                        ?: dto.name?.takeIf { it.isNotBlank() }
+                        ?: otherUser?.phoneNumber?.takeIf { it.isNotBlank() }
+                        ?: name
+                    val resolvedAvatar = contact.avatarUrl.takeIf { it.isNotBlank() }
+                        ?: otherUser?.avatarUrl?.takeIf { it.isNotBlank() }
+                        ?: dto.avatarUrl?.takeIf { it.isNotBlank() }
+                        ?: ""
+                    val isVer = contact.isVerified || otherUser?.isVerified == true || dto.isVerified
                     val entity = ChatEntity(
                         id = dto.id,
                         remoteId = dto.id,
                         contactId = contactId,
-                        contactName = name,
-                        contactAvatar = contact.avatarUrl.ifBlank { dto.avatarUrl ?: "" },
+                        contactName = resolvedName,
+                        contactAvatar = resolvedAvatar,
                         lastMessage = dto.messages.firstOrNull()?.content ?: "",
                         lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
                         unreadCount = 0,
                         isGroup = false,
-                        isOfficial = isOff,
+                        isOfficial = false,
                         isVerified = isVer
                     )
-                    dao.insertContact(contact.copy(remoteId = targetUserId))
+                    dao.insertContact(
+                        contact.copy(
+                            remoteId = targetUserId,
+                            name = resolvedName,
+                            phoneNumber = contact.phoneNumber.ifBlank { otherUser?.phoneNumber ?: "" },
+                            avatarUrl = resolvedAvatar,
+                            aboutStatus = otherUser?.about?.takeIf { it.isNotBlank() } ?: contact.aboutStatus,
+                            isVerified = isVer
+                        )
+                    )
                     dao.insertChat(entity)
                     removeDeletedChatId(dto.id)
                     return dto.id
@@ -636,14 +768,16 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             }
         }
 
-        // 2. Check existing local chats
+        // 2. Check existing local chats (only non-group 1-on-1 chats)
         val allLocalChats = try { dao.getAllChatsOneShot() } catch (_: Exception) { emptyList() }
         val existingChat = allLocalChats.firstOrNull { chat ->
-            chat.contactId == contactId ||
-            (!remoteId.isNullOrBlank() && (chat.contactId == remoteId || chat.remoteId == remoteId)) ||
-            chat.id == contactId ||
-            (!remoteId.isNullOrBlank() && chat.id == remoteId) ||
-            (phone.isNotBlank() && (chat.contactId == phone || phonesMatch(chat.contactId, phone)))
+            !chat.isGroup && (
+                chat.contactId == contactId ||
+                (!remoteId.isNullOrBlank() && (chat.contactId == remoteId || chat.remoteId == remoteId)) ||
+                chat.id == contactId ||
+                (!remoteId.isNullOrBlank() && chat.id == remoteId) ||
+                (phone.isNotBlank() && (chat.contactId == phone || phonesMatch(chat.contactId, phone)))
+            )
         }
 
         if (existingChat != null) {
@@ -692,11 +826,93 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
 
             val placeholder = ContactEntity(
                 id = contactId,
-                name = "Contact",
+                name = existingChat?.contactName?.takeIf { it.isNotBlank() } ?: "User",
                 phoneNumber = "",
                 aboutStatus = "Hey there! I am using VIBEZ."
             )
             getOrCreateChatForContact(placeholder, token)
+        }
+    }
+
+    suspend fun refreshContactProfile(idOrChatId: String, token: String) {
+        if (idOrChatId.isBlank() || idOrChatId == "ME" || idOrChatId == "me") return
+        try {
+            val currentUserId = context?.let { AuthManager(it).getUserId() } ?: ""
+            val existingChat = dao.getChatById(idOrChatId) ?: dao.getChatByContactId(idOrChatId)
+            if (existingChat?.isGroup == true) return
+
+            val targetUserId = existingChat?.contactId?.takeIf { it.isNotBlank() }
+                ?: idOrChatId.removePrefix("chat_").removePrefix("contact_")
+
+            val existingContact = dao.getContactById(targetUserId)
+                ?: dao.getContactByRemoteId(targetUserId)
+                ?: dao.getContactById(idOrChatId)
+
+            var resolvedUser: UserDto? = null
+            try {
+                val searchList = NetworkClient.apiService.searchUsers("Bearer $token", targetUserId)
+                resolvedUser = searchList.firstOrNull {
+                    it.id == targetUserId || it.phoneNumber == targetUserId || phonesMatch(it.phoneNumber, targetUserId)
+                }
+            } catch (_: Exception) {}
+
+            if (resolvedUser == null && !targetUserId.startsWith("contact_")) {
+                try {
+                    val chatDto = NetworkClient.apiService.createOrGetPrivateChat(
+                        "Bearer $token",
+                        PrivateChatRequest(targetUserId = targetUserId)
+                    )
+                    resolvedUser = chatDto.members.firstOrNull {
+                        it.userId != currentUserId && it.user.id != currentUserId && it.user.id != "ME"
+                    }?.user
+                } catch (_: Exception) {}
+            }
+
+            if (resolvedUser != null && resolvedUser.id.isNotBlank()) {
+                val finalName = existingContact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" && it != "User" }
+                    ?: resolvedUser.name?.takeIf { it.isNotBlank() }
+                    ?: existingChat?.contactName?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                    ?: resolvedUser.phoneNumber.takeIf { it.isNotBlank() }
+                    ?: "User"
+                val finalAvatar = resolvedUser.avatarUrl?.takeIf { it.isNotBlank() }
+                    ?: existingContact?.avatarUrl?.takeIf { it.isNotBlank() }
+                    ?: existingChat?.contactAvatar?.takeIf { it.isNotBlank() }
+                    ?: ""
+                val finalPhone = resolvedUser.phoneNumber.takeIf { it.isNotBlank() }
+                    ?: existingContact?.phoneNumber?.takeIf { it.isNotBlank() }
+                    ?: ""
+                val finalAbout = resolvedUser.about?.takeIf { it.isNotBlank() }
+                    ?: existingContact?.aboutStatus?.takeIf { it.isNotBlank() }
+                    ?: "Hey there! I am using VIBEZ."
+                val finalVerified = resolvedUser.isVerified || existingContact?.isVerified == true || existingChat?.isVerified == true
+
+                val updatedContact = ContactEntity(
+                    id = existingContact?.id ?: resolvedUser.id,
+                    remoteId = resolvedUser.id,
+                    name = finalName,
+                    phoneNumber = finalPhone,
+                    avatarUrl = finalAvatar,
+                    aboutStatus = finalAbout,
+                    isOnline = existingContact?.isOnline ?: true,
+                    lastSeen = resolvedUser.lastSeen.takeIf { it.isNotBlank() } ?: existingContact?.lastSeen ?: "Recently",
+                    isVerified = finalVerified
+                )
+                dao.insertContact(updatedContact)
+
+                if (existingChat != null && !existingChat.isGroup) {
+                    dao.updateChat(
+                        existingChat.copy(
+                            contactId = updatedContact.id,
+                            contactName = finalName,
+                            contactAvatar = finalAvatar,
+                            isOfficial = false,
+                            isVerified = finalVerified
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -870,8 +1086,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     suspend fun getCommunityChats(communityId: String, token: String): List<ChatEntity> {
         return try {
             val dtos = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
-            val entities = dtos.map { dto ->
-                val isOff = dto.isOfficial || dto.id.contains("official", ignoreCase = true) || dto.name?.contains("Official", ignoreCase = true) == true
+            val entities = dtos.mapNotNull { dto ->
+                if (dto.id.isBlank()) return@mapNotNull null
+                val isOff = dto.isGroup && (dto.isOfficial || dto.id.contains("system_official", ignoreCase = true))
                 ChatEntity(
                     id = dto.id,
                     remoteId = dto.id,

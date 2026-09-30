@@ -264,10 +264,58 @@ class WebRTCClient(
     }
 
     fun close() {
-        peerConnection?.close()
-        peerConnectionFactory?.dispose()
-        videoCapturer?.stopCapture()
-        videoCapturer?.dispose()
-        rootEglBase.release()
+        try {
+            android.util.Log.d("WebRTCClient", "Closing WebRTC connection and factory...")
+            
+            // Dispose tracks first
+            localVideoTrack?.let {
+                it.setEnabled(false)
+                it.dispose()
+            }
+            localVideoTrack = null
+            
+            localAudioTrack?.let {
+                it.setEnabled(false)
+                it.dispose()
+            }
+            localAudioTrack = null
+
+            // Dispose sources
+            localVideoSource?.dispose()
+            localVideoSource = null
+            localAudioSource?.dispose()
+            localAudioSource = null
+
+            // Stop capturer
+            videoCapturer?.let {
+                try {
+                    it.stopCapture()
+                    it.dispose()
+                } catch (e: Exception) {
+                    android.util.Log.e("WebRTCClient", "Error disposing videoCapturer: ${e.message}")
+                }
+            }
+            videoCapturer = null
+
+            // Clean up helper
+            surfaceTextureHelper?.dispose()
+            surfaceTextureHelper = null
+
+            // Close peer connection
+            peerConnection?.let {
+                it.close()
+                it.dispose()
+            }
+            peerConnection = null
+
+            // Finally dispose the factory and release EglBase
+            peerConnectionFactory?.dispose()
+            peerConnectionFactory = null
+            
+            rootEglBase.release()
+            android.util.Log.d("WebRTCClient", "WebRTC resources released successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("WebRTCClient", "Error during close(): ${e.message}", e)
+        }
     }
 }

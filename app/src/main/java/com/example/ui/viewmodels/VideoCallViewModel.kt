@@ -3,11 +3,14 @@ package com.example.ui.viewmodels
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.webrtc.SignalingClient
 import com.example.webrtc.WebRTCClient
 import com.example.data.network.SocketManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.webrtc.*
 
 data class IncomingCallData(
@@ -200,23 +203,50 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun endCall() {
+        Log.d(TAG, "endCall requested")
+        val clientToClose = rtcClient
+        rtcClient = null
+
         targetUserId?.let { target ->
             socketManager?.endCall(target)
         }
         com.example.webrtc.ScreenShareService.stopService(getApplication())
-        rtcClient?.close()
+        
+        // Immediately nullify state to stop UI rendering and allow navigation
         _isCallPickedUp.value = false
         _localVideoTrack.value = null
         _remoteTrack.value = null
         _eglBaseContext.value = null
         _isScreenSharing.value = false
         queuedIceCandidates.clear()
+
+        // Perform heavy WebRTC cleanup in a background thread to prevent UI freeze
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Starting background WebRTC cleanup...")
+                clientToClose?.close()
+                Log.d(TAG, "Background WebRTC cleanup finished")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during background cleanup: ${e.message}", e)
+            }
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
+        val clientToClose = rtcClient
+        rtcClient = null
+        
         com.example.webrtc.ScreenShareService.stopService(getApplication())
-        rtcClient?.close()
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                clientToClose?.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during onCleared cleanup: ${e.message}")
+            }
+        }
+        
         _localVideoTrack.value = null
         _remoteTrack.value = null
         _eglBaseContext.value = null

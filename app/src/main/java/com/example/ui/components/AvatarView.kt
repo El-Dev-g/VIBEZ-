@@ -34,6 +34,7 @@ fun AvatarView(
     isOnline: Boolean = false,
     isGroup: Boolean = false,
     isOfficial: Boolean = false,
+    isVerified: Boolean = false,
     hasStatusUpdate: Boolean = false,
     isStatusViewed: Boolean = false,
     statusCount: Int = 1,
@@ -124,7 +125,7 @@ fun AvatarView(
                         .background(bgColor),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isOfficial) {
+                    if (isGroup && isOfficial) {
                         Icon(
                             imageVector = Icons.Default.Campaign,
                             contentDescription = "Channel",
@@ -139,13 +140,23 @@ fun AvatarView(
                             modifier = Modifier.size((size - contentPadding * 2) * 0.5f)
                         )
                     } else {
-                        val initial = name.take(2).uppercase()
-                        Text(
-                            text = if (initial.length > 1 && name.contains(" ")) "${initial[0]}${name.substringAfter(" ").firstOrNull()?.uppercase() ?: ""}" else initial.take(1),
-                            color = textColor,
-                            fontSize = ((size - contentPadding * 2).value * 0.38f).sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        val cleanName = name.trim().takeIf { it.isNotBlank() && !it.equals("Contact", ignoreCase = true) && !it.equals("Unknown", ignoreCase = true) }
+                        if (cleanName != null) {
+                            val initial = cleanName.take(2).uppercase()
+                            Text(
+                                text = if (initial.length > 1 && cleanName.contains(" ")) "${initial[0]}${cleanName.substringAfter(" ").firstOrNull()?.uppercase() ?: ""}" else initial.take(1),
+                                color = textColor,
+                                fontSize = ((size - contentPadding * 2).value * 0.38f).sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "User",
+                                tint = textColor,
+                                modifier = Modifier.size((size - contentPadding * 2) * 0.55f)
+                            )
+                        }
                     }
                 }
             }
@@ -159,6 +170,13 @@ fun AvatarView(
                     .background(WhatsAppEmerald)
                     .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
                     .align(Alignment.BottomEnd)
+            )
+        } else if (isVerified && !isGroup) {
+            VerifiedBadge(
+                size = size * 0.32f,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
             )
         }
     }

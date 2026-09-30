@@ -601,30 +601,27 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     navController.navigate("new_group")
                 },
                 onAvatarClick = { id ->
-                    val chat = allChatsList.firstOrNull { it.id == id }
-                    if (chat != null && (chat.isOfficial || chat.isGroup)) {
+                    val chat = allChatsList.firstOrNull { 
+                        (it.id.isNotBlank() && it.id == id) || (it.contactId.isNotBlank() && it.contactId == id)
+                    }
+                    val currentUserId = viewModel.authManager.getUserId() ?: ""
+                    val isMe = id == "ME" || id == "me" || id == currentUserId
+                    
+                    if (chat != null && chat.isGroup) {
                         val matchingCommunity = viewModel.communities.value.firstOrNull { 
                             it.name.equals(chat.contactName, ignoreCase = true) || 
-                            chat.contactName.contains(it.name, ignoreCase = true) ||
-                            (chat.isOfficial && it.isOfficial)
+                            (chat.isOfficial && it.isOfficial && chat.contactName.equals(it.name, ignoreCase = true))
                         }
                         if (matchingCommunity != null) {
                             navController.navigate("community_info/${matchingCommunity.id}")
                         } else {
                             navController.navigate("contact_info/${chat.id}")
                         }
+                    } else if (isMe) {
+                        navController.navigate("user_profile/ME")
                     } else {
-                        val currentUserId = viewModel.authManager.getUserId() ?: ""
-                        val contactId = chat?.contactId?.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" } 
-                            ?: id.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" } 
-                            ?: id
-                        val contact = contacts.firstOrNull { it.id == contactId }
-                        if (contact != null && !contact.avatarUrl.isNullOrEmpty()) {
-                            previewAvatarUrl = contact.avatarUrl
-                            previewAvatarName = contact.name
-                        } else {
-                            navController.navigate("user_profile/$contactId")
-                        }
+                        val contactId = chat?.contactId?.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" } ?: id
+                        navController.navigate("user_profile/$contactId")
                     }
                 },
                 onDeleteChat = { cId ->
@@ -713,8 +710,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 }
             }
 
-            val contact = (chat?.contactId ?: chatId).let { cId ->
-                contacts.firstOrNull { it.id == cId || it.remoteId == cId }
+            val contact = (chat?.contactId?.takeIf { it.isNotBlank() } ?: chatId).let { cId ->
+                contacts.firstOrNull { it.id == cId || it.remoteId == cId || it.phoneNumber == cId }
             }
 
             val effectiveChat = chat ?: contact?.let { c ->
@@ -730,11 +727,12 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             }
 
             val currentUserId = viewModel.authManager.getUserId() ?: ""
-            val matchingCommunity = communities.firstOrNull {
-                it.name.equals(effectiveChat?.contactName, ignoreCase = true) ||
-                effectiveChat?.contactName?.contains(it.name, ignoreCase = true) == true ||
-                (effectiveChat?.isOfficial == true && it.isOfficial)
-            }
+            val matchingCommunity = if (effectiveChat?.isGroup == true) {
+                communities.firstOrNull {
+                    it.name.equals(effectiveChat.contactName, ignoreCase = true) ||
+                    (effectiveChat.isOfficial && it.isOfficial && effectiveChat.contactName.equals(it.name, ignoreCase = true))
+                }
+            } else null
             val isAdmin = matchingCommunity?.ownerId == currentUserId
 
             ChatDetailScreen(
@@ -750,11 +748,10 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onBackClick = { navController.popBackStack() },
                 onContactInfoClick = {
                     if (chat != null) {
-                        if (chat.isOfficial || chat.isGroup) {
+                        if (chat.isGroup) {
                             val matchingCommunity = viewModel.communities.value.firstOrNull { 
                                 it.name.equals(chat.contactName, ignoreCase = true) || 
-                                chat.contactName.contains(it.name, ignoreCase = true) ||
-                                (chat.isOfficial && it.isOfficial)
+                                (chat.isOfficial && it.isOfficial && chat.contactName.equals(it.name, ignoreCase = true))
                             }
                             if (matchingCommunity != null) {
                                 navController.navigate("community_info/${matchingCommunity.id}")
@@ -763,11 +760,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                             }
                         } else {
                             val currentUserId = viewModel.authManager.getUserId() ?: ""
-                            val contactId = chat.contactId.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" } ?: chatId
+                            val contactId = chat.contactId.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" }
+                                ?: contact?.id?.takeIf { it.isNotBlank() }
+                                ?: chatId
                             navController.navigate("user_profile/$contactId")
                         }
                     } else {
-                        navController.navigate("contact_info/$chatId")
+                        val targetId = contact?.id?.takeIf { it.isNotBlank() } ?: chatId
+                        navController.navigate("user_profile/$targetId")
                     }
                 },
                 onWallpaperClick = {
@@ -1018,6 +1018,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         ) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
             val chat = allChatsList.firstOrNull { it.id == chatId }
+
             val contact = contacts.firstOrNull { it.id == chat?.contactId }
             val chatMessagesFlow = remember(chatId) { viewModel.getMessagesForChat(chatId) }
             val chatMessages by chatMessagesFlow.collectAsState(initial = emptyList())
@@ -1560,26 +1561,66 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             arguments = listOf(navArgument("contactId") { type = NavType.StringType })
         ) { backStackEntry ->
             val contactId = backStackEntry.arguments?.getString("contactId") ?: "ME"
-            val contact = contacts.firstOrNull { it.id == contactId }
             val currentUserId = viewModel.authManager.getUserId() ?: ""
             val isCurrentUser = (contactId == "ME" || contactId == "me" || contactId == currentUserId || contactId.isBlank())
-            
-            val chat = allChatsList.firstOrNull { it.contactId == contactId || it.id == contactId }
-            val effectiveContactName = if (isCurrentUser) currentUserName else (contact?.name ?: chat?.contactName ?: "Contact")
-            val effectivePhone = if (isCurrentUser) currentUserPhone else (contact?.phoneNumber ?: (if (contactId.startsWith("+") || contactId.all { it.isDigit() || it == '+' || it == '-' || it == ' ' }) contactId else ""))
-            val effectiveAvatar = if (isCurrentUser) currentUserAvatar else (contact?.avatarUrl ?: chat?.contactAvatar ?: "")
-            val effectiveStatus = if (isCurrentUser) currentUserStatus else (contact?.aboutStatus ?: "Hey there! I am using VIBEZ.")
 
-            val effectiveVerified = if (isCurrentUser) isVerified else (contact?.isVerified == true)
+            val chat = allChatsList.firstOrNull { 
+                contactId.isNotBlank() && !it.isGroup && (it.contactId == contactId || it.id == contactId || it.remoteId == contactId)
+            }
+            val resolvedUserId = chat?.contactId?.takeIf { it.isNotBlank() } ?: contactId
+            val contact = contacts.firstOrNull {
+                (resolvedUserId.isNotBlank() && (it.id == resolvedUserId || it.remoteId == resolvedUserId || it.phoneNumber == resolvedUserId)) ||
+                (contactId.isNotBlank() && (it.id == contactId || it.remoteId == contactId || it.phoneNumber == contactId))
+            }
+
+            LaunchedEffect(resolvedUserId) {
+                if (!isCurrentUser && resolvedUserId.isNotBlank()) {
+                    viewModel.refreshContactProfile(resolvedUserId)
+                }
+            }
+
+            val effectiveContactName = if (isCurrentUser) {
+                currentUserName
+            } else {
+                contact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                    ?: chat?.contactName?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                    ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
+                    ?: contact?.name?.takeIf { it.isNotBlank() }
+                    ?: chat?.contactName?.takeIf { it.isNotBlank() }
+                    ?: "User"
+            }
+            val effectivePhone = if (isCurrentUser) {
+                currentUserPhone
+            } else {
+                contact?.phoneNumber?.takeIf { it.isNotBlank() }
+                    ?: (if (resolvedUserId.startsWith("+") || (resolvedUserId.length >= 7 && resolvedUserId.all { it.isDigit() || it == '+' || it == '-' || it == ' ' })) resolvedUserId else "")
+            }
+            val effectiveAvatar = if (isCurrentUser) {
+                currentUserAvatar
+            } else {
+                contact?.avatarUrl?.takeIf { it.isNotBlank() }
+                    ?: chat?.contactAvatar?.takeIf { it.isNotBlank() }
+                    ?: ""
+            }
+            val effectiveStatus = if (isCurrentUser) {
+                currentUserStatus
+            } else {
+                contact?.aboutStatus?.takeIf { it.isNotBlank() } ?: "Hey there! I am using VIBEZ."
+            }
+
+            val effectiveVerified = if (isCurrentUser) isVerified else (contact?.isVerified == true || chat?.isVerified == true)
+            val isMuted = chat?.isMuted == true
 
             UserProfileScreen(
-                contactId = contactId,
+                contactId = resolvedUserId,
                 contactName = effectiveContactName,
                 contactPhone = effectivePhone,
                 contactAvatar = effectiveAvatar,
                 contactStatus = effectiveStatus,
                 isCurrentUser = isCurrentUser,
                 isVerified = effectiveVerified,
+                isOfficial = false,
+                isMuted = isMuted,
                 onBackClick = { navController.popBackStack() },
                 onChangePhoneClick = {
                     navController.navigate("change_phone")
@@ -1598,6 +1639,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onEncryptionClick = {
                     navController.navigate("encryption_info")
+                },
+                onToggleMute = {
+                    chat?.let { viewModel.toggleMuteChat(it.id) }
                 },
                 onMessageClick = {
                     if (contact != null) {
@@ -1622,9 +1666,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     navController.navigate("qr_scanner")
                 },
                 onMediaClick = {
-                    val chatId = allChatsList.firstOrNull { it.contactId == contactId }?.id
-                    if (chatId != null) {
-                        navController.navigate("shared_media/$chatId")
+                    val chatIdVal = allChatsList.firstOrNull { it.contactId == contactId }?.id
+                    if (chatIdVal != null) {
+                        navController.navigate("shared_media/$chatIdVal")
                     } else {
                         // If no chat exists yet, maybe just show empty media or do nothing
                         // For simplicity, navigate with a special ID or handle in screen
