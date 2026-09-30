@@ -352,12 +352,20 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val effectivePhone = phone?.ifBlank { null } ?: ""
-                val response = repository.loginWithGoogle(email, name, avatarUrl, effectivePhone, idToken)
+                val app = getApplication<android.app.Application>()
+                val portableAvatar = if (!avatarUrl.isNullOrBlank() &&
+                    (avatarUrl.startsWith("content://") || avatarUrl.startsWith("file://") || avatarUrl.startsWith("/"))
+                ) {
+                    com.example.util.ImageUtils.encodeToDataUri(app.contentResolver, avatarUrl, maxDimension = 480, quality = 75) ?: avatarUrl
+                } else {
+                    avatarUrl
+                }
+                val response = repository.loginWithGoogle(email, name, portableAvatar, effectivePhone, idToken)
                 
                 val finalPhone = response.user.phoneNumber.ifBlank { effectivePhone }
                 val finalName = response.user.name ?: name
                 val finalAbout = response.user.about ?: "⚡ Connected with Google"
-                val finalAvatar = response.user.avatarUrl ?: avatarUrl ?: ""
+                val finalAvatar = response.user.avatarUrl?.takeIf { it.isNotBlank() } ?: portableAvatar ?: ""
 
                 isNewUser.value = response.isNewUser
                 requiresProfileSetup.value = response.requiresProfileSetup
@@ -442,13 +450,14 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun updateUserProfile(name: String, about: String, phoneNumber: String? = null, avatarUrl: String? = null) {
+        if (name.isNotBlank()) currentUserName.value = name
         currentUserStatus.value = about
         if (avatarUrl != null) currentUserAvatar.value = avatarUrl
         
         val token = authManager.getAuthToken()
         val userId = authManager.getUserId() ?: ""
-        val phone = currentUserPhone.value
-        val currentName = currentUserName.value.ifBlank { name }
+        val phone = phoneNumber?.takeIf { it.isNotBlank() } ?: currentUserPhone.value
+        val currentName = name.ifBlank { currentUserName.value }
 
         authManager.saveAuthData(
             token = token ?: "",
@@ -461,13 +470,40 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             authProvider = currentAuthProvider.value
         )
 
-        if (!token.isNullOrBlank()) {
-            viewModelScope.launch {
-                try {
-                    repository.updateUserProfile(currentName, about, avatarUrl, token)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+        viewModelScope.launch {
+            try {
+                val app = getApplication<android.app.Application>()
+                var resolvedAvatar = avatarUrl ?: currentUserAvatar.value
+                if (resolvedAvatar.isNotBlank() &&
+                    (resolvedAvatar.startsWith("content://") || resolvedAvatar.startsWith("file://") || resolvedAvatar.startsWith("/"))
+                ) {
+                    val uploaded = repository.uploadFile(
+                        token = token ?: "",
+                        uriString = resolvedAvatar,
+                        type = "AVATAR",
+                        contentResolver = app.contentResolver
+                    )
+                    if (!uploaded.isNullOrBlank()) {
+                        resolvedAvatar = uploaded
+                        currentUserAvatar.value = uploaded
+                        authManager.saveAuthData(
+                            token = token ?: "",
+                            userId = userId,
+                            phoneNumber = phone,
+                            userName = currentName,
+                            userAbout = about,
+                            userAvatar = uploaded,
+                            googleEmail = currentGoogleEmail.value,
+                            authProvider = currentAuthProvider.value
+                        )
+                    }
                 }
+
+                if (!token.isNullOrBlank()) {
+                    repository.updateUserProfile(currentName, about, resolvedAvatar.ifBlank { null }, token)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
@@ -614,15 +650,32 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            var finalMediaUrl = mediaUrl
+            if (mediaUrl.isNotBlank() &&
+                (mediaUrl.startsWith("content://") || mediaUrl.startsWith("file://") || mediaUrl.startsWith("/"))
+            ) {
+                val app = getApplication<android.app.Application>()
+                val uploadedUrl = repository.uploadFile(
+                    token = token,
+                    uriString = mediaUrl,
+                    type = messageType,
+                    contentResolver = app.contentResolver
+                )
+                if (!uploadedUrl.isNullOrBlank()) {
+                    finalMediaUrl = uploadedUrl
+                }
+            }
+
             repository.sendMessage(
                 chatId = chatId,
                 senderId = senderId,
                 receiverId = null,
                 content = content,
                 type = messageType,
-                mediaUrl = if (mediaUrl.isNotBlank()) mediaUrl else null,
+                mediaUrl = if (finalMediaUrl.isNotBlank()) finalMediaUrl else null,
                 duration = if (voiceDurationSeconds > 0) voiceDurationSeconds else null,
-                token = authManager.getAuthToken() ?: "",
+                token = token,
                 id = tempId
             )
 
@@ -653,6 +706,25 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         
         viewModelScope.launch {
             val userId = authManager.getUserId() ?: "ME"
+            val token = authManager.getAuthToken()
+            val app = getApplication<android.app.Application>()
+
+            var resolvedAvatar = avatarUrl ?: currentUserAvatar.value
+            if (resolvedAvatar.isNotBlank() &&
+                (resolvedAvatar.startsWith("content://") || resolvedAvatar.startsWith("file://") || resolvedAvatar.startsWith("/"))
+            ) {
+                val uploaded = repository.uploadFile(
+                    token = token ?: "",
+                    uriString = resolvedAvatar,
+                    type = "AVATAR",
+                    contentResolver = app.contentResolver
+                )
+                if (!uploaded.isNullOrBlank()) {
+                    resolvedAvatar = uploaded
+                    currentUserAvatar.value = uploaded
+                    authManager.updateProfile(name, status, uploaded)
+                }
+            }
             
             // Perform local Room database update/insert CRUD for current user
             try {
@@ -661,9 +733,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 e.printStackTrace()
             }
 
-            val token = authManager.getAuthToken()
             if (!token.isNullOrBlank()) {
-                repository.updateUserProfile(name, status, avatarUrl ?: currentUserAvatar.value, token)
+                repository.updateUserProfile(name, status, resolvedAvatar.ifBlank { null }, token)
             }
             onComplete?.invoke(true)
         }
@@ -1299,13 +1370,12 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     ) {
         viewModelScope.launch {
             targetChatIds.forEach { chatId ->
-                repository.sendMessage(
+                sendMessage(
                     chatId = chatId,
-                    senderId = authManager.getUserId() ?: "ME",
-                    receiverId = null,
                     content = content,
-                    type = messageType,
-                    token = authManager.getAuthToken() ?: ""
+                    messageType = messageType,
+                    mediaUrl = mediaUrl,
+                    voiceDurationSeconds = durationSeconds
                 )
             }
             onComplete()

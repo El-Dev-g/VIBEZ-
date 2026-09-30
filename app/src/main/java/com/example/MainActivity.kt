@@ -1262,6 +1262,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 isDarkMode = isDarkMode,
                 userName = currentUserName,
                 userPhone = currentUserPhone,
+                userAvatar = currentUserAvatar,
                 googleEmail = currentGoogleEmail,
                 isVerified = isVerified,
                 badgePriceText = badgeStatus?.price ?: "$3.00 USD",

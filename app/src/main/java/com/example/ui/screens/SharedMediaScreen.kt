@@ -110,9 +110,12 @@ fun MediaGrid(messages: List<MessageEntity>, onItemClick: (MessageEntity) -> Uni
                         .aspectRatio(1f)
                         .clickable { onItemClick(message) }
                 ) {
-                    if (message.mediaUrl.isNotBlank()) {
+                    val gridImageModel = remember(message.mediaUrl) {
+                        com.example.util.ImageUtils.resolveImageModel(message.mediaUrl)
+                    }
+                    if (gridImageModel != null) {
                         AsyncImage(
-                            model = message.mediaUrl,
+                            model = gridImageModel,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()

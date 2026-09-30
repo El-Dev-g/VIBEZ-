@@ -120,6 +120,7 @@ fun SettingsScreen(
     isDarkMode: Boolean,
     userName: String = "Alex Rivers",
     userPhone: String = "+1 555-0198",
+    userAvatar: String = "",
     googleEmail: String? = null,
     isVerified: Boolean = false,
     badgePriceText: String = "$3.00 USD",
@@ -219,7 +220,7 @@ fun SettingsScreen(
                                 .padding(4.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            AvatarView(name = userName, avatarUrl = "", size = 128.dp)
+                            AvatarView(name = userName, avatarUrl = userAvatar, isVerified = isVerified, size = 128.dp)
                         }
                     }
 

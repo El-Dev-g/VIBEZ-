@@ -462,8 +462,9 @@ fun MediaViewerScreen(
 
                 // 3. Image Fullscreen with Pinch-to-Zoom & Pan
                 else -> {
-                    val mediaFile = if (message.mediaUrl.isNotBlank()) File(message.mediaUrl) else null
-                    val hasLocalFile = mediaFile != null && mediaFile.exists()
+                    val resolvedImageModel = remember(message.mediaUrl) {
+                        com.example.util.ImageUtils.resolveImageModel(message.mediaUrl)
+                    }
 
                     Box(
                         modifier = Modifier
@@ -482,23 +483,9 @@ fun MediaViewerScreen(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (hasLocalFile) {
+                        if (resolvedImageModel != null) {
                             AsyncImage(
-                                model = mediaFile,
-                                contentDescription = "Fullscreen Photo",
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer(
-                                        scaleX = scale,
-                                        scaleY = scale,
-                                        translationX = offsetX,
-                                        translationY = offsetY
-                                    )
-                            )
-                        } else if (message.mediaUrl.startsWith("content://") || message.mediaUrl.startsWith("file://")) {
-                            AsyncImage(
-                                model = message.mediaUrl,
+                                model = resolvedImageModel,
                                 contentDescription = "Fullscreen Photo",
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier

@@ -287,8 +287,11 @@ fun ContactInfoScreen(
                                     ) {
                                         when (msg.messageType) {
                                             "IMAGE" -> {
+                                                val thumbModel = androidx.compose.runtime.remember(msg.mediaUrl) {
+                                                    com.example.util.ImageUtils.resolveImageModel(msg.mediaUrl) ?: msg.mediaUrl
+                                                }
                                                 AsyncImage(
-                                                    model = msg.mediaUrl,
+                                                    model = thumbModel,
                                                     contentDescription = "Shared photo",
                                                     modifier = Modifier.fillMaxSize(),
                                                     contentScale = androidx.compose.ui.layout.ContentScale.Crop

@@ -254,11 +254,10 @@ fun MessageBubble(
             // Main Message Content according to Type
             when (message.messageType) {
                 "IMAGE" -> {
-                    if (message.mediaUrl.isNotBlank()) {
-                        val imageModel: Any = remember(message.mediaUrl) {
-                            val f = File(message.mediaUrl)
-                            if (f.exists()) f else message.mediaUrl
-                        }
+                    val imageModel = remember(message.mediaUrl) {
+                        com.example.util.ImageUtils.resolveImageModel(message.mediaUrl)
+                    }
+                    if (imageModel != null) {
                         AsyncImage(
                             model = imageModel,
                             contentDescription = "Image attachment",

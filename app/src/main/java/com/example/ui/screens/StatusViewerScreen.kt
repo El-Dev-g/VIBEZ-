@@ -280,8 +280,11 @@ fun StatusPageItem(
     ) {
         // Status Background Media / Content
         if (status.mediaType == "IMAGE") {
+            val statusImageModel = remember(status.mediaUrl) {
+                com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: status.mediaUrl
+            }
             AsyncImage(
-                model = status.mediaUrl,
+                model = statusImageModel,
                 contentDescription = "Status photo",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

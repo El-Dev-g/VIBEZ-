@@ -97,9 +97,12 @@ fun AvatarView(
                 .padding(contentPadding),
             contentAlignment = Alignment.Center
         ) {
-            if (avatarUrl.isNotBlank()) {
+            val imageModel = androidx.compose.runtime.remember(avatarUrl) {
+                com.example.util.ImageUtils.resolveImageModel(avatarUrl)
+            }
+            if (imageModel != null) {
                 AsyncImage(
-                    model = avatarUrl,
+                    model = imageModel,
                     contentDescription = name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

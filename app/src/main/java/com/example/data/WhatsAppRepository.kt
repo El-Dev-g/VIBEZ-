@@ -992,11 +992,19 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             
             // Perform CRUD with Room database
             val userId = updatedUser.id
+            val resolvedAvatar = updatedUser.avatarUrl?.takeIf { it.isNotBlank() } ?: avatarUrl
             if (userId.isNotBlank()) {
                 val existing = dao.getContactById(userId) ?: dao.getContactByRemoteId(userId)
                 if (existing != null) {
-                    dao.updateContactDetails(existing.id, name, existing.phoneNumber, about)
-                    dao.updateChatContactName(existing.id, name)
+                    val updatedContact = existing.copy(
+                        name = if (name.isNotBlank()) name else existing.name,
+                        aboutStatus = about,
+                        avatarUrl = resolvedAvatar ?: existing.avatarUrl
+                    )
+                    dao.insertContact(updatedContact)
+                    if (name.isNotBlank()) {
+                        dao.updateChatContactName(existing.id, name)
+                    }
                 } else {
                     dao.insertContact(
                         ContactEntity(
@@ -1004,7 +1012,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                             remoteId = userId,
                             name = name,
                             phoneNumber = updatedUser.phoneNumber ?: "",
-                            avatarUrl = avatarUrl ?: "",
+                            avatarUrl = resolvedAvatar ?: "",
                             aboutStatus = about,
                             isOnline = true
                         )
@@ -1179,41 +1187,87 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         uriString: String,
         type: String,
         contentResolver: android.content.ContentResolver
-    ): String? {
-        return try {
-            val uri = android.net.Uri.parse(uriString)
-            val fileName = "status_${System.currentTimeMillis()}.${if (type == "VIDEO") "mp4" else "jpg"}"
-            val contentType = if (type == "VIDEO") "video/mp4" else "image/jpeg"
+    ): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (uriString.isBlank()) return@withContext null
+        if (uriString.startsWith("http://", ignoreCase = true) ||
+            uriString.startsWith("https://", ignoreCase = true) ||
+            uriString.startsWith("data:image", ignoreCase = true)
+        ) {
+            return@withContext uriString
+        }
 
-            val requestMap = mapOf(
-                "fileName" to fileName,
-                "contentType" to contentType
-            )
-            val response = NetworkClient.apiService.getUploadUrl("Bearer $token", requestMap)
-            val uploadUrl = response.uploadUrl
-            val publicUrl = response.publicUrl
+        val isImage = type.equals("IMAGE", ignoreCase = true) || type.equals("AVATAR", ignoreCase = true)
 
-            val inputStream = contentResolver.openInputStream(uri) ?: return null
-            val bytes = inputStream.readBytes()
-            inputStream.close()
+        try {
+            val ext = when {
+                type.equals("VIDEO", ignoreCase = true) -> "mp4"
+                type.equals("VOICE", ignoreCase = true) -> "m4a"
+                type.equals("DOCUMENT", ignoreCase = true) -> "pdf"
+                else -> "jpg"
+            }
+            val contentType = when {
+                type.equals("VIDEO", ignoreCase = true) -> "video/mp4"
+                type.equals("VOICE", ignoreCase = true) -> "audio/mp4"
+                type.equals("DOCUMENT", ignoreCase = true) -> "application/pdf"
+                else -> "image/jpeg"
+            }
+            val fileName = "${type.lowercase()}_${System.currentTimeMillis()}.$ext"
 
-            val okHttpClient = okhttp3.OkHttpClient()
-            val requestBody = okhttp3.RequestBody.create(contentType.toMediaTypeOrNull(), bytes)
-            val putRequest = okhttp3.Request.Builder()
-                .url(uploadUrl)
-                .put(requestBody)
-                .build()
+            val bytes: ByteArray? = when {
+                uriString.startsWith("/") -> {
+                    val file = java.io.File(uriString)
+                    if (file.exists()) file.readBytes() else null
+                }
+                else -> {
+                    val uri = android.net.Uri.parse(uriString)
+                    contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }
+            }
 
-            val callResponse = okHttpClient.newCall(putRequest).execute()
-            if (callResponse.isSuccessful) {
-                publicUrl
-            } else {
-                null
+            if (bytes != null && bytes.isNotEmpty() && token.isNotBlank()) {
+                val requestMap = mapOf(
+                    "fileName" to fileName,
+                    "contentType" to contentType
+                )
+                val response = NetworkClient.apiService.getUploadUrl("Bearer $token", requestMap)
+                val uploadUrl = response.uploadUrl
+                val publicUrl = response.publicUrl
+
+                val isValidR2Url = uploadUrl.startsWith("https://") &&
+                    !uploadUrl.contains("undefined") &&
+                    publicUrl.startsWith("https://") &&
+                    !publicUrl.contains("undefined")
+
+                if (isValidR2Url) {
+                    val okHttpClient = okhttp3.OkHttpClient()
+                    val requestBody = okhttp3.RequestBody.create(contentType.toMediaTypeOrNull(), bytes)
+                    val putRequest = okhttp3.Request.Builder()
+                        .url(uploadUrl)
+                        .put(requestBody)
+                        .build()
+
+                    val callResponse = okHttpClient.newCall(putRequest).execute()
+                    if (callResponse.isSuccessful) {
+                        return@withContext publicUrl
+                    }
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            null
         }
+
+        // Fallback for images/avatars: encode as compressed JPEG Base64 data URI so it syncs reliably across all devices
+        if (isImage) {
+            val maxDim = if (type.equals("AVATAR", ignoreCase = true)) 480 else 960
+            return@withContext com.example.util.ImageUtils.encodeToDataUri(
+                contentResolver = contentResolver,
+                uriOrPath = uriString,
+                maxDimension = maxDim,
+                quality = 75
+            )
+        }
+
+        null
     }
 
     suspend fun postStatus(
