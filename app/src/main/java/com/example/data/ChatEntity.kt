@@ -21,5 +21,10 @@ data class ChatEntity(
     val isVerified: Boolean = false,
     val isOfficial: Boolean = false,
     val allowComments: Boolean = true,
-    val allowReactions: Boolean = true
+    val allowReactions: Boolean = true,
+    val ephemeralDuration: Int = 0,
+    val isLocked: Boolean = false,
+    val isSubscriberOnly: Boolean = false,
+    val subscriptionPrice: Double = 0.0,
+    val isSubscribed: Boolean = false
 )

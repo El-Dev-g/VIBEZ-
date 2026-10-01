@@ -155,7 +155,10 @@ fun ChatDetailScreen(
     onClearChat: () -> Unit,
     onDeleteChat: () -> Unit = {},
     onChatRead: () -> Unit = {},
-    onTypingStateChange: (Boolean) -> Unit = {}
+    onTypingStateChange: (Boolean) -> Unit = {},
+    transcriptionsMap: Map<String, String> = emptyMap(),
+    onTranscribeVoice: (MessageEntity) -> Unit = {},
+    onVotePoll: (messageId: String, optionIndex: Int) -> Unit = { _, _ -> }
 ) {
     if (chat == null) return
 
@@ -901,6 +904,13 @@ fun ChatDetailScreen(
                             onMediaClick = { clickedMsg ->
                                 onMediaClick(clickedMsg)
                             },
+                            onVotePoll = { optionIdx ->
+                                onVotePoll(msg.id, optionIdx)
+                            },
+                            onTranscribeVoice = {
+                                onTranscribeVoice(msg)
+                            },
+                            transcriptionText = transcriptionsMap[msg.id],
                             onQuotedClick = { quotedId ->
                                 val targetIndex = messages.indexOfFirst { it.id == quotedId }
                                 if (targetIndex >= 0) {

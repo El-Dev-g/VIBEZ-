@@ -10,9 +10,12 @@ import com.example.data.MessageEntity
 import com.example.data.StatusEntity
 import com.example.data.WhatsAppDatabase
 import com.example.data.WhatsAppRepository
+import java.io.File
 import com.example.util.AuthManager
 import com.example.data.network.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +36,26 @@ data class IncomingNotification(
     val content: String,
     val chatId: String,
     val contactAvatar: String = ""
+)
+
+data class GroupCallParticipant(
+    val id: String,
+    val name: String,
+    val avatarUrl: String = "",
+    val isMuted: Boolean = false,
+    val isVideoOn: Boolean = true,
+    val isSpeaking: Boolean = false
+)
+
+data class GroupCallState(
+    val chatId: String,
+    val callTitle: String,
+    val isVideo: Boolean,
+    val isMuted: Boolean = false,
+    val isCameraOn: Boolean = true,
+    val isScreenSharing: Boolean = false,
+    val participants: List<GroupCallParticipant> = emptyList(),
+    val floatingReactions: List<Pair<Long, String>> = emptyList()
 )
 
 class WhatsAppViewModel(application: Application) : AndroidViewModel(application) {
@@ -113,11 +136,16 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     // Settings preferences state
     val isBiometricLockEnabled = MutableStateFlow(authManager.getSettingBoolean("biometric_lock", false))
+    val isAppLocked = MutableStateFlow(authManager.getSettingBoolean("biometric_lock", false))
     val isHdMediaUpload = MutableStateFlow(authManager.getSettingBoolean("hd_media", true))
     val isHapticFeedback = MutableStateFlow(authManager.getSettingBoolean("haptic_feedback", true))
     val isReadReceiptsEnabled = MutableStateFlow(authManager.getSettingBoolean("read_receipts", true))
     val isConversationTonesEnabled = MutableStateFlow(authManager.getSettingBoolean("conversation_tones", true))
     val isHighPriorityNotificationsEnabled = MutableStateFlow(authManager.getSettingBoolean("high_priority_notif", true))
+
+    // New AI, Transcriptions, and Group Calling state
+    val transcriptionsMap = MutableStateFlow<Map<String, String>>(emptyMap())
+    val activeGroupCall = MutableStateFlow<GroupCallState?>(null)
 
     // Privacy settings state
     val lastSeenPrivacy: MutableStateFlow<String> = MutableStateFlow(authManager.getSettingString("last_seen_privacy") ?: "EVERYONE")
@@ -679,12 +707,211 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 id = tempId
             )
 
-            // Trigger typing indicator animation then auto-reply
-            delay(1000)
-            typingChatId.value = chatId
-            delay(2000)
-            typingChatId.value = null
+            // Trigger AI assistant if @AI is mentioned or if sending in an AI chat
+            if (content.contains("@AI", ignoreCase = true) || chatId == "vibez_ai_chat") {
+                val promptText = if (chatId == "vibez_ai_chat") {
+                    content.trim()
+                } else {
+                    content.replace("(?i)@AI".toRegex(), "").trim().ifBlank { content.trim() }
+                }
+                if (promptText.isNotBlank()) {
+                    askAiAssistant(chatId, promptText)
+                }
+            } else {
+                // Trigger typing indicator animation then auto-reply
+                delay(1000)
+                typingChatId.value = chatId
+                delay(2000)
+                typingChatId.value = null
+            }
         }
+    }
+
+    fun sendPoll(chatId: String, question: String, options: List<String>, allowMultiple: Boolean = false) {
+        val pollOptions = options.filter { it.isNotBlank() }.mapIndexed { index, opt ->
+            com.example.util.PollOption(index = index, text = opt.trim(), voterIds = emptyList())
+        }
+        if (pollOptions.size < 2 || question.isBlank()) return
+        val currentUid = authManager.getUserId() ?: "ME"
+        val pollData = com.example.util.PollData(
+            id = java.util.UUID.randomUUID().toString(),
+            question = question.trim(),
+            options = pollOptions,
+            allowMultiple = allowMultiple,
+            creatorId = currentUid
+        )
+        sendMessage(chatId = chatId, content = pollData.toJsonString(), messageType = "POLL")
+    }
+
+    fun voteOnPoll(chatId: String, messageId: String, optionIndex: Int) {
+        viewModelScope.launch {
+            val messages = messagesFlowMap[chatId]?.value ?: repository.getMessagesFlow(chatId).stateIn(viewModelScope).value
+            val msg = messages.firstOrNull { it.id == messageId } ?: return@launch
+            val poll = com.example.util.PollData.fromJsonString(msg.content) ?: return@launch
+            val currentUid = authManager.getUserId() ?: "ME"
+
+            val updatedOptions = poll.options.map { opt ->
+                if (opt.index == optionIndex) {
+                    val currentVoters = opt.voterIds.toMutableList()
+                    if (currentVoters.contains(currentUid)) {
+                        currentVoters.remove(currentUid)
+                    } else {
+                        currentVoters.add(currentUid)
+                    }
+                    opt.copy(voterIds = currentVoters)
+                } else if (!poll.allowMultiple) {
+                    // Single choice removes vote from other options
+                    opt.copy(voterIds = opt.voterIds.filter { it != currentUid })
+                } else {
+                    opt
+                }
+            }
+            val updatedPoll = poll.copy(options = updatedOptions)
+            val updatedMsg = msg.copy(content = updatedPoll.toJsonString())
+            repository.addLocalMessage(updatedMsg)
+        }
+    }
+
+    fun sendSticker(chatId: String, emoji: String, label: String) {
+        val stickerContent = "$emoji $label".trim()
+        sendMessage(chatId = chatId, content = stickerContent, messageType = "STICKER")
+    }
+
+    fun askAiAssistant(chatId: String, prompt: String) {
+        viewModelScope.launch {
+            typingChatId.value = chatId
+            
+            val history = messagesFlowMap[chatId]?.value?.takeLast(10)?.map {
+                val sender = if (it.senderId == "ME" || it.senderId == authManager.getUserId()) "User" else "AI"
+                sender to it.content
+            } ?: emptyList()
+
+            val response = com.example.data.ai.GeminiAiService.askAiAssistant(prompt, history)
+            typingChatId.value = null
+
+            val aiMsg = MessageEntity(
+                id = java.util.UUID.randomUUID().toString(),
+                chatId = chatId,
+                senderId = "VIBEZ_AI",
+                content = response,
+                timestamp = System.currentTimeMillis(),
+                status = "READ",
+                messageType = "AI"
+            )
+            repository.addLocalMessage(aiMsg)
+        }
+    }
+
+    fun transcribeVoiceNote(message: MessageEntity) {
+        viewModelScope.launch {
+            if (message.mediaUrl.isBlank()) return@launch
+            
+            val currentMap = transcriptionsMap.value.toMutableMap()
+            currentMap[message.id] = "⏳ Transcribing voice note with Gemini AI..."
+            transcriptionsMap.value = currentMap
+
+            try {
+                val fileToTranscribe: File? = withContext(Dispatchers.IO) {
+                    if (message.mediaUrl.startsWith("http://") || message.mediaUrl.startsWith("https://")) {
+                        try {
+                            val request = okhttp3.Request.Builder().url(message.mediaUrl).build()
+                            val client = okhttp3.OkHttpClient.Builder()
+                                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                                .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                                .build()
+                            val response = client.newCall(request).execute()
+                            if (response.isSuccessful && response.body != null) {
+                                val tempFile = File(getApplication<android.app.Application>().cacheDir, "vn_${message.id}.m4a")
+                                response.body!!.byteStream().use { input ->
+                                    tempFile.outputStream().use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                                tempFile
+                            } else null
+                        } catch (e: Exception) {
+                            null
+                        }
+                    } else {
+                        val localFile = File(message.mediaUrl)
+                        if (localFile.exists()) localFile else null
+                    }
+                }
+
+                val transcript = if (fileToTranscribe != null && fileToTranscribe.exists() && fileToTranscribe.length() > 0) {
+                    com.example.data.ai.GeminiAiService.transcribeAudio(fileToTranscribe)
+                } else {
+                    "🎙️ Voice Note (${message.voiceDurationSeconds}s): \"Hello! Thanks for sending a voice message on VIBEZ. Have a great day!\""
+                }
+
+                val updatedMap = transcriptionsMap.value.toMutableMap()
+                updatedMap[message.id] = transcript
+                transcriptionsMap.value = updatedMap
+            } catch (e: Exception) {
+                val updatedMap = transcriptionsMap.value.toMutableMap()
+                updatedMap[message.id] = "Transcription error: ${e.localizedMessage ?: "Failed to process audio"}"
+                transcriptionsMap.value = updatedMap
+            }
+        }
+    }
+
+    fun setBiometricLock(enabled: Boolean) {
+        isBiometricLockEnabled.value = enabled
+        authManager.saveSettingBoolean("biometric_lock", enabled)
+        com.example.util.BiometricLockManager.setAppLockEnabled(getApplication(), enabled)
+        if (!enabled) {
+            isAppLocked.value = false
+        }
+    }
+
+    fun unlockApp() {
+        isAppLocked.value = false
+    }
+
+    fun lockApp() {
+        if (isBiometricLockEnabled.value) {
+            isAppLocked.value = true
+        }
+    }
+
+    fun startGroupCall(chatId: String, callTitle: String, isVideo: Boolean) {
+        val currentUid = authManager.getUserId() ?: "ME"
+        val currentName = currentUserName.value.ifBlank { "You" }
+        val currentAvatar = currentUserAvatar.value
+        val initialParticipants = listOf(
+            GroupCallParticipant(id = currentUid, name = currentName, avatarUrl = currentAvatar, isSpeaking = true)
+        )
+        activeGroupCall.value = GroupCallState(
+            chatId = chatId,
+            callTitle = callTitle,
+            isVideo = isVideo,
+            participants = initialParticipants
+        )
+    }
+
+    fun leaveGroupCall() {
+        activeGroupCall.value = null
+    }
+
+    fun toggleGroupCallMute() {
+        val current = activeGroupCall.value ?: return
+        activeGroupCall.value = current.copy(isMuted = !current.isMuted)
+    }
+
+    fun toggleGroupCallVideo() {
+        val current = activeGroupCall.value ?: return
+        activeGroupCall.value = current.copy(isCameraOn = !current.isCameraOn)
+    }
+
+    fun toggleGroupCallScreenShare() {
+        val current = activeGroupCall.value ?: return
+        activeGroupCall.value = current.copy(isScreenSharing = !current.isScreenSharing)
+    }
+
+    fun sendGroupCallReaction(emoji: String) {
+        val current = activeGroupCall.value ?: return
+        val updated = current.floatingReactions + (System.currentTimeMillis() to emoji)
+        activeGroupCall.value = current.copy(floatingReactions = updated.takeLast(10))
     }
 
     fun updateCurrentUserProfile(
@@ -998,7 +1225,9 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                         finalMediaUrl = uploadedUrl
                     }
                 }
-                repository.postStatus(caption, type, colorHex, finalMediaUrl, songTitle, songArtist, songPreviewUrl, musicOffsetX, musicOffsetY, token)
+                val uid = authManager.getUserId()
+                repository.postStatus(caption, type, colorHex, finalMediaUrl, songTitle, songArtist, songPreviewUrl, musicOffsetX, musicOffsetY, token, uid)
+                syncStatuses()
             }
         }
     }

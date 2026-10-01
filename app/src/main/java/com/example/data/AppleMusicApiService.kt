@@ -14,15 +14,15 @@ interface AppleMusicApiService {
 }
 
 data class ITunesSearchResponse(
-    @Json(name = "resultCount") val resultCount: Int,
-    @Json(name = "results") val results: List<ITunesResult>
+    @field:Json(name = "resultCount") val resultCount: Int,
+    @field:Json(name = "results") val results: List<ITunesResult>
 )
 
 data class ITunesResult(
-    @Json(name = "trackId") val trackId: Long,
-    @Json(name = "trackName") val trackName: String?,
-    @Json(name = "artistName") val artistName: String?,
-    @Json(name = "previewUrl") val previewUrl: String?,
-    @Json(name = "artworkUrl100") val artworkUrl: String?,
-    @Json(name = "trackTimeMillis") val durationMillis: Long?
+    @field:Json(name = "trackId") val trackId: Long,
+    @field:Json(name = "trackName") val trackName: String?,
+    @field:Json(name = "artistName") val artistName: String?,
+    @field:Json(name = "previewUrl") val previewUrl: String?,
+    @field:Json(name = "artworkUrl100") val artworkUrl: String?,
+    @field:Json(name = "trackTimeMillis") val durationMillis: Long?
 )

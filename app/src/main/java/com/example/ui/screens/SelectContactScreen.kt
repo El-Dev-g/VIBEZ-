@@ -103,7 +103,8 @@ fun SelectContactScreen(
     onNewGroupClick: () -> Unit,
     onNewContactClick: () -> Unit,
     onQrScanClick: (() -> Unit)? = null,
-    onSyncPhoneNumbers: ((List<String>) -> Unit)? = null
+    onSyncPhoneNumbers: ((List<String>) -> Unit)? = null,
+    onAiChatClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -427,6 +428,49 @@ fun SelectContactScreen(
                                         Text("Allow Contact Sync", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // Action 0: VIBEZ AI Assistant
+                if (onAiChatClick != null) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onAiChatClick)
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF6366F1)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("✨", fontSize = 22.sp)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = "VIBEZ AI Assistant", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFF6366F1)
+                                    ) {
+                                        Text(
+                                            text = "GEMINI AI",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                Text(text = "Ask questions, write, translate & transcribe voice notes", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }

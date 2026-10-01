@@ -110,8 +110,11 @@ import com.example.ui.screens.HelpSettingsScreen
 import com.example.ui.screens.StorageDataSettingsScreen
 import com.example.ui.screens.EncryptionInfoScreen
 import com.example.ui.screens.AppUpdateScreen
+import com.example.ui.components.GroupCallOverlay
+import com.example.ui.components.BiometricLockOverlay
+import com.example.util.BiometricLockManager
 
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
 
     private val viewModel: WhatsAppViewModel by viewModels()
 
@@ -197,6 +200,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     val selectedTab by viewModel.selectedTab.collectAsState()
     val isSyncingContacts by viewModel.isSyncingContacts.collectAsState()
     val syncStatusMessage by viewModel.syncStatusMessage.collectAsState()
+    val transcriptionsMap by viewModel.transcriptionsMap.collectAsState()
 
     val isVerified by viewModel.isVerified.collectAsState()
     val badgeStatus by viewModel.badgeStatus.collectAsState()
@@ -815,6 +819,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onTypingStateChange = { isTyping ->
                     viewModel.setLocalUserTyping(chatId, isTyping)
+                },
+                transcriptionsMap = transcriptionsMap,
+                onTranscribeVoice = { msg ->
+                    viewModel.transcribeVoiceNote(msg)
+                },
+                onVotePoll = { msgId, optionIdx ->
+                    viewModel.voteOnPoll(chatId, msgId, optionIdx)
                 }
             )
         }
@@ -964,6 +975,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onQrScanClick = { navController.navigate("qr_scanner") },
                 onSyncPhoneNumbers = { numbers ->
                     viewModel.syncContacts(numbers)
+                },
+                onAiChatClick = {
+                    navController.navigate("chat/vibez_ai_chat")
                 }
             )
         }
@@ -1785,6 +1799,42 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 }
             )
         }
+    }
+
+    // Group Call Overlay
+    val activeGroupCall by viewModel.activeGroupCall.collectAsState()
+    activeGroupCall?.let { callState ->
+        GroupCallOverlay(
+            callState = callState,
+            onLeaveCall = { viewModel.leaveGroupCall() },
+            onToggleMute = { viewModel.toggleGroupCallMute() },
+            onToggleVideo = { viewModel.toggleGroupCallVideo() },
+            onToggleScreenShare = { viewModel.toggleGroupCallScreenShare() },
+            onSendReaction = { emoji -> viewModel.sendGroupCallReaction(emoji) }
+        )
+    }
+
+    // Biometric App Lock Overlay
+    val isAppLocked by viewModel.isAppLocked.collectAsState()
+    if (isAppLocked) {
+        val activity = context as? androidx.fragment.app.FragmentActivity
+        BiometricLockOverlay(
+            onUnlockClick = {
+                if (activity != null) {
+                    com.example.util.BiometricLockManager.promptBiometric(
+                        activity = activity,
+                        title = "Unlock VIBEZ",
+                        subtitle = "Verify fingerprint or device PIN",
+                        onSuccess = { viewModel.unlockApp() },
+                        onError = { err ->
+                            android.widget.Toast.makeText(context, err, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                } else {
+                    viewModel.unlockApp()
+                }
+            }
+        )
     }
 }
 }

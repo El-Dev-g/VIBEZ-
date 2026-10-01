@@ -59,6 +59,8 @@ class AuthManager(context: Context) {
         prefs.edit().putBoolean("setting_$key", value).apply()
     }
 
+    fun saveSettingBoolean(key: String, value: Boolean) = setSettingBoolean(key, value)
+
     fun getSettingBoolean(key: String, defaultValue: Boolean = false): Boolean {
         return prefs.getBoolean("setting_$key", defaultValue)
     }
@@ -66,6 +68,8 @@ class AuthManager(context: Context) {
     fun setSettingString(key: String, value: String) {
         prefs.edit().putString("setting_$key", value).apply()
     }
+
+    fun saveSettingString(key: String, value: String) = setSettingString(key, value)
 
     fun getSettingString(key: String, defaultValue: String? = null): String? {
         return prefs.getString("setting_$key", defaultValue)

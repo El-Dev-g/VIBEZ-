@@ -28,6 +28,10 @@ final class VibezStore: ObservableObject {
     @Published var badgeStatus: BadgeStatusResponse? = nil
     @Published var paymentProviders: [PaymentProviderDto] = []
     @Published var activeCall: ActiveCallSession? = nil
+    @Published var activeGroupCall: GroupCallState? = nil
+    @Published var isBiometricLockEnabled: Bool = false
+    @Published var isAppLocked: Bool = false
+    @Published var transcriptionsMap: [String: String] = [:]
 
     private let api = ApiClient.shared
     private let socket = SocketService()
@@ -399,6 +403,118 @@ final class VibezStore: ObservableObject {
             duration: duration > 0 ? duration : nil
         )
         saveCachedData()
+
+        if content.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("@ai") || chatId == "vibez_ai_chat" {
+            let prompt = content.replacingOccurrences(of: "@AI", with: "", options: .caseInsensitive).trimmingCharacters(in: .whitespacesAndNewlines)
+            Task {
+                await askAiAssistant(chatId: chatId, prompt: prompt.isEmpty ? content : prompt)
+            }
+        }
+    }
+
+    func sendPoll(chatId: String, question: String, options: [String], allowMultiple: Bool = false) async {
+        let pollOptions = options.enumerated().map { index, text in
+            PollOption(index: index, text: text, voterIds: [])
+        }
+        let poll = PollData(
+            id: UUID().uuidString,
+            question: question,
+            options: pollOptions,
+            allowMultiple: allowMultiple,
+            creatorId: currentUserId
+        )
+        if let data = try? JSONEncoder().encode(poll), let jsonStr = String(data: data, encoding: .utf8) {
+            await sendMessage(chatId: chatId, content: jsonStr, type: "POLL")
+        }
+    }
+
+    func voteOnPoll(chatId: String, messageId: String, optionIndex: Int) {
+        var list = messagesByChat[chatId] ?? []
+        guard let idx = list.firstIndex(where: { $0.id == messageId }) else { return }
+        var msg = list[idx]
+        guard let data = msg.content.data(using: .utf8),
+              var poll = try? JSONDecoder().decode(PollData.self, from: data) else { return }
+
+        var updatedOptions = poll.options
+        if let optIdx = updatedOptions.firstIndex(where: { $0.index == optionIndex }) {
+            var voters = updatedOptions[optIdx].voterIds
+            if voters.contains(currentUserId) {
+                voters.removeAll { $0 == currentUserId }
+            } else {
+                voters.append(currentUserId)
+            }
+            updatedOptions[optIdx].voterIds = voters
+        }
+
+        if !poll.allowMultiple {
+            for i in 0..<updatedOptions.count {
+                if updatedOptions[i].index != optionIndex {
+                    updatedOptions[i].voterIds.removeAll { $0 == currentUserId }
+                }
+            }
+        }
+        poll.options = updatedOptions
+
+        if let enc = try? JSONEncoder().encode(poll), let str = String(data: enc, encoding: .utf8) {
+            msg.content = str
+            list[idx] = msg
+            messagesByChat[chatId] = list
+            saveCachedData()
+        }
+    }
+
+    func sendSticker(chatId: String, emoji: String, label: String) async {
+        await sendMessage(chatId: chatId, content: "\(emoji) \(label)", type: "STICKER")
+    }
+
+    func askAiAssistant(chatId: String, prompt: String) async {
+        try? await Task.sleep(nanoseconds: 600_000_000)
+        let responseText = await api.askGeminiAi(prompt: prompt)
+        let aiMsg = MessageItem(
+            id: UUID().uuidString,
+            chatId: chatId,
+            senderId: "VIBEZ_AI",
+            content: responseText,
+            timestamp: Date(),
+            status: "READ",
+            isStarred: false,
+            messageType: "AI",
+            mediaUrl: "",
+            voiceDurationSeconds: 0,
+            replyToMessageId: nil
+        )
+        var list = messagesByChat[chatId] ?? []
+        list.append(aiMsg)
+        messagesByChat[chatId] = list
+        saveCachedData()
+    }
+
+    func transcribeVoiceNote(messageId: String, audioUrl: String) async {
+        let transcript = await api.transcribeVoiceAudio(audioData: Data())
+        transcriptionsMap[messageId] = transcript
+    }
+
+    func startGroupCall(chatId: String, title: String, isVideo: Bool) {
+        let selfParticipant = GroupCallParticipant(
+            id: currentUserId,
+            name: currentUserName.isEmpty ? "You" : currentUserName,
+            avatarUrl: currentUserAvatar,
+            isSpeaking: true
+        )
+        activeGroupCall = GroupCallState(
+            chatId: chatId,
+            callTitle: title,
+            isVideo: isVideo,
+            participants: [selfParticipant]
+        )
+    }
+
+    func leaveGroupCall() {
+        activeGroupCall = nil
+    }
+
+    func sendGroupCallReaction(_ emoji: String) {
+        activeGroupCall?.floatingReactions.append(emoji)
     }
 
     private func handleIncomingMessage(_ dto: MessageDto) {
@@ -494,18 +610,21 @@ final class VibezStore: ObservableObject {
         guard !authToken.isEmpty else { return }
         if let dtos = try? await api.getStatuses(token: authToken) {
             self.statuses = dtos.map { dto in
-                StatusItem(
+                let isMine = dto.userId == currentUserId || dto.userId == "ME"
+                let name = dto.user?.name?.isEmpty == false ? dto.user!.name! : (isMine ? (currentUserName.isEmpty ? "My Status" : currentUserName) : "User")
+                let avatar = dto.user?.avatarUrl?.isEmpty == false ? dto.user!.avatarUrl! : (isMine ? currentUserAvatar : "")
+                return StatusItem(
                     id: dto.id,
                     contactId: dto.userId,
-                    contactName: dto.user?.name ?? "User",
-                    contactAvatar: dto.user?.avatarUrl ?? "",
+                    contactName: name,
+                    contactAvatar: avatar,
                     mediaType: dto.type,
                     mediaUrl: dto.mediaUrl ?? "",
                     textCaption: dto.content ?? "",
                     backgroundColorHex: dto.backgroundColor ?? "#075E54",
                     timestamp: parseIsoDate(dto.createdAt),
                     isViewed: dto.viewers?.contains(where: { $0.userId == currentUserId }) ?? false,
-                    isMyStatus: dto.userId == currentUserId,
+                    isMyStatus: isMine,
                     viewCount: dto.viewers?.count ?? 0
                 )
             }

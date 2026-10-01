@@ -36,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,7 +83,10 @@ fun MessageBubble(
     onClick: () -> Unit = {},
     onReply: (MessageEntity) -> Unit = {},
     onQuotedClick: (String) -> Unit = {},
-    onMediaClick: (MessageEntity) -> Unit = {}
+    onMediaClick: (MessageEntity) -> Unit = {},
+    onVotePoll: (Int) -> Unit = {},
+    onTranscribeVoice: () -> Unit = {},
+    transcriptionText: String? = null
 ) {
     if (message.messageType == "SYSTEM") {
         Box(
@@ -281,12 +285,200 @@ fun MessageBubble(
                         )
                     }
                 }
+                "POLL" -> {
+                    val poll = remember(message.content) {
+                        com.example.util.PollData.fromJsonString(message.content)
+                    }
+                    if (poll != null) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "📊",
+                                    fontSize = 18.sp,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    text = poll.question,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Text(
+                                text = if (poll.allowMultiple) "Select one or more" else "Select one",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+                            )
+
+                            poll.options.forEach { option ->
+                                val isSelected = poll.isOptionSelectedBy(option.index, currentUserId)
+                                val percentage = poll.percentageFor(option.index)
+                                val percentInt = (percentage * 100).toInt()
+
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) WhatsAppEmerald.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { onVotePoll(option.index) }
+                                ) {
+                                    Box(modifier = Modifier.fillMaxWidth()) {
+                                        // Progress bar fill
+                                        if (poll.totalVotes > 0) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .matchParentSize()
+                                                    .fillMaxWidth(fraction = percentage)
+                                                    .background(if (isSelected) WhatsAppEmerald.copy(alpha = 0.35f) else WhatsAppMinimalPrimary.copy(alpha = 0.15f))
+                                            )
+                                        }
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (isSelected) "✓ " + option.text else option.text,
+                                                fontSize = 14.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            if (poll.totalVotes > 0) {
+                                                Text(
+                                                    text = "$percentInt% (${option.voterIds.size})",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = "${poll.totalVotes} ${if (poll.totalVotes == 1) "vote" else "votes"}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp).align(Alignment.End)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = message.content,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                "STICKER" -> {
+                    Column(
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val stickerText = message.content.trim()
+                        val emoji = stickerText.takeWhile { !it.isWhitespace() }
+                        val label = stickerText.dropWhile { !it.isWhitespace() }.trim()
+
+                        Text(
+                            text = emoji.ifBlank { "✨" },
+                            fontSize = 58.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                        if (label.isNotBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = WhatsAppEmerald.copy(alpha = 0.18f),
+                                modifier = Modifier.padding(top = 2.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WhatsAppMinimalPrimary,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                "AI" -> {
+                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFF6366F1),
+                                modifier = Modifier.padding(end = 6.dp)
+                            ) {
+                                Text(
+                                    text = "AI ASSISTANT",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                            Text(
+                                text = "Gemini Flash",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = message.content,
+                            fontSize = 15.sp,
+                            lineHeight = 21.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
                 "VOICE" -> {
-                    VoiceNotePlayer(
-                        durationSeconds = message.voiceDurationSeconds.coerceAtLeast(3),
-                        mediaUrl = message.mediaUrl,
-                        isSentByMe = isSentByMe
-                    )
+                    Column {
+                        VoiceNotePlayer(
+                            durationSeconds = message.voiceDurationSeconds.coerceAtLeast(3),
+                            mediaUrl = message.mediaUrl,
+                            isSentByMe = isSentByMe
+                        )
+                        if (transcriptionText != null) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("✨ AI Transcript", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6366F1))
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = transcriptionText,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        } else {
+                            TextButton(
+                                onClick = onTranscribeVoice,
+                                modifier = Modifier.padding(top = 2.dp)
+                            ) {
+                                Text("✨ Transcribe with AI", fontSize = 12.sp, color = Color(0xFF6366F1))
+                            }
+                        }
+                    }
                 }
                 "DOCUMENT" -> {
                     Surface(

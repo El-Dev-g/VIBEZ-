@@ -270,3 +270,64 @@ struct SystemStatusResponse: Codable {
     let appVersion: String?
     let appName: String?
 }
+
+// MARK: - Poll & Sticker Models
+
+struct PollOption: Codable, Identifiable, Equatable {
+    var id: Int { index }
+    let index: Int
+    let text: String
+    var voterIds: [String]
+}
+
+struct PollData: Codable, Identifiable, Equatable {
+    let id: String
+    let question: String
+    var options: [PollOption]
+    let allowMultiple: Bool
+    let creatorId: String
+
+    var totalVotes: Int {
+        options.reduce(0) { $0 + $1.voterIds.count }
+    }
+
+    func percentageFor(optionIndex: Int) -> Double {
+        let total = totalVotes
+        guard total > 0, let opt = options.first(where: { $0.index == optionIndex }) else { return 0.0 }
+        return Double(opt.voterIds.count) / Double(total)
+    }
+
+    func isOptionSelectedBy(optionIndex: Int, userId: String) -> Bool {
+        options.first(where: { $0.index == optionIndex })?.voterIds.contains(userId) == true
+    }
+}
+
+struct StickerItem: Identifiable, Equatable {
+    let id: String
+    let emoji: String
+    let label: String
+    let category: String
+}
+
+// MARK: - Group Call Models
+
+struct GroupCallParticipant: Identifiable, Equatable {
+    let id: String
+    let name: String
+    var avatarUrl: String = ""
+    var isMuted: Bool = false
+    var isVideoOn: Bool = true
+    var isSpeaking: Bool = false
+}
+
+struct GroupCallState: Identifiable, Equatable {
+    let id: String = UUID().uuidString
+    let chatId: String
+    let callTitle: String
+    let isVideo: Bool
+    var isMuted: Bool = false
+    var isCameraOn: Bool = true
+    var isScreenSharing: Bool = false
+    var participants: [GroupCallParticipant] = []
+    var floatingReactions: [String] = []
+}

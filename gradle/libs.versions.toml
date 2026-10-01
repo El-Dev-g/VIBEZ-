@@ -48,9 +48,11 @@ zxing = "3.5.3"
 mlkitBarcodeScanning = "17.3.0"
 gson = "2.11.0"
 work = "2.10.0"
+biometric = "1.2.0-alpha05"
 
 
 [libraries]
+androidx-biometric = { group = "androidx.biometric", name = "biometric-ktx", version.ref = "biometric" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

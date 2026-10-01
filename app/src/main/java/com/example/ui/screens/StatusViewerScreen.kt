@@ -279,7 +279,11 @@ fun StatusPageItem(
             }
     ) {
         // Status Background Media / Content
-        if (status.mediaType == "IMAGE") {
+        val isImageStatus = status.mediaType.equals("IMAGE", ignoreCase = true) ||
+                status.mediaType.equals("PHOTO", ignoreCase = true) ||
+                status.mediaUrl.isNotBlank()
+
+        if (isImageStatus && status.mediaUrl.isNotBlank()) {
             val statusImageModel = remember(status.mediaUrl) {
                 com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: status.mediaUrl
             }
@@ -287,9 +291,7 @@ fun StatusPageItem(
                 model = statusImageModel,
                 contentDescription = "Status photo",
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                placeholder = painterResource(id = R.drawable.img_status_banner_1787278113131),
-                error = painterResource(id = R.drawable.img_status_banner_1787278113131)
+                modifier = Modifier.fillMaxSize()
             )
         } else {
             Box(

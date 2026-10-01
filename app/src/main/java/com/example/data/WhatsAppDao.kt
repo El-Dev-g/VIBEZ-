@@ -119,6 +119,24 @@ interface WhatsAppDao {
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun clearChatMessages(chatId: String)
 
+    @Query("SELECT * FROM messages WHERE chatId = :chatId AND (expiresAt IS NULL OR expiresAt > :currentTime) ORDER BY timestamp ASC")
+    fun getActiveMessagesForChat(chatId: String, currentTime: Long = System.currentTimeMillis()): Flow<List<MessageEntity>>
+
+    @Query("DELETE FROM messages WHERE expiresAt IS NOT NULL AND expiresAt <= :currentTime")
+    suspend fun purgeExpiredMessages(currentTime: Long = System.currentTimeMillis()): Int
+
+    @Query("UPDATE messages SET transcription = :transcription WHERE id = :messageId")
+    suspend fun updateMessageTranscription(messageId: String, transcription: String)
+
+    @Query("UPDATE chats SET ephemeralDuration = :duration WHERE id = :chatId")
+    suspend fun updateChatEphemeralDuration(chatId: String, duration: Int)
+
+    @Query("UPDATE chats SET isLocked = :isLocked WHERE id = :chatId")
+    suspend fun updateChatLockStatus(chatId: String, isLocked: Boolean)
+
+    @Query("UPDATE chats SET isSubscribed = :isSubscribed WHERE id = :chatId")
+    suspend fun updateChatSubscriptionStatus(chatId: String, isSubscribed: Boolean)
+
     // Statuses
     @Query("SELECT * FROM statuses ORDER BY timestamp DESC")
     fun getAllStatuses(): Flow<List<StatusEntity>>

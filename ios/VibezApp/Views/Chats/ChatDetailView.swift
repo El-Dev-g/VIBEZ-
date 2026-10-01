@@ -95,6 +95,63 @@ struct ChatDetailView: View {
                 .background(Color(.secondarySystemBackground))
             }
 
+            // Quick AI, Sticker, and Poll Chips
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button {
+                        inputText = "@AI "
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                            Text("Ask @AI")
+                        }
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color(0xFF6366F1).opacity(0.15))
+                        .foregroundStyle(Color(0xFF6366F1))
+                        .clipShape(Capsule())
+                    }
+
+                    Button {
+                        Task {
+                            await store.sendSticker(chatId: chat?.id ?? chatId, emoji: "🔥", label: "LIT VIBES")
+                        }
+                    } label: {
+                        Text("🔥 Sticker")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(VibezTheme.primary.opacity(0.12))
+                            .foregroundStyle(VibezTheme.primary)
+                            .clipShape(Capsule())
+                    }
+
+                    Button {
+                        Task {
+                            await store.sendPoll(
+                                chatId: chat?.id ?? chatId,
+                                question: "What's the plan for tonight?",
+                                options: ["Movie Night 🍿", "Gaming Session 🎮", "Dinner & Drinks 🍹"]
+                            )
+                        }
+                    } label: {
+                        Text("📊 Quick Poll")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(VibezTheme.primary.opacity(0.12))
+                            .foregroundStyle(VibezTheme.primary)
+                            .clipShape(Capsule())
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+            }
+
             // Composer Bar
             if chat?.isChannel == true && chat?.allowComments == false {
                 HStack(spacing: 8) {

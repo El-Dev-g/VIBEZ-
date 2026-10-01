@@ -419,10 +419,21 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         removeDeletedChatId(message.chatId)
         dao.insertMessage(message)
         val chat = dao.getChatById(message.chatId)
-        chat?.let {
-            dao.updateChat(it.copy(
-                lastMessage = message.content,
+        if (chat != null) {
+            dao.updateChat(chat.copy(
+                lastMessage = if (message.messageType == "VOICE") "🎤 Voice note" else message.content,
                 lastMessageTime = message.timestamp
+            ))
+        } else if (message.chatId == "vibez_ai_chat") {
+            dao.insertChat(ChatEntity(
+                id = "vibez_ai_chat",
+                contactId = "vibez_ai",
+                contactName = "VIBEZ AI Assistant",
+                contactAvatar = "",
+                lastMessage = message.content,
+                lastMessageTime = message.timestamp,
+                isOfficial = true,
+                isVerified = true
             ))
         }
     }
@@ -452,15 +463,17 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     }
 
     private fun parseMessageJson(json: JSONObject): MessageDto {
+        val mUrl = if (json.has("mediaUrl") && !json.isNull("mediaUrl")) json.optString("mediaUrl") else null
+        val rId = if (json.has("receiverId") && !json.isNull("receiverId")) json.optString("receiverId") else null
         return MessageDto(
             id = json.optString("id", java.util.UUID.randomUUID().toString()),
             content = json.optString("content", ""),
             type = json.optString("type", "TEXT"),
             status = json.optString("status", "SENT"),
-            mediaUrl = json.optString("mediaUrl", null),
+            mediaUrl = mUrl,
             duration = if (!json.isNull("duration")) json.optInt("duration", 0) else null,
             senderId = json.optString("senderId", "unknown"),
-            receiverId = json.optString("receiverId", null),
+            receiverId = rId,
             chatId = json.optString("chatId", "unknown"),
             createdAt = json.optString("createdAt", ""),
             sender = null
@@ -1196,7 +1209,11 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             return@withContext uriString
         }
 
-        val isImage = type.equals("IMAGE", ignoreCase = true) || type.equals("AVATAR", ignoreCase = true)
+        val isImage = type.equals("IMAGE", ignoreCase = true) || 
+                      type.equals("AVATAR", ignoreCase = true) || 
+                      type.equals("PHOTO", ignoreCase = true) || 
+                      type.equals("STATUS", ignoreCase = true) ||
+                      type.equals("STATUS_PHOTO", ignoreCase = true)
 
         try {
             val ext = when {
@@ -1214,6 +1231,10 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             val fileName = "${type.lowercase()}_${System.currentTimeMillis()}.$ext"
 
             val bytes: ByteArray? = when {
+                isImage -> {
+                    // Client-side image compression to reduce bandwidth and speed up posting
+                    com.example.util.ImageUtils.compressImageBytes(contentResolver, uriString, maxDimension = 1080, quality = 80)
+                }
                 uriString.startsWith("/") -> {
                     val file = java.io.File(uriString)
                     if (file.exists()) file.readBytes() else null
@@ -1280,7 +1301,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         songPreviewUrl: String?,
         musicOffsetX: Float,
         musicOffsetY: Float,
-        token: String
+        token: String,
+        currentUserId: String? = null
     ): String {
         return try {
             val textStyleJson = if (songTitle != null) {
@@ -1303,7 +1325,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 textStyle = textStyleJson
             )
             val dto = NetworkClient.apiService.createStatus("Bearer $token", request)
-            val entity = mapStatusDtoToEntity(dto, null)
+            val uid = currentUserId ?: context?.let { AuthManager(it).getUserId() }
+            val entity = mapStatusDtoToEntity(dto, uid)
             dao.insertStatus(entity)
             entity.id
         } catch (e: Exception) {
@@ -1323,9 +1346,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         if (!ts.isNullOrEmpty() && ts.startsWith("{") && ts.endsWith("}")) {
             try {
                 val json = JSONObject(ts)
-                sTitle = json.optString("songTitle", null)
-                sArtist = json.optString("songArtist", null)
-                sPreviewUrl = json.optString("songPreviewUrl", null)
+                sTitle = if (json.has("songTitle") && !json.isNull("songTitle")) json.optString("songTitle") else null
+                sArtist = if (json.has("songArtist") && !json.isNull("songArtist")) json.optString("songArtist") else null
+                sPreviewUrl = if (json.has("songPreviewUrl") && !json.isNull("songPreviewUrl")) json.optString("songPreviewUrl") else null
                 sOffsetX = json.optDouble("musicOffsetX", 0.5).toFloat()
                 sOffsetY = json.optDouble("musicOffsetY", 0.5).toFloat()
             } catch (e: Exception) {
@@ -1333,18 +1356,35 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             }
         }
 
+        val activeUid = currentUserId ?: context?.let { AuthManager(it).getUserId() }
+        val isMine = (activeUid != null && (dto.userId == activeUid || dto.userId == "ME")) || dto.userId.contains("ME", ignoreCase = true)
+        val authManager = context?.let { AuthManager(it) }
+        val myName = authManager?.getUserName()
+        val myAvatar = authManager?.getUserAvatar()
+
+        val resolvedName = dto.user?.name?.takeIf { it.isNotBlank() && it != "Unknown" }
+            ?: if (isMine) (myName?.takeIf { it.isNotBlank() && it != "Unknown" } ?: "My Status") else "Contact"
+        val resolvedAvatar = dto.user?.avatarUrl?.takeIf { it.isNotBlank() }
+            ?: if (isMine) (myAvatar ?: "") else ""
+
+        val resolvedMediaType = when {
+            dto.type.equals("VIDEO", ignoreCase = true) -> "VIDEO"
+            !dto.mediaUrl.isNullOrBlank() -> "IMAGE"
+            else -> "TEXT"
+        }
+
         return StatusEntity(
             id = dto.id,
             contactId = dto.userId,
-            contactName = dto.user?.name ?: "Unknown",
-            contactAvatar = dto.user?.avatarUrl ?: "",
-            mediaType = dto.type,
+            contactName = resolvedName,
+            contactAvatar = resolvedAvatar,
+            mediaType = resolvedMediaType,
             mediaUrl = dto.mediaUrl ?: "",
             textCaption = dto.content ?: "",
             backgroundColorHex = dto.backgroundColor ?: "#075E54",
             timestamp = parseDate(dto.createdAt),
-            isViewed = currentUserId != null && dto.viewers.any { it.userId == currentUserId },
-            isMyStatus = currentUserId != null && dto.userId == currentUserId,
+            isViewed = activeUid != null && dto.viewers.any { it.userId == activeUid },
+            isMyStatus = isMine,
             viewCount = dto.viewers.size,
             songTitle = sTitle,
             songArtist = sArtist,
@@ -1591,6 +1631,46 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    suspend fun purgeExpiredMessages(): Int {
+        return try {
+            dao.purgeExpiredMessages(System.currentTimeMillis())
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    suspend fun updateMessageTranscription(messageId: String, transcription: String) {
+        try {
+            dao.updateMessageTranscription(messageId, transcription)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateChatEphemeralDuration(chatId: String, duration: Int) {
+        try {
+            dao.updateChatEphemeralDuration(chatId, duration)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateChatLockStatus(chatId: String, isLocked: Boolean) {
+        try {
+            dao.updateChatLockStatus(chatId, isLocked)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateChatSubscriptionStatus(chatId: String, isSubscribed: Boolean) {
+        try {
+            dao.updateChatSubscriptionStatus(chatId, isSubscribed)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

@@ -60,6 +60,12 @@ class InAppUpdateWorker(
                 Log.d(TAG, "App is up to date (current: $currentVersionCode, remote: ${latestUpdate.versionCode})")
             }
             return Result.success()
+        } catch (e: java.net.SocketTimeoutException) {
+            Log.w(TAG, "Update check timed out (server sleeping or slow network): ${e.message}")
+            return Result.retry()
+        } catch (e: java.io.IOException) {
+            Log.w(TAG, "Network connection issue during update check: ${e.message}")
+            return Result.retry()
         } catch (e: Exception) {
             Log.e(TAG, "Error checking or downloading update", e)
             return Result.retry()

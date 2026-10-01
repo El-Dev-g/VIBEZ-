@@ -1,7 +1,6 @@
 package com.example.util
 
 import android.content.ContentResolver
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -49,24 +48,16 @@ object ImageUtils {
     }
 
     /**
-     * Converts a local content:// URI, file:// URI, or absolute file path into a compact,
-     * compressed JPEG Base64 data URI ("data:image/jpeg;base64,...") so it can be stored
-     * and synced across devices even when external object storage is unavailable.
+     * Compresses image bytes/URI on client-side to optimal dimensions (maxDimension)
+     * and JPEG quality, returning compressed ByteArray for network upload.
      */
-    fun encodeToDataUri(
+    fun compressImageBytes(
         contentResolver: ContentResolver,
         uriOrPath: String,
-        maxDimension: Int = 640,
-        quality: Int = 75
-    ): String? {
+        maxDimension: Int = 1080,
+        quality: Int = 80
+    ): ByteArray? {
         if (uriOrPath.isBlank()) return null
-        if (uriOrPath.startsWith("data:image", ignoreCase = true) ||
-            uriOrPath.startsWith("http://", ignoreCase = true) ||
-            uriOrPath.startsWith("https://", ignoreCase = true)
-        ) {
-            return uriOrPath
-        }
-
         return try {
             val inputStream: InputStream? = when {
                 uriOrPath.startsWith("/") -> {
@@ -97,13 +88,34 @@ object ImageUtils {
 
             val outputStream = ByteArrayOutputStream()
             scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-            val compressedBytes = outputStream.toByteArray()
-
-            val base64String = Base64.encodeToString(compressedBytes, Base64.NO_WRAP)
-            "data:image/jpeg;base64,$base64String"
+            outputStream.toByteArray()
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
+    }
+
+    /**
+     * Converts a local content:// URI, file:// URI, or absolute file path into a compact,
+     * compressed JPEG Base64 data URI ("data:image/jpeg;base64,...") so it can be stored
+     * and synced across devices even when external object storage is unavailable.
+     */
+    fun encodeToDataUri(
+        contentResolver: ContentResolver,
+        uriOrPath: String,
+        maxDimension: Int = 960,
+        quality: Int = 80
+    ): String? {
+        if (uriOrPath.isBlank()) return null
+        if (uriOrPath.startsWith("data:image", ignoreCase = true) ||
+            uriOrPath.startsWith("http://", ignoreCase = true) ||
+            uriOrPath.startsWith("https://", ignoreCase = true)
+        ) {
+            return uriOrPath
+        }
+
+        val compressedBytes = compressImageBytes(contentResolver, uriOrPath, maxDimension, quality) ?: return uriOrPath
+        val base64String = Base64.encodeToString(compressedBytes, Base64.NO_WRAP)
+        return "data:image/jpeg;base64,$base64String"
     }
 }
