@@ -2,6 +2,8 @@ package com.example.ui.screens
 
 import com.example.data.ContactEntity
 import com.example.data.ChatEntity
+import com.example.data.ChannelEntity
+import com.example.ui.components.VerifiedBadge
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -93,6 +95,8 @@ fun StatusListScreen(
     onViewersClick: (StatusEntity) -> Unit = {},
     onStatusPrivacyClick: () -> Unit = {},
     onMyStatusListClick: () -> Unit = {},
+    channels: List<ChannelEntity> = emptyList(),
+    onChannelClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var currentTime by androidx.compose.runtime.remember { mutableStateOf<Long>(System.currentTimeMillis()) }
@@ -599,6 +603,79 @@ fun StatusListScreen(
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 40.dp)
                         )
+                    }
+                }
+            }
+
+            // Channels Section
+            if (channels.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Channels",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Explore >",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = WhatsAppMinimalPrimary,
+                                modifier = Modifier.clickable { /* Explore logic */ }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Stay updated on topics that matter to you. Find channels to follow below.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                items(channels, key = { "channel_${it.id}" }) { channel ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onChannelClick(channel.id) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AvatarView(
+                            name = channel.name,
+                            avatarUrl = channel.avatarUrl,
+                            size = 52.dp,
+                            isVerified = channel.isVerified
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = channel.name,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (channel.isVerified || channel.isOfficial) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    VerifiedBadge(size = 16.dp)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = channel.lastMessage.takeIf { it.isNotBlank() } ?: "Official announcements and updates",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }

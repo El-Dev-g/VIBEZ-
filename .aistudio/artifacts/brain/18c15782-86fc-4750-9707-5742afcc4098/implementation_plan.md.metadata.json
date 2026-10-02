@@ -1,6 +1,6 @@
 {
-  "summary":  "Plan to fix status posting duplication and 'Unknown' poster name bug across server, Android, and iOS clients.",
-  "updatedAt":  "2026-09-30T21:09:54.034700191Z",
+  "summary":  "Architectural plan to isolate and decouple Groups, Channels, and One-on-One chats. This involves defining three separate database tables and entities (ChatEntity, GroupEntity, ChannelEntity), establishing distinct reactive data streams in the repository and viewmodels, and separating them visually in the user interface.",
+  "updatedAt":  "2026-10-01T09:16:49.880138606Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

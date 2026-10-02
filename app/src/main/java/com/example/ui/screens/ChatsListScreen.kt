@@ -28,6 +28,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
+import com.example.data.ChatEntity
+import com.example.data.ContactEntity
+import com.example.data.GroupEntity
+import com.example.data.ChannelEntity
+import com.example.data.toChatEntity
+import com.example.ui.components.AvatarView
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Chat
@@ -40,6 +46,10 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -70,9 +80,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.ChatEntity
-import com.example.data.ContactEntity
-import com.example.ui.components.AvatarView
 import com.example.ui.components.VerifiedBadge
 import com.example.ui.theme.WhatsAppEmerald
 import com.example.ui.theme.WhatsAppMinimalAccent
@@ -82,11 +89,14 @@ import com.example.ui.theme.WhatsAppMinimalPrimary
 fun ChatsListScreen(
     chats: List<ChatEntity>,
     contacts: List<ContactEntity> = emptyList(),
+    groups: List<com.example.data.GroupEntity> = emptyList(),
+    channels: List<com.example.data.ChannelEntity> = emptyList(),
     typingChatId: String? = null,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onChatClick: (String) -> Unit,
     onNewChatClick: () -> Unit,
+    onAiChatClick: () -> Unit = {},
     onAvatarClick: (String) -> Unit = {},
     onDeleteChat: (String) -> Unit = {},
     onDeleteChatsBulk: (List<String>) -> Unit = {},
@@ -257,11 +267,16 @@ fun ChatsListScreen(
 
     val categories = listOf("All", "Unread", "Groups", "Pinned")
 
-    val filteredChats = remember(chats, selectedCategory, searchQuery) {
-        chats.filter { chat ->
+    val filteredChats = remember(chats, groups, selectedCategory, searchQuery) {
+        val baseChats = when (selectedCategory) {
+            "Groups" -> groups.map { it.toChatEntity() }
+            "All", "Unread", "Pinned" -> chats + groups.map { it.toChatEntity() }
+            else -> chats
+        }
+
+        baseChats.filter { chat ->
             val matchesCategory = when (selectedCategory) {
                 "Unread" -> chat.unreadCount > 0
-                "Groups" -> chat.isGroup
                 "Pinned" -> chat.isPinned
                 else -> true
             }
@@ -270,24 +285,68 @@ fun ChatsListScreen(
                         chat.lastMessage.contains(searchQuery, ignoreCase = true)
             }
             matchesCategory && matchesQuery
-        }
+        }.sortedByDescending { it.lastMessageTime }
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         floatingActionButton = {
             if (!isSelectionMode) {
-                FloatingActionButton(
-                    onClick = onNewChatClick,
-                    containerColor = WhatsAppMinimalAccent,
-                    contentColor = Color.White,
-                    shape = RoundedCornerShape(20.dp),
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.padding(bottom = 12.dp, end = 4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Chat,
-                        contentDescription = "New chat"
-                    )
+                    // Vibez AI FAB: Positioned directly on top of the New Chat button
+                    FloatingActionButton(
+                        onClick = onAiChatClick,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = Color.Unspecified,
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .border(
+                                width = 2.dp,
+                                brush = Brush.sweepGradient(
+                                    listOf(
+                                        Color(0xFF00A884), // Emerald
+                                        Color(0xFF6366F1), // Indigo
+                                        Color(0xFFEC4899), // Pink
+                                        Color(0xFF3B82F6), // Blue
+                                        Color(0xFF00A884)
+                                    )
+                                ),
+                                shape = CircleShape
+                            )
+                            .testTag("vibez_ai_fab"),
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Vibez AI",
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    // New Chat Button (contacts)
+                    FloatingActionButton(
+                        onClick = onNewChatClick,
+                        containerColor = WhatsAppMinimalAccent,
+                        contentColor = Color.White,
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.testTag("new_chat_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = "New chat"
+                        )
+                    }
                 }
             }
         }

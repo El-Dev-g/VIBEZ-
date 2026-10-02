@@ -193,8 +193,11 @@ fun StatusViewersScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (status.mediaType == "IMAGE") {
+                                    val resolvedModel = remember(status.mediaUrl) {
+                                        com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: status.mediaUrl
+                                    }
                                     AsyncImage(
-                                        model = status.mediaUrl,
+                                        model = resolvedModel,
                                         contentDescription = "Status photo",
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize(),

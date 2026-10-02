@@ -44,6 +44,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
 
     // Room-backed Flow streams
     val allChats: Flow<List<ChatEntity>> = dao.getAllChats()
+    val allGroups: Flow<List<GroupEntity>> = dao.getAllGroups()
+    val allChannels: Flow<List<ChannelEntity>> = dao.getAllChannels()
     val allCommunities: Flow<List<CommunityEntity>> = dao.getAllCommunities()
     val allContacts: Flow<List<ContactEntity>> = dao.getAllContacts()
     val allStatuses: Flow<List<StatusEntity>> = dao.getAllStatuses()
@@ -370,23 +372,84 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                         ?: ""
                 }
 
-                val entity = ChatEntity(
-                    id = dto.id,
-                    remoteId = dto.id,
-                    contactId = resolvedContactId,
-                    contactName = resolvedContactName,
-                    contactAvatar = resolvedContactAvatar,
-                    lastMessage = dto.messages.firstOrNull()?.content ?: "",
-                    lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
-                    unreadCount = 0,
-                    isGroup = dto.isGroup,
-                    isMuted = dto.isMuted,
-                    customWallpaper = dto.wallpaper,
-                    isOfficial = isOff,
-                    isVerified = isVer || existingContact?.isVerified == true,
-                    allowComments = dto.allowComments
-                )
-                dao.insertChat(entity)
+                val memberIds = dto.members.map { it.userId }
+                
+                // Sync all group members into contacts so names/avatars are available
+                dto.members.forEach { member ->
+                    val user = member.user
+                    if (user.id.isNotBlank() && user.id != currentUserId && user.id != "ME") {
+                        val existing = dao.getContactById(user.id) ?: dao.getContactByRemoteId(user.id)
+                        val updated = ContactEntity(
+                            id = existing?.id ?: user.id,
+                            remoteId = user.id,
+                            name = existing?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" } ?: user.name ?: user.phoneNumber ?: "User",
+                            phoneNumber = user.phoneNumber ?: existing?.phoneNumber ?: "",
+                            avatarUrl = user.avatarUrl ?: existing?.avatarUrl ?: "",
+                            aboutStatus = user.about ?: existing?.aboutStatus ?: "Hey there! I am using VIBEZ.",
+                            isOnline = existing?.isOnline ?: false,
+                            lastSeen = user.lastSeen.takeIf { it.isNotBlank() } ?: existing?.lastSeen ?: "Recently",
+                            isVerified = user.isVerified || existing?.isVerified == true
+                        )
+                        dao.insertContact(updated)
+                    }
+                }
+
+                if (dto.isGroup && isOff) {
+                    val channelEntity = ChannelEntity(
+                        id = dto.id,
+                        remoteId = dto.id,
+                        name = resolvedContactName,
+                        avatarUrl = resolvedContactAvatar,
+                        lastMessage = dto.messages.firstOrNull()?.content ?: "",
+                        lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
+                        unreadCount = 0,
+                        isMuted = dto.isMuted,
+                        isVerified = isVer || existingContact?.isVerified == true,
+                        isOfficial = true,
+                        allowComments = dto.allowComments,
+                        memberIds = memberIds
+                    )
+                    dao.insertChannel(channelEntity)
+                    dao.deleteChat(dto.id)
+                    dao.deleteGroup(dto.id)
+                } else if (dto.isGroup) {
+                    val groupEntity = GroupEntity(
+                        id = dto.id,
+                        remoteId = dto.id,
+                        name = resolvedContactName,
+                        avatarUrl = resolvedContactAvatar,
+                        lastMessage = dto.messages.firstOrNull()?.content ?: "",
+                        lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
+                        unreadCount = 0,
+                        isMuted = dto.isMuted,
+                        isVerified = isVer || existingContact?.isVerified == true,
+                        allowComments = dto.allowComments,
+                        memberIds = memberIds
+                    )
+                    dao.insertGroup(groupEntity)
+                    dao.deleteChat(dto.id)
+                    dao.deleteChannel(dto.id)
+                } else {
+                    val entity = ChatEntity(
+                        id = dto.id,
+                        remoteId = dto.id,
+                        contactId = resolvedContactId,
+                        contactName = resolvedContactName,
+                        contactAvatar = resolvedContactAvatar,
+                        lastMessage = dto.messages.firstOrNull()?.content ?: "",
+                        lastMessageTime = parseDate(dto.messages.firstOrNull()?.createdAt),
+                        unreadCount = 0,
+                        isGroup = false,
+                        isMuted = dto.isMuted,
+                        customWallpaper = dto.wallpaper,
+                        isOfficial = false,
+                        isVerified = isVer || existingContact?.isVerified == true,
+                        allowComments = dto.allowComments
+                    )
+                    dao.insertChat(entity)
+                    dao.deleteGroup(dto.id)
+                    dao.deleteChannel(dto.id)
+                }
                 
                 // Sync messages for each chat
                 dto.messages.forEach { msgDto ->
@@ -418,17 +481,39 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     suspend fun addLocalMessage(message: MessageEntity) {
         removeDeletedChatId(message.chatId)
         dao.insertMessage(message)
+        
         val chat = dao.getChatById(message.chatId)
         if (chat != null) {
             dao.updateChat(chat.copy(
                 lastMessage = if (message.messageType == "VOICE") "🎤 Voice note" else message.content,
                 lastMessageTime = message.timestamp
             ))
-        } else if (message.chatId == "vibez_ai_chat") {
+            return
+        }
+        
+        val group = dao.getGroupById(message.chatId)
+        if (group != null) {
+            dao.updateGroup(group.copy(
+                lastMessage = if (message.messageType == "VOICE") "🎤 Voice note" else message.content,
+                lastMessageTime = message.timestamp
+            ))
+            return
+        }
+        
+        val channel = dao.getChannelById(message.chatId)
+        if (channel != null) {
+            dao.updateChannel(channel.copy(
+                lastMessage = if (message.messageType == "VOICE") "🎤 Voice note" else message.content,
+                lastMessageTime = message.timestamp
+            ))
+            return
+        }
+        
+        if (message.chatId == "vibez_ai_chat") {
             dao.insertChat(ChatEntity(
                 id = "vibez_ai_chat",
                 contactId = "vibez_ai",
-                contactName = "VIBEZ AI Assistant",
+                contactName = "Vibez AI",
                 contactAvatar = "",
                 lastMessage = message.content,
                 lastMessageTime = message.timestamp,
@@ -497,6 +582,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
 
     suspend fun resetChatUnreadCount(chatId: String, userId: String) {
         dao.resetChatUnreadCount(chatId)
+        dao.resetGroupUnreadCount(chatId)
+        dao.resetChannelUnreadCount(chatId)
         dao.markMessagesAsRead(chatId, userId)
         socketManager?.emitMessageRead(chatId, userId)
     }
@@ -512,11 +599,42 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             e.printStackTrace()
         }
     }
+    suspend fun updateGroupChat(groupId: String, name: String?, avatarUrl: String?, token: String) {
+        try {
+            NetworkClient.apiService.updateChat("Bearer $token", groupId, UpdateChatRequest(name = name, avatarUrl = avatarUrl))
+            val group = dao.getGroupById(groupId)
+            if (group != null) {
+                dao.updateGroup(group.copy(
+                    name = name ?: group.name,
+                    avatarUrl = avatarUrl ?: group.avatarUrl
+                ))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateChannelChat(channelId: String, name: String?, avatarUrl: String?, token: String) {
+        try {
+            NetworkClient.apiService.updateChat("Bearer $token", channelId, UpdateChatRequest(name = name, avatarUrl = avatarUrl))
+            val channel = dao.getChannelById(channelId)
+            if (channel != null) {
+                dao.updateChannel(channel.copy(
+                    name = name ?: channel.name,
+                    avatarUrl = avatarUrl ?: channel.avatarUrl
+                ))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     suspend fun updateChatMuteStatus(chatId: String, isMuted: Boolean, token: String) {
         try {
             NetworkClient.apiService.updateChat("Bearer $token", chatId, UpdateChatRequest(isMuted = isMuted))
             dao.updateChatMuteStatus(chatId, isMuted)
+            dao.updateGroupMuteStatus(chatId, isMuted)
+            dao.updateChannelMuteStatus(chatId, isMuted)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -525,12 +643,63 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     suspend fun updateChatPinStatus(chatId: String, isPinned: Boolean) {
         try {
             dao.updateChatPinStatus(chatId, isPinned)
+            dao.updateGroupPinStatus(chatId, isPinned)
+            dao.updateChannelPinStatus(chatId, isPinned)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    suspend fun getChatById(chatId: String): ChatEntity? = dao.getChatById(chatId)
+    suspend fun getChatById(chatId: String): ChatEntity? {
+        val direct = dao.getChatById(chatId)
+        if (direct != null) return direct
+        
+        val group = dao.getGroupById(chatId)
+        if (group != null) {
+            return ChatEntity(
+                id = group.id,
+                remoteId = group.remoteId,
+                contactId = "",
+                contactName = group.name,
+                contactAvatar = group.avatarUrl,
+                lastMessage = group.lastMessage,
+                lastMessageTime = group.lastMessageTime,
+                unreadCount = group.unreadCount,
+                isPinned = group.isPinned,
+                isGroup = true,
+                isMuted = group.isMuted,
+                customWallpaper = group.customWallpaper,
+                isVerified = group.isVerified,
+                isOfficial = false,
+                allowComments = group.allowComments,
+                ephemeralDuration = group.ephemeralDuration,
+                isLocked = group.isLocked
+            )
+        }
+        
+        val channel = dao.getChannelById(chatId)
+        if (channel != null) {
+            return ChatEntity(
+                id = channel.id,
+                remoteId = channel.remoteId,
+                contactId = "",
+                contactName = channel.name,
+                contactAvatar = channel.avatarUrl,
+                lastMessage = channel.lastMessage,
+                lastMessageTime = channel.lastMessageTime,
+                unreadCount = channel.unreadCount,
+                isPinned = channel.isPinned,
+                isGroup = true,
+                isMuted = channel.isMuted,
+                customWallpaper = channel.customWallpaper,
+                isVerified = channel.isVerified,
+                isOfficial = true,
+                allowComments = channel.allowComments,
+                isSubscribed = channel.isSubscribed
+            )
+        }
+        return null
+    }
     suspend fun getMessageById(messageId: String): MessageEntity? = dao.getMessageById(messageId)
 
     suspend fun deleteMessage(messageId: String, token: String) {
@@ -596,6 +765,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             addDeletedChatId(chatId)
             NetworkClient.apiService.deleteChat("Bearer $token", chatId)
             dao.deleteChat(chatId)
+            dao.deleteGroup(chatId)
+            dao.deleteChannel(chatId)
             dao.clearChatMessages(chatId)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -1109,7 +1280,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             val dtos = NetworkClient.apiService.getCommunityChats("Bearer $token", communityId)
             val entities = dtos.mapNotNull { dto ->
                 if (dto.id.isBlank()) return@mapNotNull null
-                val isOff = dto.isGroup && (dto.isOfficial || dto.id.contains("system_official", ignoreCase = true))
+                val isOff = dto.isGroup && (!dto.allowComments || dto.id.contains("system_official", ignoreCase = true))
                 ChatEntity(
                     id = dto.id,
                     remoteId = dto.id,

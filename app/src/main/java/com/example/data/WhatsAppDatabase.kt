@@ -13,9 +13,11 @@ import androidx.room.TypeConverters
         ContactEntity::class,
         CallLogEntity::class,
         StatusEntity::class,
-        CommunityEntity::class
+        CommunityEntity::class,
+        GroupEntity::class,
+        ChannelEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -80,6 +80,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.Player
 
 @Composable
 fun StatusViewerScreen(
@@ -195,14 +198,43 @@ fun StatusPageItem(
     var screenWidth by remember { mutableStateOf(0f) }
     var screenHeight by remember { mutableStateOf(0f) }
 
-    // Music control logic
-    LaunchedEffect(isCurrentPage, status.songPreviewUrl) {
-        if (isCurrentPage && status.songPreviewUrl != null) {
-            val mediaItem = MediaItem.fromUri(status.songPreviewUrl)
-            exoPlayer.setMediaItem(mediaItem)
-            exoPlayer.prepare()
-        } else if (isCurrentPage && status.songPreviewUrl == null) {
-            exoPlayer.stop()
+    var videoDuration by remember { mutableLongStateOf(6000L) }
+
+    // Media & Music control logic
+    LaunchedEffect(isCurrentPage, status.mediaType, status.mediaUrl, status.songPreviewUrl) {
+        if (isCurrentPage) {
+            val uriToPlay = if (status.mediaType.equals("VIDEO", ignoreCase = true)) {
+                status.mediaUrl
+            } else {
+                status.songPreviewUrl
+            }
+            if (uriToPlay != null && uriToPlay.isNotBlank()) {
+                val mediaItem = MediaItem.fromUri(uriToPlay)
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
+                exoPlayer.playWhenReady = !isPaused
+            } else {
+                exoPlayer.stop()
+            }
+        }
+    }
+
+    DisposableEffect(exoPlayer, isCurrentPage, status.mediaType) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY && isCurrentPage) {
+                    val dur = exoPlayer.duration
+                    if (dur > 0 && status.mediaType.equals("VIDEO", ignoreCase = true)) {
+                        videoDuration = dur
+                    }
+                }
+            }
+        }
+        if (isCurrentPage) {
+            exoPlayer.addListener(listener)
+        }
+        onDispose {
+            exoPlayer.removeListener(listener)
         }
     }
 
@@ -212,14 +244,14 @@ fun StatusPageItem(
         }
     }
 
-    LaunchedEffect(isCurrentPage, isPaused) {
+    LaunchedEffect(isCurrentPage, isPaused, videoDuration) {
         if (isCurrentPage) {
             if (!isPaused) {
                 if (progress.value == 0f) {
                     onStatusViewed()
                 }
                 val remainingFraction = 1f - progress.value
-                val duration = (remainingFraction * 6000).toInt()
+                val duration = (remainingFraction * videoDuration).toInt()
                 
                 if (duration > 0) {
                     progress.animateTo(
@@ -280,10 +312,21 @@ fun StatusPageItem(
     ) {
         // Status Background Media / Content
         val isImageStatus = status.mediaType.equals("IMAGE", ignoreCase = true) ||
-                status.mediaType.equals("PHOTO", ignoreCase = true) ||
-                status.mediaUrl.isNotBlank()
+                status.mediaType.equals("PHOTO", ignoreCase = true)
+        val isVideoStatus = status.mediaType.equals("VIDEO", ignoreCase = true)
 
-        if (isImageStatus && status.mediaUrl.isNotBlank()) {
+        if (isVideoStatus && status.mediaUrl.isNotBlank()) {
+            AndroidView(
+                factory = { ctx ->
+                    androidx.media3.ui.PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = false
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (isImageStatus && status.mediaUrl.isNotBlank()) {
             val statusImageModel = remember(status.mediaUrl) {
                 com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: status.mediaUrl
             }

@@ -486,7 +486,31 @@ io.on('connection', (socket) => {
         include: { members: true }
       });
 
-      // Self-healing: If chat doesn't exist by pureChatId, check if pureChatId is a User ID or target receiver
+      // Self-healing: If chat doesn't exist by pureChatId, check if pureChatId is Vibez AI, a User ID, or target receiver
+      if (!chat) {
+        if (pureChatId === 'vibez_ai_chat' || pureChatId === 'vibez_ai') {
+          chat = await prisma.chat.upsert({
+            where: { id: pureChatId },
+            create: {
+              id: pureChatId,
+              name: 'Vibez AI',
+              isOfficial: true,
+              isVerified: true,
+              isGroup: false,
+              members: senderId ? {
+                create: [{ userId: senderId }]
+              } : undefined
+            },
+            update: {
+              name: 'Vibez AI',
+              isOfficial: true,
+              isVerified: true
+            },
+            include: { members: true }
+          });
+        }
+      }
+
       if (!chat) {
         const targetUserId = data.receiverId || (await prisma.user.findUnique({ where: { id: pureChatId } }))?.id;
         if (targetUserId && senderId) {

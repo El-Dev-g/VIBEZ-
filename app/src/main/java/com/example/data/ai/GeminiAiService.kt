@@ -37,7 +37,7 @@ object GeminiAiService {
         chatHistory: List<Pair<String, String>> = emptyList()
     ): String = withContext(Dispatchers.IO) {
         if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            return@withContext "🤖 [VIBEZ AI Assistant]: Hello! To activate live Gemini AI responses, please add your Gemini API key in AI Studio Secrets panel."
+            return@withContext "✨ Hello! I'm Vibez AI, your personal assistant in Vibez. To activate live Gemini AI responses, please add your Gemini API key in AI Studio Secrets panel. Meanwhile, feel free to explore or draft questions!"
         }
 
         try {

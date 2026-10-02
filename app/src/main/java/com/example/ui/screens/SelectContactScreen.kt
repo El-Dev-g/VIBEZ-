@@ -84,6 +84,7 @@ import com.example.ui.components.AvatarView
 import com.example.ui.theme.WhatsAppMinimalAccent
 import com.example.ui.theme.WhatsAppMinimalNavPill
 import com.example.ui.theme.WhatsAppMinimalPrimary
+import com.example.ui.theme.WhatsAppEmerald
 import kotlinx.coroutines.launch
 
 data class DeviceContactRaw(
@@ -104,7 +105,9 @@ fun SelectContactScreen(
     onNewContactClick: () -> Unit,
     onQrScanClick: (() -> Unit)? = null,
     onSyncPhoneNumbers: ((List<String>) -> Unit)? = null,
-    onAiChatClick: (() -> Unit)? = null
+    onAiChatClick: (() -> Unit)? = null,
+    groupId: String? = null,
+    onAddParticipants: (List<String>) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -112,6 +115,8 @@ fun SelectContactScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+    val selectedIds = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    val isAddingParticipants = groupId != null
 
     var hasContactPermission by remember {
         mutableStateOf(
@@ -263,9 +268,13 @@ fun SelectContactScreen(
                         )
                     } else {
                         Column {
-                            Text(text = "Select Contact", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             Text(
-                                text = "$totalContactsCount contacts (${filteredRegisteredContacts.size} on VIBEZ)",
+                                text = if (isAddingParticipants) "Add participants" else "Select Contact",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (isAddingParticipants) "${selectedIds.size} selected" else "$totalContactsCount contacts (${filteredRegisteredContacts.size} on VIBEZ)",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -327,6 +336,18 @@ fun SelectContactScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
+        },
+        floatingActionButton = {
+            if (isAddingParticipants && selectedIds.isNotEmpty()) {
+                androidx.compose.material3.FloatingActionButton(
+                    onClick = { onAddParticipants(selectedIds.toList()) },
+                    containerColor = WhatsAppEmerald,
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Check, contentDescription = "Confirm")
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -433,7 +454,7 @@ fun SelectContactScreen(
                     }
                 }
 
-                // Action 0: VIBEZ AI Assistant
+                // Action 0: Vibez AI
                 if (onAiChatClick != null) {
                     item {
                         Row(
@@ -455,7 +476,7 @@ fun SelectContactScreen(
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = "VIBEZ AI Assistant", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = "Vibez AI", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Surface(
                                         shape = RoundedCornerShape(6.dp),
@@ -582,10 +603,28 @@ fun SelectContactScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onContactSelect(contact) }
+                                    .clickable {
+                                        if (isAddingParticipants) {
+                                            if (selectedIds.contains(contact.id)) selectedIds.remove(contact.id)
+                                            else selectedIds.add(contact.id)
+                                        } else {
+                                            onContactSelect(contact)
+                                        }
+                                    }
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                if (isAddingParticipants) {
+                                    androidx.compose.material3.Checkbox(
+                                        checked = selectedIds.contains(contact.id),
+                                        onCheckedChange = { checked ->
+                                            if (checked) selectedIds.add(contact.id)
+                                            else selectedIds.remove(contact.id)
+                                        },
+                                        colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = WhatsAppEmerald)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
                                  AvatarView(
                                     name = contact.name,
                                     avatarUrl = contact.avatarUrl,

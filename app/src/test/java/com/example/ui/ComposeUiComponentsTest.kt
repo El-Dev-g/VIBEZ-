@@ -12,6 +12,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.example.data.CallLogEntity
 import com.example.data.ChatEntity
+import com.example.data.StatusEntity
+import com.example.ui.components.StatusPreviewView
 import com.example.ui.screens.CallsListScreen
 import com.example.ui.screens.ChatsListScreen
 import com.example.ui.screens.SettingsScreen
@@ -142,5 +144,47 @@ class ComposeUiComponentsTest {
         composeTestRule.waitForIdle()
 
         assertTrue("Badge click should trigger receipt callback when verified", badgeReceiptClicked)
+    }
+
+    @Test
+    fun testStatusPreviewViewRendersBase64AndTextStatus() {
+        val base64ImageUri = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
+        val imageStatus = StatusEntity(
+            id = "status_img_1",
+            contactId = "user_status_1",
+            contactName = "Sarah Jenkins",
+            mediaType = "IMAGE",
+            mediaUrl = base64ImageUri,
+            textCaption = "Sunset vibe!"
+        )
+
+        val textStatus = StatusEntity(
+            id = "status_txt_1",
+            contactId = "user_status_1",
+            contactName = "Sarah Jenkins",
+            mediaType = "TEXT",
+            mediaUrl = "",
+            textCaption = "Hello world vibe!",
+            backgroundColorHex = "#075E54"
+        )
+
+        composeTestRule.setContent {
+            WhatsAppTheme {
+                androidx.compose.foundation.layout.Column {
+                    StatusPreviewView(
+                        status = imageStatus,
+                        statusCount = 1,
+                        isStatusViewed = false
+                    )
+                    StatusPreviewView(
+                        status = textStatus,
+                        statusCount = 2,
+                        isStatusViewed = true
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Hello world vibe!").assertIsDisplayed()
     }
 }

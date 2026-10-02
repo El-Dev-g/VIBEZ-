@@ -55,7 +55,29 @@ export class ChatController {
         include: { members: true }
       });
 
-      // If not found, check if cleanId is a target User ID and find the private 1-on-1 chat
+      // If not found, check if cleanId is Vibez AI or a target User ID and find the private 1-on-1 chat
+      if (!chat && (cleanId === 'vibez_ai_chat' || cleanId === 'vibez_ai')) {
+        chat = await prisma.chat.upsert({
+          where: { id: cleanId },
+          create: {
+            id: cleanId,
+            name: 'Vibez AI',
+            isOfficial: true,
+            isVerified: true,
+            isGroup: false,
+            members: currentUserId ? {
+              create: [{ userId: currentUserId }]
+            } : undefined
+          },
+          update: {
+            name: 'Vibez AI',
+            isOfficial: true,
+            isVerified: true
+          },
+          include: { members: true }
+        });
+      }
+
       if (!chat && currentUserId) {
         const targetUser = await prisma.user.findUnique({ where: { id: cleanId } });
         if (targetUser) {
@@ -72,7 +94,7 @@ export class ChatController {
         }
       }
 
-      if (chat) {
+      if (chat && chat.id !== 'vibez_ai_chat' && chat.id !== 'vibez_ai') {
         // Enforce membership authorization: user must be a member of the chat or an admin
         const isMember = chat.members.some(m => m.userId === currentUserId);
         if (!isMember && !req.user?.isAdmin) {
@@ -262,6 +284,57 @@ export class ChatController {
       }
       console.error('Failed to update chat:', error);
       res.status(500).json({ error: 'Failed to update chat' });
+    }
+  }
+
+  async addMembers(req: AuthRequest, res: Response) {
+    try {
+      const { chatId } = req.params;
+      const { memberIds } = req.body;
+      const currentUserId = req.user?.id as string;
+
+      if (!chatId || !memberIds || !Array.isArray(memberIds)) {
+        return res.status(400).json({ error: 'Chat ID and member IDs array are required' });
+      }
+
+      const existing = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { members: true }
+      });
+
+      if (!existing || !existing.isGroup) {
+        return res.status(404).json({ error: 'Group chat not found' });
+      }
+
+      const isMember = existing.members.some(m => m.userId === currentUserId);
+      if (!isMember) {
+        return res.status(403).json({ error: 'Access denied: not a member of this chat' });
+      }
+
+      const newMembers = memberIds.filter(mid => !existing.members.some(m => m.userId === mid));
+
+      if (newMembers.length > 0) {
+        await prisma.chatMember.createMany({
+          data: newMembers.map(uid => ({
+            chatId,
+            userId: uid
+          })),
+          skipDuplicates: true
+        });
+      }
+
+      const updatedChat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: {
+          members: { include: { user: true } },
+          messages: { take: 1, orderBy: { createdAt: 'desc' } }
+        }
+      });
+
+      res.json(updatedChat);
+    } catch (error) {
+      console.error('Failed to add members:', error);
+      res.status(500).json({ error: 'Failed to add group members' });
     }
   }
 

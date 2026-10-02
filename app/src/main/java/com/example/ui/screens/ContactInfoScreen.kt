@@ -14,55 +14,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Photo
-import androidx.compose.runtime.LaunchedEffect
 import coil.compose.AsyncImage
+import com.example.R
 import com.example.data.ChatEntity
 import com.example.data.ContactEntity
 import com.example.data.MessageEntity
@@ -87,22 +63,70 @@ fun ContactInfoScreen(
     onClearChatClick: () -> Unit,
     onDeleteChatClick: () -> Unit,
     onReportClick: (String, String) -> Unit = { _, _ -> },
-    onToggleGroupVerifyPerk: () -> Unit = {}
+    onToggleGroupVerifyPerk: () -> Unit = {},
+    groupMembers: List<ContactEntity> = emptyList(),
+    currentUserId: String = "",
+    onUpdateGroup: (String?, String?) -> Unit = { _, _ -> },
+    onMemberClick: (String) -> Unit = {},
+    onAddMember: () -> Unit = {}
 ) {
+    val isGroupChat = chat?.isGroup == true
+    val isChannel = isGroupChat && chat?.isOfficial == true
+
     var isMuted by remember { mutableStateOf(chat?.isMuted == true) }
+    var showEditNameDialog by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf(chat?.contactName ?: "") }
+
+    val context = LocalContext.current
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            uri?.let {
+                onUpdateGroup(null, it.toString())
+            }
+        }
+    )
 
     LaunchedEffect(chat?.isMuted) {
         isMuted = chat?.isMuted == true
     }
 
-    val isGroupChat = chat?.isGroup == true
-    val isChannel = isGroupChat && chat?.isOfficial == true
+    if (showEditNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditNameDialog = false },
+            title = { Text(if (isChannel) "Edit Channel Name" else "Edit Group Name") },
+            text = {
+                TextField(
+                    value = newGroupName,
+                    onValueChange = { newGroupName = it },
+                    placeholder = { Text("Enter group name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onUpdateGroup(newGroupName, null)
+                    showEditNameDialog = false
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditNameDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     val displayName = chat?.contactName?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
         ?: contact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
         ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
         ?: chat?.contactName?.takeIf { it.isNotBlank() }
         ?: contact?.name?.takeIf { it.isNotBlank() }
         ?: "User"
+
     val displayAvatar = contact?.avatarUrl?.takeIf { it.isNotBlank() }
         ?: chat?.contactAvatar?.takeIf { it.isNotBlank() }
         ?: ""
@@ -133,22 +157,60 @@ fun ContactInfoScreen(
                         .padding(vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    AvatarView(
-                        name = displayName,
-                        avatarUrl = displayAvatar,
-                        isGroup = isGroupChat,
-                        isOfficial = isChannel,
-                        isVerified = isChannel || chat?.isVerified == true || contact?.isVerified == true,
-                        size = 110.dp
-                    )
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        AvatarView(
+                            name = displayName,
+                            avatarUrl = displayAvatar,
+                            isGroup = isGroupChat,
+                            isOfficial = isChannel,
+                            isVerified = isChannel || chat?.isVerified == true || contact?.isVerified == true,
+                            size = 110.dp
+                        )
+                        if (isGroupChat || isChannel) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(WhatsAppEmerald)
+                                    .clickable {
+                                        photoPickerLauncher.launch(
+                                            androidx.activity.result.PickVisualMediaRequest(
+                                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                                            )
+                                        )
+                                    }
+                                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "Change photo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable(enabled = isGroupChat || isChannel) { showEditNameDialog = true }
+                    ) {
                         Text(
                             text = displayName,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+                        if (isGroupChat || isChannel) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit name",
+                                tint = WhatsAppEmerald,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         if (isChannel || chat?.isVerified == true || contact?.isVerified == true) {
                             Spacer(modifier = Modifier.width(6.dp))
                             VerifiedBadge(size = 22.dp)
@@ -230,9 +292,7 @@ fun ContactInfoScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                onAllMediaClick()
-                            }
+                            .clickable { onAllMediaClick() }
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -287,46 +347,22 @@ fun ContactInfoScreen(
                                     ) {
                                         when (msg.messageType) {
                                             "IMAGE" -> {
-                                                val thumbModel = androidx.compose.runtime.remember(msg.mediaUrl) {
-                                                    com.example.util.ImageUtils.resolveImageModel(msg.mediaUrl) ?: msg.mediaUrl
-                                                }
                                                 AsyncImage(
-                                                    model = thumbModel,
+                                                    model = msg.mediaUrl,
                                                     contentDescription = "Shared photo",
                                                     modifier = Modifier.fillMaxSize(),
-                                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                                                )
-                                            }
-                                            "VOICE" -> {
-                                                Icon(
-                                                    imageVector = Icons.Default.Mic,
-                                                    contentDescription = "Voice note",
-                                                    tint = WhatsAppEmerald,
-                                                    modifier = Modifier.size(28.dp)
-                                                )
-                                            }
-                                            "DOCUMENT" -> {
-                                                Icon(
-                                                    imageVector = Icons.Default.Description,
-                                                    contentDescription = "Shared document",
-                                                    tint = WhatsAppEmerald,
-                                                    modifier = Modifier.size(28.dp)
-                                                )
-                                            }
-                                            "LOCATION" -> {
-                                                Icon(
-                                                    imageVector = Icons.Default.LocationOn,
-                                                    contentDescription = "Shared location",
-                                                    tint = WhatsAppEmerald,
-                                                    modifier = Modifier.size(28.dp)
+                                                    contentScale = ContentScale.Crop
                                                 )
                                             }
                                             else -> {
                                                 Icon(
-                                                    imageVector = Icons.Default.Photo,
-                                                    contentDescription = "Media file",
-                                                    tint = WhatsAppEmerald,
-                                                    modifier = Modifier.size(28.dp)
+                                                    imageVector = when(msg.messageType) {
+                                                        "VIDEO" -> Icons.Default.PlayArrow
+                                                        "AUDIO" -> Icons.Default.Mic
+                                                        else -> Icons.Default.Description
+                                                    },
+                                                    contentDescription = null,
+                                                    tint = Color.Gray
                                                 )
                                             }
                                         }
@@ -339,71 +375,111 @@ fun ContactInfoScreen(
                 HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
-            // VIBEZ Pro Subscriber Official Group Perk
-            if (chat?.isGroup == true) {
+            // Participants section (for groups)
+            if (isGroupChat && groupMembers.isNotEmpty()) {
                 item {
-                    Card(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (chat.isVerified || chat.isOfficial) Color(0xFF1D9BF0).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
-                        ),
-                        shape = RoundedCornerShape(20.dp),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (chat.isVerified || chat.isOfficial) Color(0xFF1D9BF0).copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
+                            .padding(vertical = 14.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "Official Group Badge",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = if (chat.isVerified || chat.isOfficial) Color(0xFF1D9BF0) else MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    VerifiedBadge(size = 18.dp)
-                                }
-                                Text(
-                                    text = if (chat.isVerified || chat.isOfficial)
-                                        "Official Verified Badge active for this group chat."
-                                    else
-                                        "Apply your VIBEZ Pro perk to grant an Official Verified Badge to 1 owned group.",
-                                    fontSize = 12.sp,
-                                    color = if (chat.isVerified || chat.isOfficial) Color(0xFF1D9BF0) else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = chat.isVerified || chat.isOfficial,
-                                onCheckedChange = { onToggleGroupVerifyPerk() },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF1D9BF0)
-                                )
+                            Text(
+                                text = "${groupMembers.size} participants",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search members",
+                                tint = WhatsAppEmerald,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
+
+                        // Add Participants Row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onAddMember() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(WhatsAppEmerald),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PersonAdd,
+                                    contentDescription = "Add",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Text(
+                                text = "Add participants",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = WhatsAppEmerald
+                            )
+                        }
+
+                        groupMembers.forEach { member ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onMemberClick(member.id) }
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AvatarView(
+                                    name = member.name,
+                                    avatarUrl = member.avatarUrl,
+                                    size = 40.dp,
+                                    isVerified = member.isVerified
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = member.name,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = member.aboutStatus,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
                     }
+                    HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
                 }
             }
 
-            // Settings options list
+            // Mute and other settings
             item {
-                // Mute
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            val target = !isMuted
-                            isMuted = target
+                            isMuted = !isMuted
                             chat?.let { onToggleMuteChat(it.id) }
                         }
                         .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -414,15 +490,14 @@ fun ContactInfoScreen(
                     Text(text = "Mute notifications", fontSize = 16.sp, modifier = Modifier.weight(1f))
                     Switch(
                         checked = isMuted,
-                        onCheckedChange = { checked ->
-                            isMuted = checked
+                        onCheckedChange = {
+                            isMuted = it
                             chat?.let { onToggleMuteChat(it.id) }
                         },
                         colors = SwitchDefaults.colors(checkedThumbColor = WhatsAppEmerald)
                     )
                 }
-
-                // Encryption
+                
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -436,23 +511,7 @@ fun ContactInfoScreen(
                         Text(text = "Messages and calls are end-to-end encrypted. Tap to verify.", fontSize = 13.sp, color = Color.Gray)
                     }
                 }
-
-                // Disappearing messages
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(imageVector = Icons.Default.Timer, contentDescription = "Disappearing", tint = Color.Gray)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Disappearing messages", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        Text(text = "Off", fontSize = 13.sp, color = Color.Gray)
-                    }
-                }
-
-                // Starred messages
+                
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -464,70 +523,60 @@ fun ContactInfoScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(text = "Starred messages", fontSize = 16.sp)
                 }
-
+                
                 HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
             // Destructive Actions
-            if (!isChannel) {
-                item {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onDeleteChatClick)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = when {
+                            isChannel -> "Delete channel"
+                            isGroupChat -> "Exit group"
+                            else -> "Delete chat"
+                        },
+                        fontSize = 16.sp,
+                        color = Color.Red,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (!isGroupChat && !isChannel) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(onClick = onDeleteChatClick)
+                            .clickable { /* Block logic */ }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                        Icon(imageVector = Icons.Default.Block, contentDescription = "Block", tint = Color.Red)
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(text = if (isGroupChat) "Exit group" else "Delete chat", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                        Text(text = "Block contact", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
                     }
 
-                    if (!isGroupChat) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(imageVector = Icons.Default.Block, contentDescription = "Block", tint = Color.Red)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(text = "Block contact", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    val targetId = chat?.contactId?.takeIf { it.isNotBlank() } ?: contact?.id ?: ""
-                                    val targetName = displayName
-                                    onReportClick(targetId, targetName)
-                                }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(imageVector = Icons.Default.Warning, contentDescription = "Report", tint = Color.Red)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(text = "Report contact", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            } else {
-                item {
-                    Box(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
+                            .clickable {
+                                val targetId = chat?.contactId?.takeIf { it.isNotBlank() } ?: contact?.id ?: ""
+                                val targetName = displayName
+                                onReportClick(targetId, targetName)
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "This is a mandatory system community. You cannot leave or block official system protocols.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Icon(imageVector = Icons.Default.Warning, contentDescription = "Report", tint = Color.Red)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(text = "Report contact", fontSize = 16.sp, color = Color.Red, fontWeight = FontWeight.Bold)
                     }
                 }
             }

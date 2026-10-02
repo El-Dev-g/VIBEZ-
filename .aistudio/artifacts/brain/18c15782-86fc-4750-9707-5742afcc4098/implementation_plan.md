@@ -1,96 +1,88 @@
-# Fix Status Posting Duplication & "Unknown" Poster Name Bug
+# Implementation Plan - Decoupling Groups, Channels, and One-on-One Chats
 
-Plan to fix status posting issues where newly posted status updates appear as duplicate entries and display "Unknown" as the status poster name.
+Decoupling the monolithic Chat system into three separate, dedicated database entities and visual streams: **One-on-One Chats**, **Groups**, and **Channels**.
 
----
-
-## User Review & Critical Decisions
-
-> [!IMPORTANT]
-> The root cause was identified across both backend server response formatting and client-side status mapping:
-> 1. **Missing User Data in Server Response**: `prisma.status.create` in `StatusController.ts` returned status objects without including the `user` relation (`dto.user` was `null`), causing clients to default the poster name to `"Unknown"`.
-> 2. **Unauthenticated ID Check on Client Insert**: `WhatsAppRepository.postStatus` passed `null` as `currentUserId` when mapping the API response DTO into `StatusEntity`. This evaluated `isMyStatus` to `false`, causing local Room DB to render the user's own status under contact updates as "Unknown" before later syncing into "My Status" (producing a duplicate item).
-
-- **Confirmed Fix Strategy 1 (Server Side)**: Update `StatusController.ts` in `server/src/controllers/StatusController.ts` so `prisma.status.create` includes `{ user: true, views: { include: { user: true } } }`.
-- **Confirmed Fix Strategy 2 (Android Client)**: Pass the active `currentUserId` in `postStatus` and `mapStatusDtoToEntity`, falling back to `AuthManager` user name and avatar whenever `isMyStatus` is `true`.
-- **Confirmed Fix Strategy 3 (iOS Client)**: Update `VibezStore.swift` status mapping to fallback to `currentUserName` whenever `isMyStatus` is `true`.
+> [!NOTE]
+> Following your decision to represent these features as **separate database tables**, this plan details the schema redesign, repository refactoring, and UI isolation to cleanly segregate these scopes.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Fixes**:
-  - Eliminates status duplication in the Updates/Status tab immediately upon posting.
-  - Ensures newly posted status updates display the user's actual display name and avatar instead of "Unknown".
+Currently, Groups and Channels are overloaded inside the monolithic `ChatEntity` table using a series of boolean flags (`isGroup` and `isOfficial`). This plan establishes full database-level and UI-level isolation:
+
+- **One-on-One Chats**: Strictly private conversations between two users (`chats` table / `ChatEntity`).
+- **Groups**: Collaborative multi-way group chats (`groups` table / `GroupEntity`).
+- **Channels**: Broadcast-only announcement feeds (`channels` table / `ChannelEntity`).
 
 ---
 
 ## 2. User Experience & Visual Design
 
-### Key User Flow
+### Key User Flows
 
-```
-  ┌───────────────────────────┐
-  │ CreateStatusScreen        │
-  │ (User posts text/photo)   │
-  └─────────────┬─────────────┘
-                │
-                ▼
-  ┌───────────────────────────┐
-  │ Server: createStatus      │
-  │ (Includes user relation)  │
-  └─────────────┬─────────────┘
-                │
-                ▼
-  ┌───────────────────────────┐
-  │ Repository: postStatus    │
-  │ (isMyStatus = true, name) │
-  └─────────────┬─────────────┘
-                │
-                ▼
-  ┌───────────────────────────┐
-  │ StatusListScreen          │
-  │ (Single entry in "My      │
-  │  Status" with real name)  │
-  └───────────────────────────┘
-```
+- **Main Navigation & Tabs**: The main screen will display segregated sections or tabs for **Chats**, **Groups**, and **Channels** so that group creations or channel broadcasts never clutter 1-on-1 private conversations.
+- **Dedicated List Views**:
+  - **Chats Feed**: Lists only private, individual contacts.
+  - **Groups Feed**: Lists only group discussions with quick actions to create a new group.
+  - **Channels Feed**: Lists only verified broadcast/official campaign feeds with options to discover channels.
 
 ---
 
-## 3. Technical Architecture & Component Changes
+## 3. Database Schema Redesign (Room Integration)
+
+We will introduce three separate tables in `WhatsAppDatabase.kt` to split data concerns cleanly.
+
+### Fenced Component Diagram
 
 ```
-┌───────────────────────────────────────────────────────────────────────────┐
-│ Server: StatusController.ts                                               │
-│ • prisma.status.create({ include: { user: true, views: ... } })           │
-└─────────────────────────────────────┬─────────────────────────────────────┘
-                                      │
-                                      ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│ Android Repository: WhatsAppRepository.kt                                 │
-│ • postStatus: pass currentUserId                                          │
-│ • mapStatusDtoToEntity: fallback contactName to AuthManager.getUserName() │
-│   when isMyStatus == true                                                 │
-└─────────────────────────────────────┬─────────────────────────────────────┘
-                                      │
-                                      ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│ iOS Store: VibezStore.swift                                               │
-│ • syncStatuses: fallback contactName to currentUserName when isMyStatus   │
-└───────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                       WhatsAppDatabase                      │
+│                                                             │
+│   ┌──────────────────┐ ┌──────────────────┐ ┌───────────┐   │
+│   │    ChatEntity    │ │   GroupEntity    │ │ChannelEnt │   │
+│   │  (1-on-1 Chats)  │ │  (Group Chats)   │ │(Channels) │   │
+│   └────────┬─────────┘ └────────┬─────────┘ └─────┬─────┘   │
+└────────────┼────────────────────┼─────────────────┼─────────┘
+             ▼                    ▼                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│                         WhatsAppDao                         │
+│   - getDirectChats()   - getGroupChats()  - getChannels()   │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      WhatsAppRepository                     │
+│   Combines, saves, and exposes individual domain streams    │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      WhatsAppViewModel                      │
+│ - directChats: Flow  - groupChats: Flow  - channels: Flow    │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+### Table Definitions
+
+1. **`chats` Table (`ChatEntity`)**:
+   - Removes `isGroup` and `isOfficial`.
+   - Represents only direct 1-on-1 conversations with individual contacts.
+2. **`groups` Table (`GroupEntity` - NEW)**:
+   - `@Entity(tableName = "groups")`
+   - Fields: `id` (PrimaryKey), `name`, `avatarUrl`, `memberIds`, `lastMessage`, `lastMessageTime`, `createdBy`.
+3. **`channels` Table (`ChannelEntity` - NEW)**:
+   - `@Entity(tableName = "channels")`
+   - Fields: `id` (PrimaryKey), `name`, `avatarUrl`, `lastMessage`, `lastMessageTime`, `subscriberCount`, `isVerified`, `isOfficial`.
 
 ---
 
-## Step-by-Step Implementation Sequence
+## 4. Repository & ViewModel Strategy
 
-1. **Server (`server/src/controllers/StatusController.ts`)**:
-   - Update `createStatus` to include `user: true` and `views: { include: { user: true } }` in the Prisma query response.
-2. **Android (`app/src/main/java/com/example/data/WhatsAppRepository.kt`)**:
-   - Update `postStatus` to fetch `currentUserId` from `AuthManager` and pass it to `mapStatusDtoToEntity`.
-   - Update `mapStatusDtoToEntity` so `contactName` falls back to `AuthManager` user name if `dto.user?.name` is missing and `isMyStatus` is `true`.
-3. **iOS (`ios/VibezApp/Store/VibezStore.swift`)**:
-   - Fall back `contactName` to `currentUserName` when `isMyStatus` is true.
-4. **Verification**:
-   - Compile Android app via `compile_applet` and verify clean build.
-
+- **DAO Queries**:
+  - `fun getDirectChats(): Flow<List<ChatEntity>>`
+  - `fun getGroupChats(): Flow<List<GroupEntity>>`
+  - `fun getChannels(): Flow<List<ChannelEntity>>`
+- **Exposing Reactive Streams**:
+  - The `WhatsAppViewModel` will collect these flows separately and expose them as isolated states (`directChats`, `groupChats`, `channels`) for highly responsive, lag-free UI updates.
+- **Decoupled APIs**:
+  - `createGroupChat` will explicitly insert into the `GroupEntity` / `groups` table.
+  - Channels discovery and subscriptions will operate strictly on the `ChannelEntity` / `channels` table.

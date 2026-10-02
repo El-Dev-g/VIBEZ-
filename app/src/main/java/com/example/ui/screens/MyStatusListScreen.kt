@@ -238,9 +238,12 @@ fun MyStatusListScreen(
                                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (status.mediaType == "IMAGE") {
+                             if (status.mediaType == "IMAGE") {
+                                val resolvedModel = remember(status.mediaUrl) {
+                                    com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: status.mediaUrl
+                                }
                                 AsyncImage(
-                                    model = status.mediaUrl,
+                                    model = resolvedModel,
                                     contentDescription = "Status photo preview",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
@@ -252,8 +255,11 @@ fun MyStatusListScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
+                                    val resolvedModel = remember(status.mediaUrl) {
+                                        com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: (status.mediaUrl.takeIf { it.isNotBlank() } ?: R.drawable.img_status_banner_1787278113131)
+                                    }
                                     AsyncImage(
-                                        model = status.mediaUrl.takeIf { it.isNotBlank() } ?: R.drawable.img_status_banner_1787278113131,
+                                        model = resolvedModel,
                                         contentDescription = "Status video preview",
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize(),

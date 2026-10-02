@@ -178,4 +178,57 @@ interface WhatsAppDao {
 
     @Query("DELETE FROM communities WHERE id = :id")
     suspend fun deleteCommunity(id: String)
+
+    // Groups (NEW)
+    @Query("SELECT * FROM groups ORDER BY lastMessageTime DESC")
+    fun getAllGroups(): Flow<List<GroupEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGroup(group: GroupEntity)
+
+    @Update
+    suspend fun updateGroup(group: GroupEntity)
+
+    @Query("SELECT * FROM groups WHERE id = :groupId")
+    suspend fun getGroupById(groupId: String): GroupEntity?
+
+    @Query("DELETE FROM groups WHERE id = :groupId")
+    suspend fun deleteGroup(groupId: String)
+
+    @Query("UPDATE groups SET isMuted = :isMuted WHERE id = :groupId")
+    suspend fun updateGroupMuteStatus(groupId: String, isMuted: Boolean)
+
+    @Query("UPDATE groups SET isPinned = :isPinned WHERE id = :groupId")
+    suspend fun updateGroupPinStatus(groupId: String, isPinned: Boolean)
+
+    // Channels (NEW)
+    @Query("SELECT * FROM channels ORDER BY lastMessageTime DESC")
+    fun getAllChannels(): Flow<List<ChannelEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertChannel(channel: ChannelEntity)
+
+    @Update
+    suspend fun updateChannel(channel: ChannelEntity)
+
+    @Query("UPDATE channels SET isMuted = :isMuted WHERE id = :channelId")
+    suspend fun updateChannelMuteStatus(channelId: String, isMuted: Boolean)
+
+    @Query("UPDATE channels SET isPinned = :isPinned WHERE id = :channelId")
+    suspend fun updateChannelPinStatus(channelId: String, isPinned: Boolean)
+
+    @Query("UPDATE groups SET unreadCount = 0 WHERE id = :groupId")
+    suspend fun resetGroupUnreadCount(groupId: String)
+
+    @Query("UPDATE channels SET unreadCount = 0 WHERE id = :channelId")
+    suspend fun resetChannelUnreadCount(channelId: String)
+
+    @Query("SELECT * FROM channels WHERE id = :channelId")
+    suspend fun getChannelById(channelId: String): ChannelEntity?
+
+    @Query("DELETE FROM channels WHERE id = :channelId")
+    suspend fun deleteChannel(channelId: String)
+
+    @Query("DELETE FROM channels")
+    suspend fun clearChannels()
 }

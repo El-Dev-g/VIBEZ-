@@ -66,6 +66,9 @@ import androidx.navigation.navArgument
 import com.example.data.ChatEntity
 import com.example.data.MessageEntity
 import com.example.data.StatusEntity
+import com.example.data.toChatEntity
+import com.example.data.GroupEntity
+import com.example.data.ChannelEntity
 import com.example.ui.WhatsAppViewModel
 import com.example.ui.viewmodels.VideoCallViewModel
 import com.example.ui.viewmodels.IncomingCallData
@@ -90,6 +93,7 @@ import com.example.ui.screens.PhoneIdentitySetupScreen
 import com.example.ui.screens.QrScannerScreen
 import com.example.ui.screens.SelectContactScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.VibezAiScreen
 import com.example.ui.screens.SharedMediaScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.StarredMessagesScreen
@@ -180,8 +184,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     val videoCallViewModel: VideoCallViewModel = viewModel()
 
     val chats by viewModel.filteredChats.collectAsState()
-    val allChatsList by viewModel.chats.collectAsState()
+    val baseChatsList by viewModel.chats.collectAsState()
     val contacts by viewModel.contacts.collectAsState()
+    val groups by viewModel.groups.collectAsState()
+    val channels by viewModel.channels.collectAsState()
+    
+    val allChatsList = remember(baseChatsList, groups, channels) {
+        baseChatsList + groups.map { it.toChatEntity() } + channels.map { it.toChatEntity() }
+    }
     val statuses by viewModel.statuses.collectAsState()
     val communities by viewModel.communities.collectAsState()
     val callLogs by viewModel.callLogs.collectAsState()
@@ -541,6 +551,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             MainTabScreen(
                 chats = chats,
                 contacts = contacts,
+                groups = groups,
+                channels = channels,
                 typingChatId = typingChatId,
                 statuses = statuses,
                 communities = communities,
@@ -568,6 +580,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onNewChatClick = {
                     navController.navigate("select_contact")
+                },
+                onAiChatClick = {
+                    navController.navigate("vibez_ai")
                 },
                 onCreateCommunityClick = {
                     navController.navigate("create_community")
@@ -688,6 +703,30 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+
+            if (chatId == "vibez_ai_chat" || chatId == "vibez_ai") {
+                val aiMessagesFlow = remember { viewModel.getMessagesForChat("vibez_ai_chat") }
+                val aiMessages by aiMessagesFlow.collectAsState()
+                val typingChatId by viewModel.typingChatId.collectAsState()
+
+                VibezAiScreen(
+                    messages = aiMessages,
+                    isTyping = (typingChatId == "vibez_ai_chat"),
+                    onBackClick = { navController.popBackStack() },
+                    onSendMessage = { prompt ->
+                        viewModel.sendMessage(
+                            chatId = "vibez_ai_chat",
+                            content = prompt,
+                            messageType = "TEXT"
+                        )
+                    },
+                    onClearChat = {
+                        viewModel.clearChat("vibez_ai_chat")
+                    }
+                )
+                return@composable
+            }
+
             var localChat by remember(chatId) {
                 mutableStateOf(
                     allChatsList.firstOrNull { it.id == chatId || it.contactId == chatId || it.remoteId == chatId }
@@ -977,7 +1016,30 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     viewModel.syncContacts(numbers)
                 },
                 onAiChatClick = {
-                    navController.navigate("chat/vibez_ai_chat")
+                    navController.navigate("vibez_ai")
+                }
+            )
+        }
+
+        // 5.1 Vibez AI Screen
+        composable("vibez_ai") {
+            val aiMessagesFlow = remember { viewModel.getMessagesForChat("vibez_ai_chat") }
+            val aiMessages by aiMessagesFlow.collectAsState()
+            val typingChatId by viewModel.typingChatId.collectAsState()
+
+            VibezAiScreen(
+                messages = aiMessages,
+                isTyping = (typingChatId == "vibez_ai_chat"),
+                onBackClick = { navController.popBackStack() },
+                onSendMessage = { prompt ->
+                    viewModel.sendMessage(
+                        chatId = "vibez_ai_chat",
+                        content = prompt,
+                        messageType = "TEXT"
+                    )
+                },
+                onClearChat = {
+                    viewModel.clearChat("vibez_ai_chat")
                 }
             )
         }
@@ -1031,7 +1093,15 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            val currentUserId = viewModel.authManager.getUserId() ?: ""
             val chat = allChatsList.firstOrNull { it.id == chatId }
+            
+            val groupMemberIds = when {
+                groups.any { it.id == chatId } -> groups.first { it.id == chatId }.memberIds
+                channels.any { it.id == chatId } -> channels.first { it.id == chatId }.memberIds
+                else -> emptyList()
+            }
+            val groupMembers = contacts.filter { groupMemberIds.contains(it.id) || groupMemberIds.contains(it.remoteId) }
 
             val contact = contacts.firstOrNull { it.id == chat?.contactId }
             val chatMessagesFlow = remember(chatId) { viewModel.getMessagesForChat(chatId) }
@@ -1041,6 +1111,21 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 chat = chat,
                 contact = contact,
                 messages = chatMessages,
+                groupMembers = groupMembers,
+                currentUserId = currentUserId,
+                onMemberClick = { memberId ->
+                    navController.navigate("user_profile/$memberId")
+                },
+                onUpdateGroup = { name, avatar ->
+                    if (chat?.isOfficial == true) {
+                        viewModel.updateChannel(chatId, name, avatar)
+                    } else {
+                        viewModel.updateGroup(chatId, name, avatar)
+                    }
+                },
+                onAddMember = {
+                    navController.navigate("select_contact?groupId=$chatId")
+                },
                 onBackClick = { navController.popBackStack() },
                 onVoiceCallClick = {
                     if (chat != null) {

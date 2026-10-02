@@ -102,8 +102,11 @@ fun StatusPreviewView(
             if (status != null) {
                 when (status.mediaType) {
                     "IMAGE" -> {
+                        val resolvedModel = remember(status.mediaUrl) {
+                            com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: status.mediaUrl
+                        }
                         AsyncImage(
-                            model = status.mediaUrl,
+                            model = resolvedModel,
                             contentDescription = "Status preview image",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -120,8 +123,11 @@ fun StatusPreviewView(
                                 .clip(CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
+                            val resolvedModel = remember(status.mediaUrl) {
+                                com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: (status.mediaUrl.takeIf { it.isNotBlank() } ?: R.drawable.img_status_banner_1787278113131)
+                            }
                             AsyncImage(
-                                model = status.mediaUrl.takeIf { it.isNotBlank() } ?: R.drawable.img_status_banner_1787278113131,
+                                model = resolvedModel,
                                 contentDescription = "Status preview video thumbnail",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize(),

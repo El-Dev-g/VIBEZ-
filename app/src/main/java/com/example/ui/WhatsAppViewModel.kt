@@ -169,6 +169,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
 
     val contacts: StateFlow<List<ContactEntity>>
     val chats: StateFlow<List<ChatEntity>>
+    val groups: StateFlow<List<com.example.data.GroupEntity>>
+    val channels: StateFlow<List<com.example.data.ChannelEntity>>
     val communities: StateFlow<List<com.example.data.CommunityEntity>>
     val filteredChats: StateFlow<List<ChatEntity>>
     val statuses: StateFlow<List<StatusEntity>>
@@ -237,6 +239,18 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         )
 
         chats = repository.allChats.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+        groups = repository.allGroups.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+        channels = repository.allChannels.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
@@ -1141,6 +1155,20 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             authManager.getAuthToken()?.let { token ->
                 val chatId = repository.createGroupChat(groupName, contactIds, token)
                 onComplete(chatId)
+            }
+        }
+    }
+    fun updateGroup(groupId: String, name: String?, avatarUrl: String?) {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                repository.updateGroupChat(groupId, name, avatarUrl, token)
+            }
+        }
+    }
+    fun updateChannel(channelId: String, name: String?, avatarUrl: String?) {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                repository.updateChannelChat(channelId, name, avatarUrl, token)
             }
         }
     }
