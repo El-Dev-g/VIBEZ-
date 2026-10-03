@@ -721,12 +721,12 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 id = tempId
             )
 
-            // Trigger AI assistant if @AI is mentioned or if sending in an AI chat
-            if (content.contains("@AI", ignoreCase = true) || chatId == "vibez_ai_chat") {
-                val promptText = if (chatId == "vibez_ai_chat") {
+            // Trigger AI assistant if @AI or @Vibez is mentioned or if sending in an AI chat
+            if (content.contains("@AI", ignoreCase = true) || content.contains("@Vibez", ignoreCase = true) || chatId == "vibez_ai_chat" || chatId == "vibez_ai") {
+                val promptText = if (chatId == "vibez_ai_chat" || chatId == "vibez_ai") {
                     content.trim()
                 } else {
-                    content.replace("(?i)@AI".toRegex(), "").trim().ifBlank { content.trim() }
+                    content.replace("(?i)@(AI|Vibez AI|Vibez)".toRegex(), "").trim().ifBlank { content.trim() }
                 }
                 if (promptText.isNotBlank()) {
                     askAiAssistant(chatId, promptText)
@@ -800,7 +800,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 sender to it.content
             } ?: emptyList()
 
-            val response = com.example.data.ai.GeminiAiService.askAiAssistant(prompt, history)
+            val token = authManager.getAuthToken()
+            val response = repository.askServerAi(prompt, history, token)
             typingChatId.value = null
 
             val aiMsg = MessageEntity(
@@ -821,7 +822,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             if (message.mediaUrl.isBlank()) return@launch
             
             val currentMap = transcriptionsMap.value.toMutableMap()
-            currentMap[message.id] = "⏳ Transcribing voice note with Gemini AI..."
+            currentMap[message.id] = "⏳ Transcribing voice note with PRIGID AI..."
             transcriptionsMap.value = currentMap
 
             try {
@@ -853,7 +854,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 }
 
                 val transcript = if (fileToTranscribe != null && fileToTranscribe.exists() && fileToTranscribe.length() > 0) {
-                    com.example.data.ai.GeminiAiService.transcribeAudio(fileToTranscribe)
+                    val token = authManager.getAuthToken()
+                    repository.transcribeServerAudio(fileToTranscribe, token)
                 } else {
                     "🎙️ Voice Note (${message.voiceDurationSeconds}s): \"Hello! Thanks for sending a voice message on VIBEZ. Have a great day!\""
                 }

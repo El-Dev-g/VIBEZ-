@@ -84,6 +84,33 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 
+private fun resolveMediaUri(url: String): android.net.Uri? {
+    if (url.isBlank()) return null
+    return try {
+        when {
+            url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true) -> {
+                android.net.Uri.parse(url)
+            }
+            url.startsWith("file://", ignoreCase = true) -> {
+                android.net.Uri.parse(url)
+            }
+            url.startsWith("content://", ignoreCase = true) -> {
+                android.net.Uri.parse(url)
+            }
+            url.startsWith("/uploads", ignoreCase = true) -> {
+                android.net.Uri.parse(com.example.data.network.NetworkClient.BASE_URL.trimEnd('/') + url)
+            }
+            url.startsWith("/") -> {
+                val file = java.io.File(url)
+                if (file.exists()) android.net.Uri.fromFile(file) else android.net.Uri.parse("file://$url")
+            }
+            else -> android.net.Uri.parse(url)
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
+
 @Composable
 fun StatusViewerScreen(
     statuses: List<StatusEntity>,
@@ -194,39 +221,57 @@ fun StatusPageItem(
     var replyText by remember { mutableStateOf("") }
     val progress = remember { Animatable(0f) }
     var isPaused by remember { mutableStateOf(false) }
+    var hasPlaybackError by remember { mutableStateOf(false) }
 
     var screenWidth by remember { mutableStateOf(0f) }
     var screenHeight by remember { mutableStateOf(0f) }
 
-    var videoDuration by remember { mutableLongStateOf(6000L) }
+    val isVideoStatus = status.mediaType.equals("VIDEO", ignoreCase = true)
+    val isImageStatus = status.mediaType.equals("IMAGE", ignoreCase = true) ||
+            status.mediaType.equals("PHOTO", ignoreCase = true)
 
     // Media & Music control logic
     LaunchedEffect(isCurrentPage, status.mediaType, status.mediaUrl, status.songPreviewUrl) {
         if (isCurrentPage) {
-            val uriToPlay = if (status.mediaType.equals("VIDEO", ignoreCase = true)) {
+            hasPlaybackError = false
+            progress.snapTo(0f)
+            val uriToPlay = if (isVideoStatus) {
                 status.mediaUrl
             } else {
                 status.songPreviewUrl
             }
-            if (uriToPlay != null && uriToPlay.isNotBlank()) {
-                val mediaItem = MediaItem.fromUri(uriToPlay)
-                exoPlayer.setMediaItem(mediaItem)
-                exoPlayer.prepare()
-                exoPlayer.playWhenReady = !isPaused
+            val resolvedUri = uriToPlay?.let { resolveMediaUri(it) }
+            if (resolvedUri != null) {
+                try {
+                    val mediaItem = MediaItem.fromUri(resolvedUri)
+                    exoPlayer.setMediaItem(mediaItem)
+                    exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
+                    exoPlayer.prepare()
+                    exoPlayer.playWhenReady = !isPaused
+                } catch (e: Exception) {
+                    android.util.Log.e("StatusViewer", "Failed to setMediaItem for $resolvedUri", e)
+                    hasPlaybackError = true
+                }
             } else {
                 exoPlayer.stop()
             }
+        } else {
+            progress.snapTo(0f)
         }
     }
 
-    DisposableEffect(exoPlayer, isCurrentPage, status.mediaType) {
+    DisposableEffect(exoPlayer, isCurrentPage, isVideoStatus) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY && isCurrentPage) {
-                    val dur = exoPlayer.duration
-                    if (dur > 0 && status.mediaType.equals("VIDEO", ignoreCase = true)) {
-                        videoDuration = dur
-                    }
+                if (playbackState == Player.STATE_ENDED && isCurrentPage) {
+                    onTimerFinished()
+                }
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                android.util.Log.e("StatusViewer", "ExoPlayer playback error: ${error.message}", error)
+                if (isCurrentPage) {
+                    hasPlaybackError = true
                 }
             }
         }
@@ -244,31 +289,51 @@ fun StatusPageItem(
         }
     }
 
-    LaunchedEffect(isCurrentPage, isPaused, videoDuration) {
-        if (isCurrentPage) {
+    // Video status: track actual video playback position accurately in real time (~30fps)
+    LaunchedEffect(isCurrentPage, isPaused, isVideoStatus, hasPlaybackError) {
+        if (isCurrentPage && isVideoStatus && !hasPlaybackError) {
+            onStatusViewed()
+            while (!isPaused) {
+                val dur = exoPlayer.duration
+                val pos = exoPlayer.currentPosition
+                if (dur > 0 && pos >= 0) {
+                    val fraction = (pos.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
+                    progress.snapTo(fraction)
+                }
+                if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                    progress.snapTo(1f)
+                    onTimerFinished()
+                    break
+                }
+                kotlinx.coroutines.delay(33)
+            }
+        }
+    }
+
+    // Image/Text status (or playback error fallback): animate linear progress
+    LaunchedEffect(isCurrentPage, isPaused, isVideoStatus, hasPlaybackError) {
+        if (isCurrentPage && (!isVideoStatus || hasPlaybackError)) {
             if (!isPaused) {
                 if (progress.value == 0f) {
                     onStatusViewed()
                 }
+                val durationMs = if (hasPlaybackError) 3000L else 6000L
                 val remainingFraction = 1f - progress.value
-                val duration = (remainingFraction * videoDuration).toInt()
-                
+                val duration = (remainingFraction * durationMs).toInt()
+
                 if (duration > 0) {
                     progress.animateTo(
                         targetValue = 1f,
                         animationSpec = tween(durationMillis = duration, easing = LinearEasing)
                     )
                 }
-                
+
                 if (progress.value >= 1f) {
                     onTimerFinished()
                 }
             } else {
                 progress.stop()
             }
-        } else {
-            progress.stop()
-            progress.snapTo(0f)
         }
     }
 
@@ -299,11 +364,11 @@ fun StatusPageItem(
                         }
                     },
                     onTap = { offset ->
-                        val screenWidth = size.width
+                        val screenW = size.width
                         val x = offset.x
                         when {
-                            x < screenWidth / 3 -> onPreviousStatus()
-                            x > (screenWidth * 2) / 3 -> onNextStatus()
+                            x < screenW / 3 -> onPreviousStatus()
+                            x > (screenW * 2) / 3 -> onNextStatus()
                             else -> isPaused = !isPaused
                         }
                     }
@@ -311,21 +376,54 @@ fun StatusPageItem(
             }
     ) {
         // Status Background Media / Content
-        val isImageStatus = status.mediaType.equals("IMAGE", ignoreCase = true) ||
-                status.mediaType.equals("PHOTO", ignoreCase = true)
-        val isVideoStatus = status.mediaType.equals("VIDEO", ignoreCase = true)
-
-        if (isVideoStatus && status.mediaUrl.isNotBlank()) {
+        if (isVideoStatus && status.mediaUrl.isNotBlank() && !hasPlaybackError) {
             AndroidView(
                 factory = { ctx ->
                     androidx.media3.ui.PlayerView(ctx).apply {
-                        player = exoPlayer
+                        player = if (isCurrentPage) exoPlayer else null
                         useController = false
-                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    }
+                },
+                update = { playerView ->
+                    val target = if (isCurrentPage) exoPlayer else null
+                    if (playerView.player != target) {
+                        playerView.player = target
                     }
                 },
                 modifier = Modifier.fillMaxSize()
             )
+        } else if (hasPlaybackError) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Playback Error",
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Video preview unavailable",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = status.textCaption.ifBlank { "Advancing to next status..." },
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         } else if (isImageStatus && status.mediaUrl.isNotBlank()) {
             val statusImageModel = remember(status.mediaUrl) {
                 com.example.util.ImageUtils.resolveImageModel(status.mediaUrl) ?: status.mediaUrl

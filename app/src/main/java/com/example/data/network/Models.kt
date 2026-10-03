@@ -346,3 +346,37 @@ data class PublicAppConfigDto(
     val faqUrl: String? = "https://vibez.chat/faq"
 )
 
+@JsonClass(generateAdapter = true)
+data class AiChatHistoryItem(
+    val sender: String,
+    val text: String
+)
+
+@JsonClass(generateAdapter = true)
+data class AiChatRequest(
+    val prompt: String,
+    val chatHistory: List<AiChatHistoryItem> = emptyList(),
+    val chatId: String = "vibez_ai_chat"
+)
+
+@JsonClass(generateAdapter = true)
+data class AiChatResponse(
+    val success: Boolean = true,
+    val reply: String = "",
+    val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class AiTranscribeRequest(
+    val audioBase64: String,
+    val mimeType: String = "audio/mp4"
+)
+
+@JsonClass(generateAdapter = true)
+data class AiTranscribeResponse(
+    val success: Boolean = true,
+    val transcript: String = "",
+    val error: String? = null
+)
+
+

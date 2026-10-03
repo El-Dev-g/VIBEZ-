@@ -28,6 +28,7 @@ This server is deployed directly to **Render** as a Node.js Web Service. Configu
 | `BACKEND_URL` | Yes | `https://vibez-server.onrender.com` | Public base URL of this server |
 | `GMAIL_USER` | Optional | `your_email@gmail.com` | Gmail address for system notifications |
 | `GMAIL_APP_PASSWORD` | Optional | `xxxx xxxx xxxx xxxx` | Google 16-character App Password |
+| `GEMINI_API_KEY` | Optional | `AIzaSy...` | Google Gemini API Key for server-side Vibez AI assistant & transcription |
 
 ---
 

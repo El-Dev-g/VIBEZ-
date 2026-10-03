@@ -711,7 +711,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
                 VibezAiScreen(
                     messages = aiMessages,
-                    isTyping = (typingChatId == "vibez_ai_chat"),
+                    isTyping = (typingChatId == "vibez_ai_chat" || typingChatId == "vibez_ai" || typingChatId == chatId),
                     onBackClick = { navController.popBackStack() },
                     onSendMessage = { prompt ->
                         viewModel.sendMessage(
@@ -722,6 +722,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     },
                     onClearChat = {
                         viewModel.clearChat("vibez_ai_chat")
+                    },
+                    onRegenerate = { prompt ->
+                        viewModel.askAiAssistant("vibez_ai_chat", prompt)
                     }
                 )
                 return@composable
@@ -1029,7 +1032,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
             VibezAiScreen(
                 messages = aiMessages,
-                isTyping = (typingChatId == "vibez_ai_chat"),
+                isTyping = (typingChatId == "vibez_ai_chat" || typingChatId == "vibez_ai"),
                 onBackClick = { navController.popBackStack() },
                 onSendMessage = { prompt ->
                     viewModel.sendMessage(
@@ -1040,6 +1043,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onClearChat = {
                     viewModel.clearChat("vibez_ai_chat")
+                },
+                onRegenerate = { prompt ->
+                    viewModel.askAiAssistant("vibez_ai_chat", prompt)
                 }
             )
         }

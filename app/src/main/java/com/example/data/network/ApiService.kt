@@ -233,4 +233,16 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Path("chatId") chatId: String
     ): ChatDto
+
+    @POST("api/ai/chat")
+    suspend fun askServerAi(
+        @Header("Authorization") token: String,
+        @Body request: AiChatRequest
+    ): retrofit2.Response<AiChatResponse>
+
+    @POST("api/ai/transcribe")
+    suspend fun transcribeServerAudio(
+        @Header("Authorization") token: String,
+        @Body request: AiTranscribeRequest
+    ): retrofit2.Response<AiTranscribeResponse>
 }

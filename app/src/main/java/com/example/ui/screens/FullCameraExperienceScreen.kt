@@ -164,11 +164,26 @@ fun FullCameraExperienceScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            capturedMediaUri = uri
-            // Detect if it's a video or image based on content type
             val contentResolver = context.contentResolver
             val type = contentResolver.getType(uri)
-            capturedMediaType = if (type?.startsWith("video") == true) "VIDEO" else "IMAGE"
+            val isVid = type?.startsWith("video") == true || uri.toString().contains("video", ignoreCase = true)
+            capturedMediaType = if (isVid) "VIDEO" else "IMAGE"
+
+            // Persist locally into app filesDir so the URI never expires or loses read permission
+            val ext = if (isVid) "mp4" else "jpg"
+            val targetDir = File(context.filesDir, "status_media").apply { mkdirs() }
+            val localFile = File(targetDir, "status_${System.currentTimeMillis()}.$ext")
+            try {
+                contentResolver.openInputStream(uri)?.use { input ->
+                    localFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                capturedMediaUri = Uri.fromFile(localFile)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                capturedMediaUri = uri
+            }
         }
     }
     
@@ -605,8 +620,9 @@ fun CameraPreview(
     LaunchedEffect(shutterTrigger) {
         val imageCapture = imageCaptureState.value
         if (shutterTrigger && imageCapture != null) {
+            val statusMediaDir = File(context.filesDir, "status_media").apply { mkdirs() }
             val name = "VIBEZ_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis()) + ".jpg"
-            val file = File(context.cacheDir, name)
+            val file = File(statusMediaDir, name)
             val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
 
             imageCapture.takePicture(
@@ -630,8 +646,9 @@ fun CameraPreview(
     LaunchedEffect(isRecording) {
         val videoCapture = videoCaptureState.value
         if (isRecording && videoCapture != null) {
+            val statusMediaDir = File(context.filesDir, "status_media").apply { mkdirs() }
             val name = "VIBEZ_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis()) + ".mp4"
-            val file = File(context.cacheDir, name)
+            val file = File(statusMediaDir, name)
             val outputOptions = FileOutputOptions.Builder(file).build()
 
             onRecordingStarted()
@@ -850,6 +867,7 @@ fun CameraBottomControls(
     }
 }
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun VideoPreviewScreen(
     videoUri: Uri,
@@ -860,17 +878,94 @@ fun VideoPreviewScreen(
     onSend: () -> Unit,
     track: MusicTrack?
 ) {
+    val context = LocalContext.current
     var trimRange by remember { mutableStateOf(0f..1f) }
     var showTextDialog by remember { mutableStateOf(false) }
     var currentText by remember { mutableStateOf("") }
     var textOverlays by remember { mutableStateOf(listOf<TextOverlayData>()) }
     var showStickers by remember { mutableStateOf(false) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var isMuted by remember { mutableStateOf(false) }
+
+    val previewExoPlayer = remember(videoUri) {
+        ExoPlayer.Builder(context).build().apply {
+            repeatMode = Player.REPEAT_MODE_ONE
+            playWhenReady = true
+        }
+    }
+
+    DisposableEffect(videoUri, mediaType) {
+        if (mediaType == "VIDEO") {
+            try {
+                val mediaItem = MediaItem.fromUri(videoUri)
+                previewExoPlayer.setMediaItem(mediaItem)
+                previewExoPlayer.prepare()
+                previewExoPlayer.play()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        onDispose {
+            previewExoPlayer.release()
+        }
+    }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            previewExoPlayer.play()
+        } else {
+            previewExoPlayer.pause()
+        }
+    }
+
+    LaunchedEffect(isMuted) {
+        previewExoPlayer.volume = if (isMuted) 0f else 1f
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Video Preview Placeholder
-        Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray), contentAlignment = Alignment.Center) {
+        // Active Video/Image Preview Surface
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
             if (mediaType == "VIDEO") {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(80.dp))
+                AndroidView(
+                    factory = { ctx ->
+                        androidx.media3.ui.PlayerView(ctx).apply {
+                            player = previewExoPlayer
+                            useController = false
+                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        }
+                    },
+                    update = { playerView ->
+                        if (playerView.player != previewExoPlayer) {
+                            playerView.player = previewExoPlayer
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { isPlaying = !isPlaying }
+                )
+
+                // Translucent play indicator badge when paused
+                if (!isPlaying) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                            .clickable { isPlaying = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Play",
+                            tint = Color.White,
+                            modifier = Modifier.size(44.dp)
+                        )
+                    }
+                }
             } else {
                 AsyncImage(
                     model = videoUri,
@@ -886,9 +981,44 @@ fun VideoPreviewScreen(
             }
         }
 
-        // Top Controls
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        // Top Controls Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    previewExoPlayer.stop()
+                    onRetake()
+                },
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                    .size(40.dp)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Retake", tint = Color.White)
+            }
+
             Spacer(modifier = Modifier.weight(1f))
+
+            if (mediaType == "VIDEO") {
+                IconButton(
+                    onClick = { isMuted = !isMuted },
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        contentDescription = "Toggle Mute",
+                        tint = Color.White
+                    )
+                }
+            }
+
             IconButton(onClick = { showStickers = true }) {
                 Icon(Icons.Default.EmojiEmotions, contentDescription = "Stickers", tint = Color.White)
             }

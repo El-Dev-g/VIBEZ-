@@ -1,18 +1,23 @@
 package com.example.ui.screens
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,8 +35,12 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.MessageEntity
@@ -53,6 +62,7 @@ fun VibezAiScreen(
     onBackClick: () -> Unit,
     onSendMessage: (String) -> Unit,
     onClearChat: () -> Unit,
+    onRegenerate: ((prompt: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     BackHandler { onBackClick() }
@@ -98,17 +108,17 @@ fun VibezAiScreen(
                 )
             },
             title = {
-                Text("Clear Vibez AI Chat?", fontWeight = FontWeight.Bold)
+                Text("Clear Vibez Ai Chat?", fontWeight = FontWeight.Bold)
             },
             text = {
-                Text("This will remove all conversation history with Vibez AI from this device.")
+                Text("This will remove all conversation history with Vibez Ai from this device.")
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showClearDialog = false
                         onClearChat()
-                        Toast.makeText(context, "Vibez AI conversation cleared", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Vibez Ai conversation cleared", Toast.LENGTH_SHORT).show()
                     }
                 ) {
                     Text("Clear", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -122,7 +132,7 @@ fun VibezAiScreen(
         )
     }
 
-    // Info modal explaining Vibez AI
+    // Info modal explaining Vibez Ai
     if (showInfoDialog) {
         AlertDialog(
             onDismissRequest = { showInfoDialog = false },
@@ -144,12 +154,12 @@ fun VibezAiScreen(
                 }
             },
             title = {
-                Text("About Vibez AI", fontWeight = FontWeight.Bold)
+                Text("About Vibez Ai", fontWeight = FontWeight.Bold)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Vibez AI is your direct intelligent assistant inside the Vibez messaging platform, powered by Gemini 3.5 Flash.",
+                        text = "Vibez Ai is your direct intelligent assistant inside the Vibez messaging platform, powered by PRIGID AI.",
                         fontSize = 14.sp
                     )
                     Text(
@@ -189,7 +199,7 @@ fun VibezAiScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "Vibez AI Avatar",
+                                contentDescription = "Vibez Ai Avatar",
                                 tint = Color(0xFF6366F1),
                                 modifier = Modifier.size(22.dp)
                             )
@@ -200,7 +210,7 @@ fun VibezAiScreen(
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Vibez AI",
+                                    text = "Vibez Ai",
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
@@ -209,12 +219,7 @@ fun VibezAiScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 VerifiedBadge(size = 14.dp)
                             }
-                            Text(
-                                text = if (isTyping) "Vibez AI is thinking..." else "with Gemini 3.5 Flash",
-                                fontSize = 11.sp,
-                                color = if (isTyping) WhatsAppEmerald else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (isTyping) FontWeight.SemiBold else FontWeight.Normal
-                            )
+                            HeaderTypingSubtitle(isTyping = isTyping)
                         }
                     }
                 },
@@ -279,7 +284,7 @@ fun VibezAiScreen(
                             .weight(1f)
                             .testTag("vibez_ai_input_field"),
                         placeholder = {
-                            Text("Ask Vibez AI anything...", fontSize = 14.sp)
+                            Text("Ask Vibez Ai anything...", fontSize = 14.sp)
                         },
                         leadingIcon = {
                             Icon(
@@ -356,12 +361,38 @@ fun VibezAiScreen(
                         if (isFromMe) {
                             UserMessageBubble(message = msg)
                         } else {
+                            val promptToRegenerate = remember(msg.id, messages) {
+                                val idx = messages.indexOfFirst { it.id == msg.id }
+                                if (idx > 0) {
+                                    messages.subList(0, idx).lastOrNull { it.senderId == "ME" || it.senderId != "VIBEZ_AI" }?.content
+                                } else null
+                            } ?: messages.lastOrNull { it.senderId == "ME" || it.senderId != "VIBEZ_AI" }?.content ?: ""
+
                             AiMessageBubble(
                                 message = msg,
                                 aiGradient = aiGradient,
+                                isTyping = isTyping,
                                 onCopyClick = {
                                     clipboardManager.setText(AnnotatedString(msg.content))
                                     Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                                },
+                                onShareClick = {
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "Vibez Ai Response")
+                                        putExtra(Intent.EXTRA_TEXT, msg.content)
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent, "Share Vibez Ai Response"))
+                                },
+                                onRegenerateClick = {
+                                    if (promptToRegenerate.isNotBlank() && !isTyping) {
+                                        if (onRegenerate != null) {
+                                            onRegenerate(promptToRegenerate)
+                                        } else {
+                                            onSendMessage(promptToRegenerate)
+                                        }
+                                        Toast.makeText(context, "Regenerating response...", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             )
                         }
@@ -389,7 +420,7 @@ private fun VibezAiWelcomeContent(
             "💡 Brainstorm creative ideas for a tech project",
             "✍️ Draft a polite message to reschedule our meeting",
             "🌐 Translate 'Looking forward to working together' to Spanish",
-            "📝 Summarize key advantages of Gemini 3.5 Flash",
+            "📝 Summarize key advantages of PRIGID AI",
             "🍳 15-minute healthy dinner recipe with vegetables",
             "✈️ Top travel recommendations for a relaxing weekend trip"
         )
@@ -422,7 +453,7 @@ private fun VibezAiWelcomeContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Welcome to Vibez AI",
+            text = "Welcome to Vibez Ai",
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onSurface
@@ -543,7 +574,10 @@ private fun UserMessageBubble(message: MessageEntity) {
 private fun AiMessageBubble(
     message: MessageEntity,
     aiGradient: Brush,
-    onCopyClick: () -> Unit
+    isTyping: Boolean = false,
+    onCopyClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onRegenerateClick: () -> Unit
 ) {
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val formattedTime = remember(message.timestamp) { timeFormat.format(Date(message.timestamp)) }
@@ -553,19 +587,19 @@ private fun AiMessageBubble(
         horizontalArrangement = Arrangement.Start
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 18.dp),
             border = androidx.compose.foundation.BorderStroke(
                 0.8.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
             ),
-            shadowElevation = 0.5.dp,
-            modifier = Modifier.widthIn(max = 320.dp)
+            shadowElevation = 1.dp,
+            modifier = Modifier.widthIn(max = 330.dp)
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                // Header with Vibez AI label & Copy button
+                // Header with Vibez Ai label & Gemini tag
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -574,60 +608,374 @@ private fun AiMessageBubble(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(18.dp)
+                                .size(20.dp)
                                 .clip(CircleShape)
-                                .border(1.dp, aiGradient, CircleShape),
+                                .border(1.2.dp, aiGradient, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = Color(0xFF6366F1),
-                                modifier = Modifier.size(11.dp)
+                                modifier = Modifier.size(12.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Vibez AI",
-                            fontSize = 11.sp,
+                            text = "Vibez Ai",
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF6366F1)
                         )
                     }
 
-                    IconButton(
-                        onClick = onCopyClick,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .testTag("vibez_ai_copy_button")
+                    Surface(
+                        color = Color(0xFF6366F1).copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy message",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.size(14.dp)
+                        Text(
+                            text = "Powered by PRIGID",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6366F1),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
+                // Rich formatted output
+                AiFormattedContent(content = message.content)
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    thickness = 0.8.dp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                // Footer: Timestamp + Actions (Copy, Share, Regenerate)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formattedTime,
+                        fontSize = 10.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Normal
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        IconButton(
+                            onClick = onCopyClick,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("vibez_ai_copy_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Copy message",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onShareClick,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("vibez_ai_share_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share response",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onRegenerateClick,
+                            enabled = !isTyping,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("vibez_ai_regenerate_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Regenerate response",
+                                tint = if (!isTyping) Color(0xFF6366F1) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AiFormattedContent(
+    content: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
+    // Check if message has code blocks (```...```)
+    if (content.contains("```")) {
+        val parts = content.split("```")
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            parts.forEachIndexed { index, part ->
+                if (index % 2 == 1) {
+                    // Code block
+                    val lines = part.trim().lines()
+                    val lang = if (lines.isNotEmpty() && lines[0].length < 20 && !lines[0].contains(" ") && lines.size > 1) {
+                        lines[0].trim()
+                    } else "code"
+                    val codeContent = if (lang != "code") lines.drop(1).joinToString("\n") else part.trim()
+
+                    Surface(
+                        color = Color(0xFF0F172A),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Terminal,
+                                        contentDescription = null,
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = lang.uppercase(Locale.getDefault()),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .clickable {
+                                            clipboardManager.setText(AnnotatedString(codeContent))
+                                            Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy code",
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Copy",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF38BDF8)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState())
+                            ) {
+                                Text(
+                                    text = codeContent,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFE2E8F0),
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
+                    }
+                } else if (part.isNotBlank()) {
+                    FormattedParagraphText(text = part.trim())
+                }
+            }
+        }
+    } else {
+        FormattedParagraphText(text = content, modifier = modifier)
+    }
+}
+
+@Composable
+private fun FormattedParagraphText(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val lines = text.lines()
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        lines.forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.startsWith("• ") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+                val bulletContent = trimmed.drop(2).trim()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 7.dp, end = 8.dp)
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(WhatsAppEmerald)
+                    )
+                    Text(
+                        text = parseBoldMarkdown(bulletContent),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 20.sp
+                    )
+                }
+            } else if (trimmed.startsWith("### ")) {
                 Text(
-                    text = message.content,
+                    text = trimmed.drop(4).trim(),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            } else if (trimmed.startsWith("## ") || trimmed.startsWith("# ")) {
+                Text(
+                    text = trimmed.replace(Regex("^#+\\s*"), ""),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            } else if (trimmed.isNotBlank()) {
+                Text(
+                    text = parseBoldMarkdown(trimmed),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 20.sp
                 )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = formattedTime,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.End)
-                )
+            } else {
+                Spacer(modifier = Modifier.height(2.dp))
             }
+        }
+    }
+}
+
+private fun parseBoldMarkdown(input: String): AnnotatedString {
+    return buildAnnotatedString {
+        val parts = input.split("**")
+        parts.forEachIndexed { index, part ->
+            if (index % 2 == 1) {
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(part)
+                }
+            } else {
+                append(part)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeaderTypingSubtitle(isTyping: Boolean) {
+    AnimatedContent(
+        targetState = isTyping,
+        transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(200)) },
+        label = "header_typing"
+    ) { typing ->
+        if (typing) {
+            val infiniteTransition = rememberInfiniteTransition(label = "dots")
+            val dot1Alpha by infiniteTransition.animateFloat(
+                initialValue = 0.2f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "dot1"
+            )
+            val dot2Alpha by infiniteTransition.animateFloat(
+                initialValue = 0.2f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, delayMillis = 150, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "dot2"
+            )
+            val dot3Alpha by infiniteTransition.animateFloat(
+                initialValue = 0.2f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, delayMillis = 300, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "dot3"
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.testTag("header_typing_indicator")
+            ) {
+                Text(
+                    text = "Vibez Ai is typing",
+                    fontSize = 11.sp,
+                    color = WhatsAppEmerald,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(3.5.dp)
+                            .clip(CircleShape)
+                            .background(WhatsAppEmerald.copy(alpha = dot1Alpha))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(3.5.dp)
+                            .clip(CircleShape)
+                            .background(WhatsAppEmerald.copy(alpha = dot2Alpha))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(3.5.dp)
+                            .clip(CircleShape)
+                            .background(WhatsAppEmerald.copy(alpha = dot3Alpha))
+                    )
+                }
+            }
+        } else {
+            Text(
+                text = "Powered by PRIGID",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Normal
+            )
         }
     }
 }
@@ -680,7 +1028,7 @@ private fun AiThinkingIndicator(aiGradient: Brush) {
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "Vibez AI is thinking...",
+                    text = "Vibez Ai is thinking...",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alphaAnim)

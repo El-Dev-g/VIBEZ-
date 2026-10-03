@@ -1,6 +1,6 @@
 {
-  "summary":  "Architectural plan to isolate and decouple Groups, Channels, and One-on-One chats. This involves defining three separate database tables and entities (ChatEntity, GroupEntity, ChannelEntity), establishing distinct reactive data streams in the repository and viewmodels, and separating them visually in the user interface.",
-  "updatedAt":  "2026-10-01T09:16:49.880138606Z",
+  "summary":  "Architectural and implementation plan to fix video status playback across both the video capture preview screen (before posting) and full-screen status viewer (after posting), with persistent local media caching, custom server video upload and HTTP range streaming endpoints, and frame-accurate playback progress synchronization.",
+  "updatedAt":  "2026-10-03T00:04:52.521551164Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

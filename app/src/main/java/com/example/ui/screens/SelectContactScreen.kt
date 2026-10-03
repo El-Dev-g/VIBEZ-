@@ -476,14 +476,14 @@ fun SelectContactScreen(
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = "Vibez AI", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = "Vibez Ai", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Surface(
                                         shape = RoundedCornerShape(6.dp),
                                         color = Color(0xFF6366F1)
                                     ) {
                                         Text(
-                                            text = "GEMINI AI",
+                                            text = "PRIGID AI",
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = Color.White,

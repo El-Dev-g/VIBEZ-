@@ -509,17 +509,25 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             return
         }
         
-        if (message.chatId == "vibez_ai_chat") {
-            dao.insertChat(ChatEntity(
-                id = "vibez_ai_chat",
-                contactId = "vibez_ai",
-                contactName = "Vibez AI",
-                contactAvatar = "",
-                lastMessage = message.content,
-                lastMessageTime = message.timestamp,
-                isOfficial = true,
-                isVerified = true
-            ))
+        if (message.chatId == "vibez_ai_chat" || message.chatId == "vibez_ai") {
+            val existing = dao.getChatById("vibez_ai_chat") ?: dao.getChatById("vibez_ai")
+            if (existing != null) {
+                dao.updateChat(existing.copy(
+                    lastMessage = message.content,
+                    lastMessageTime = message.timestamp
+                ))
+            } else {
+                dao.insertChat(ChatEntity(
+                    id = "vibez_ai_chat",
+                    contactId = "vibez_ai",
+                    contactName = "Vibez Ai",
+                    contactAvatar = "",
+                    lastMessage = message.content,
+                    lastMessageTime = message.timestamp,
+                    isOfficial = true,
+                    isVerified = true
+                ))
+            }
         }
     }
 
@@ -648,6 +656,64 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    suspend fun askServerAi(
+        prompt: String,
+        chatHistory: List<Pair<String, String>>,
+        token: String?
+    ): String = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        try {
+            val historyItems = chatHistory.map { AiChatHistoryItem(sender = it.first, text = it.second) }
+            val request = AiChatRequest(prompt = prompt, chatHistory = historyItems)
+            val authHeader = if (!token.isNullOrBlank()) "Bearer $token" else ""
+            val response = NetworkClient.apiService.askServerAi(authHeader, request)
+            if (response.isSuccessful && response.body() != null) {
+                val reply = response.body()!!.reply
+                if (reply.isNotBlank()) {
+                    return@withContext reply
+                }
+            } else {
+                android.util.Log.w("WhatsAppRepository", "Server AI returned HTTP ${response.code()}, falling back to local Gemini")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("WhatsAppRepository", "Server AI call failed, falling back to local Gemini: ${e.localizedMessage}")
+        }
+        com.example.data.ai.GeminiAiService.askAiAssistant(prompt, chatHistory)
+    }
+
+    suspend fun transcribeServerAudio(
+        audioFile: java.io.File,
+        token: String?
+    ): String = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        if (!audioFile.exists() || audioFile.length() == 0L) {
+            return@withContext "Audio file is empty or unavailable."
+        }
+
+        try {
+            val bytes = audioFile.readBytes()
+            val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            val mimeType = when {
+                audioFile.name.endsWith(".m4a", true) -> "audio/mp4"
+                audioFile.name.endsWith(".mp3", true) -> "audio/mp3"
+                audioFile.name.endsWith(".wav", true) -> "audio/wav"
+                else -> "audio/aac"
+            }
+            val request = AiTranscribeRequest(audioBase64 = base64, mimeType = mimeType)
+            val authHeader = if (!token.isNullOrBlank()) "Bearer $token" else ""
+            val response = NetworkClient.apiService.transcribeServerAudio(authHeader, request)
+            if (response.isSuccessful && response.body() != null) {
+                val transcript = response.body()!!.transcript
+                if (transcript.isNotBlank()) {
+                    return@withContext transcript
+                }
+            } else {
+                android.util.Log.w("WhatsAppRepository", "Server audio transcription returned HTTP ${response.code()}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("WhatsAppRepository", "Server transcribe failed, falling back: ${e.localizedMessage}")
+        }
+        com.example.data.ai.GeminiAiService.transcribeAudio(audioFile)
     }
 
     suspend fun getChatById(chatId: String): ChatEntity? {
@@ -1406,6 +1472,11 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                     // Client-side image compression to reduce bandwidth and speed up posting
                     com.example.util.ImageUtils.compressImageBytes(contentResolver, uriString, maxDimension = 1080, quality = 80)
                 }
+                uriString.startsWith("file://") -> {
+                    val parsed = android.net.Uri.parse(uriString)
+                    val file = java.io.File(parsed.path ?: "")
+                    if (file.exists()) file.readBytes() else null
+                }
                 uriString.startsWith("/") -> {
                     val file = java.io.File(uriString)
                     if (file.exists()) file.readBytes() else null
@@ -1416,32 +1487,67 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 }
             }
 
-            if (bytes != null && bytes.isNotEmpty() && token.isNotBlank()) {
-                val requestMap = mapOf(
-                    "fileName" to fileName,
-                    "contentType" to contentType
-                )
-                val response = NetworkClient.apiService.getUploadUrl("Bearer $token", requestMap)
-                val uploadUrl = response.uploadUrl
-                val publicUrl = response.publicUrl
+            if (bytes != null && bytes.isNotEmpty()) {
+                val okHttpClient = okhttp3.OkHttpClient()
+                val requestBody = okhttp3.RequestBody.create(contentType.toMediaTypeOrNull(), bytes)
 
-                val isValidR2Url = uploadUrl.startsWith("https://") &&
-                    !uploadUrl.contains("undefined") &&
-                    publicUrl.startsWith("https://") &&
-                    !publicUrl.contains("undefined")
+                // 1. Try S3 / Cloudflare R2 presigned URL if configured
+                if (token.isNotBlank()) {
+                    try {
+                        val requestMap = mapOf(
+                            "fileName" to fileName,
+                            "contentType" to contentType
+                        )
+                        val response = NetworkClient.apiService.getUploadUrl("Bearer $token", requestMap)
+                        val uploadUrl = response.uploadUrl
+                        val publicUrl = response.publicUrl
 
-                if (isValidR2Url) {
-                    val okHttpClient = okhttp3.OkHttpClient()
-                    val requestBody = okhttp3.RequestBody.create(contentType.toMediaTypeOrNull(), bytes)
-                    val putRequest = okhttp3.Request.Builder()
-                        .url(uploadUrl)
-                        .put(requestBody)
-                        .build()
+                        val isValidR2Url = uploadUrl.startsWith("https://") &&
+                            !uploadUrl.contains("undefined") &&
+                            !uploadUrl.contains("upload-direct") &&
+                            publicUrl.startsWith("https://") &&
+                            !publicUrl.contains("undefined")
 
-                    val callResponse = okHttpClient.newCall(putRequest).execute()
-                    if (callResponse.isSuccessful) {
-                        return@withContext publicUrl
+                        if (isValidR2Url) {
+                            val putRequest = okhttp3.Request.Builder()
+                                .url(uploadUrl)
+                                .put(requestBody)
+                                .build()
+
+                            val callResponse = okHttpClient.newCall(putRequest).execute()
+                            if (callResponse.isSuccessful) {
+                                return@withContext publicUrl
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
+                }
+
+                // 2. Direct server upload fallback (/api/media/upload-direct)
+                try {
+                    val directUrl = NetworkClient.BASE_URL.trimEnd('/') + "/api/media/upload-direct?fileName=" +
+                            java.net.URLEncoder.encode(fileName, "UTF-8")
+                    val postBuilder = okhttp3.Request.Builder()
+                        .url(directUrl)
+                        .post(requestBody)
+
+                    if (token.isNotBlank()) {
+                        postBuilder.addHeader("Authorization", "Bearer $token")
+                    }
+                    postBuilder.addHeader("Content-Type", contentType)
+
+                    val directResponse = okHttpClient.newCall(postBuilder.build()).execute()
+                    if (directResponse.isSuccessful) {
+                        val bodyStr = directResponse.body?.string() ?: ""
+                        val json = org.json.JSONObject(bodyStr)
+                        val directPublicUrl = json.optString("publicUrl")
+                        if (directPublicUrl.isNotBlank()) {
+                            return@withContext directPublicUrl
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         } catch (e: Exception) {
@@ -1457,6 +1563,11 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 maxDimension = maxDim,
                 quality = 75
             )
+        }
+
+        // Fallback for video: return local file URI if available so author can view immediately
+        if (type.equals("VIDEO", ignoreCase = true) && uriString.isNotBlank()) {
+            return@withContext uriString
         }
 
         null
@@ -1497,11 +1608,43 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             )
             val dto = NetworkClient.apiService.createStatus("Bearer $token", request)
             val uid = currentUserId ?: context?.let { AuthManager(it).getUserId() }
-            val entity = mapStatusDtoToEntity(dto, uid)
+            val entity = mapStatusDtoToEntity(dto, uid).let { mapped ->
+                if (mapped.mediaUrl.isBlank() && mediaUrl.isNotBlank()) {
+                    mapped.copy(mediaUrl = mediaUrl)
+                } else {
+                    mapped
+                }
+            }
             dao.insertStatus(entity)
             entity.id
         } catch (e: Exception) {
             e.printStackTrace()
+            // Even if network call fails, insert locally so author has working status
+            try {
+                val uid = currentUserId ?: context?.let { AuthManager(it).getUserId() } ?: "ME"
+                val authManager = context?.let { AuthManager(it) }
+                val localEntity = StatusEntity(
+                    id = "local_status_${System.currentTimeMillis()}",
+                    contactId = uid,
+                    contactName = authManager?.getUserName() ?: "My Status",
+                    contactAvatar = authManager?.getUserAvatar() ?: "",
+                    mediaType = type,
+                    mediaUrl = mediaUrl,
+                    textCaption = caption,
+                    backgroundColorHex = colorHex,
+                    timestamp = System.currentTimeMillis(),
+                    isViewed = false,
+                    songTitle = songTitle,
+                    songArtist = songArtist,
+                    songPreviewUrl = songPreviewUrl,
+                    musicOffsetX = musicOffsetX,
+                    musicOffsetY = musicOffsetY
+                )
+                dao.insertStatus(localEntity)
+                return localEntity.id
+            } catch (le: Exception) {
+                le.printStackTrace()
+            }
             ""
         }
     }
@@ -1544,13 +1687,20 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             else -> "TEXT"
         }
 
+        val rawMediaUrl = dto.mediaUrl ?: ""
+        val resolvedMediaUrl = if (rawMediaUrl.startsWith("/") && !rawMediaUrl.startsWith("/data") && !rawMediaUrl.startsWith("/storage")) {
+            NetworkClient.BASE_URL.trimEnd('/') + rawMediaUrl
+        } else {
+            rawMediaUrl
+        }
+
         return StatusEntity(
             id = dto.id,
             contactId = dto.userId,
             contactName = resolvedName,
             contactAvatar = resolvedAvatar,
             mediaType = resolvedMediaType,
-            mediaUrl = dto.mediaUrl ?: "",
+            mediaUrl = resolvedMediaUrl,
             textCaption = dto.content ?: "",
             backgroundColorHex = dto.backgroundColor ?: "#075E54",
             timestamp = parseDate(dto.createdAt),

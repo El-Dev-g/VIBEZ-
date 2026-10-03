@@ -327,7 +327,7 @@ fun ChatsListScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "Vibez AI",
+                                contentDescription = "Vibez Ai",
                                 tint = Color(0xFF6366F1),
                                 modifier = Modifier.size(22.dp)
                             )

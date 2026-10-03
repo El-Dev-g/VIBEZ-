@@ -37,7 +37,7 @@ object GeminiAiService {
         chatHistory: List<Pair<String, String>> = emptyList()
     ): String = withContext(Dispatchers.IO) {
         if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            return@withContext "✨ Hello! I'm Vibez AI, your personal assistant in Vibez. To activate live Gemini AI responses, please add your Gemini API key in AI Studio Secrets panel. Meanwhile, feel free to explore or draft questions!"
+            return@withContext "✨ Hello! I'm Vibez AI powered by PRIGID AI, your assistant in Vibez. Feel free to ask questions, brainstorm ideas, translate text, or draft messages!"
         }
 
         try {
@@ -48,7 +48,7 @@ object GeminiAiService {
             val systemObj = JSONObject().apply {
                 put("role", "user")
                 put("parts", JSONArray().put(JSONObject().put("text", 
-                    "You are VIBEZ AI, an intelligent, helpful, and concise assistant integrated directly inside the VIBEZ messenger. Keep answers snappy, formatting clean, and conversational."
+                    "You are Vibez AI powered by PRIGID AI, an intelligent, helpful, and concise assistant integrated directly inside the Vibez messenger. You are developed by PRIGID GROUP. Keep answers snappy, formatting clean, and conversational without mentioning underlying provider names."
                 )))
             }
             contentsArray.put(systemObj)

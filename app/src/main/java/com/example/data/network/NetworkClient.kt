@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 object NetworkClient {
 
-    private const val BASE_URL = "https://vibez-n5h1.onrender.com/"
+    const val BASE_URL = "https://vibez-n5h1.onrender.com/"
 
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())

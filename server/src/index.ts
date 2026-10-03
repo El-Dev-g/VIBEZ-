@@ -16,15 +16,23 @@ import { PaymentController } from './controllers/PaymentController';
 import { SubscriptionController } from './controllers/SubscriptionController';
 import { DeveloperController } from './controllers/DeveloperController';
 import { GmailOAuthController } from './controllers/GmailOAuthController';
-import { authenticate, authenticateAdmin } from './middleware/auth';
+import { AiController } from './controllers/AiController';
+import { authenticate, authenticateAdmin, authenticateOptional } from './middleware/auth';
 import { authenticateDeveloper, authenticateDeveloperApiKey, authenticateDeveloperOrApiKey } from './middleware/developerAuth';
 import { verifyUserToken } from './lib/jwt';
 import { checkMaintenanceMode } from './middleware/maintenance';
 import { securityHeaders, sanitizeInputs, checkSecretEntropy } from './middleware/security';
 import { authRateLimiter, adminRateLimiter } from './middleware/rateLimiter';
 import { getChatRoomName, extractPureChatId } from './utils/socketHelpers';
+import path from 'path';
+import fs from 'fs';
 
 dotenv.config();
+// Fallback: load root .env if present (e.g. for AI Studio container secrets)
+const rootEnvPath = path.resolve(__dirname, '../../.env');
+if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+}
 checkSecretEntropy();
 
 const app = express();
@@ -95,6 +103,7 @@ const payment = new PaymentController();
 const subscription = new SubscriptionController();
 const developer = new DeveloperController();
 const gmailOAuth = new GmailOAuthController();
+const ai = new AiController();
 
 // Developer API & Server Integration Routes (Powered by PRIGID GROUP)
 app.get('/api/developer/health', (req, res) => developer.getDeveloperHealth(req, res));
@@ -184,6 +193,10 @@ app.patch('/api/chats/:chatId', authenticate, (req, res) => chat.updateChat(req,
 app.post('/api/chats/:chatId/verify-perk', authenticate, (req, res) => chat.toggleGroupVerifyPerk(req, res));
 app.delete('/api/messages/:messageId', authenticate, (req, res) => chat.deleteMessage(req, res));
 app.patch('/api/messages/:messageId', authenticate, (req, res) => chat.updateMessage(req, res));
+
+// AI Assistant Routes (Vibez AI powered by Gemini 3.5 Flash)
+app.post('/api/ai/chat', authenticateOptional, (req, res) => ai.generateChat(req, res));
+app.post('/api/ai/transcribe', authenticateOptional, (req, res) => ai.transcribeAudio(req, res));
 
 // Status Routes
 app.get('/api/statuses', authenticate, (req, res) => status.getStatuses(req, res));
@@ -308,20 +321,75 @@ app.get('/api/admin/gmail-oauth/status', authenticateAdmin, (req, res) => gmailO
 app.post('/api/admin/gmail-oauth/test-send', authenticateAdmin, (req, res) => gmailOAuth.testSend(req, res));
 app.post('/api/admin/gmail-oauth/disconnect', authenticateAdmin, (req, res) => gmailOAuth.disconnectOAuth(req, res));
 
+// Static uploads directory serving
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  } catch (e) {
+    console.error('Could not create uploads directory in index.ts', e);
+  }
+}
+app.use('/uploads', express.static(uploadsDir, { acceptRanges: true, maxAge: '1d' }));
+
 // Media Routes
-app.post('/api/media/upload-url', authenticate, async (req, res) => {
+app.post('/api/media/upload-url', authenticateOptional, async (req: any, res) => {
   try {
     const { fileName, contentType } = req.body;
     if (!fileName || !contentType) {
       return res.status(400).json({ error: 'fileName and contentType are required' });
     }
 
-    const { uploadUrl, fileKey, publicUrl } = await storage.getPresignedUploadUrl(fileName, contentType);
-    res.json({ uploadUrl, fileKey, publicUrl });
+    const { uploadUrl, fileKey, publicUrl } = await storage.getPresignedUploadUrl(fileName, contentType, req.user?.id);
+    
+    // Construct full URLs if relative
+    const host = req.get('host') || 'localhost:3000';
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const fullPublicUrl = publicUrl.startsWith('http') ? publicUrl : `${protocol}://${host}${publicUrl}`;
+    const fullUploadUrl = uploadUrl.startsWith('http') ? uploadUrl : `${protocol}://${host}${uploadUrl}`;
+
+    res.json({ uploadUrl: fullUploadUrl, fileKey, publicUrl: fullPublicUrl });
   } catch (error) {
     console.error('Error generating upload URL:', error);
     res.status(500).json({ error: 'Failed to generate upload URL' });
   }
+});
+
+// Direct Media Upload endpoint for Videos, Photos & Status media
+app.post('/api/media/upload-direct', authenticateOptional, express.raw({ type: '*/*', limit: '100mb' }), async (req: any, res) => {
+  try {
+    const rawBuffer = req.body;
+    if (!rawBuffer || !(rawBuffer instanceof Buffer) || rawBuffer.length === 0) {
+      return res.status(400).json({ error: 'No media content provided' });
+    }
+    const fileNameQuery = (req.query.fileName as string) || (req.headers['x-file-name'] as string) || `video_${Date.now()}.mp4`;
+    const contentType = (req.headers['content-type'] as string) || 'video/mp4';
+    const uploaderId = req.user?.id;
+    const purpose = (req.query.purpose as string) || 'STATUS';
+
+    const result = await storage.saveLocalFile(fileNameQuery, contentType, rawBuffer, uploaderId, purpose);
+    
+    const host = req.get('host') || 'localhost:3000';
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const fullPublicUrl = `${protocol}://${host}${result.publicUrl}`;
+    const streamUrl = `${protocol}://${host}/api/media/stream/${result.fileKey}`;
+
+    res.json({
+      success: true,
+      fileKey: result.fileKey,
+      publicUrl: fullPublicUrl,
+      streamUrl,
+      size: rawBuffer.length
+    });
+  } catch (error) {
+    console.error('Error saving uploaded media:', error);
+    res.status(500).json({ error: 'Failed to upload media directly' });
+  }
+});
+
+// Dedicated Video Streaming Route supporting HTTP Range requests (206 Partial Content)
+app.get('/api/media/stream/:filename', (req, res) => {
+  storage.streamLocalVideo(req, res, req.params.filename);
 });
 
 app.get('/health', (req, res) => {

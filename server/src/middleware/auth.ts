@@ -35,6 +35,23 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
+// Optionally authenticate users - attaches req.user if a valid Bearer token is provided, without failing if missing
+export const authenticateOptional = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = verifyUserToken(token);
+    req.user = decoded as any;
+  } catch (error) {
+    // Silently continue without attaching user for optional auth
+  }
+  next();
+};
+
 // Strictly authenticate Administrator users - Normal users are denied
 export const authenticateAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
