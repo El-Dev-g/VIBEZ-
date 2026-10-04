@@ -1,0 +1,282 @@
+package com.example.ui.viewmodels
+
+import android.app.Application
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.webrtc.SignalingClient
+import com.example.webrtc.WebRTCClient
+import com.example.data.network.SocketManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.webrtc.*
+
+data class IncomingCallData(
+    val callerId: String,
+    val callerName: String,
+    val sdp: SessionDescription,
+    val isVideo: Boolean
+)
+
+class VideoCallViewModel(application: Application) : AndroidViewModel(application) {
+    private val TAG = "VideoCallViewModel"
+
+    private val _isCallPickedUp = MutableStateFlow(false)
+    val isCallPickedUp = _isCallPickedUp.asStateFlow()
+
+    private val _localVideoTrack = MutableStateFlow<VideoTrack?>(null)
+    val localVideoTrack = _localVideoTrack.asStateFlow()
+
+    private val _incomingCallOffer = MutableStateFlow<IncomingCallData?>(null)
+    val incomingCallOffer = _incomingCallOffer.asStateFlow()
+
+    private val _remoteTrack = MutableStateFlow<VideoTrack?>(null)
+    val remoteTrack = _remoteTrack.asStateFlow()
+
+    private val _eglBaseContext = MutableStateFlow<EglBase.Context?>(null)
+    val eglBaseContextState = _eglBaseContext.asStateFlow()
+
+    private val _isScreenSharing = MutableStateFlow(false)
+    val isScreenSharing = _isScreenSharing.asStateFlow()
+
+    private var rtcClient: WebRTCClient? = null
+    private var socketManager: SocketManager? = null
+    var targetUserId: String? = null
+        private set
+    
+    private val queuedIceCandidates = java.util.Collections.synchronizedList(mutableListOf<IceCandidate>())
+    
+    val eglContext: EglBase.Context? get() = _eglBaseContext.value ?: rtcClient?.rootEglBase?.eglBaseContext
+    
+    fun setupSignaling(manager: SocketManager, targetId: String) {
+        this.socketManager = manager
+        this.targetUserId = targetId
+        Log.d(TAG, "Signaling configured for target: $targetId")
+    }
+
+    val signalingClient = object : SignalingClient {
+        override fun sendOffer(sdp: SessionDescription) {
+            targetUserId?.let { 
+                Log.d(TAG, "Emitting call_offer to $it")
+                socketManager?.sendCallOffer(it, sdp.description) 
+            }
+        }
+
+        override fun sendAnswer(sdp: SessionDescription) {
+            targetUserId?.let { 
+                Log.d(TAG, "Emitting call_answer to $it")
+                socketManager?.sendCallAnswer(it, sdp.description) 
+            }
+        }
+
+        override fun sendIceCandidate(candidate: IceCandidate) {
+            targetUserId?.let { 
+                socketManager?.sendIceCandidate(
+                    it, 
+                    candidate.sdpMid, 
+                    candidate.sdpMLineIndex, 
+                    candidate.sdp
+                ) 
+            }
+        }
+    }
+
+    fun initWebRTC(observer: PeerConnection.Observer) {
+        try {
+            rtcClient?.close()
+            val client = WebRTCClient(getApplication(), observer)
+            rtcClient = client
+            _eglBaseContext.value = client.rootEglBase.eglBaseContext
+            Log.d(TAG, "WebRTC initialized")
+            
+            // Drain any queued ICE candidates that arrived before peer connection was ready
+            synchronized(queuedIceCandidates) {
+                queuedIceCandidates.forEach { candidate ->
+                    Log.d(TAG, "Applying queued remote ICE candidate")
+                    rtcClient?.addIceCandidate(candidate)
+                }
+                queuedIceCandidates.clear()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing WebRTC: ${e.message}", e)
+        }
+    }
+
+    fun startLocalVideo(view: SurfaceViewRenderer? = null) {
+        try {
+            rtcClient?.startLocalVideo(view)
+            _localVideoTrack.value = rtcClient?.getLocalVideoTrack()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting local video: ${e.message}", e)
+        }
+    }
+
+    fun createOffer(isVideo: Boolean = true) {
+        Log.d(TAG, "Creating WebRTC Offer for target $targetUserId")
+        rtcClient?.createOffer(object : SdpObserver {
+            override fun onCreateSuccess(desc: SessionDescription?) {
+                desc?.let { 
+                    targetUserId?.let { target ->
+                        socketManager?.sendCallOffer(target, it.description, isVideo)
+                    }
+                }
+            }
+            override fun onSetSuccess() {}
+            override fun onCreateFailure(s: String?) {
+                Log.e(TAG, "createOffer failed: $s")
+            }
+            override fun onSetFailure(s: String?) {
+                Log.e(TAG, "setLocalDescription failed: $s")
+            }
+        })
+    }
+
+    fun onRemoteOfferReceived(sdp: SessionDescription) {
+        Log.d(TAG, "Setting remote description from offer and creating answer")
+        rtcClient?.setRemoteDescription(sdp, object : SdpObserver {
+            override fun onSetSuccess() {
+                rtcClient?.createAnswer(object : SdpObserver {
+                    override fun onCreateSuccess(desc: SessionDescription?) {
+                        desc?.let { signalingClient.sendAnswer(it) }
+                    }
+                    override fun onSetSuccess() {}
+                    override fun onCreateFailure(s: String?) {
+                        Log.e(TAG, "createAnswer failed: $s")
+                    }
+                    override fun onSetFailure(s: String?) {
+                        Log.e(TAG, "setLocalDescription for answer failed: $s")
+                    }
+                })
+            }
+            override fun onCreateFailure(s: String?) {
+                Log.e(TAG, "setRemoteDescription failed: $s")
+            }
+            override fun onSetFailure(s: String?) {
+                Log.e(TAG, "setRemoteDescription failure: $s")
+            }
+            override fun onCreateSuccess(desc: SessionDescription?) {}
+        })
+    }
+
+    fun onRemoteAnswerReceived(sdp: SessionDescription) {
+        Log.d(TAG, "Setting remote description from answer")
+        rtcClient?.setRemoteDescription(sdp, object : SdpObserver {
+            override fun onSetSuccess() {
+                _isCallPickedUp.value = true
+            }
+            override fun onCreateSuccess(desc: SessionDescription?) {}
+            override fun onCreateFailure(s: String?) {
+                Log.e(TAG, "setRemoteAnswer failed: $s")
+            }
+            override fun onSetFailure(s: String?) {
+                Log.e(TAG, "setRemoteAnswer onSetFailure: $s")
+            }
+        })
+    }
+
+    fun onRemoteIceCandidateReceived(candidate: IceCandidate) {
+        val client = rtcClient
+        if (client != null) {
+            client.addIceCandidate(candidate)
+        } else {
+            Log.d(TAG, "Queueing remote ICE candidate because rtcClient is null")
+            queuedIceCandidates.add(candidate)
+        }
+    }
+
+    fun sendIceCandidate(candidate: IceCandidate) {
+        signalingClient.sendIceCandidate(candidate)
+    }
+
+    fun switchCamera() {
+        rtcClient?.switchCamera()
+    }
+
+    fun toggleVideo(enabled: Boolean) {
+        rtcClient?.setVideoEnabled(enabled)
+    }
+
+    fun toggleAudio(enabled: Boolean) {
+        rtcClient?.setAudioEnabled(enabled)
+    }
+
+    fun endCall() {
+        Log.d(TAG, "endCall requested")
+        val clientToClose = rtcClient
+        rtcClient = null
+
+        targetUserId?.let { target ->
+            socketManager?.endCall(target)
+        }
+        com.example.webrtc.ScreenShareService.stopService(getApplication())
+        
+        // Immediately nullify state to stop UI rendering and allow navigation
+        _isCallPickedUp.value = false
+        _localVideoTrack.value = null
+        _remoteTrack.value = null
+        _eglBaseContext.value = null
+        _isScreenSharing.value = false
+        queuedIceCandidates.clear()
+
+        // Perform heavy WebRTC cleanup in a background thread to prevent UI freeze
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Starting background WebRTC cleanup...")
+                clientToClose?.close()
+                Log.d(TAG, "Background WebRTC cleanup finished")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during background cleanup: ${e.message}", e)
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        val clientToClose = rtcClient
+        rtcClient = null
+        
+        com.example.webrtc.ScreenShareService.stopService(getApplication())
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                clientToClose?.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during onCleared cleanup: ${e.message}")
+            }
+        }
+        
+        _localVideoTrack.value = null
+        _remoteTrack.value = null
+        _eglBaseContext.value = null
+    }
+
+    fun startScreenSharing(permissionIntent: android.content.Intent) {
+        com.example.webrtc.ScreenShareService.startService(getApplication())
+        rtcClient?.startScreenShare(permissionIntent)
+        _isScreenSharing.value = true
+    }
+
+    fun stopScreenSharing() {
+        rtcClient?.stopScreenShare()
+        com.example.webrtc.ScreenShareService.stopService(getApplication())
+        _isScreenSharing.value = false
+    }
+
+    fun setRemoteTrack(track: VideoTrack) {
+        _remoteTrack.value = track
+    }
+
+    fun setCallPickedUp(pickedUp: Boolean) {
+        _isCallPickedUp.value = pickedUp
+    }
+
+    fun setIncomingCallOffer(data: IncomingCallData) {
+        _incomingCallOffer.value = data
+    }
+
+    fun clearIncomingCall() {
+        _incomingCallOffer.value = null
+    }
+}

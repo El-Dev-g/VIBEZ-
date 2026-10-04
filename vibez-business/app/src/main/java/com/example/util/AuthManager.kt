@@ -1,0 +1,97 @@
+package com.example.util
+
+import android.content.Context
+import android.content.SharedPreferences
+
+class AuthManager(context: Context) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("vibez_auth", Context.MODE_PRIVATE)
+
+    fun saveAuthData(
+        token: String,
+        userId: String,
+        phoneNumber: String,
+        userName: String? = null,
+        userAbout: String? = null,
+        userAvatar: String? = null,
+        googleEmail: String? = null,
+        authProvider: String = "PHONE",
+        requiresProfileSetup: Boolean = false
+    ) {
+        prefs.edit().apply {
+            putString("token", token)
+            putString("user_id", userId)
+            putString("phone_number", phoneNumber)
+            if (userName != null) putString("user_name", userName)
+            if (userAbout != null) putString("user_about", userAbout)
+            if (userAvatar != null) putString("user_avatar", userAvatar)
+            if (googleEmail != null) putString("google_email", googleEmail)
+            putString("auth_provider", authProvider)
+            putBoolean("requires_profile_setup", requiresProfileSetup)
+            apply()
+        }
+    }
+
+    fun setRequiresProfileSetup(requires: Boolean) {
+        prefs.edit().putBoolean("requires_profile_setup", requires).apply()
+    }
+
+    fun getRequiresProfileSetup(): Boolean = prefs.getBoolean("requires_profile_setup", false)
+
+    fun updateProfile(userName: String, userAbout: String, userAvatar: String? = null) {
+        prefs.edit().apply {
+            putString("user_name", userName)
+            putString("user_about", userAbout)
+            if (userAvatar != null) putString("user_avatar", userAvatar)
+            apply()
+        }
+    }
+
+    fun getAuthToken(): String? = prefs.getString("token", null)
+    fun getUserId(): String? = prefs.getString("user_id", null)
+    fun getPhoneNumber(): String? = prefs.getString("phone_number", null)
+    fun getUserName(): String? = prefs.getString("user_name", null)
+    fun getUserAbout(): String? = prefs.getString("user_about", null)
+    fun getUserAvatar(): String? = prefs.getString("user_avatar", null)
+    fun getGoogleEmail(): String? = prefs.getString("google_email", null)
+    fun getAuthProvider(): String = prefs.getString("auth_provider", "PHONE") ?: "PHONE"
+
+    fun setSettingBoolean(key: String, value: Boolean) {
+        prefs.edit().putBoolean("setting_$key", value).apply()
+    }
+
+    fun saveSettingBoolean(key: String, value: Boolean) = setSettingBoolean(key, value)
+
+    fun getSettingBoolean(key: String, defaultValue: Boolean = false): Boolean {
+        return prefs.getBoolean("setting_$key", defaultValue)
+    }
+
+    fun setSettingString(key: String, value: String) {
+        prefs.edit().putString("setting_$key", value).apply()
+    }
+
+    fun saveSettingString(key: String, value: String) = setSettingString(key, value)
+
+    fun getSettingString(key: String, defaultValue: String? = null): String? {
+        return prefs.getString("setting_$key", defaultValue)
+    }
+
+    fun setVerified(verified: Boolean) {
+        prefs.edit().putBoolean("is_verified", verified).apply()
+    }
+
+    fun isVerified(): Boolean = prefs.getBoolean("is_verified", false)
+
+    fun isLoggedIn(): Boolean = getAuthToken() != null
+
+    fun logout() {
+        prefs.edit().apply {
+            remove("token")
+            remove("is_verified")
+            apply()
+        }
+    }
+
+    fun deleteLocalAccountData() {
+        prefs.edit().clear().apply()
+    }
+}

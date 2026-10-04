@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Google 4-Color Official G Logo -->
+    <path
+        android:fillColor="#4285F4"
+        android:pathData="M46.14,24.53c0,-1.65 -0.15,-3.23 -0.42,-4.76H24v9.03h12.44c-0.54,2.9 -2.18,5.36 -4.64,7.01v5.82h7.52C43.72,37.58 46.14,31.62 46.14,24.53z" />
+    <path
+        android:fillColor="#34A853"
+        android:pathData="M24,47c6.48,0 11.93,-2.13 15.91,-5.81l-7.52,-5.82c-2.15,1.45 -4.92,2.3 -8.39,2.3 -6.26,0 -11.57,-4.22 -13.47,-9.91H2.76v6.01C6.73,41.7 14.7,47 24,47z" />
+    <path
+        android:fillColor="#FBBC05"
+        android:pathData="M10.53,27.76c-0.49,-1.45 -0.77,-3 -0.77,-4.76s0.28,-3.31 0.77,-4.76V12.23H2.76C1.1,15.54 0.15,19.24 0.15,23s0.95,7.46 2.61,10.77l7.77,-6.01z" />
+    <path
+        android:fillColor="#EA4335"
+        android:pathData="M24,9.5c3.54,0 6.71,1.22 9.21,3.6l6.85,-6.85C35.91,2.38 30.47,0 24,0 14.7,0 6.73,5.3 2.76,13.23l7.77,6.01C12.43,13.72 17.74,9.5 24,9.5z" />
+</vector>

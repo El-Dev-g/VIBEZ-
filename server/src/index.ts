@@ -17,6 +17,7 @@ import { SubscriptionController } from './controllers/SubscriptionController';
 import { DeveloperController } from './controllers/DeveloperController';
 import { GmailOAuthController } from './controllers/GmailOAuthController';
 import { AiController } from './controllers/AiController';
+import { BusinessController } from './controllers/BusinessController';
 import { authenticate, authenticateAdmin, authenticateOptional } from './middleware/auth';
 import { authenticateDeveloper, authenticateDeveloperApiKey, authenticateDeveloperOrApiKey } from './middleware/developerAuth';
 import { verifyUserToken } from './lib/jwt';
@@ -104,6 +105,7 @@ const subscription = new SubscriptionController();
 const developer = new DeveloperController();
 const gmailOAuth = new GmailOAuthController();
 const ai = new AiController();
+const business = new BusinessController();
 
 // Developer API & Server Integration Routes (Powered by PRIGID GROUP)
 app.get('/api/developer/health', (req, res) => developer.getDeveloperHealth(req, res));
@@ -239,6 +241,21 @@ app.get('/api/admin/payments/transactions', authenticateAdmin, (req, res) => pay
 app.get('/api/payments/providers', (req, res) => payment.getAvailableProviders(req, res));
 app.post('/api/payments/create', authenticate, (req, res) => payment.createPayment(req, res));
 app.post('/api/payments/webhook', (req, res) => payment.updatePaymentStatus(req, res));
+
+// Vibez Business Tools Routes
+app.get('/api/business/profile', authenticateOptional, (req, res) => business.getProfile(req, res));
+app.put('/api/business/profile', authenticate, (req, res) => business.updateProfile(req, res));
+app.get('/api/business/catalog', authenticateOptional, (req, res) => business.getCatalog(req, res));
+app.post('/api/business/catalog', authenticate, (req, res) => business.addCatalogItem(req, res));
+app.delete('/api/business/catalog/:id', authenticate, (req, res) => business.deleteCatalogItem(req, res));
+app.get('/api/business/quick-replies', authenticate, (req, res) => business.getQuickReplies(req, res));
+app.post('/api/business/quick-replies', authenticate, (req, res) => business.addQuickReply(req, res));
+app.delete('/api/business/quick-replies/:id', authenticate, (req, res) => business.deleteQuickReply(req, res));
+app.get('/api/business/automated-messages', authenticate, (req, res) => business.getAutomatedMessages(req, res));
+app.post('/api/business/automated-messages', authenticate, (req, res) => business.updateAutomatedMessage(req, res));
+app.get('/api/business/labels', authenticate, (req, res) => business.getLabels(req, res));
+app.post('/api/business/labels', authenticate, (req, res) => business.addLabel(req, res));
+app.post('/api/business/labels/toggle', authenticate, (req, res) => business.toggleChatLabel(req, res));
 
 // Broadcast & Announcements Routes
 app.get('/api/broadcasts', (req, res) => admin.getPublicBroadcasts(req, res));
