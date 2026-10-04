@@ -256,7 +256,20 @@ app.get('/api/business/public/catalog/:userId', (req, res) => {
   business.getCatalog(req as any, res);
 });
 app.post('/api/business/catalog', authenticate, (req, res) => business.addCatalogItem(req, res));
+app.put('/api/business/catalog/:id', authenticate, (req, res) => business.updateCatalogItem(req, res));
+app.post('/api/business/catalog/import', authenticate, (req, res) => business.importCatalogItems(req, res));
 app.delete('/api/business/catalog/:id', authenticate, (req, res) => business.deleteCatalogItem(req, res));
+
+// Meta / Facebook Developer Commerce Catalog Feed XML/JSON Feed Routes
+app.get('/api/business/public/catalog/:userId/meta-feed', (req, res) => business.getMetaCatalogFeed(req, res));
+app.get('/api/business/public/catalog/:userId/meta-feed.xml', (req, res) => {
+  req.params.format = 'xml';
+  business.getMetaCatalogFeed(req, res);
+});
+app.get('/api/business/public/catalog/:userId/meta-feed.json', (req, res) => {
+  req.params.format = 'json';
+  business.getMetaCatalogFeed(req, res);
+});
 app.get('/api/business/quick-replies', authenticate, (req, res) => business.getQuickReplies(req, res));
 app.post('/api/business/quick-replies', authenticate, (req, res) => business.addQuickReply(req, res));
 app.delete('/api/business/quick-replies/:id', authenticate, (req, res) => business.deleteQuickReply(req, res));

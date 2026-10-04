@@ -30,6 +30,7 @@ import {
   User,
   Settings,
   Lock,
+  ShoppingBag,
   CreditCard,
 } from 'lucide-react';
 import { useDeveloperAuth } from '../../context/DeveloperAuthContext';
@@ -43,12 +44,14 @@ import { OAuthAppsManager } from '../../components/OAuthAppsManager';
 import { EventReplayStudio } from '../../components/EventReplayStudio';
 import { AiSchemaMockGenerator } from '../../components/AiSchemaMockGenerator';
 import { ApiExplorerSandbox } from '../../components/ApiExplorerSandbox';
+import { MetaCommerceManager } from '../../components/MetaCommerceManager';
 import { DeveloperProfile } from '../../components/DeveloperProfile';
 import { DeveloperSettings } from '../../components/DeveloperSettings';
 import { BillingManager } from '../../components/BillingManager';
 
 type DashboardTab =
   | 'overview'
+  | 'commerce_manager'
   | 'keys'
   | 'team'
   | 'quotas'
@@ -63,6 +66,7 @@ type DashboardTab =
 
 const VALID_TABS: DashboardTab[] = [
   'overview',
+  'commerce_manager',
   'keys',
   'team',
   'quotas',
@@ -145,6 +149,7 @@ function DashboardContent() {
       group: 'Overview & Metrics',
       items: [
         { id: 'overview', label: 'Dashboard Overview', icon: LayoutDashboard, badge: 'Live' },
+        { id: 'commerce_manager', label: 'Meta Commerce Manager', icon: ShoppingBag, badge: 'Commerce' },
         { id: 'logs', label: 'Traffic Inspector', icon: Terminal },
         { id: 'quotas', label: 'Rate Limits & Quota', icon: Gauge },
       ],
@@ -184,6 +189,10 @@ function DashboardContent() {
     overview: {
       title: 'Dashboard Overview',
       subtitle: 'System performance, API traffic activity, active keys, and operational telemetry.',
+    },
+    commerce_manager: {
+      title: 'Meta-Style Commerce Manager',
+      subtitle: 'Manage in-app and cloud product catalogs, developer commerce feeds, and webstore integrations.',
     },
     keys: {
       title: 'API Keys & Access Control',
@@ -593,6 +602,7 @@ function DashboardContent() {
               {activeTab === 'overview' && (
                 <DashboardOverview onNavigateTab={(tab) => handleTabChange(tab as DashboardTab)} />
               )}
+              {activeTab === 'commerce_manager' && <MetaCommerceManager />}
               {activeTab === 'keys' && <DeveloperKeyGenerator />}
               {activeTab === 'team' && <TeamMembersManager />}
               {activeTab === 'quotas' && <RateLimitingQuotaManager />}
