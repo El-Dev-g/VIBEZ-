@@ -16,6 +16,7 @@ import com.example.data.network.*
 import com.example.util.AuthManager
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
 
 class WhatsAppRepository(private val dao: WhatsAppDao, private val context: android.content.Context? = null) {
 
@@ -1452,6 +1453,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                       type.equals("STATUS", ignoreCase = true) ||
                       type.equals("STATUS_PHOTO", ignoreCase = true)
 
+        var tempUploadFile: java.io.File? = null
         try {
             val ext = when {
                 type.equals("VIDEO", ignoreCase = true) -> "mp4"
@@ -1466,30 +1468,58 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 else -> "image/jpeg"
             }
             val fileName = "${type.lowercase()}_${System.currentTimeMillis()}.$ext"
+            val mediaType = contentType.toMediaTypeOrNull()
 
-            val bytes: ByteArray? = when {
+            val requestBody: okhttp3.RequestBody? = when {
                 isImage -> {
                     // Client-side image compression to reduce bandwidth and speed up posting
-                    com.example.util.ImageUtils.compressImageBytes(contentResolver, uriString, maxDimension = 1080, quality = 80)
+                    val compressedBytes = com.example.util.ImageUtils.compressImageBytes(contentResolver, uriString, maxDimension = 1080, quality = 80)
+                    if (compressedBytes != null && compressedBytes.isNotEmpty()) {
+                        okhttp3.RequestBody.create(mediaType, compressedBytes)
+                    } else null
                 }
                 uriString.startsWith("file://") -> {
                     val parsed = android.net.Uri.parse(uriString)
                     val file = java.io.File(parsed.path ?: "")
-                    if (file.exists()) file.readBytes() else null
+                    if (file.exists() && file.length() > 0) {
+                        file.asRequestBody(mediaType)
+                    } else null
                 }
                 uriString.startsWith("/") -> {
                     val file = java.io.File(uriString)
-                    if (file.exists()) file.readBytes() else null
+                    if (file.exists() && file.length() > 0) {
+                        file.asRequestBody(mediaType)
+                    } else null
                 }
                 else -> {
+                    // For content:// and other URIs, stream to temporary cache file using small 64KB chunks to avoid heap allocation
                     val uri = android.net.Uri.parse(uriString)
-                    contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    val cacheDir = context?.cacheDir ?: java.io.File(System.getProperty("java.io.tmpdir") ?: ".")
+                    val cacheFile = java.io.File(cacheDir, "status_upload_${System.currentTimeMillis()}.$ext")
+                    try {
+                        contentResolver.openInputStream(uri)?.use { input ->
+                            cacheFile.outputStream().use { output ->
+                                input.copyTo(output, bufferSize = 65536)
+                            }
+                        }
+                        if (cacheFile.exists() && cacheFile.length() > 0) {
+                            tempUploadFile = cacheFile
+                            cacheFile.asRequestBody(mediaType)
+                        } else null
+                    } catch (t: Throwable) {
+                        t.printStackTrace()
+                        null
+                    }
                 }
             }
 
-            if (bytes != null && bytes.isNotEmpty()) {
-                val okHttpClient = okhttp3.OkHttpClient()
-                val requestBody = okhttp3.RequestBody.create(contentType.toMediaTypeOrNull(), bytes)
+            if (requestBody != null) {
+                val okHttpClient = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                    .writeTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                    .retryOnConnectionFailure(true)
+                    .build()
 
                 // 1. Try S3 / Cloudflare R2 presigned URL if configured
                 if (token.isNotBlank()) {
@@ -1519,8 +1549,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                                 return@withContext publicUrl
                             }
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                    } catch (t: Throwable) {
+                        t.printStackTrace()
                     }
                 }
 
@@ -1546,12 +1576,16 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                             return@withContext directPublicUrl
                         }
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                } catch (t: Throwable) {
+                    t.printStackTrace()
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        } finally {
+            try {
+                tempUploadFile?.delete()
+            } catch (ignored: Throwable) {}
         }
 
         // Fallback for images/avatars: encode as compressed JPEG Base64 data URI so it syncs reliably across all devices
@@ -1606,20 +1640,50 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 backgroundColor = colorHex,
                 textStyle = textStyleJson
             )
-            val dto = NetworkClient.apiService.createStatus("Bearer $token", request)
             val uid = currentUserId ?: context?.let { AuthManager(it).getUserId() }
-            val entity = mapStatusDtoToEntity(dto, uid).let { mapped ->
-                if (mapped.mediaUrl.isBlank() && mediaUrl.isNotBlank()) {
-                    mapped.copy(mediaUrl = mediaUrl)
-                } else {
-                    mapped
+            if (token.isNotBlank()) {
+                try {
+                    val dto = NetworkClient.apiService.createStatus("Bearer $token", request)
+                    val entity = mapStatusDtoToEntity(dto, uid).let { mapped ->
+                        if (mapped.mediaUrl.isBlank() && mediaUrl.isNotBlank()) {
+                            mapped.copy(mediaUrl = mediaUrl)
+                        } else {
+                            mapped
+                        }
+                    }
+                    dao.insertStatus(entity)
+                    return entity.id
+                } catch (netEx: Throwable) {
+                    netEx.printStackTrace()
                 }
             }
-            dao.insertStatus(entity)
-            entity.id
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // Even if network call fails, insert locally so author has working status
+
+            // If token is blank or network call fails, insert locally so author has working status
+            val authManager = context?.let { AuthManager(it) }
+            val resolvedUid = uid ?: authManager?.getUserId() ?: "ME"
+            val localEntity = StatusEntity(
+                id = "local_status_${System.currentTimeMillis()}",
+                contactId = resolvedUid,
+                contactName = authManager?.getUserName() ?: "My Status",
+                contactAvatar = authManager?.getUserAvatar() ?: "",
+                mediaType = type,
+                mediaUrl = mediaUrl,
+                textCaption = caption,
+                backgroundColorHex = colorHex,
+                timestamp = System.currentTimeMillis(),
+                isViewed = false,
+                isMyStatus = true,
+                songTitle = songTitle,
+                songArtist = songArtist,
+                songPreviewUrl = songPreviewUrl,
+                musicOffsetX = musicOffsetX,
+                musicOffsetY = musicOffsetY
+            )
+            dao.insertStatus(localEntity)
+            localEntity.id
+        } catch (t: Throwable) {
+            t.printStackTrace()
+            // Even if any unexpected error occurs, attempt safe local insertion
             try {
                 val uid = currentUserId ?: context?.let { AuthManager(it).getUserId() } ?: "ME"
                 val authManager = context?.let { AuthManager(it) }
@@ -1634,6 +1698,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                     backgroundColorHex = colorHex,
                     timestamp = System.currentTimeMillis(),
                     isViewed = false,
+                    isMyStatus = true,
                     songTitle = songTitle,
                     songArtist = songArtist,
                     songPreviewUrl = songPreviewUrl,
@@ -1642,8 +1707,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 )
                 dao.insertStatus(localEntity)
                 return localEntity.id
-            } catch (le: Exception) {
-                le.printStackTrace()
+            } catch (lt: Throwable) {
+                lt.printStackTrace()
             }
             ""
         }
@@ -1694,6 +1759,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             rawMediaUrl
         }
 
+        val rawList = if (dto.viewers.isNotEmpty()) dto.viewers else dto.views
         return StatusEntity(
             id = dto.id,
             contactId = dto.userId,
@@ -1704,15 +1770,15 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             textCaption = dto.content ?: "",
             backgroundColorHex = dto.backgroundColor ?: "#075E54",
             timestamp = parseDate(dto.createdAt),
-            isViewed = activeUid != null && dto.viewers.any { it.userId == activeUid },
+            isViewed = activeUid != null && rawList.any { it.userId == activeUid },
             isMyStatus = isMine,
-            viewCount = dto.viewers.size,
+            viewCount = rawList.size,
             songTitle = sTitle,
             songArtist = sArtist,
             songPreviewUrl = sPreviewUrl,
             musicOffsetX = sOffsetX,
             musicOffsetY = sOffsetY,
-            viewers = dto.viewers.map { v ->
+            viewers = rawList.map { v ->
                 val viewerTimestamp = parseDate(v.viewedAt)
                 StatusViewer(
                     contactId = v.userId,

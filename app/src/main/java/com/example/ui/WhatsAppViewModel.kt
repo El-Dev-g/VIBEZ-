@@ -1241,9 +1241,10 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         musicOffsetY: Float = 0.5f
     ) {
         viewModelScope.launch {
-            authManager.getAuthToken()?.let { token ->
+            try {
+                val token = authManager.getAuthToken() ?: ""
                 var finalMediaUrl = mediaUrl
-                if (mediaUrl.isNotEmpty() && (mediaUrl.startsWith("content://") || mediaUrl.startsWith("file://"))) {
+                if (mediaUrl.isNotEmpty() && (mediaUrl.startsWith("content://") || mediaUrl.startsWith("file://") || mediaUrl.startsWith("/"))) {
                     val app = getApplication<android.app.Application>()
                     val uploadedUrl = repository.uploadFile(
                         token = token,
@@ -1251,13 +1252,19 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                         type = type,
                         contentResolver = app.contentResolver
                     )
-                    if (uploadedUrl != null) {
+                    if (!uploadedUrl.isNullOrBlank()) {
                         finalMediaUrl = uploadedUrl
                     }
                 }
                 val uid = authManager.getUserId()
                 repository.postStatus(caption, type, colorHex, finalMediaUrl, songTitle, songArtist, songPreviewUrl, musicOffsetX, musicOffsetY, token, uid)
-                syncStatuses()
+                try {
+                    syncStatuses()
+                } catch (se: Throwable) {
+                    android.util.Log.w("WhatsAppViewModel", "syncStatuses warning after postStatus", se)
+                }
+            } catch (t: Throwable) {
+                android.util.Log.e("WhatsAppViewModel", "Fatal error prevented during postStatus", t)
             }
         }
     }

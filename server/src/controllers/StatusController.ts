@@ -19,7 +19,11 @@ export class StatusController {
         },
         orderBy: { createdAt: 'desc' }
       });
-      res.json(statuses);
+      const mapped = statuses.map((s: any) => ({
+        ...s,
+        viewers: s.views || []
+      }));
+      res.json(mapped);
     } catch (error) {
       console.error('Error fetching statuses:', error);
       res.status(500).json({ error: 'Failed to fetch statuses' });
@@ -30,13 +34,14 @@ export class StatusController {
     try {
       const { mediaUrl, content, type, backgroundColor, textStyle } = req.body;
       const userId = req.user?.id as string;
+      const resolvedType = type || (mediaUrl && (mediaUrl.toLowerCase().includes('.mp4') || mediaUrl.toLowerCase().includes('video')) ? 'VIDEO' : 'IMAGE');
 
       const status = await prisma.status.create({
         data: {
           userId,
           mediaUrl,
           content,
-          type: type || 'IMAGE',
+          type: resolvedType,
           backgroundColor,
           textStyle,
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
@@ -51,7 +56,10 @@ export class StatusController {
         }
       });
 
-      res.json(status);
+      res.json({
+        ...status,
+        viewers: (status as any).views || []
+      });
     } catch (error) {
       console.error('Error creating status:', error);
       res.status(500).json({ error: 'Failed to create status' });

@@ -158,8 +158,9 @@ data class StatusDto(
     val backgroundColor: String?,
     val textStyle: String?,
     val createdAt: String,
-    val user: UserDto?,
-    val viewers: List<StatusViewerDto> = emptyList()
+    val user: UserDto? = null,
+    val viewers: List<StatusViewerDto> = emptyList(),
+    val views: List<StatusViewerDto> = emptyList()
 )
 
 @JsonClass(generateAdapter = true)
