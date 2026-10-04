@@ -674,4 +674,85 @@ export class BusinessController {
       res.status(500).json({ error: 'Failed to toggle chat label' });
     }
   }
+
+  // Business Orders Management API
+  async createOrder(req: AuthRequest, res: Response) {
+    try {
+      const buyerUserId = req.user?.id;
+      const { businessUserId, chatId, items, totalAmount, currency, note } = req.body;
+
+      if (!businessUserId || !items || !Array.isArray(items)) {
+        return res.status(400).json({ error: 'businessUserId and items array required' });
+      }
+
+      const order = await prisma.order.create({
+        data: {
+          businessId: businessUserId,
+          buyerId: buyerUserId || 'ANONYMOUS_BUYER',
+          chatId: chatId || null,
+          items: JSON.stringify(items),
+          totalAmount: parseFloat(totalAmount) || 0.0,
+          currency: currency || 'USD',
+          status: 'PENDING',
+          note: note || null
+        }
+      });
+
+      res.json({ success: true, order });
+    } catch (error) {
+      console.error('Error creating order:', error);
+      res.status(500).json({ error: 'Failed to create order' });
+    }
+  }
+
+  async getOrders(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id || (req.query.userId as string);
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+      const orders = await prisma.order.findMany({
+        where: {
+          OR: [
+            { businessId: userId },
+            { buyerId: userId }
+          ]
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      const parsedOrders = orders.map(o => {
+        let itemsList = [];
+        try { itemsList = JSON.parse(o.items); } catch(e) {}
+        return {
+          ...o,
+          itemsList
+        };
+      });
+
+      res.json(parsedOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      res.status(500).json({ error: 'Failed to fetch orders' });
+    }
+  }
+
+  async updateOrderStatus(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!userId || !status) return res.status(400).json({ error: 'Order ID and status required' });
+
+      const order = await prisma.order.update({
+        where: { id },
+        data: { status }
+      });
+
+      res.json(order);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      res.status(500).json({ error: 'Failed to update order status' });
+    }
+  }
 }

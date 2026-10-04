@@ -279,6 +279,11 @@ app.get('/api/business/labels', authenticate, (req, res) => business.getLabels(r
 app.post('/api/business/labels', authenticate, (req, res) => business.addLabel(req, res));
 app.post('/api/business/labels/toggle', authenticate, (req, res) => business.toggleChatLabel(req, res));
 
+// Business Orders Routes
+app.post('/api/business/orders', authenticateOptional, (req, res) => business.createOrder(req, res));
+app.get('/api/business/orders', authenticateOptional, (req, res) => business.getOrders(req, res));
+app.put('/api/business/orders/:id/status', authenticate, (req, res) => business.updateOrderStatus(req, res));
+
 // Broadcast & Announcements Routes
 app.get('/api/broadcasts', (req, res) => admin.getPublicBroadcasts(req, res));
 app.get('/api/announcements', (req, res) => admin.getPublicBroadcasts(req, res));
