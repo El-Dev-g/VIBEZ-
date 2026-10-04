@@ -631,12 +631,23 @@ final class VibezStore: ObservableObject {
         }
     }
 
-    func postStatus(caption: String, type: String, colorHex: String, imageData: Data?) async {
+    func postStatus(caption: String, type: String, colorHex: String, mediaData: Data?, mimeType: String? = nil, fileName: String? = nil) async {
         guard !authToken.isEmpty else { return }
         var mediaUrl = ""
-        if let data = imageData,
-           let uploaded = await api.uploadImageData(token: authToken, imageData: data, purpose: "IMAGE") {
-            mediaUrl = uploaded
+        if let data = mediaData {
+            let finalMimeType = mimeType ?? "image/jpeg"
+            let ext = finalMimeType.contains("video") ? "mp4" : "jpg"
+            let finalFileName = fileName ?? "status_\(Int(Date().timeIntervalSince1970)).\(ext)"
+            
+            if let uploaded = await api.uploadMediaData(
+                token: authToken,
+                mediaData: data,
+                mimeType: finalMimeType,
+                fileName: finalFileName,
+                purpose: "STATUS"
+            ) {
+                mediaUrl = uploaded
+            }
         }
         _ = try? await api.createStatus(
             token: authToken,

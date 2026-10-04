@@ -193,45 +193,81 @@ final class ApiClient {
 
     // MARK: - Media Upload (Cloudflare R2 Presigned + Automatic Base64 Data URI Fallback)
 
-    func uploadImageData(token: String, imageData: Data, purpose: String = "IMAGE") async -> String? {
-        guard let uiImage = UIImage(data: imageData) else { return nil }
-        let maxDimension: CGFloat = (purpose == "AVATAR") ? 480 : 960
-        let scaledImage = scaleImage(uiImage, maxDimension: maxDimension)
-        guard let jpegData = scaledImage.jpegData(compressionQuality: 0.75) else { return nil }
+    func uploadMediaData(token: String, mediaData: Data, mimeType: String, fileName: String, purpose: String = "IMAGE") async -> String? {
+        let isImage = mimeType.hasPrefix("image/")
+        var finalData = mediaData
+        var finalMimeType = mimeType
 
-        // 1. Attempt Cloudflare R2 Presigned Upload first
+        if isImage, let uiImage = UIImage(data: mediaData) {
+            let maxDimension: CGFloat = (purpose == "AVATAR") ? 480 : 960
+            let scaledImage = scaleImage(uiImage, maxDimension: maxDimension)
+            if let jpegData = scaledImage.jpegData(compressionQuality: 0.75) {
+                finalData = jpegData
+                finalMimeType = "image/jpeg"
+            }
+        }
+
         if !token.isEmpty {
+            // 1. First attempt direct local server upload (/api/media/upload-direct)
             do {
-                let fileName = "\(purpose.lowercased())_\(Int(Date().timeIntervalSince1970)).jpg"
+                let directUrlStr = "\(baseURL)/api/media/upload-direct?fileName=\(fileName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? fileName)&purpose=\(purpose)"
+                if let directUrl = URL(string: directUrlStr) {
+                    var directReq = URLRequest(url: directUrl)
+                    directReq.httpMethod = "POST"
+                    directReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                    directReq.setValue(finalMimeType, forHTTPHeaderField: "Content-Type")
+                    directReq.httpBody = finalData
+
+                    let (respData, resp) = try await session.data(for: directReq)
+                    if let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                        if let json = try? JSONSerialization.jsonObject(with: respData) as? [String: Any],
+                           let publicUrl = json["publicUrl"] as? String {
+                            return publicUrl
+                        }
+                    }
+                }
+            } catch {
+                print("Direct iOS media upload error: \(error)")
+            }
+
+            // 2. Second attempt Cloudflare R2 presigned URL if configured
+            do {
                 let req = try makeRequest(
                     path: "/api/media/upload-url",
                     method: "POST",
                     token: token,
-                    body: ["fileName": fileName, "contentType": "image/jpeg"]
+                    body: ["fileName": fileName, "contentType": finalMimeType]
                 )
                 let presigned: PresignedUploadResponse = try await perform(req)
-                if presigned.uploadUrl.hasPrefix("https://"),
-                   !presigned.uploadUrl.contains("undefined"),
-                   presigned.publicUrl.hasPrefix("https://"),
-                   !presigned.publicUrl.contains("undefined"),
+                if presigned.uploadUrl.hasPrefix("https://") && !presigned.uploadUrl.contains("undefined"),
+                   presigned.publicUrl.hasPrefix("https://") && !presigned.publicUrl.contains("undefined"),
                    let putUrl = URL(string: presigned.uploadUrl) {
                     var putReq = URLRequest(url: putUrl)
                     putReq.httpMethod = "PUT"
-                    putReq.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
-                    putReq.httpBody = jpegData
+                    putReq.setValue(finalMimeType, forHTTPHeaderField: "Content-Type")
+                    putReq.httpBody = finalData
                     let (_, putResp) = try await session.data(for: putReq)
                     if let http = putResp as? HTTPURLResponse, (200...299).contains(http.statusCode) {
                         return presigned.publicUrl
                     }
                 }
             } catch {
-                // Fall through to portable Base64 data URI fallback
+                print("Cloudflare R2 iOS media upload error: \(error)")
             }
         }
 
-        // 2. Portable Base64 Data URI fallback so images & avatars always sync across iOS & Android
-        let base64 = jpegData.base64EncodedString()
-        return "data:image/jpeg;base64,\(base64)"
+        // 3. Fallback to base64 data URI (images only)
+        if isImage {
+            let base64 = finalData.base64EncodedString()
+            return "data:\(finalMimeType);base64,\(base64)"
+        }
+
+        return nil
+    }
+
+    func uploadImageData(token: String, imageData: Data, purpose: String = "IMAGE") async -> String? {
+        let fileName = "\(purpose.lowercased())_\(Int(Date().timeIntervalSince1970)).jpg"
+        return await uploadMediaData(token: token, mediaData: imageData, mimeType: "image/jpeg", fileName: fileName, purpose: purpose)
     }
 
     private func scaleImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
