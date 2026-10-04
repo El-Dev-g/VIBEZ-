@@ -12,7 +12,8 @@ data class UserDto(
     val about: String?,
     val lastSeen: String,
     val isVerified: Boolean = false,
-    val verifiedAt: String? = null
+    val verifiedAt: String? = null,
+    val accountType: String? = "CONSUMER"
 )
 
 @JsonClass(generateAdapter = true)
@@ -379,5 +380,63 @@ data class AiTranscribeResponse(
     val transcript: String = "",
     val error: String? = null
 )
+
+// ==============================
+// VIBEZ BUSINESS & STOREFRONT DTOs
+// ==============================
+
+@JsonClass(generateAdapter = true)
+data class BusinessProfileDto(
+    val id: String = "",
+    val userId: String = "",
+    val businessName: String = "",
+    val category: String = "Shopping & Retail",
+    val description: String? = null,
+    val coverImageUrl: String? = null,
+    val address: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val businessHours: String? = null,
+    val website: String? = null,
+    val email: String? = null,
+    val isVerified: Boolean = false,
+    val catalogItems: List<CatalogItemDto> = emptyList(),
+    val user: UserDto? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CatalogItemDto(
+    val id: String = "",
+    val businessId: String = "",
+    val title: String = "",
+    val description: String? = null,
+    val price: Double = 0.0,
+    val currency: String = "USD",
+    val imageUrl: String? = null,
+    val link: String? = null,
+    val isAvailable: Boolean = true
+)
+
+@JsonClass(generateAdapter = true)
+data class OrderItemPayload(
+    val catalogItemId: String = "",
+    val title: String = "",
+    val price: Double = 0.0,
+    val quantity: Int = 1,
+    val imageUrl: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class OrderMessagePayload(
+    val orderId: String = "",
+    val businessUserId: String = "",
+    val businessName: String = "",
+    val items: List<OrderItemPayload> = emptyList(),
+    val totalAmount: Double = 0.0,
+    val currency: String = "USD",
+    val note: String? = null,
+    val status: String = "PENDING"
+)
+
 
 

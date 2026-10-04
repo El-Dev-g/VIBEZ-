@@ -1,6 +1,6 @@
 {
-  "summary":  "Architectural and implementation plan to fix video status playback across both the video capture preview screen (before posting) and full-screen status viewer (after posting), with persistent local media caching, custom server video upload and HTTP range streaming endpoints, and frame-accurate playback progress synchronization.",
-  "updatedAt":  "2026-10-03T00:04:52.521551164Z",
+  "summary":  "Implementation plan for Automatic Chat History Migration and Business Data Archiving when switching or logging into the Consumer app with an existing Business account number.",
+  "updatedAt":  "2026-10-04T21:23:01.681663430Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

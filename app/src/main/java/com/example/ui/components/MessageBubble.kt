@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -683,6 +684,73 @@ fun MessageBubble(
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
+                        }
+                    }
+                }
+                "ORDER" -> {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isDarkMode) Color(0xFF1F2C33) else Color(0xFFFFFFFF),
+                        tonalElevation = 2.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(WhatsAppEmerald.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ShoppingCart,
+                                            contentDescription = null,
+                                            tint = WhatsAppEmerald,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Order Inquiry",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = WhatsAppEmerald.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = "Pending",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = WhatsAppEmerald,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+
+                            Text(
+                                text = message.content,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                 }

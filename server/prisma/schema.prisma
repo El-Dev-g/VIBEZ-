@@ -36,7 +36,12 @@ model User {
   communities      CommunityMember[]
   callsMade        Call[]    @relation("Caller")
   callsReceived    Call[]    @relation("Receiver")
+  accountType   String    @default("CONSUMER") // CONSUMER, BUSINESS
   settings         UserSettings?
+  businessProfile BusinessProfile?
+  quickReplies    QuickReply[]
+  automatedMessages AutomatedMessage[]
+  chatLabels      ChatLabel[]
   reportsSubmitted Report[]  @relation("Reporter")
   reportsReceived  Report[]  @relation("ReportedUser")
   badgePayments    BadgePayment[]
@@ -474,7 +479,10 @@ model BusinessProfile {
   businessName          String
   category              String              @default("Professional Services")
   description           String?
+  coverImageUrl         String?
   address               String?
+  latitude              Float?
+  longitude             Float?
   businessHours         String?             // JSON or string formatted hours
   website               String?
   email                 String?

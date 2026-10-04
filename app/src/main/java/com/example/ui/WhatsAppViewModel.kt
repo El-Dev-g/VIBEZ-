@@ -1781,4 +1781,120 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             onResult(success)
         }
     }
+
+    // ==============================
+    // CONSUMER BUSINESS STOREFRONT & CART INQUIRIES
+    // ==============================
+
+    val selectedBusinessProfile = MutableStateFlow<BusinessProfileDto?>(null)
+    val selectedBusinessCatalog = MutableStateFlow<List<CatalogItemDto>>(emptyList())
+    val isStorefrontLoading = MutableStateFlow(false)
+    val cartItems = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    fun loadBusinessStorefront(userId: String) {
+        viewModelScope.launch {
+            isStorefrontLoading.value = true
+            val token = authManager.getAuthToken() ?: ""
+            try {
+                val profile = repository.getBusinessProfile(token, userId)
+                selectedBusinessProfile.value = profile
+                val catalog = repository.getCatalog(token, userId)
+                selectedBusinessCatalog.value = catalog
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isStorefrontLoading.value = false
+            }
+        }
+    }
+
+    fun addToCart(item: CatalogItemDto) {
+        val current = cartItems.value.toMutableMap()
+        current[item.id] = (current[item.id] ?: 0) + 1
+        cartItems.value = current
+    }
+
+    fun updateCartQuantity(itemId: String, quantity: Int) {
+        val current = cartItems.value.toMutableMap()
+        if (quantity <= 0) {
+            current.remove(itemId)
+        } else {
+            current[itemId] = quantity
+        }
+        cartItems.value = current
+    }
+
+    fun clearCart() {
+        cartItems.value = emptyMap()
+    }
+
+    fun sendOrderInquiry(
+        chatId: String,
+        businessUserId: String,
+        businessName: String,
+        note: String?,
+        onComplete: (Boolean) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val currentUserId = authManager.getUserId() ?: ""
+            val cart = cartItems.value
+            val catalog = selectedBusinessCatalog.value
+
+            if (cart.isEmpty()) {
+                onComplete(false)
+                return@launch
+            }
+
+            val orderItems = cart.mapNotNull { (itemId, qty) ->
+                val product = catalog.firstOrNull { it.id == itemId }
+                if (product != null) {
+                    OrderItemPayload(
+                        catalogItemId = product.id,
+                        title = product.title,
+                        price = product.price,
+                        quantity = qty,
+                        imageUrl = product.imageUrl
+                    )
+                } else null
+            }
+
+            val totalAmount = orderItems.sumOf { it.price * it.quantity }
+            val orderId = "ORD-${System.currentTimeMillis().toString().takeLast(6)}"
+
+            val payload = OrderMessagePayload(
+                orderId = orderId,
+                businessUserId = businessUserId,
+                businessName = businessName,
+                items = orderItems,
+                totalAmount = totalAmount,
+                currency = "USD",
+                note = note,
+                status = "PENDING"
+            )
+
+            val success = repository.sendOrderInquiry(
+                token = token,
+                chatId = chatId,
+                senderId = currentUserId,
+                receiverId = businessUserId,
+                orderPayload = payload
+            )
+
+            if (success) {
+                clearCart()
+                onComplete(true)
+            } else {
+                onComplete(false)
+            }
+        }
+    }
+
+    fun downgradeToConsumerAndSyncChats(onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val success = repository.downgradeToConsumerAndSyncChats(token)
+            onResult(success)
+        }
+    }
 }

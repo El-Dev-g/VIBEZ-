@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 import com.example.data.network.*
 import com.example.util.AuthManager
 import org.json.JSONObject
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 
@@ -2058,6 +2060,82 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             dao.updateChatSubscriptionStatus(chatId, isSubscribed)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // ==============================
+    // VIBEZ CONSUMER STOREFRONT & BUSINESS METHODS
+    // ==============================
+
+    suspend fun getBusinessProfile(token: String, userId: String): BusinessProfileDto? {
+        return try {
+            NetworkClient.apiService.getBusinessProfile("Bearer $token", userId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getCatalog(token: String, userId: String): List<CatalogItemDto> {
+        return try {
+            NetworkClient.apiService.getBusinessCatalog("Bearer $token", userId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun sendOrderInquiry(
+        token: String,
+        chatId: String,
+        senderId: String,
+        receiverId: String,
+        orderPayload: OrderMessagePayload
+    ): Boolean {
+        return try {
+            val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+            val adapter = moshi.adapter(OrderMessagePayload::class.java)
+            val jsonPayload = adapter.toJson(orderPayload)
+
+            val summaryText = buildString {
+                append("🛒 Order Inquiry (#${orderPayload.orderId.takeLast(6)})\n")
+                orderPayload.items.forEach { item ->
+                    append("• ${item.quantity}x ${item.title} ($${String.format(java.util.Locale.US, "%.2f", item.price * item.quantity)})\n")
+                }
+                append("Total: $${String.format(java.util.Locale.US, "%.2f", orderPayload.totalAmount)}")
+                if (!orderPayload.note.isNullOrBlank()) {
+                    append("\nNote: ${orderPayload.note}")
+                }
+            }
+
+            sendMessage(
+                chatId = chatId,
+                senderId = senderId,
+                receiverId = receiverId,
+                content = summaryText,
+                type = "ORDER",
+                mediaUrl = jsonPayload,
+                duration = 0,
+                token = token
+            )
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun downgradeToConsumerAndSyncChats(token: String): Boolean {
+        return try {
+            NetworkClient.apiService.migrateAccount(
+                "Bearer $token",
+                mapOf("targetType" to "CONSUMER")
+            )
+            syncChats(token)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 }

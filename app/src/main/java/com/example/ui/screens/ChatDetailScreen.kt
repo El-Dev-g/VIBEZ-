@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -158,7 +159,8 @@ fun ChatDetailScreen(
     onTypingStateChange: (Boolean) -> Unit = {},
     transcriptionsMap: Map<String, String> = emptyMap(),
     onTranscribeVoice: (MessageEntity) -> Unit = {},
-    onVotePoll: (messageId: String, optionIndex: Int) -> Unit = { _, _ -> }
+    onVotePoll: (messageId: String, optionIndex: Int) -> Unit = { _, _ -> },
+    onBusinessStorefrontClick: (String) -> Unit = {}
 ) {
     if (chat == null) return
 
@@ -679,6 +681,22 @@ fun ChatDetailScreen(
                         }
                     },
                     actions = {
+                        if (!isChannel && !chat.isGroup) {
+                            val targetBizUserId = chat.contactId.takeIf { it.isNotBlank() && it != "ME" && it != currentUserId }
+                                ?: contact?.remoteId?.takeIf { it.isNotBlank() }
+                                ?: contact?.id?.takeIf { it.isNotBlank() }
+                                ?: chat.id
+                            IconButton(
+                                onClick = { onBusinessStorefrontClick(targetBizUserId) },
+                                modifier = Modifier.testTag("chat_storefront_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Storefront,
+                                    contentDescription = "Business Storefront",
+                                    tint = WhatsAppEmerald
+                                )
+                            }
+                        }
                         if (!isChannel) {
                             IconButton(onClick = onVideoCallClick) {
                                 Icon(imageVector = Icons.Default.Videocam, contentDescription = "Video Call")
@@ -695,6 +713,22 @@ fun ChatDetailScreen(
                                 expanded = showOptionsMenu,
                                 onDismissRequest = { showOptionsMenu = false }
                             ) {
+                                if (!isChannel && !chat.isGroup) {
+                                    val targetBizUserId = chat.contactId.takeIf { it.isNotBlank() && it != "ME" && it != currentUserId }
+                                        ?: contact?.remoteId?.takeIf { it.isNotBlank() }
+                                        ?: contact?.id?.takeIf { it.isNotBlank() }
+                                        ?: chat.id
+                                    DropdownMenuItem(
+                                        text = { Text("View Business & Catalog") },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Storefront, contentDescription = null, tint = WhatsAppEmerald)
+                                        },
+                                        onClick = {
+                                            showOptionsMenu = false
+                                            onBusinessStorefrontClick(targetBizUserId)
+                                        }
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text("Contact info") },
                                     onClick = {
@@ -882,6 +916,45 @@ fun ChatDetailScreen(
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     modifier = Modifier.padding(8.dp)
                                 )
+                            }
+                        }
+                    }
+
+                    if (!chat.isGroup) {
+                        val targetBizUserId = chat.contactId.takeIf { it.isNotBlank() && it != "ME" && it != currentUserId }
+                            ?: contact?.remoteId?.takeIf { it.isNotBlank() }
+                            ?: contact?.id?.takeIf { it.isNotBlank() }
+                            ?: chat.id
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isDarkMode) Color(0xFF1F2C34) else Color(0xFFE8F5E9),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 4.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { onBusinessStorefrontClick(targetBizUserId) }
+                                    .testTag("chat_business_info_banner")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Storefront,
+                                        contentDescription = null,
+                                        tint = WhatsAppEmerald,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Official Business Account • Tap to view profile & catalog",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isDarkMode) Color(0xFF25D366) else Color(0xFF00796B),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         }
                     }

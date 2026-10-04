@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.AvatarView
 import com.example.ui.components.VerifiedBadge
+import com.example.ui.theme.WhatsAppEmerald
 import com.example.ui.theme.WhatsAppMinimalAccent
 import com.example.ui.theme.WhatsAppMinimalNavPill
 import com.example.ui.theme.WhatsAppMinimalPrimary
@@ -60,7 +61,8 @@ fun UserProfileScreen(
     onToggleMute: (() -> Unit)? = null,
     isMuted: Boolean = false,
     onGetBadgeClick: () -> Unit = {},
-    onViewBadgeReceiptClick: () -> Unit = {}
+    onViewBadgeReceiptClick: () -> Unit = {},
+    onBusinessStorefrontClick: (() -> Unit)? = null
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -283,6 +285,63 @@ fun UserProfileScreen(
                             ProfileActionButton(icon = Icons.AutoMirrored.Filled.Chat, label = "Message", onClick = { onMessageClick?.invoke() })
                             ProfileActionButton(icon = Icons.Default.Call, label = "Audio", onClick = { onVoiceCallClick?.invoke() })
                             ProfileActionButton(icon = Icons.Default.Videocam, label = "Video", onClick = { onVideoCallClick?.invoke() })
+                            if (onBusinessStorefrontClick != null) {
+                                ProfileActionButton(icon = Icons.Default.Storefront, label = "Store", onClick = { onBusinessStorefrontClick.invoke() })
+                            }
+                        }
+                    }
+                }
+
+                if (onBusinessStorefrontClick != null) {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .clickable { onBusinessStorefrontClick.invoke() },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(WhatsAppEmerald.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Storefront,
+                                        contentDescription = null,
+                                        tint = WhatsAppEmerald,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Official Store & Catalog",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Browse products, pricing, and place direct cart orders",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

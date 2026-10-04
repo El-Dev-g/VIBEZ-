@@ -103,6 +103,7 @@ import com.example.ui.screens.StatusViewersScreen
 import com.example.ui.screens.UserProfileScreen
 import com.example.ui.screens.VerificationCheckoutScreen
 import com.example.ui.screens.BadgesReceiptScreen
+import com.example.ui.screens.BusinessStorefrontScreen
 import com.example.ui.screens.ChangePhoneNumberScreen
 import com.example.ui.screens.MaintenanceScreen
 import com.example.ui.screens.WallpaperSettingsScreen
@@ -868,6 +869,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onVotePoll = { msgId, optionIdx ->
                     viewModel.voteOnPoll(chatId, msgId, optionIdx)
+                },
+                onBusinessStorefrontClick = { businessUserId ->
+                    navController.navigate("business_storefront/$businessUserId?chatId=$chatId")
                 }
             )
         }
@@ -1776,10 +1780,41 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     if (chatIdVal != null) {
                         navController.navigate("shared_media/$chatIdVal")
                     } else {
-                        // If no chat exists yet, maybe just show empty media or do nothing
-                        // For simplicity, navigate with a special ID or handle in screen
                         navController.navigate("shared_media/NONE")
                     }
+                },
+                onBusinessStorefrontClick = if (!isCurrentUser) {
+                    {
+                        navController.navigate("business_storefront/$resolvedUserId")
+                    }
+                } else null
+            )
+        }
+
+        // 13a. Consumer Business Storefront & Catalog Screen
+        composable(
+            route = "business_storefront/{businessUserId}?chatId={chatId}",
+            arguments = listOf(
+                navArgument("businessUserId") { type = NavType.StringType },
+                navArgument("chatId") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val businessUserId = backStackEntry.arguments?.getString("businessUserId") ?: ""
+            val rawChatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            val effectiveChatId = rawChatId.ifBlank {
+                allChatsList.firstOrNull { it.contactId == businessUserId || it.id == businessUserId }?.id ?: businessUserId
+            }
+
+            BusinessStorefrontScreen(
+                businessUserId = businessUserId,
+                chatId = effectiveChatId,
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() },
+                onOrderSent = {
+                    navController.popBackStack()
                 }
             )
         }

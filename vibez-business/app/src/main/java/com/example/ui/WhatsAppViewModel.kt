@@ -1781,4 +1781,71 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             onResult(success)
         }
     }
+
+    // ==============================
+    // VIBEZ BUSINESS SUITE VIEWMODEL METHODS
+    // ==============================
+
+    suspend fun migrateAccountToBusiness(
+        businessName: String,
+        category: String,
+        description: String,
+        address: String,
+        hours: String,
+        website: String,
+        email: String
+    ): Boolean {
+        val token = authManager.getAuthToken() ?: ""
+        val response = repository.migrateAccount(
+            token = token,
+            request = com.example.data.network.MigrateAccountRequest(
+                targetType = "BUSINESS",
+                businessName = businessName,
+                category = category,
+                description = description,
+                address = address,
+                businessHours = hours,
+                website = website,
+                email = email
+            )
+        )
+        if (response?.success == true) {
+            authManager.updateProfile(
+                userName = businessName,
+                userAbout = description,
+                userAvatar = authManager.getUserAvatar()
+            )
+            return true
+        }
+        return false
+    }
+
+    fun saveBusinessProfile(
+        name: String,
+        category: String,
+        description: String,
+        coverUrl: String?,
+        address: String,
+        hours: String,
+        website: String,
+        email: String
+    ) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            repository.updateBusinessProfile(
+                token = token,
+                request = com.example.data.network.UpdateBusinessProfileRequest(
+                    businessName = name,
+                    category = category,
+                    description = description,
+                    coverImageUrl = coverUrl,
+                    address = address,
+                    businessHours = hours,
+                    website = website,
+                    email = email
+                )
+            )
+            authManager.updateProfile(userName = name, userAbout = description, userAvatar = authManager.getUserAvatar())
+        }
+    }
 }

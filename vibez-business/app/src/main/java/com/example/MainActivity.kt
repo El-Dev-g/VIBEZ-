@@ -113,6 +113,7 @@ import com.example.ui.screens.PrivacySettingsScreen
 import com.example.ui.screens.HelpSettingsScreen
 import com.example.ui.screens.StorageDataSettingsScreen
 import com.example.ui.screens.EncryptionInfoScreen
+import com.example.ui.screens.AccountMigrationScreen
 import com.example.ui.screens.BusinessToolsScreen
 import com.example.ui.screens.BusinessProfileScreen
 import com.example.ui.screens.BusinessCatalogScreen
@@ -1025,9 +1026,31 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             )
         }
 
+        composable("account_migration") {
+            AccountMigrationScreen(
+                currentPhoneNumber = currentUserPhone,
+                currentName = currentUserName,
+                onBackClick = { navController.popBackStack() },
+                onMigrationSuccess = {
+                    navController.navigate("main") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onPerformMigration = { bName: String, cat: String, desc: String, addr: String, hrs: String, web: String, mail: String ->
+                    viewModel.migrateAccountToBusiness(bName, cat, desc, addr, hrs, web, mail)
+                }
+            )
+        }
+
         composable("business_profile") {
             BusinessProfileScreen(
-                onBackClick = { navController.popBackStack() }
+                initialName = currentUserName.ifBlank { "Vibez Official Store" },
+                initialDescription = currentUserStatus.ifBlank { "Welcome to our official business store on Vibez!" },
+                initialAvatarUrl = currentUserAvatar,
+                onBackClick = { navController.popBackStack() },
+                onSaveProfile = { name, cat, desc, cover, addr, hrs, web, mail ->
+                    viewModel.saveBusinessProfile(name, cat, desc, cover, addr, hrs, web, mail)
+                }
             )
         }
 

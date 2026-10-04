@@ -259,6 +259,12 @@ interface ApiService {
         @Body request: UpdateBusinessProfileRequest
     ): BusinessProfileDto
 
+    @POST("api/business/migrate-account")
+    suspend fun migrateAccount(
+        @Header("Authorization") token: String,
+        @Body request: MigrateAccountRequest
+    ): MigrateAccountResponse
+
     @GET("api/business/catalog")
     suspend fun getCatalog(
         @Header("Authorization") token: String,

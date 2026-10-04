@@ -243,9 +243,18 @@ app.post('/api/payments/create', authenticate, (req, res) => payment.createPayme
 app.post('/api/payments/webhook', (req, res) => payment.updatePaymentStatus(req, res));
 
 // Vibez Business Tools Routes
+app.post('/api/business/migrate-account', authenticate, (req, res) => business.migrateAccount(req, res));
 app.get('/api/business/profile', authenticateOptional, (req, res) => business.getProfile(req, res));
+app.get('/api/business/public/profile/:userId', (req, res) => {
+  req.query.userId = req.params.userId;
+  business.getProfile(req as any, res);
+});
 app.put('/api/business/profile', authenticate, (req, res) => business.updateProfile(req, res));
 app.get('/api/business/catalog', authenticateOptional, (req, res) => business.getCatalog(req, res));
+app.get('/api/business/public/catalog/:userId', (req, res) => {
+  req.query.userId = req.params.userId;
+  business.getCatalog(req as any, res);
+});
 app.post('/api/business/catalog', authenticate, (req, res) => business.addCatalogItem(req, res));
 app.delete('/api/business/catalog/:id', authenticate, (req, res) => business.deleteCatalogItem(req, res));
 app.get('/api/business/quick-replies', authenticate, (req, res) => business.getQuickReplies(req, res));

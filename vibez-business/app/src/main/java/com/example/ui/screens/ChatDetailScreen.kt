@@ -60,6 +60,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -944,6 +945,65 @@ fun ChatDetailScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.Red
                             )
+                        }
+                    }
+                }
+
+                // Quick Replies Slash Autocomplete Popup (Merchant Productivity)
+                val isSlashCommand = inputText.startsWith("/")
+                val quickReplyMatches = remember(inputText) {
+                    if (isSlashCommand) {
+                        val query = inputText.removePrefix("/").trim()
+                        val defaultReplies = listOf(
+                            "/thanks" to "Thank you for contacting us! Let us know if you need anything else.",
+                            "/hours" to "Our business hours are Mon - Fri: 9:00 AM - 6:00 PM.",
+                            "/address" to "We are located at 742 Evergreen Terrace, Suite 100.",
+                            "/pricing" to "You can view our complete product catalog and pricing on our profile page.",
+                            "/catalog" to "Check out our latest catalog items directly here: https://vibez.app/business",
+                            "/order" to "Thank you for your order! We are preparing it for delivery.",
+                            "/payment" to "Please use our secure checkout link to complete your payment."
+                        )
+                        if (query.isBlank()) defaultReplies else defaultReplies.filter { it.first.contains(query, ignoreCase = true) || it.second.contains(query, ignoreCase = true) }
+                    } else emptyList()
+                }
+
+                AnimatedVisibility(
+                    visible = isSlashCommand && quickReplyMatches.isNotEmpty(),
+                    enter = fadeIn() + slideInVertically { it / 2 },
+                    exit = fadeOut() + slideOutVertically { it / 2 }
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Star, contentDescription = null, tint = WhatsAppEmerald, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("QUICK REPLIES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = WhatsAppEmerald)
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            quickReplyMatches.take(4).forEach { (shortcut, message) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { inputText = message }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = shortcut, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = WhatsAppMinimalPrimary, modifier = Modifier.width(80.dp))
+                                    Text(text = message, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                }
+                            }
                         }
                     }
                 }

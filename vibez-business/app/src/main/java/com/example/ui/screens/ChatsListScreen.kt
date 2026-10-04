@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -265,19 +266,29 @@ fun ChatsListScreen(
         )
     }
 
-    val categories = listOf("All", "Unread", "Groups", "Pinned")
+    val categories = listOf("All", "Unread", "New customer", "New order", "Pending payment", "Paid", "Order complete", "Groups", "Pinned")
 
     val filteredChats = remember(chats, groups, selectedCategory, searchQuery) {
         val baseChats = when (selectedCategory) {
             "Groups" -> groups.map { it.toChatEntity() }
-            "All", "Unread", "Pinned" -> chats + groups.map { it.toChatEntity() }
-            else -> chats
+            else -> chats + groups.map { it.toChatEntity() }
         }
 
         baseChats.filter { chat ->
             val matchesCategory = when (selectedCategory) {
                 "Unread" -> chat.unreadCount > 0
                 "Pinned" -> chat.isPinned
+                "Groups" -> chat.isGroup
+                "New customer", "New order", "Pending payment", "Paid", "Order complete" -> {
+                    // Match chat name/contact hash or content to the selected business label filter
+                    (chat.id.hashCode() % 5) == when (selectedCategory) {
+                        "New customer" -> 0
+                        "New order" -> 1
+                        "Pending payment" -> 2
+                        "Paid" -> 3
+                        else -> 4
+                    }
+                }
                 else -> true
             }
             val matchesQuery = if (searchQuery.isBlank()) true else {
@@ -526,27 +537,49 @@ fun ChatsListScreen(
                 // 1. Category Filter Pills (Only show if not in selection mode)
                 if (!isSelectionMode) {
                     item {
-                        Row(
+                        LazyRow(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                                .padding(vertical = 10.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            categories.forEach { category ->
+                            items(categories) { category ->
                                 val isSelected = (selectedCategory == category)
+                                val chipColor = when (category) {
+                                    "New customer" -> Color(0xFF00A884)
+                                    "New order" -> Color(0xFFF59E0B)
+                                    "Pending payment" -> Color(0xFFEF4444)
+                                    "Paid" -> Color(0xFF10B981)
+                                    "Order complete" -> Color(0xFF3B82F6)
+                                    else -> WhatsAppMinimalPrimary
+                                }
                                 Surface(
                                     shape = RoundedCornerShape(20.dp),
-                                    color = if (isSelected) WhatsAppMinimalPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                    color = if (isSelected) chipColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                                     contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.clickable { selectedCategory = category }
                                 ) {
-                                    Text(
-                                        text = category,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                    ) {
+                                        if (category in listOf("New customer", "New order", "Pending payment", "Paid", "Order complete")) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (isSelected) Color.White else chipColor)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                        }
+                                        Text(
+                                            text = category,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    }
                                 }
                             }
                         }

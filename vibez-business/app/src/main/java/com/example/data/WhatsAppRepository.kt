@@ -2060,4 +2060,136 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             e.printStackTrace()
         }
     }
+
+    // ==============================
+    // VIBEZ BUSINESS SUITE REPOSITORY METHODS
+    // ==============================
+
+    suspend fun getBusinessProfile(token: String, userId: String? = null): BusinessProfileDto? {
+        return try {
+            NetworkClient.apiService.getBusinessProfile("Bearer $token", userId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun updateBusinessProfile(token: String, request: UpdateBusinessProfileRequest): BusinessProfileDto? {
+        return try {
+            NetworkClient.apiService.updateBusinessProfile("Bearer $token", request)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun migrateAccount(token: String, request: MigrateAccountRequest): MigrateAccountResponse? {
+        return try {
+            NetworkClient.apiService.migrateAccount("Bearer $token", request)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getCatalog(token: String, userId: String? = null): List<CatalogItemDto> {
+        return try {
+            NetworkClient.apiService.getCatalog("Bearer $token", userId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun addCatalogItem(token: String, request: AddCatalogItemRequest): CatalogItemDto? {
+        return try {
+            NetworkClient.apiService.addCatalogItem("Bearer $token", request)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun deleteCatalogItem(token: String, id: String): Boolean {
+        return try {
+            NetworkClient.apiService.deleteCatalogItem("Bearer $token", id)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun getQuickReplies(token: String): List<QuickReplyDto> {
+        return try {
+            NetworkClient.apiService.getQuickReplies("Bearer $token")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun addQuickReply(token: String, shortcut: String, message: String): QuickReplyDto? {
+        return try {
+            NetworkClient.apiService.addQuickReply("Bearer $token", AddQuickReplyRequest(shortcut, message))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun deleteQuickReply(token: String, id: String): Boolean {
+        return try {
+            NetworkClient.apiService.deleteQuickReply("Bearer $token", id)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun getAutomatedMessages(token: String): List<AutomatedMessageDto> {
+        return try {
+            NetworkClient.apiService.getAutomatedMessages("Bearer $token")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun updateAutomatedMessage(token: String, request: UpdateAutomatedMessageRequest): AutomatedMessageDto? {
+        return try {
+            NetworkClient.apiService.updateAutomatedMessage("Bearer $token", request)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getChatLabels(token: String): List<ChatLabelDto> {
+        return try {
+            NetworkClient.apiService.getChatLabels("Bearer $token")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun addChatLabel(token: String, name: String, colorHex: String): ChatLabelDto? {
+        return try {
+            NetworkClient.apiService.addChatLabel("Bearer $token", AddChatLabelRequest(name, colorHex))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun toggleChatLabel(token: String, labelId: String, chatId: String): ChatLabelDto? {
+        return try {
+            NetworkClient.apiService.toggleChatLabel("Bearer $token", ToggleChatLabelRequest(labelId, chatId))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

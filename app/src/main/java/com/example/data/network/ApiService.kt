@@ -245,4 +245,22 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: AiTranscribeRequest
     ): retrofit2.Response<AiTranscribeResponse>
+
+    @GET("api/business/profile")
+    suspend fun getBusinessProfile(
+        @Header("Authorization") token: String,
+        @Query("userId") userId: String
+    ): BusinessProfileDto
+
+    @GET("api/business/catalog")
+    suspend fun getBusinessCatalog(
+        @Header("Authorization") token: String,
+        @Query("userId") userId: String
+    ): List<CatalogItemDto>
+
+    @POST("api/business/migrate-account")
+    suspend fun migrateAccount(
+        @Header("Authorization") token: String,
+        @Body request: Map<String, String>
+    ): Map<String, Any>
 }

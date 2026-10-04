@@ -62,6 +62,104 @@ export class BusinessController {
     }
   }
 
+  // Migrate Account between CONSUMER and BUSINESS
+  async migrateAccount(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+      const {
+        targetType = 'BUSINESS',
+        businessName,
+        category,
+        description,
+        coverImageUrl,
+        address,
+        businessHours,
+        website,
+        email
+      } = req.body;
+
+      const validTargetType = targetType === 'CONSUMER' ? 'CONSUMER' : 'BUSINESS';
+
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { accountType: validTargetType }
+      });
+
+      let profile = null;
+      if (validTargetType === 'BUSINESS') {
+        profile = await prisma.businessProfile.upsert({
+          where: { userId },
+          update: {
+            businessName: businessName || user.name || 'My Business',
+            category: category || 'Shopping & Retail',
+            description,
+            coverImageUrl,
+            address,
+            businessHours: businessHours || 'Mon - Fri: 9:00 AM - 6:00 PM',
+            website,
+            email: email || (user.phoneNumber ? `${user.phoneNumber}@vibez.app` : 'business@vibez.app')
+          },
+          create: {
+            userId,
+            businessName: businessName || user.name || 'My Business',
+            category: category || 'Shopping & Retail',
+            description,
+            coverImageUrl,
+            address,
+            businessHours: businessHours || 'Mon - Fri: 9:00 AM - 6:00 PM',
+            website,
+            email: email || (user.phoneNumber ? `${user.phoneNumber}@vibez.app` : 'business@vibez.app')
+          },
+          include: {
+            catalogItems: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                phoneNumber: true,
+                avatarUrl: true,
+                accountType: true
+              }
+            }
+        });
+      } else {
+        profile = await prisma.businessProfile.findUnique({
+          where: { userId },
+          include: {
+            catalogItems: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                phoneNumber: true,
+                avatarUrl: true,
+                accountType: true
+              }
+            }
+          }
+        });
+      }
+
+      res.json({
+        success: true,
+        accountType: validTargetType,
+        profile,
+        user: {
+          id: user.id,
+          name: user.name,
+          phoneNumber: user.phoneNumber,
+          avatarUrl: user.avatarUrl,
+          accountType: user.accountType
+        }
+      });
+    } catch (error) {
+      console.error('Error migrating account:', error);
+      res.status(500).json({ error: 'Failed to migrate account' });
+    }
+  }
+
   // Update Business Profile
   async updateProfile(req: AuthRequest, res: Response) {
     try {
@@ -72,7 +170,10 @@ export class BusinessController {
         businessName,
         category,
         description,
+        coverImageUrl,
         address,
+        latitude,
+        longitude,
         businessHours,
         website,
         email
@@ -84,7 +185,10 @@ export class BusinessController {
           businessName,
           category,
           description,
+          coverImageUrl,
           address,
+          latitude: latitude !== undefined ? parseFloat(latitude) : undefined,
+          longitude: longitude !== undefined ? parseFloat(longitude) : undefined,
           businessHours,
           website,
           email
@@ -94,10 +198,25 @@ export class BusinessController {
           businessName: businessName || 'My Business',
           category: category || 'General Business',
           description,
+          coverImageUrl,
           address,
+          latitude: latitude !== undefined ? parseFloat(latitude) : undefined,
+          longitude: longitude !== undefined ? parseFloat(longitude) : undefined,
           businessHours,
           website,
           email
+        },
+        include: {
+          catalogItems: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phoneNumber: true,
+              avatarUrl: true,
+              accountType: true
+            }
+          }
         }
       });
 

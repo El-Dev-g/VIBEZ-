@@ -12,7 +12,8 @@ data class UserDto(
     val about: String?,
     val lastSeen: String,
     val isVerified: Boolean = false,
-    val verifiedAt: String? = null
+    val verifiedAt: String? = null,
+    val accountType: String? = "CONSUMER"
 )
 
 @JsonClass(generateAdapter = true)
@@ -389,14 +390,18 @@ data class BusinessProfileDto(
     val id: String = "",
     val userId: String = "",
     val businessName: String = "",
-    val category: String = "Professional Services",
+    val category: String = "Shopping & Retail",
     val description: String? = null,
+    val coverImageUrl: String? = null,
     val address: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val businessHours: String? = null,
     val website: String? = null,
     val email: String? = null,
     val isVerified: Boolean = false,
-    val catalogItems: List<CatalogItemDto> = emptyList()
+    val catalogItems: List<CatalogItemDto> = emptyList(),
+    val user: UserDto? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -404,10 +409,34 @@ data class UpdateBusinessProfileRequest(
     val businessName: String,
     val category: String,
     val description: String? = null,
+    val coverImageUrl: String? = null,
+    val address: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val businessHours: String? = null,
+    val website: String? = null,
+    val email: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class MigrateAccountRequest(
+    val targetType: String = "BUSINESS",
+    val businessName: String? = null,
+    val category: String? = null,
+    val description: String? = null,
+    val coverImageUrl: String? = null,
     val address: String? = null,
     val businessHours: String? = null,
     val website: String? = null,
     val email: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class MigrateAccountResponse(
+    val success: Boolean = true,
+    val accountType: String = "BUSINESS",
+    val profile: BusinessProfileDto? = null,
+    val user: UserDto? = null
 )
 
 @JsonClass(generateAdapter = true)
