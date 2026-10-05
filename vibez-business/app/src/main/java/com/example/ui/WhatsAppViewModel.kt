@@ -318,6 +318,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 authManager.setSettingBoolean("hd_media", settings.hdMedia)
                 authManager.setSettingBoolean("biometric_lock", settings.biometricLock)
             }
+            loadBusinessProfile()
         }
     }
 
@@ -1820,6 +1821,21 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         return false
     }
 
+    val selectedBusinessProfile = MutableStateFlow<com.example.data.network.BusinessProfileDto?>(null)
+    val businessCatalogItems = MutableStateFlow<List<com.example.data.network.CatalogItemDto>>(emptyList())
+
+    fun loadBusinessProfile() {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val profile = repository.getBusinessProfile(token)
+            selectedBusinessProfile.value = profile
+            if (profile != null) {
+                val catalog = repository.getCatalog(token, profile.userId)
+                businessCatalogItems.value = catalog
+            }
+        }
+    }
+
     fun saveBusinessProfile(
         name: String,
         category: String,
@@ -1846,6 +1862,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 )
             )
             authManager.updateProfile(userName = name, userAbout = description, userAvatar = authManager.getUserAvatar())
+            loadBusinessProfile()
         }
     }
 }

@@ -1,3 +1,7 @@
+import { Response } from 'express';
+import prisma from '../lib/prisma';
+import { AuthRequest } from '../middleware/auth';
+
 function escapeXml(str: string): string {
   if (!str) return '';
   return str

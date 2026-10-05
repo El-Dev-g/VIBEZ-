@@ -1148,7 +1148,8 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                     aboutStatus = finalAbout,
                     isOnline = existingContact?.isOnline ?: true,
                     lastSeen = resolvedUser.lastSeen.takeIf { it.isNotBlank() } ?: existingContact?.lastSeen ?: "Recently",
-                    isVerified = finalVerified
+                    isVerified = finalVerified,
+                    accountType = resolvedUser.accountType ?: "CONSUMER"
                 )
                 dao.insertContact(updatedContact)
 

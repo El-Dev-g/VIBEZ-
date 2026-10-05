@@ -681,22 +681,6 @@ fun ChatDetailScreen(
                         }
                     },
                     actions = {
-                        if (!isChannel && !chat.isGroup) {
-                            val targetBizUserId = chat.contactId.takeIf { it.isNotBlank() && it != "ME" && it != currentUserId }
-                                ?: contact?.remoteId?.takeIf { it.isNotBlank() }
-                                ?: contact?.id?.takeIf { it.isNotBlank() }
-                                ?: chat.id
-                            IconButton(
-                                onClick = { onBusinessStorefrontClick(targetBizUserId) },
-                                modifier = Modifier.testTag("chat_storefront_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Storefront,
-                                    contentDescription = "Business Storefront",
-                                    tint = WhatsAppEmerald
-                                )
-                            }
-                        }
                         if (!isChannel) {
                             IconButton(onClick = onVideoCallClick) {
                                 Icon(imageVector = Icons.Default.Videocam, contentDescription = "Video Call")

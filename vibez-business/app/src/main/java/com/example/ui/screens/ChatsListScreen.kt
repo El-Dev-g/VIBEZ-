@@ -48,6 +48,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material3.Divider
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
@@ -105,6 +110,8 @@ fun ChatsListScreen(
     onPinChatsBulk: (List<String>) -> Unit = {},
     onMarkReadChatsBulk: (List<String>) -> Unit = {},
     onBroadcastMessage: (List<String>, String) -> Unit = { _, _ -> },
+    onBusinessToolsClick: () -> Unit = {},
+    onLabelsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
@@ -530,6 +537,157 @@ fun ChatsListScreen(
                                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                                 )
                             )
+                        }
+                    }
+                }
+
+                // 0.5. Premium Merchant CRM & Analytics Dashboard Panel (Vibez Business Core)
+                if (!isSelectionMode && searchQuery.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = WhatsAppMinimalPrimary.copy(alpha = 0.08f)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = WhatsAppMinimalPrimary.copy(alpha = 0.15f)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                // Header row
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF10B981))
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Vibez Merchant Console",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = WhatsAppMinimalPrimary
+                                        )
+                                    }
+                                    Text(
+                                        text = "Live Sync Active",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF10B981)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Sales & CRM KPI Analytics Row
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text("Pending Orders", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("12 Active", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Response Speed", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("99% Elite", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF10B981))
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("Active Funnel", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("CRM Enabled", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = WhatsAppMinimalPrimary)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Divider(color = WhatsAppMinimalPrimary.copy(alpha = 0.1f))
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // CRM Quick Tools Shortcuts
+                                Text(
+                                    text = "QUICK CRM SUITE SHORTCUTS",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    letterSpacing = 0.5.sp
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Catalog Shortcut
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { onBusinessToolsClick() }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(Icons.Default.ShoppingBag, contentDescription = null, tint = WhatsAppMinimalPrimary, modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Catalog", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // Chat Labels Shortcut
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { onLabelsClick() }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(Icons.Default.Label, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Labels", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // Suite Settings Shortcut
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { onBusinessToolsClick() }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Suite", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

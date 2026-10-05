@@ -62,7 +62,8 @@ fun UserProfileScreen(
     isMuted: Boolean = false,
     onGetBadgeClick: () -> Unit = {},
     onViewBadgeReceiptClick: () -> Unit = {},
-    onBusinessStorefrontClick: (() -> Unit)? = null
+    onBusinessStorefrontClick: (() -> Unit)? = null,
+    isBusiness: Boolean = false
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -239,54 +240,143 @@ fun UserProfileScreen(
             } else {
                 // CONTACT VIEW (For other users / Viewers - Read Only)
                 item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        val resolvedDisplayName = currentName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
-                            ?: currentPhone.takeIf { it.isNotBlank() }
-                            ?: "User"
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                    if (isBusiness) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                         ) {
-                            Text(
-                                text = resolvedDisplayName,
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                            if (isVerified) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                VerifiedBadge(size = 24.dp)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                val resolvedDisplayName = currentName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                                    ?: currentPhone.takeIf { it.isNotBlank() }
+                                    ?: "Vibez Merchant"
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Storefront,
+                                        contentDescription = null,
+                                        tint = WhatsAppEmerald,
+                                        modifier = Modifier.size(24.dp).padding(end = 6.dp)
+                                    )
+                                    Text(
+                                        text = resolvedDisplayName,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (isVerified) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        VerifiedBadge(size = 20.dp)
+                                    }
+                                }
+
+                                Surface(
+                                    color = WhatsAppEmerald.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                ) {
+                                    Text(
+                                        text = "VERIFIED BUSINESS ACCOUNT",
+                                        color = WhatsAppEmerald,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
+
+                                if (currentPhone.isNotBlank() && currentPhone != resolvedDisplayName) {
+                                    Text(
+                                        text = currentPhone,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                Text(
+                                    text = "Vibez Business Suite Merchant • Active Storefront",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    ProfileActionButton(icon = Icons.AutoMirrored.Filled.Chat, label = "Chat Now", onClick = { onMessageClick?.invoke() })
+                                    ProfileActionButton(icon = Icons.Default.Call, label = "Voice Call", onClick = { onVoiceCallClick?.invoke() })
+                                    ProfileActionButton(icon = Icons.Default.Videocam, label = "Video Call", onClick = { onVideoCallClick?.invoke() })
+                                    if (onBusinessStorefrontClick != null) {
+                                        ProfileActionButton(icon = Icons.Default.ShoppingBag, label = "Products", onClick = { onBusinessStorefrontClick.invoke() })
+                                    }
+                                }
                             }
                         }
-                        
-                        if (currentPhone.isNotBlank() && currentPhone != resolvedDisplayName) {
-                            Text(
-                                text = currentPhone,
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(20.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            ProfileActionButton(icon = Icons.AutoMirrored.Filled.Chat, label = "Message", onClick = { onMessageClick?.invoke() })
-                            ProfileActionButton(icon = Icons.Default.Call, label = "Audio", onClick = { onVoiceCallClick?.invoke() })
-                            ProfileActionButton(icon = Icons.Default.Videocam, label = "Video", onClick = { onVideoCallClick?.invoke() })
-                            if (onBusinessStorefrontClick != null) {
-                                ProfileActionButton(icon = Icons.Default.Storefront, label = "Store", onClick = { onBusinessStorefrontClick.invoke() })
+                            val resolvedDisplayName = currentName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                                ?: currentPhone.takeIf { it.isNotBlank() }
+                                ?: "User"
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            ) {
+                                Text(
+                                    text = resolvedDisplayName,
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                if (isVerified) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    VerifiedBadge(size = 24.dp)
+                                }
+                            }
+
+                            if (currentPhone.isNotBlank() && currentPhone != resolvedDisplayName) {
+                                Text(
+                                    text = currentPhone,
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                ProfileActionButton(icon = Icons.AutoMirrored.Filled.Chat, label = "Message", onClick = { onMessageClick?.invoke() })
+                                ProfileActionButton(icon = Icons.Default.Call, label = "Audio", onClick = { onVoiceCallClick?.invoke() })
+                                ProfileActionButton(icon = Icons.Default.Videocam, label = "Video", onClick = { onVideoCallClick?.invoke() })
+                                if (onBusinessStorefrontClick != null) {
+                                    ProfileActionButton(icon = Icons.Default.Storefront, label = "Store", onClick = { onBusinessStorefrontClick.invoke() })
+                                }
                             }
                         }
                     }

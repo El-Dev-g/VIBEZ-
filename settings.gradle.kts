@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "VIBEZ"
 
 include(":app")
+include(":vibez-business:app")

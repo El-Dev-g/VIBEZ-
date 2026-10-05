@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Groups
@@ -112,7 +113,8 @@ fun MainTabScreen(
     onStatusPrivacyClick: () -> Unit = {},
     onMyStatusListClick: () -> Unit = {},
     onClearCallLogs: () -> Unit = {},
-    onIncomingCallSimulate: () -> Unit = {}
+    onIncomingCallSimulate: () -> Unit = {},
+    onBusinessToolsClick: () -> Unit = {}
 ) {
     var isSearchActive by remember { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }

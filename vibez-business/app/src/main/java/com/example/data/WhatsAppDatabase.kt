@@ -17,7 +17,7 @@ import androidx.room.TypeConverters
         GroupEntity::class,
         ChannelEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

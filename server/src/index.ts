@@ -243,46 +243,94 @@ app.post('/api/payments/create', authenticate, (req, res) => payment.createPayme
 app.post('/api/payments/webhook', (req, res) => payment.updatePaymentStatus(req, res));
 
 // Vibez Business Tools Routes
-app.post('/api/business/migrate-account', authenticate, (req, res) => business.migrateAccount(req, res));
-app.get('/api/business/profile', authenticateOptional, (req, res) => business.getProfile(req, res));
+app.post('/api/business/migrate-account', authenticate, (req, res) => business.migrateAccount(req as any, res as any));
+app.get('/api/business/profile', authenticateOptional, (req, res) => business.getProfile(req as any, res as any));
 app.get('/api/business/public/profile/:userId', (req, res) => {
-  req.query.userId = req.params.userId;
-  business.getProfile(req as any, res);
+  (req.query as any).userId = req.params.userId;
+  business.getProfile(req as any, res as any);
 });
-app.put('/api/business/profile', authenticate, (req, res) => business.updateProfile(req, res));
-app.get('/api/business/catalog', authenticateOptional, (req, res) => business.getCatalog(req, res));
+app.put('/api/business/profile', authenticate, (req, res) => business.updateProfile(req as any, res as any));
+app.get('/api/business/catalog', authenticateOptional, (req, res) => business.getCatalog(req as any, res as any));
 app.get('/api/business/public/catalog/:userId', (req, res) => {
-  req.query.userId = req.params.userId;
-  business.getCatalog(req as any, res);
+  (req.query as any).userId = req.params.userId;
+  business.getCatalog(req as any, res as any);
 });
-app.post('/api/business/catalog', authenticate, (req, res) => business.addCatalogItem(req, res));
-app.put('/api/business/catalog/:id', authenticate, (req, res) => business.updateCatalogItem(req, res));
-app.post('/api/business/catalog/import', authenticate, (req, res) => business.importCatalogItems(req, res));
-app.delete('/api/business/catalog/:id', authenticate, (req, res) => business.deleteCatalogItem(req, res));
+app.post('/api/business/catalog', authenticate, (req, res) => business.addCatalogItem(req as any, res as any));
+app.put('/api/business/catalog/:id', authenticate, (req, res) => business.updateCatalogItem(req as any, res as any));
+app.post('/api/business/catalog/import', authenticate, (req, res) => business.importCatalogItems(req as any, res as any));
+app.delete('/api/business/catalog/:id', authenticate, (req, res) => business.deleteCatalogItem(req as any, res as any));
 
 // Meta / Facebook Developer Commerce Catalog Feed XML/JSON Feed Routes
-app.get('/api/business/public/catalog/:userId/meta-feed', (req, res) => business.getMetaCatalogFeed(req, res));
+app.get('/api/business/public/catalog/:userId/meta-feed', (req, res) => business.getMetaCatalogFeed(req as any, res as any));
 app.get('/api/business/public/catalog/:userId/meta-feed.xml', (req, res) => {
-  req.params.format = 'xml';
-  business.getMetaCatalogFeed(req, res);
+  (req.params as any).format = 'xml';
+  business.getMetaCatalogFeed(req as any, res as any);
 });
 app.get('/api/business/public/catalog/:userId/meta-feed.json', (req, res) => {
-  req.params.format = 'json';
-  business.getMetaCatalogFeed(req, res);
+  (req.params as any).format = 'json';
+  business.getMetaCatalogFeed(req as any, res as any);
 });
-app.get('/api/business/quick-replies', authenticate, (req, res) => business.getQuickReplies(req, res));
-app.post('/api/business/quick-replies', authenticate, (req, res) => business.addQuickReply(req, res));
-app.delete('/api/business/quick-replies/:id', authenticate, (req, res) => business.deleteQuickReply(req, res));
-app.get('/api/business/automated-messages', authenticate, (req, res) => business.getAutomatedMessages(req, res));
-app.post('/api/business/automated-messages', authenticate, (req, res) => business.updateAutomatedMessage(req, res));
-app.get('/api/business/labels', authenticate, (req, res) => business.getLabels(req, res));
-app.post('/api/business/labels', authenticate, (req, res) => business.addLabel(req, res));
-app.post('/api/business/labels/toggle', authenticate, (req, res) => business.toggleChatLabel(req, res));
+
+// Lightweight GraphQL API Endpoint for External Storefronts/Feeds Sync
+app.post('/api/graphql', async (req, res) => {
+  try {
+    const { query, variables } = req.body;
+    if (!query) {
+      return res.status(400).json({ errors: [{ message: 'GraphQL query is required' }] });
+    }
+
+    if (query.includes('getBusinessCatalog') || query.includes('catalogItems')) {
+      const userId = variables?.userId || req.query.userId || '';
+      if (!userId) {
+        return res.json({ data: { catalogItems: [] } });
+      }
+      
+      const profile = await prisma.businessProfile.findUnique({
+        where: { userId },
+        include: { catalogItems: true }
+      });
+      
+      return res.json({
+        data: {
+          businessProfile: profile ? {
+            id: profile.id,
+            businessName: profile.businessName,
+            category: profile.category,
+            description: profile.description,
+            address: profile.address,
+            coverImageUrl: profile.coverImageUrl,
+            website: profile.website,
+            email: profile.email
+          } : null,
+          catalogItems: profile?.catalogItems || []
+        }
+      });
+    }
+
+    return res.json({
+      data: {
+        message: "Vibez Cloud GraphQL API",
+        supportedQueries: ["getBusinessCatalog(userId: String!)"]
+      }
+    });
+  } catch (error: any) {
+    console.error('GraphQL endpoint error:', error);
+    res.status(500).json({ errors: [{ message: error.message || 'Internal server error' }] });
+  }
+});
+app.get('/api/business/quick-replies', authenticate, (req, res) => business.getQuickReplies(req as any, res as any));
+app.post('/api/business/quick-replies', authenticate, (req, res) => business.addQuickReply(req as any, res as any));
+app.delete('/api/business/quick-replies/:id', authenticate, (req, res) => business.deleteQuickReply(req as any, res as any));
+app.get('/api/business/automated-messages', authenticate, (req, res) => business.getAutomatedMessages(req as any, res as any));
+app.post('/api/business/automated-messages', authenticate, (req, res) => business.updateAutomatedMessage(req as any, res as any));
+app.get('/api/business/labels', authenticate, (req, res) => business.getLabels(req as any, res as any));
+app.post('/api/business/labels', authenticate, (req, res) => business.addLabel(req as any, res as any));
+app.post('/api/business/labels/toggle', authenticate, (req, res) => business.toggleChatLabel(req as any, res as any));
 
 // Business Orders Routes
-app.post('/api/business/orders', authenticateOptional, (req, res) => business.createOrder(req, res));
-app.get('/api/business/orders', authenticateOptional, (req, res) => business.getOrders(req, res));
-app.put('/api/business/orders/:id/status', authenticate, (req, res) => business.updateOrderStatus(req, res));
+app.post('/api/business/orders', authenticateOptional, (req, res) => business.createOrder(req as any, res as any));
+app.get('/api/business/orders', authenticateOptional, (req, res) => business.getOrders(req as any, res as any));
+app.put('/api/business/orders/:id/status', authenticate, (req, res) => business.updateOrderStatus(req as any, res as any));
 
 // Broadcast & Announcements Routes
 app.get('/api/broadcasts', (req, res) => admin.getPublicBroadcasts(req, res));

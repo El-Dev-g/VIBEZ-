@@ -169,10 +169,10 @@ fun MainTabScreen(
                                     )
                                 }
                                 Text(
-                                    text = "VIBEZ",
-                                    fontSize = 22.sp,
+                                    text = "VIBEZ BUSINESS",
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = 1.sp,
+                                    letterSpacing = 0.5.sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -462,7 +462,9 @@ fun MainTabScreen(
                     onMuteChatsBulk = onMuteChatsBulk,
                     onPinChatsBulk = onPinChatsBulk,
                     onMarkReadChatsBulk = onMarkReadChatsBulk,
-                    onBroadcastMessage = onBroadcastMessage
+                    onBroadcastMessage = onBroadcastMessage,
+                    onBusinessToolsClick = onBusinessToolsClick,
+                    onLabelsClick = onLabelsClick
                 )
                 1 -> StatusListScreen(
                     statuses = statuses,

@@ -650,7 +650,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                             navController.navigate("contact_info/${chat.id}")
                         }
                     } else if (isMe) {
-                        navController.navigate("user_profile/ME")
+                        navController.navigate("business_profile")
                     } else {
                         val contactId = chat?.contactId?.takeIf { it.isNotBlank() && it != currentUserId && it != "ME" } ?: id
                         navController.navigate("user_profile/$contactId")
@@ -1043,10 +1043,24 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         }
 
         composable("business_profile") {
+            val businessProfile by viewModel.selectedBusinessProfile.collectAsState()
+            val catalogItems by viewModel.businessCatalogItems.collectAsState()
+
+            LaunchedEffect(Unit) {
+                viewModel.loadBusinessProfile()
+            }
+
             BusinessProfileScreen(
-                initialName = currentUserName.ifBlank { "Vibez Official Store" },
-                initialDescription = currentUserStatus.ifBlank { "Welcome to our official business store on Vibez!" },
-                initialAvatarUrl = currentUserAvatar,
+                initialName = businessProfile?.businessName ?: currentUserName.ifBlank { "Vibez Official Store" },
+                initialCategory = businessProfile?.category ?: "Shopping & Retail",
+                initialDescription = businessProfile?.description ?: currentUserStatus.ifBlank { "Welcome to our official business store on Vibez!" },
+                initialCoverUrl = businessProfile?.coverImageUrl,
+                initialAvatarUrl = businessProfile?.user?.avatarUrl ?: currentUserAvatar,
+                initialAddress = businessProfile?.address ?: "742 Evergreen Terrace, Suite 100",
+                initialHours = businessProfile?.businessHours ?: "Mon - Fri: 9:00 AM - 6:00 PM\nSat: 10:00 AM - 4:00 PM",
+                initialWebsite = businessProfile?.website ?: "https://vibez.app/business",
+                initialEmail = businessProfile?.email ?: "sales@vibez.app",
+                catalogItems = catalogItems,
                 onBackClick = { navController.popBackStack() },
                 onSaveProfile = { name, cat, desc, cover, addr, hrs, web, mail ->
                     viewModel.saveBusinessProfile(name, cat, desc, cover, addr, hrs, web, mail)
@@ -1463,7 +1477,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     }
                 },
                 onProfileClick = {
-                    navController.navigate("user_profile/ME")
+                    navController.navigate("business_profile")
                 },
                 onWallpaperClick = {
                     navController.navigate("wallpaper_settings?chatId=GLOBAL")

@@ -53,8 +53,8 @@ class InAppUpdateWorker(
                     showUpdateNotification(latestUpdate.versionName, apkFile)
                     return Result.success()
                 } else {
-                    Log.e(TAG, "Failed to download APK from ${latestUpdate.downloadUrl}")
-                    return Result.retry()
+                    Log.w(TAG, "Failed to download APK from ${latestUpdate.downloadUrl}")
+                    return Result.failure()
                 }
             } else {
                 Log.d(TAG, "App is up to date (current: $currentVersionCode, remote: ${latestUpdate.versionCode})")
@@ -67,7 +67,7 @@ class InAppUpdateWorker(
             Log.w(TAG, "Network connection issue during update check: ${e.message}")
             return Result.retry()
         } catch (e: Exception) {
-            Log.e(TAG, "Error checking or downloading update", e)
+            Log.w(TAG, "Error checking or downloading update", e)
             return Result.retry()
         }
     }
@@ -84,7 +84,7 @@ class InAppUpdateWorker(
             connection.connect()
 
             if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                Log.e(TAG, "Server returned HTTP ${connection.responseCode}")
+                Log.w(TAG, "Server returned HTTP ${connection.responseCode} for update URL: $downloadUrl")
                 return false
             }
 
@@ -98,7 +98,7 @@ class InAppUpdateWorker(
             }
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Download error", e)
+            Log.w(TAG, "Download error for URL: $downloadUrl", e)
             return false
         } finally {
             try {

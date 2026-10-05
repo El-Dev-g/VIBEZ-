@@ -1783,11 +1783,12 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                         navController.navigate("shared_media/NONE")
                     }
                 },
-                onBusinessStorefrontClick = if (!isCurrentUser) {
+                onBusinessStorefrontClick = if (!isCurrentUser && contact?.accountType == "BUSINESS") {
                     {
                         navController.navigate("business_storefront/$resolvedUserId")
                     }
-                } else null
+                } else null,
+                isBusiness = !isCurrentUser && contact?.accountType == "BUSINESS"
             )
         }
 
