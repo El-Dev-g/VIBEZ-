@@ -12,93 +12,93 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  phoneNumber   String    @unique
-  googleEmail   String?   @unique
-  authProvider  String    @default("PHONE") // PHONE, GOOGLE
-  name          String?
-  avatarUrl     String?
-  about         String?   @default("Hey there! I am using Vibez.")
-  lastSeen      DateTime  @default(now())
-  isBanned      Boolean   @default(false)
-  isVerified    Boolean   @default(false)
-  verifiedAt    DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  phoneNumber  String    @unique
+  googleEmail  String?   @unique
+  authProvider String    @default("PHONE") // PHONE, GOOGLE
+  name         String?
+  avatarUrl    String?
+  about        String?   @default("Hey there! I am using Vibez.")
+  lastSeen     DateTime  @default(now())
+  isBanned     Boolean   @default(false)
+  isVerified   Boolean   @default(false)
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
-  
-  chats            ChatMember[]
-  
-  statuses         Status[]
-  statusViews      StatusView[]
-  communities      CommunityMember[]
-  callsMade        Call[]    @relation("Caller")
-  callsReceived    Call[]    @relation("Receiver")
-  accountType   String    @default("CONSUMER") // CONSUMER, BUSINESS
-  settings         UserSettings?
-  businessProfile BusinessProfile?
-  quickReplies    QuickReply[]
-  automatedMessages AutomatedMessage[]
-  chatLabels      ChatLabel[]
-  reportsSubmitted Report[]  @relation("Reporter")
-  reportsReceived  Report[]  @relation("ReportedUser")
-  badgePayments    BadgePayment[]
-  paymentTransactions PaymentTransaction[]
+
+  chats ChatMember[]
+
+  statuses              Status[]
+  statusViews           StatusView[]
+  communities           CommunityMember[]
+  callsMade             Call[]               @relation("Caller")
+  callsReceived         Call[]               @relation("Receiver")
+  accountType           String               @default("CONSUMER") // CONSUMER, BUSINESS
+  settings              UserSettings?
+  businessProfile       BusinessProfile?
+  quickReplies          QuickReply[]
+  automatedMessages     AutomatedMessage[]
+  chatLabels            ChatLabel[]
+  reportsSubmitted      Report[]             @relation("Reporter")
+  reportsReceived       Report[]             @relation("ReportedUser")
+  badgePayments         BadgePayment[]
+  paymentTransactions   PaymentTransaction[]
   officialPostReactions PostReaction[]
   officialPostComments  PostComment[]
-  developerAccount DeveloperAccount?
+  developerAccount      DeveloperAccount?
 }
 
 model Chat {
-  id          String   @id @default(uuid())
-  isGroup     Boolean  @default(false)
-  isOfficial  Boolean  @default(false)
-  isVerified  Boolean  @default(false)
-  name        String?  // For groups
-  avatarUrl   String?  // For groups
-  allowComments Boolean @default(true) // For channels vs groups
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  isGroup       Boolean  @default(false)
+  isOfficial    Boolean  @default(false)
+  isVerified    Boolean  @default(false)
+  name          String? // For groups
+  avatarUrl     String? // For groups
+  allowComments Boolean  @default(true) // For channels vs groups
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  messages    Message[]
-  members     ChatMember[]
-  
+  messages Message[]
+  members  ChatMember[]
+
   communityId String?
   community   Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
 }
 
 model ChatMember {
-  id        String   @id @default(uuid())
-  userId    String
-  chatId    String
-  joinedAt  DateTime @default(now())
+  id       String   @id @default(uuid())
+  userId   String
+  chatId   String
+  joinedAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
-  chat      Chat     @relation(fields: [chatId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  chat Chat @relation(fields: [chatId], references: [id])
 
   @@unique([userId, chatId])
 }
 
 model Message {
-  id          String      @id @default(uuid())
-  content     String
-  type        String      @default("TEXT") // TEXT, IMAGE, VIDEO, AUDIO, LOCATION, CONTACT
-  status      String      @default("SENT") // SENT, DELIVERED, READ
-  mediaUrl    String?
-  duration    Int?        // For audio/video
-  
-  senderId    String
-  chatId      String
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id       String  @id @default(uuid())
+  content  String
+  type     String  @default("TEXT") // TEXT, IMAGE, VIDEO, AUDIO, LOCATION, CONTACT
+  status   String  @default("SENT") // SENT, DELIVERED, READ
+  mediaUrl String?
+  duration Int? // For audio/video
 
-  sender      User        @relation("SentMessages", fields: [senderId], references: [id])
-  receiverId  String?     // Nullable for group messages
-  receiver    User?       @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  chat        Chat        @relation(fields: [chatId], references: [id])
+  senderId String
+  chatId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sender     User    @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId String? // Nullable for group messages
+  receiver   User?   @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  chat       Chat    @relation(fields: [chatId], references: [id])
 }
 
 model Status {
@@ -111,113 +111,113 @@ model Status {
   textStyle       String?
   createdAt       DateTime @default(now())
   expiresAt       DateTime
-  
-  user            User     @relation(fields: [userId], references: [id])
-  views           StatusView[]
+
+  user  User         @relation(fields: [userId], references: [id])
+  views StatusView[]
 }
 
 model StatusView {
-  id        String   @id @default(uuid())
-  statusId  String
-  userId    String
-  viewedAt  DateTime @default(now())
+  id       String   @id @default(uuid())
+  statusId String
+  userId   String
+  viewedAt DateTime @default(now())
 
-  status    Status   @relation(fields: [statusId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  status Status @relation(fields: [statusId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   @@unique([userId, statusId])
 }
 
 model Community {
-  id            String   @id @default(uuid())
-  name          String
-  description   String?
-  avatarUrl     String?
-  ownerId       String
-  createdAt     DateTime @default(now())
-  
-  isOfficial    Boolean  @default(false)
-  allowComments Boolean  @default(true)
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+
+  isOfficial     Boolean @default(false)
+  allowComments  Boolean @default(true)
   allowReactions Boolean @default(true)
 
-  members       CommunityMember[]
-  channels      Chat[] // Communities have multiple group chats
-  posts         OfficialPost[]
+  members  CommunityMember[]
+  channels Chat[] // Communities have multiple group chats
+  posts    OfficialPost[]
 }
 
 model OfficialPost {
-  id            String   @id @default(uuid())
-  communityId   String
-  content       String
-  type          String   @default("TEXT") // TEXT, IMAGE, VIDEO
-  mediaUrl      String?
-  createdAt     DateTime @default(now())
-  
-  community     Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  
-  reactions     PostReaction[]
-  comments      PostComment[]
+  id          String   @id @default(uuid())
+  communityId String
+  content     String
+  type        String   @default("TEXT") // TEXT, IMAGE, VIDEO
+  mediaUrl    String?
+  createdAt   DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  reactions PostReaction[]
+  comments  PostComment[]
 }
 
 model PostReaction {
-  id            String   @id @default(uuid())
-  postId        String
-  userId        String
-  emoji         String   @default("👍")
-  createdAt     DateTime @default(now())
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  emoji     String   @default("👍")
+  createdAt DateTime @default(now())
 
-  post          OfficialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user          User         @relation(fields: [userId], references: [id])
+  post OfficialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id])
 
   @@unique([postId, userId, emoji])
 }
 
 model PostComment {
-  id            String   @id @default(uuid())
-  postId        String
-  userId        String
-  content       String
-  createdAt     DateTime @default(now())
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
 
-  post          OfficialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user          User         @relation(fields: [userId], references: [id])
+  post OfficialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id])
 }
 
 model CommunityMember {
-  id          String   @id @default(uuid())
+  id          String @id @default(uuid())
   communityId String
   userId      String
-  role        String   @default("MEMBER") // ADMIN, MEMBER
-  
-  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id])
+  role        String @default("MEMBER") // ADMIN, MEMBER
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
 }
 
 model Call {
-  id          String   @id @default(uuid())
-  callerId    String
-  receiverId  String
-  type        String   @default("VOICE") // VOICE, VIDEO
-  status      String   @default("COMPLETED") // MISSED, COMPLETED, REJECTED
-  duration    Int?
-  createdAt   DateTime @default(now())
-  
-  caller      User     @relation("Caller", fields: [callerId], references: [id])
-  receiver    User     @relation("Receiver", fields: [receiverId], references: [id])
+  id         String   @id @default(uuid())
+  callerId   String
+  receiverId String
+  type       String   @default("VOICE") // VOICE, VIDEO
+  status     String   @default("COMPLETED") // MISSED, COMPLETED, REJECTED
+  duration   Int?
+  createdAt  DateTime @default(now())
+
+  caller   User @relation("Caller", fields: [callerId], references: [id])
+  receiver User @relation("Receiver", fields: [receiverId], references: [id])
 }
 
 model UserSettings {
-  id                  String  @id @default(uuid())
-  userId              String  @unique
-  statusPrivacyMode   String  @default("MY_CONTACTS") // MY_CONTACTS, EXCEPT, ONLY_SHARE
-  lastSeenPrivacy     String  @default("EVERYONE")
-  profilePhotoPrivacy String  @default("EVERYONE")
-  aboutPrivacy        String  @default("EVERYONE")
-  readReceipts        Boolean @default(true)
+  id                   String  @id @default(uuid())
+  userId               String  @unique
+  statusPrivacyMode    String  @default("MY_CONTACTS") // MY_CONTACTS, EXCEPT, ONLY_SHARE
+  lastSeenPrivacy      String  @default("EVERYONE")
+  profilePhotoPrivacy  String  @default("EVERYONE")
+  aboutPrivacy         String  @default("EVERYONE")
+  readReceipts         Boolean @default(true)
   notificationsEnabled Boolean @default(true)
-  
-  user                User    @relation(fields: [userId], references: [id])
-  
+
+  user User @relation(fields: [userId], references: [id])
+
   excludedStatusUserIds String[]
   includedStatusUserIds String[]
 }
@@ -235,23 +235,23 @@ model Admin {
 }
 
 model Report {
-  id              String   @id @default(uuid())
-  reporterId      String
-  reportedUserId  String
-  reason          String
-  status          String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
-  createdAt       DateTime @default(now())
+  id             String   @id @default(uuid())
+  reporterId     String
+  reportedUserId String
+  reason         String
+  status         String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  createdAt      DateTime @default(now())
 
-  reporter        User     @relation("Reporter", fields: [reporterId], references: [id])
-  reportedUser    User     @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  reporter     User @relation("Reporter", fields: [reporterId], references: [id])
+  reportedUser User @relation("ReportedUser", fields: [reportedUserId], references: [id])
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  adminEmail  String
-  action      String
-  target      String
-  timestamp   DateTime @default(now())
+  id         String   @id @default(uuid())
+  adminEmail String
+  action     String
+  target     String
+  timestamp  DateTime @default(now())
 }
 
 model Broadcast {
@@ -264,25 +264,25 @@ model Broadcast {
 }
 
 model SystemSetting {
-  id                    String  @id @default(uuid())
-  allowNewRegistrations Boolean @default(true)
-  maintenanceMode       Boolean @default(false)
-  maxGroupSize          Int     @default(1024)
-  retentionDays         Int     @default(90)
-  verificationBadgePrice Float  @default(3.00)
-  appDownloadUrl        String? @default("")
-  appVersion            String? @default("1.0.0")
-  appName               String? @default("VIBEZ")
-  contactEmail          String? @default("support@vibez.chat")
-  contactPhone          String? @default("+1 (800) 555-0199")
-  supportAddress        String? @default("San Francisco, CA, USA")
-  privacyPolicyUrl      String? @default("")
-  termsOfServiceUrl     String? @default("")
-  privacyPolicyContent  String? @default("")
-  termsOfServiceContent String? @default("")
-  helpCenterUrl         String? @default("")
-  faqUrl                String? @default("")
-  emailLinks            Json?   @default("{}")
+  id                        String  @id @default(uuid())
+  allowNewRegistrations     Boolean @default(true)
+  maintenanceMode           Boolean @default(false)
+  maxGroupSize              Int     @default(1024)
+  retentionDays             Int     @default(90)
+  verificationBadgePrice    Float   @default(3.00)
+  appDownloadUrl            String? @default("")
+  appVersion                String? @default("1.0.0")
+  appName                   String? @default("VIBEZ")
+  contactEmail              String? @default("support@vibez.chat")
+  contactPhone              String? @default("+1 (800) 555-0199")
+  supportAddress            String? @default("San Francisco, CA, USA")
+  privacyPolicyUrl          String? @default("")
+  termsOfServiceUrl         String? @default("")
+  privacyPolicyContent      String? @default("")
+  termsOfServiceContent     String? @default("")
+  helpCenterUrl             String? @default("")
+  faqUrl                    String? @default("")
+  emailLinks                Json?   @default("{}")
   phoneAuthAllowedCountries String? @default("US,GH,NG,GB,CA,KE,ZA,IN,DE,FR,AE,SA,BR,MX,AU")
   showPhoneCountryPrefixes  Boolean @default(true)
 }
@@ -335,32 +335,32 @@ model StorageAsset {
   contentType String
   size        Int      @default(0) // in bytes
   publicUrl   String
-  uploaderId  String?  // userId if applicable
+  uploaderId  String? // userId if applicable
   purpose     String   @default("GENERAL") // CHAT, STATUS, COMMUNITY, PROFILE
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 model PaymentProvider {
-  id          String   @id @default(uuid())
-  name        String   @unique // e.g., "STRIPE", "PAYPAL"
-  isEnabled   Boolean  @default(false)
-  config      Json?    // Encrypted or secure storage of keys (publicKey, secretKey, etc.)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String   @unique // e.g., "STRIPE", "PAYPAL"
+  isEnabled Boolean  @default(false)
+  config    Json? // Encrypted or secure storage of keys (publicKey, secretKey, etc.)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model PaymentTransaction {
-  id              String   @id @default(uuid())
-  userId          String
-  amount          Float
-  currency        String   @default("USD")
-  status          String   @default("PENDING") // PENDING, COMPLETED, FAILED, CANCELLED
-  provider        String   // STRIPE, PAYPAL
-  providerRef     String?  @unique // Provider's internal ID
-  metadata        Json?    // For extra data
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(uuid())
+  userId      String
+  amount      Float
+  currency    String   @default("USD")
+  status      String   @default("PENDING") // PENDING, COMPLETED, FAILED, CANCELLED
+  provider    String // STRIPE, PAYPAL
+  providerRef String?  @unique // Provider's internal ID
+  metadata    Json? // For extra data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -370,103 +370,103 @@ model PaymentTransaction {
 // -------------------------------------------------------------
 
 model DeveloperAccount {
-  id                    String              @id @default(uuid())
-  userId                String              @unique
-  organizationName      String?
-  websiteUrl            String?
-  tier                  String              @default("FREE") // FREE, PRO, ENTERPRISE
-  status                String              @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_VERIFICATION
-  monthlyRequestLimit   Int                 @default(100000)
-  currentMonthRequests  Int                 @default(0)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  organizationName     String?
+  websiteUrl           String?
+  tier                 String   @default("FREE") // FREE, PRO, ENTERPRISE
+  status               String   @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_VERIFICATION
+  monthlyRequestLimit  Int      @default(100000)
+  currentMonthRequests Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  apiKeys               ApiKey[]
-  webhookEndpoints      WebhookEndpoint[]
-  applications          ServerApplication[]
-  developerLogs         DeveloperLog[]
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeys          ApiKey[]
+  webhookEndpoints WebhookEndpoint[]
+  applications     ServerApplication[]
+  developerLogs    DeveloperLog[]
 }
 
 model ApiKey {
-  id                    String              @id @default(uuid())
-  developerId           String
-  name                  String              // e.g., "Production Backend API Key"
-  keyPrefix             String              // e.g., "vbz_live_..."
-  keyHash               String              @unique // SHA-256 hash of the full secret key
-  scopes                String[]            @default(["messages:write", "rtc:signaling", "webhooks:manage"])
-  rateLimitRpm          Int                 @default(1200)
-  lastUsedAt            DateTime?
-  expiresAt             DateTime?
-  isActive              Boolean             @default(true)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id           String    @id @default(uuid())
+  developerId  String
+  name         String // e.g., "Production Backend API Key"
+  keyPrefix    String // e.g., "vbz_live_..."
+  keyHash      String    @unique // SHA-256 hash of the full secret key
+  scopes       String[]  @default(["messages:write", "rtc:signaling", "webhooks:manage"])
+  rateLimitRpm Int       @default(1200)
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  developer             DeveloperAccount    @relation(fields: [developerId], references: [id], onDelete: Cascade)
-  logs                  DeveloperLog[]
+  developer DeveloperAccount @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  logs      DeveloperLog[]
 }
 
 model WebhookEndpoint {
-  id                    String              @id @default(uuid())
-  developerId           String
-  url                   String
-  description           String?
-  secretKey             String              // HMAC-SHA256 secret (whsec_...)
-  subscribedEvents      String[]            @default(["message.sent", "message.delivered", "call.initiated", "user.presence"])
-  isEnabled             Boolean             @default(true)
-  failureCount          Int                 @default(0)
-  lastTriggeredAt       DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id               String    @id @default(uuid())
+  developerId      String
+  url              String
+  description      String?
+  secretKey        String // HMAC-SHA256 secret (whsec_...)
+  subscribedEvents String[]  @default(["message.sent", "message.delivered", "call.initiated", "user.presence"])
+  isEnabled        Boolean   @default(true)
+  failureCount     Int       @default(0)
+  lastTriggeredAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  developer             DeveloperAccount    @relation(fields: [developerId], references: [id], onDelete: Cascade)
-  deliveries            WebhookDelivery[]
+  developer  DeveloperAccount  @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
 }
 
 model WebhookDelivery {
-  id                    String              @id @default(uuid())
-  endpointId            String
-  event                 String              // e.g., "message.delivered"
-  payload               Json
-  statusCode            Int?
-  responseBody          String?
-  latencyMs             Int?
-  status                String              @default("SUCCESS") // SUCCESS, FAILED, RETRYING
-  attemptCount          Int                 @default(1)
-  createdAt             DateTime            @default(now())
+  id           String   @id @default(uuid())
+  endpointId   String
+  event        String // e.g., "message.delivered"
+  payload      Json
+  statusCode   Int?
+  responseBody String?
+  latencyMs    Int?
+  status       String   @default("SUCCESS") // SUCCESS, FAILED, RETRYING
+  attemptCount Int      @default(1)
+  createdAt    DateTime @default(now())
 
-  endpoint              WebhookEndpoint     @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
 }
 
 model ServerApplication {
-  id                    String              @id @default(uuid())
-  developerId           String
-  appName               String
-  description           String?
-  clientId              String              @unique // vibez_client_...
-  clientSecretHash      String
-  allowedRedirectUris   String[]            @default([])
-  isProduction          Boolean             @default(false)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id                  String   @id @default(uuid())
+  developerId         String
+  appName             String
+  description         String?
+  clientId            String   @unique // vibez_client_...
+  clientSecretHash    String
+  allowedRedirectUris String[] @default([])
+  isProduction        Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  developer             DeveloperAccount    @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  developer DeveloperAccount @relation(fields: [developerId], references: [id], onDelete: Cascade)
 }
 
 model DeveloperLog {
-  id                    String              @id @default(uuid())
-  developerId           String?
-  apiKeyId              String?
-  endpoint              String              // e.g., "/api/developer/messages/send"
-  method                String              // GET, POST, etc.
-  statusCode            Int
-  responseTimeMs        Int
-  ipAddress             String?
-  userAgent             String?
-  createdAt             DateTime            @default(now())
+  id             String   @id @default(uuid())
+  developerId    String?
+  apiKeyId       String?
+  endpoint       String // e.g., "/api/developer/messages/send"
+  method         String // GET, POST, etc.
+  statusCode     Int
+  responseTimeMs Int
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
 
-  developer             DeveloperAccount?   @relation(fields: [developerId], references: [id], onDelete: SetNull)
-  apiKey                ApiKey?             @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  developer DeveloperAccount? @relation(fields: [developerId], references: [id], onDelete: SetNull)
+  apiKey    ApiKey?           @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
 }
 
 // ==============================
@@ -474,75 +474,89 @@ model DeveloperLog {
 // ==============================
 
 model BusinessProfile {
-  id                    String              @id @default(uuid())
-  userId                String              @unique
-  businessName          String
-  category              String              @default("Professional Services")
-  description           String?
-  coverImageUrl         String?
-  address               String?
-  latitude              Float?
-  longitude             Float?
-  businessHours         String?             // JSON or string formatted hours
-  website               String?
-  email                 String?
-  isVerified            Boolean             @default(false)
-  catalogItems          CatalogItem[]
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id            String        @id @default(uuid())
+  userId        String        @unique
+  businessName  String
+  category      String        @default("Professional Services")
+  description   String?
+  coverImageUrl String?
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  businessHours String? // JSON or string formatted hours
+  website       String?
+  email         String?
+  isVerified    Boolean       @default(false)
+  catalogItems  CatalogItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CatalogItem {
-  id                    String              @id @default(uuid())
-  businessId            String
-  title                 String
-  description           String?
-  price                 Float               @default(0.0)
-  currency              String              @default("USD")
-  imageUrl              String?
-  link                  String?
-  isAvailable           Boolean             @default(true)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id          String   @id @default(uuid())
+  businessId  String
+  title       String
+  description String?
+  price       Float    @default(0.0)
+  currency    String   @default("USD")
+  imageUrl    String?
+  link        String?
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  business              BusinessProfile     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
 model QuickReply {
-  id                    String              @id @default(uuid())
-  userId                String
-  shortcut              String              // e.g., "/thanks"
-  message               String
-  createdAt             DateTime            @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  shortcut  String // e.g., "/thanks"
+  message   String
+  createdAt DateTime @default(now())
 
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AutomatedMessage {
-  id                    String              @id @default(uuid())
-  userId                String
-  type                  String              // GREETING, AWAY
-  content               String
-  isEnabled             Boolean             @default(true)
-  schedule              String?             // ALWAYS, OUTSIDE_BUSINESS_HOURS, CUSTOM
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id        String   @id @default(uuid())
+  userId    String
+  type      String // GREETING, AWAY
+  content   String
+  isEnabled Boolean  @default(true)
+  schedule  String? // ALWAYS, OUTSIDE_BUSINESS_HOURS, CUSTOM
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ChatLabel {
-  id                    String              @id @default(uuid())
-  userId                String
-  name                  String              // "New customer", "Pending payment", etc.
-  colorHex              String              @default("#25D366")
-  chatIds               String[]            @default([])
-  createdAt             DateTime            @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  name      String // "New customer", "Pending payment", etc.
+  colorHex  String   @default("#25D366")
+  chatIds   String[] @default([])
+  createdAt DateTime @default(now())
 
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Order {
+  id          String   @id @default(uuid())
+  businessId  String
+  buyerId     String
+  chatId      String?
+  items       String // JSON string of order items
+  totalAmount Float    @default(0.0)
+  currency    String   @default("USD")
+  status      String   @default("PENDING") // PENDING, CONFIRMED, COMPLETED, CANCELLED
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-
+  @@index([businessId])
+  @@index([buyerId])
+}

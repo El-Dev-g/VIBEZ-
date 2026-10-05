@@ -725,7 +725,7 @@ export class BusinessController {
         orderBy: { createdAt: 'desc' }
       });
 
-      const parsedOrders = orders.map(o => {
+      const parsedOrders = orders.map((o: any) => {
         let itemsList = [];
         try { itemsList = JSON.parse(o.items); } catch(e) {}
         return {
