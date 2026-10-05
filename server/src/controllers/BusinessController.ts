@@ -129,6 +129,7 @@ export class BusinessController {
                 accountType: true
               }
             }
+          }
         });
       } else {
         profile = await prisma.businessProfile.findUnique({
