@@ -33,7 +33,8 @@ export class BusinessController {
               id: true,
               name: true,
               phoneNumber: true,
-              avatarUrl: true
+              avatarUrl: true,
+              accountType: true
             }
           }
         }
@@ -58,7 +59,8 @@ export class BusinessController {
                 id: true,
                 name: true,
                 phoneNumber: true,
-                avatarUrl: true
+                avatarUrl: true,
+                accountType: true
               }
             }
           }

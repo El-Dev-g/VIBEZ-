@@ -1836,6 +1836,53 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun loadCatalog() {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val profile = selectedBusinessProfile.value ?: repository.getBusinessProfile(token)
+            if (profile != null) {
+                selectedBusinessProfile.value = profile
+            }
+            val items = repository.getCatalog(token, profile?.userId)
+            businessCatalogItems.value = items
+        }
+    }
+
+    fun addCatalogItem(
+        title: String,
+        price: Double,
+        description: String,
+        imageUrl: String?,
+        link: String
+    ) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val request = com.example.data.network.AddCatalogItemRequest(
+                title = title,
+                price = price,
+                description = description.takeIf { it.isNotBlank() },
+                imageUrl = imageUrl?.takeIf { it.isNotBlank() },
+                link = link.takeIf { it.isNotBlank() }
+            )
+            val added = repository.addCatalogItem(token, request)
+            if (added != null) {
+                businessCatalogItems.value = listOf(added) + businessCatalogItems.value
+            } else {
+                loadCatalog()
+            }
+        }
+    }
+
+    fun deleteCatalogItem(id: String) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val success = repository.deleteCatalogItem(token, id)
+            if (success) {
+                businessCatalogItems.value = businessCatalogItems.value.filter { it.id != id }
+            }
+        }
+    }
+
     fun saveBusinessProfile(
         name: String,
         category: String,

@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,6 +28,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import com.example.data.network.BusinessProfileDto
+import com.example.data.network.CatalogItemDto
 import com.example.ui.components.AvatarView
 import com.example.ui.components.VerifiedBadge
 import com.example.ui.theme.WhatsAppEmerald
@@ -63,7 +68,9 @@ fun UserProfileScreen(
     onGetBadgeClick: () -> Unit = {},
     onViewBadgeReceiptClick: () -> Unit = {},
     onBusinessStorefrontClick: (() -> Unit)? = null,
-    isBusiness: Boolean = false
+    isBusiness: Boolean = false,
+    businessProfile: BusinessProfileDto? = null,
+    businessCatalog: List<CatalogItemDto> = emptyList()
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -239,8 +246,8 @@ fun UserProfileScreen(
                 }
             } else {
                 // CONTACT VIEW (For other users / Viewers - Read Only)
-                item {
-                    if (isBusiness) {
+                if (isBusiness) {
+                    item {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -254,9 +261,10 @@ fun UserProfileScreen(
                                     .padding(16.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                val resolvedDisplayName = currentName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                                val resolvedDisplayName = businessProfile?.businessName?.takeIf { it.isNotBlank() }
+                                    ?: currentName.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
                                     ?: currentPhone.takeIf { it.isNotBlank() }
-                                    ?: "Vibez Merchant"
+                                    ?: "Vibez Business Merchant"
 
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -275,7 +283,7 @@ fun UserProfileScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    if (isVerified) {
+                                    if (isVerified || businessProfile?.isVerified == true) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         VerifiedBadge(size = 20.dp)
                                     }
@@ -284,15 +292,30 @@ fun UserProfileScreen(
                                 Surface(
                                     color = WhatsAppEmerald.copy(alpha = 0.12f),
                                     shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.padding(bottom = 12.dp)
+                                    modifier = Modifier.padding(bottom = 8.dp)
                                 ) {
                                     Text(
-                                        text = "VERIFIED BUSINESS ACCOUNT",
+                                        text = "OFFICIAL BUSINESS ACCOUNT",
                                         color = WhatsAppEmerald,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                         letterSpacing = 0.5.sp
+                                    )
+                                }
+
+                                val categoryText = businessProfile?.category?.takeIf { it.isNotBlank() } ?: "Shopping & Retail"
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                ) {
+                                    Text(
+                                        text = categoryText,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                                     )
                                 }
 
@@ -305,11 +328,15 @@ fun UserProfileScreen(
                                     )
                                 }
 
+                                val businessDesc = businessProfile?.description?.takeIf { it.isNotBlank() }
+                                    ?: currentStatus.takeIf { it.isNotBlank() && it != "Hey there! I am using VIBEZ." && it != "⚡ Vibing in VIBEZ" }
+                                    ?: "Welcome to our official business storefront! Browse products or chat with us directly."
                                 Text(
-                                    text = "Vibez Business Suite Merchant • Active Storefront",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    modifier = Modifier.padding(top = 4.dp)
+                                    text = businessDesc,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
 
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -322,12 +349,237 @@ fun UserProfileScreen(
                                     ProfileActionButton(icon = Icons.Default.Call, label = "Voice Call", onClick = { onVoiceCallClick?.invoke() })
                                     ProfileActionButton(icon = Icons.Default.Videocam, label = "Video Call", onClick = { onVideoCallClick?.invoke() })
                                     if (onBusinessStorefrontClick != null) {
-                                        ProfileActionButton(icon = Icons.Default.ShoppingBag, label = "Products", onClick = { onBusinessStorefrontClick.invoke() })
+                                        ProfileActionButton(icon = Icons.Default.ShoppingBag, label = "Catalog", onClick = { onBusinessStorefrontClick.invoke() })
                                     }
                                 }
                             }
                         }
-                    } else {
+                    }
+
+                    // Business Info Card (Hours, Address, Website, Email)
+                    val hasBusinessDetails = businessProfile?.businessHours?.isNotBlank() == true ||
+                            businessProfile?.address?.isNotBlank() == true ||
+                            businessProfile?.website?.isNotBlank() == true ||
+                            businessProfile?.email?.isNotBlank() == true
+
+                    if (hasBusinessDetails) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(
+                                        text = "Business Details",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = WhatsAppMinimalPrimary
+                                    )
+
+                                    businessProfile?.businessHours?.takeIf { it.isNotBlank() }?.let { hours ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.AccessTime, contentDescription = null, tint = WhatsAppEmerald, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text("Hours", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text(hours, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                            }
+                                        }
+                                    }
+
+                                    businessProfile?.address?.takeIf { it.isNotBlank() }?.let { addr ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.LocationOn, contentDescription = null, tint = WhatsAppEmerald, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text("Address", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text(addr, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                            }
+                                        }
+                                    }
+
+                                    businessProfile?.website?.takeIf { it.isNotBlank() }?.let { web ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Language, contentDescription = null, tint = WhatsAppEmerald, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text("Website", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text(web, fontSize = 14.sp, color = WhatsAppEmerald, fontWeight = FontWeight.Medium)
+                                            }
+                                        }
+                                    }
+
+                                    businessProfile?.email?.takeIf { it.isNotBlank() }?.let { mail ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Email, contentDescription = null, tint = WhatsAppEmerald, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text("Email", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text(mail, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Featured Products Showcase (if catalog is available)
+                    if (businessCatalog.isNotEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Products & Services",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (onBusinessStorefrontClick != null) {
+                                            Text(
+                                                text = "See all (${businessCatalog.size})",
+                                                color = WhatsAppEmerald,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                modifier = Modifier.clickable { onBusinessStorefrontClick() }
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    androidx.compose.foundation.lazy.LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(businessCatalog.take(5)) { item ->
+                                            Card(
+                                                modifier = Modifier
+                                                    .width(140.dp)
+                                                    .clickable { onBusinessStorefrontClick?.invoke() },
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                            ) {
+                                                Column(modifier = Modifier.padding(8.dp)) {
+                                                    if (!item.imageUrl.isNullOrBlank()) {
+                                                        AsyncImage(
+                                                            model = item.imageUrl,
+                                                            contentDescription = item.title,
+                                                            contentScale = ContentScale.Crop,
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(90.dp)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                        )
+                                                    } else {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(90.dp)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(WhatsAppEmerald.copy(alpha = 0.12f)),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.ShoppingBag,
+                                                                contentDescription = null,
+                                                                tint = WhatsAppEmerald,
+                                                                modifier = Modifier.size(36.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    Text(
+                                                        text = item.title,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 1,
+                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = "$${"%.2f".format(item.price)} ${item.currency}",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = WhatsAppEmerald
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (onBusinessStorefrontClick != null) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                                    .clickable { onBusinessStorefrontClick.invoke() },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(WhatsAppEmerald.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Storefront,
+                                            contentDescription = null,
+                                            tint = WhatsAppEmerald,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Official Store & Catalog",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Browse products, pricing, and place direct cart orders",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // REGULAR CONSUMER CONTACT VIEW
+                    item {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -380,72 +632,18 @@ fun UserProfileScreen(
                             }
                         }
                     }
-                }
 
-                if (onBusinessStorefrontClick != null) {
                     item {
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .clickable { onBusinessStorefrontClick.invoke() },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(WhatsAppEmerald.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Storefront,
-                                        contentDescription = null,
-                                        tint = WhatsAppEmerald,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Official Store & Catalog",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Browse products, pricing, and place direct cart orders",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(text = "About", fontWeight = FontWeight.Bold, color = WhatsAppMinimalPrimary)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(text = currentStatus, fontSize = 15.sp)
                             }
-                        }
-                    }
-                }
-                
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(text = "About", fontWeight = FontWeight.Bold, color = WhatsAppMinimalPrimary)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = currentStatus, fontSize = 15.sp)
                         }
                     }
                 }

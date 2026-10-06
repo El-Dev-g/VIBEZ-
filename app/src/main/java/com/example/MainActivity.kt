@@ -1683,16 +1683,27 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 (contactId.isNotBlank() && (it.id == contactId || it.remoteId == contactId || it.phoneNumber == contactId))
             }
 
+            val selectedBizProfile by viewModel.selectedBusinessProfile.collectAsState()
+            val selectedBizCatalog by viewModel.selectedBusinessCatalog.collectAsState()
+
             LaunchedEffect(resolvedUserId) {
                 if (!isCurrentUser && resolvedUserId.isNotBlank()) {
                     viewModel.refreshContactProfile(resolvedUserId)
+                    viewModel.loadBusinessStorefront(resolvedUserId)
                 }
             }
+
+            val isBusinessUser = !isCurrentUser && (
+                contact?.accountType == "BUSINESS" ||
+                contact?.accountType.equals("BUSINESS", ignoreCase = true) ||
+                (selectedBizProfile != null && (selectedBizProfile?.userId == resolvedUserId || selectedBizProfile?.userId == contact?.remoteId))
+            )
 
             val effectiveContactName = if (isCurrentUser) {
                 currentUserName
             } else {
-                contact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
+                (if (isBusinessUser) selectedBizProfile?.businessName else null)?.takeIf { it.isNotBlank() }
+                    ?: contact?.name?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
                     ?: chat?.contactName?.takeIf { it.isNotBlank() && it != "Contact" && it != "Unknown" }
                     ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
                     ?: contact?.name?.takeIf { it.isNotBlank() }
@@ -1718,7 +1729,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 contact?.aboutStatus?.takeIf { it.isNotBlank() } ?: "Hey there! I am using VIBEZ."
             }
 
-            val effectiveVerified = if (isCurrentUser) isVerified else (contact?.isVerified == true || chat?.isVerified == true)
+            val effectiveVerified = if (isCurrentUser) isVerified else (contact?.isVerified == true || chat?.isVerified == true || selectedBizProfile?.isVerified == true)
             val isMuted = chat?.isMuted == true
 
             UserProfileScreen(
@@ -1783,12 +1794,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                         navController.navigate("shared_media/NONE")
                     }
                 },
-                onBusinessStorefrontClick = if (!isCurrentUser && contact?.accountType == "BUSINESS") {
+                onBusinessStorefrontClick = if (isBusinessUser) {
                     {
                         navController.navigate("business_storefront/$resolvedUserId")
                     }
                 } else null,
-                isBusiness = !isCurrentUser && contact?.accountType == "BUSINESS"
+                isBusiness = isBusinessUser,
+                businessProfile = if (isBusinessUser) selectedBizProfile else null,
+                businessCatalog = if (isBusinessUser) selectedBizCatalog else emptyList()
             )
         }
 

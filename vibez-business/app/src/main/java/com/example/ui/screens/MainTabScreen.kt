@@ -116,7 +116,12 @@ fun MainTabScreen(
     onClearCallLogs: () -> Unit = {},
     onIncomingCallSimulate: () -> Unit = {},
     onBusinessToolsClick: () -> Unit = {},
-    onLabelsClick: () -> Unit = {}
+    onLabelsClick: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = onBusinessToolsClick,
+    onNavigateToCatalog: () -> Unit = onBusinessToolsClick,
+    onNavigateToGreetingMessage: () -> Unit = onBusinessToolsClick,
+    onNavigateToAwayMessage: () -> Unit = onBusinessToolsClick,
+    onNavigateToQuickReplies: () -> Unit = onBusinessToolsClick
 ) {
     var isSearchActive by remember { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }
@@ -397,17 +402,17 @@ fun MainTabScreen(
                     )
                 )
 
-                // 2: Communities
+                // 2: Tools (Business Tools)
                 NavigationBarItem(
                     selected = selectedTab == 2,
                     onClick = { onTabSelected(2) },
                     icon = {
                         Icon(
-                            imageVector = if (selectedTab == 2) Icons.Filled.Groups else Icons.Outlined.Groups,
-                            contentDescription = "Communities"
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "Tools"
                         )
                     },
-                    label = { Text("Communities", fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal) },
+                    label = { Text("Tools", fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = WhatsAppMinimalPrimary,
                         selectedTextColor = WhatsAppMinimalTextPrimary,
@@ -479,11 +484,14 @@ fun MainTabScreen(
                     onStatusPrivacyClick = onStatusPrivacyClick,
                     onMyStatusListClick = onMyStatusListClick
                 )
-                2 -> CommunitiesScreen(
-                    communities = communities,
-                    onCreateCommunityClick = onCreateCommunityClick,
-                    onCommunityClick = onCommunityClick,
-                    onCommunityChatClick = onCommunityChatClick
+                2 -> BusinessToolsScreen(
+                    onBackClick = { onTabSelected(0) },
+                    onNavigateToProfile = onNavigateToProfile,
+                    onNavigateToCatalog = onNavigateToCatalog,
+                    onNavigateToGreetingMessage = onNavigateToGreetingMessage,
+                    onNavigateToAwayMessage = onNavigateToAwayMessage,
+                    onNavigateToQuickReplies = onNavigateToQuickReplies,
+                    onNavigateToLabels = onLabelsClick
                 )
                 3 -> CallsListScreen(
                     callLogs = callLogs,

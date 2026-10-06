@@ -1,9 +1,16 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,8 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -28,7 +37,7 @@ import com.example.ui.theme.WhatsAppMinimalPrimary
 fun BusinessCatalogScreen(
     onBackClick: () -> Unit,
     items: List<CatalogItemDto> = emptyList(),
-    onAddItem: (title: String, price: Double, description: String, link: String) -> Unit = { _, _, _, _ -> },
+    onAddItem: (title: String, price: Double, description: String, imageUrl: String?, link: String) -> Unit = { _, _, _, _, _ -> },
     onDeleteItem: (id: String) -> Unit = {},
     onShareItemToChat: (item: CatalogItemDto) -> Unit = {}
 ) {
@@ -36,27 +45,19 @@ fun BusinessCatalogScreen(
     var itemTitle by remember { mutableStateOf("") }
     var itemPrice by remember { mutableStateOf("") }
     var itemDescription by remember { mutableStateOf("") }
+    var itemImageUrl by remember { mutableStateOf("") }
     var itemLink by remember { mutableStateOf("") }
 
-    // Seed preview items if empty
-    val catalogList = remember(items) {
-        if (items.isNotEmpty()) items else listOf(
-            CatalogItemDto(
-                id = "item_1",
-                title = "Vibez Pro Business Subscription",
-                description = "Automated sales bot, unlimited customer labels, and priority support.",
-                price = 29.99,
-                currency = "USD"
-            ),
-            CatalogItemDto(
-                id = "item_2",
-                title = "1-on-1 Consultation Call (30 min)",
-                description = "Direct consultation over high-definition WebRTC video call.",
-                price = 49.00,
-                currency = "USD"
-            )
-        )
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            itemImageUrl = uri.toString()
+        }
     }
+
+    // Dynamic catalog items from backend (no static items)
+    val catalogList = items
 
     Scaffold(
         topBar = {
@@ -102,85 +103,81 @@ fun BusinessCatalogScreen(
                 )
             }
 
-            // Meta Commerce / Web Manager Integration Card
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = WhatsAppMinimalPrimary.copy(alpha = 0.08f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Sync,
-                                contentDescription = null,
-                                tint = WhatsAppMinimalPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Meta Catalogs & Web Manager",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Manage products online or auto-sync with Facebook Commerce & Instagram Shopping.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            if (catalogList.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = WhatsAppMinimalPrimary.copy(alpha = 0.1f),
+                            modifier = Modifier.size(72.dp)
                         ) {
-                            Button(
-                                onClick = { /* Copy Meta Feed Link action */ },
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Meta Feed Link", fontSize = 12.sp)
-                            }
-                            OutlinedButton(
-                                onClick = { /* Open Web Manager */ },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Web Manager", fontSize = 12.sp)
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingBag,
+                                    contentDescription = null,
+                                    tint = WhatsAppMinimalPrimary,
+                                    modifier = Modifier.size(36.dp)
+                                )
                             }
                         }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No products or services yet",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Tap the + button to add products with photos, prices, and descriptions.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp)
+                        )
                     }
                 }
             }
 
             items(catalogList) { item ->
                 Card(
-                    modifier = Modifier.fillMaxWidth().testTag("catalog_item_${item.id}"),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("catalog_item_${item.id}"),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(WhatsAppMinimalPrimary.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ShoppingBag,
-                                    contentDescription = null,
-                                    tint = WhatsAppMinimalPrimary,
-                                    modifier = Modifier.size(28.dp)
+                            if (!item.imageUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = item.imageUrl,
+                                    contentDescription = item.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(RoundedCornerShape(12.dp))
                                 )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(WhatsAppMinimalPrimary.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ShoppingBag,
+                                        contentDescription = null,
+                                        tint = WhatsAppMinimalPrimary,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
@@ -239,33 +236,140 @@ fun BusinessCatalogScreen(
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Add new item or service") },
+            title = { Text("Add product or service") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Image Picker Section
+                    Text(
+                        text = "Product Image",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (itemImageUrl.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = itemImageUrl,
+                                contentDescription = "Selected product image",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                OutlinedButton(
+                                    onClick = {
+                                        photoPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Text("Change Photo", fontSize = 12.sp)
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                TextButton(
+                                    onClick = { itemImageUrl = "" },
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(80.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AddPhotoAlternate,
+                                    contentDescription = "Add Photo",
+                                    tint = WhatsAppMinimalPrimary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Choose product photo",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = WhatsAppMinimalPrimary
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = itemImageUrl,
+                        onValueChange = { itemImageUrl = it },
+                        label = { Text("Image URL (optional)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_item_image_url")
+                    )
+
                     OutlinedTextField(
                         value = itemTitle,
                         onValueChange = { itemTitle = it },
                         label = { Text("Item title *") },
-                        modifier = Modifier.fillMaxWidth().testTag("input_item_title")
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_item_title")
                     )
+
                     OutlinedTextField(
                         value = itemPrice,
                         onValueChange = { itemPrice = it },
                         label = { Text("Price (USD) *") },
-                        modifier = Modifier.fillMaxWidth().testTag("input_item_price")
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_item_price")
                     )
+
                     OutlinedTextField(
                         value = itemDescription,
                         onValueChange = { itemDescription = it },
                         label = { Text("Description") },
                         minLines = 2,
-                        modifier = Modifier.fillMaxWidth().testTag("input_item_desc")
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_item_desc")
                     )
+
                     OutlinedTextField(
                         value = itemLink,
                         onValueChange = { itemLink = it },
                         label = { Text("Website or payment link") },
-                        modifier = Modifier.fillMaxWidth().testTag("input_item_link")
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_item_link")
                     )
                 }
             },
@@ -274,10 +378,17 @@ fun BusinessCatalogScreen(
                     onClick = {
                         val parsedPrice = itemPrice.toDoubleOrNull() ?: 0.0
                         if (itemTitle.isNotBlank()) {
-                            onAddItem(itemTitle, parsedPrice, itemDescription, itemLink)
+                            onAddItem(
+                                itemTitle,
+                                parsedPrice,
+                                itemDescription,
+                                itemImageUrl.takeIf { it.isNotBlank() },
+                                itemLink
+                            )
                             itemTitle = ""
                             itemPrice = ""
                             itemDescription = ""
+                            itemImageUrl = ""
                             itemLink = ""
                             showAddDialog = false
                         }

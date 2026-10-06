@@ -623,6 +623,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onBusinessToolsClick = {
                     navController.navigate("business_tools")
                 },
+                onNavigateToProfile = { navController.navigate("business_profile") },
+                onNavigateToCatalog = { navController.navigate("business_catalog") },
+                onNavigateToGreetingMessage = { navController.navigate("automated_messages") },
+                onNavigateToAwayMessage = { navController.navigate("automated_messages") },
+                onNavigateToQuickReplies = { navController.navigate("quick_replies") },
                 onLabelsClick = {
                     navController.navigate("chat_labels")
                 },
@@ -1069,8 +1074,21 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         }
 
         composable("business_catalog") {
+            val catalogItems by viewModel.businessCatalogItems.collectAsState()
+
+            LaunchedEffect(Unit) {
+                viewModel.loadCatalog()
+            }
+
             BusinessCatalogScreen(
+                items = catalogItems,
                 onBackClick = { navController.popBackStack() },
+                onAddItem = { title, price, description, imageUrl, link ->
+                    viewModel.addCatalogItem(title, price, description, imageUrl, link)
+                },
+                onDeleteItem = { id ->
+                    viewModel.deleteCatalogItem(id)
+                },
                 onShareItemToChat = {
                     navController.popBackStack()
                 }
