@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port 3002",
     "build": "tsc && vite build",
-    "start": "vite preview --port 3002 --host",
+    "start": "node server.js",
     "preview": "vite preview --port 3002"
   },
   "dependencies": {
