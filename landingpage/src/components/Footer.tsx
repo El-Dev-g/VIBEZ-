@@ -13,7 +13,8 @@ export default function Footer() {
     contactPhone: '+1 (800) 555-0199',
     supportAddress: 'San Francisco, CA, USA',
     maintenanceMode: false,
-    allowNewRegistrations: true
+    allowNewRegistrations: true,
+    helpCenterUrl: '/faq'
   });
 
   useEffect(() => {
@@ -23,6 +24,26 @@ export default function Footer() {
     };
     loadConfig();
   }, []);
+
+  const renderHelpCenterLink = () => {
+    if (config.helpCenterUrl && config.helpCenterUrl.startsWith('http')) {
+      return (
+        <a 
+          href={config.helpCenterUrl} 
+          className="hover:text-white transition-colors" 
+          target="_blank" 
+          rel="noopener noreferrer"
+        >
+          Help Center
+        </a>
+      );
+    }
+    return (
+      <Link to="/faq" className="hover:text-white transition-colors">
+        Help Center
+      </Link>
+    );
+  };
 
   return (
     <footer className="bg-[#0b141a] border-t border-[#202c33] py-12 text-xs text-[#8696a0]">
@@ -42,8 +63,8 @@ export default function Footer() {
 
           <div className="flex flex-wrap justify-center items-center gap-6 text-xs font-medium">
             <Link to="/features" className="hover:text-white transition-colors">{t('footer.features')}</Link>
-            <a href="https://faq.whatsapp.com" className="hover:text-white transition-colors" target="_blank" rel="noopener noreferrer">Help Center</a>
-            <a href="mailto:support@vibez.chat" className="hover:text-white transition-colors">Contact Support</a>
+            {renderHelpCenterLink()}
+            <Link to="/contact" className="hover:text-white transition-colors">Contact Support</Link>
             <Link to="/privacy" className="hover:text-white transition-colors">{t('footer.privacy')}</Link>
             <Link to="/terms" className="hover:text-white transition-colors">{t('footer.terms')}</Link>
           </div>

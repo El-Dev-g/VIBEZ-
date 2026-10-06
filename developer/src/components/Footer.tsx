@@ -46,10 +46,10 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-200 mb-3">Support & Legal</h4>
             <ul className="space-y-2 text-xs">
-              <li><a href="https://faq.whatsapp.com" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Help Center</a></li>
+              <li><Link to="/docs" className="hover:text-emerald-400 transition-colors">Developer Help Center</Link></li>
               <li><a href="mailto:support@vibez.chat" className="hover:text-emerald-400 transition-colors">Developer Support</a></li>
-              <li><a href="https://www.whatsapp.com/legal" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Terms of Service</a></li>
-              <li><a href="https://www.whatsapp.com/legal" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">Privacy Policy</a></li>
+              <li><Link to="/docs" className="hover:text-emerald-400 transition-colors">Terms of Service</Link></li>
+              <li><Link to="/docs" className="hover:text-emerald-400 transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>

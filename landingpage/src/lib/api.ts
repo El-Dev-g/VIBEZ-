@@ -7,6 +7,10 @@ export interface PublicAppConfig {
   supportAddress: string;
   maintenanceMode: boolean;
   allowNewRegistrations: boolean;
+  helpCenterUrl?: string;
+  faqUrl?: string;
+  privacyPolicyUrl?: string;
+  termsOfServiceUrl?: string;
 }
 
 export const getBackendUrl = (): string => {
@@ -42,7 +46,11 @@ export const fetchPublicAppConfig = async (): Promise<PublicAppConfig> => {
     contactPhone: '+1 (800) 555-0199',
     supportAddress: 'San Francisco, CA, USA',
     maintenanceMode: false,
-    allowNewRegistrations: true
+    allowNewRegistrations: true,
+    helpCenterUrl: '/faq',
+    faqUrl: '/faq',
+    privacyPolicyUrl: '/privacy',
+    termsOfServiceUrl: '/terms',
   };
 };
 
