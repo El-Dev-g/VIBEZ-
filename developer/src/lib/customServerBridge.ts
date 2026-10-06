@@ -25,7 +25,10 @@ export interface CustomServerStatus {
   checkedAt: string;
 }
 
-export const DEFAULT_CUSTOM_SERVER_URL = process.env.CUSTOM_SERVER_URL || process.env.NEXT_PUBLIC_CUSTOM_SERVER_URL || 'http://localhost:3000';
+export const DEFAULT_CUSTOM_SERVER_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_API_URL)) ||
+  (typeof process !== 'undefined' && process.env && (process.env.CUSTOM_SERVER_URL || process.env.NEXT_PUBLIC_CUSTOM_SERVER_URL)) ||
+  '';
 
 export async function checkCustomServerConnection(targetUrl = DEFAULT_CUSTOM_SERVER_URL): Promise<CustomServerStatus> {
   const startTime = Date.now();

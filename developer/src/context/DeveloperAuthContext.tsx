@@ -1,6 +1,5 @@
-'use client';
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { safeFetchJson } from '../lib/apiHelper';
 
 export interface DeveloperUser {
   id: string;
@@ -202,13 +201,10 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Try backend key fetch
         try {
-          const res = await fetch('/api/developer/auth/keys');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-              setKeys(data.data);
-              localStorage.setItem('vibez_dev_keys', JSON.stringify(data.data));
-            }
+          const { ok, data } = await safeFetchJson('/api/developer/auth/keys');
+          if (ok && data.data && Array.isArray(data.data) && data.data.length > 0) {
+            setKeys(data.data);
+            localStorage.setItem('vibez_dev_keys', JSON.stringify(data.data));
           }
         } catch {
           // Fallback to local
@@ -227,15 +223,13 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/developer/auth/login', {
+      const { ok, data } = await safeFetchJson('/api/developer/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         const errorMsg = data.error || 'Authentication failed. Please verify your credentials.';
         setError(errorMsg);
         setIsLoading(false);
@@ -271,7 +265,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/developer/auth/register', {
+      const { ok, data } = await safeFetchJson('/api/developer/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -283,9 +277,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         const errorMsg = data.error || 'Registration failed. Please check your inputs.';
         setError(errorMsg);
         setIsLoading(false);
@@ -335,7 +327,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Request new API key from backend or create real key
     try {
-      const res = await fetch('/api/developer/auth/keys', {
+      const { ok, data } = await safeFetchJson('/api/developer/auth/keys', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -349,14 +341,11 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data) {
-          const updatedKeys = [data.data, ...keys.filter(k => k.id !== data.data.id)];
-          setKeys(updatedKeys);
-          localStorage.setItem('vibez_dev_keys', JSON.stringify(updatedKeys));
-          return;
-        }
+      if (ok && data && data.data) {
+        const updatedKeys = [data.data, ...keys.filter(k => k.id !== data.data.id)];
+        setKeys(updatedKeys);
+        localStorage.setItem('vibez_dev_keys', JSON.stringify(updatedKeys));
+        return;
       }
     } catch (e) {
       console.warn('Backend key generation fallback:', e);
@@ -371,7 +360,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     scopes: string[];
   }): Promise<DeveloperKey | null> => {
     try {
-      const res = await fetch('/api/developer/auth/keys', {
+      const { ok, data: result } = await safeFetchJson('/api/developer/auth/keys', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -380,15 +369,12 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
         body: JSON.stringify(data)
       });
 
-      if (res.ok) {
-        const result = await res.json();
-        if (result.data) {
-          const newKey: DeveloperKey = result.data;
-          const updated = [newKey, ...keys.filter(k => k.id !== newKey.id)];
-          setKeys(updated);
-          localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
-          return newKey;
-        }
+      if (ok && result && result.data) {
+        const newKey: DeveloperKey = result.data;
+        const updated = [newKey, ...keys.filter(k => k.id !== newKey.id)];
+        setKeys(updated);
+        localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
+        return newKey;
       }
     } catch (err) {
       console.warn('Error calling API key endpoint:', err);
@@ -431,7 +417,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     rotateSecret?: boolean;
   }): Promise<DeveloperKey | null> => {
     try {
-      const res = await fetch('/api/developer/auth/keys', {
+      const { ok, data: result } = await safeFetchJson('/api/developer/auth/keys', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -440,15 +426,12 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
         body: JSON.stringify({ id, ...data }),
       });
 
-      if (res.ok) {
-        const result = await res.json();
-        if (result.data) {
-          const updatedKey = result.data;
-          const updated = keys.map((k) => (k.id === id ? updatedKey : k));
-          setKeys(updated);
-          localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
-          return updatedKey;
-        }
+      if (ok && result && result.data) {
+        const updatedKey = result.data;
+        const updated = keys.map((k) => (k.id === id ? updatedKey : k));
+        setKeys(updated);
+        localStorage.setItem('vibez_dev_keys', JSON.stringify(updated));
+        return updatedKey;
       }
     } catch (err) {
       console.warn('Error updating key:', err);
@@ -489,7 +472,7 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const revokeKey = useCallback(async (id: string) => {
     try {
-      await fetch(`/api/developer/auth/keys?id=${id}`, {
+      await safeFetchJson(`/api/developer/auth/keys?id=${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': token ? `Bearer ${token}` : '' }
       });

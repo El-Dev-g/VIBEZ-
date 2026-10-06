@@ -10,14 +10,13 @@ export interface PublicAppConfig {
 }
 
 export const getBackendUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    if (process.env.NEXT_PUBLIC_API_URL) {
-      return process.env.NEXT_PUBLIC_API_URL;
-    }
-    // Fallback: If port is different or relative
-    return '';
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+  if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  return '';
 };
 
 export const fetchPublicAppConfig = async (): Promise<PublicAppConfig> => {
@@ -26,8 +25,10 @@ export const fetchPublicAppConfig = async (): Promise<PublicAppConfig> => {
     const url = base ? `${base}/api/config/public` : '/api/config/public';
     const res = await fetch(url, { cache: 'no-store' });
     if (res.ok) {
-      const data = await res.json();
-      return data;
+      const text = await res.text();
+      if (text && text.trim().length > 0) {
+        return JSON.parse(text);
+      }
     }
   } catch (error) {
     console.warn('Could not fetch remote config, using defaults:', error);
@@ -53,9 +54,17 @@ export const submitContactForm = async (data: { name: string; email: string; sub
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Submission failed' }));
-    throw new Error(err.error || 'Failed to submit contact message');
+  const text = await res.text();
+  let parsed: any = {};
+  if (text && text.trim().length > 0) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { error: 'Invalid response from server' };
+    }
   }
-  return await res.json();
+  if (!res.ok) {
+    throw new Error(parsed.error || parsed.message || 'Failed to submit contact message');
+  }
+  return parsed;
 };
