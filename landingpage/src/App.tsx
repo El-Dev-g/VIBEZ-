@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './lib/LanguageContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -22,6 +22,7 @@ export default function App() {
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/index.html" element={<HomePage />} />
               <Route path="/features" element={<FeaturesPage />} />
               <Route path="/download" element={<DownloadPage />} />
               <Route path="/security" element={<SecurityPage />} />
@@ -30,6 +31,8 @@ export default function App() {
               <Route path="/faq" element={<FaqPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/about" element={<AboutPage />} />
+              {/* Fallback route to prevent blank page on unmatched URLs */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
           <Footer />
