@@ -15,7 +15,8 @@ class AuthManager(context: Context) {
         userAvatar: String? = null,
         googleEmail: String? = null,
         authProvider: String = "PHONE",
-        requiresProfileSetup: Boolean = false
+        requiresProfileSetup: Boolean = false,
+        accountType: String = "BUSINESS"
     ) {
         prefs.edit().apply {
             putString("token", token)
@@ -27,8 +28,14 @@ class AuthManager(context: Context) {
             if (googleEmail != null) putString("google_email", googleEmail)
             putString("auth_provider", authProvider)
             putBoolean("requires_profile_setup", requiresProfileSetup)
+            putString("account_type", accountType)
             apply()
         }
+    }
+
+    fun getAccountType(): String = prefs.getString("account_type", "BUSINESS") ?: "BUSINESS"
+    fun setAccountType(type: String) {
+        prefs.edit().putString("account_type", type).apply()
     }
 
     fun setRequiresProfileSetup(requires: Boolean) {

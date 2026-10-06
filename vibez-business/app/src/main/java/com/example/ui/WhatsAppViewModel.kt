@@ -119,6 +119,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val currentUserAvatar = MutableStateFlow(authManager.getUserAvatar() ?: "")
     val currentGoogleEmail = MutableStateFlow(authManager.getGoogleEmail())
     val currentAuthProvider = MutableStateFlow(authManager.getAuthProvider())
+    val currentUserAccountType = MutableStateFlow(authManager.getAccountType())
     val isNewUser = MutableStateFlow<Boolean?>(null)
     val requiresProfileSetup = MutableStateFlow<Boolean?>(if (authManager.isLoggedIn()) authManager.getRequiresProfileSetup() else null)
     val typingChatId = MutableStateFlow<String?>(null)
@@ -352,6 +353,9 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     android.util.Log.d("VibezAuth", "[loginWithPhone] Resolved User ID: ${response.user.id}, name: $effectiveName, isNewUser: ${response.isNewUser}, requiresProfileSetup: ${response.requiresProfileSetup}")
                 }
 
+                val resolvedAccountType = response.user.accountType ?: "BUSINESS"
+                currentUserAccountType.value = resolvedAccountType
+
                 authManager.saveAuthData(
                     token = response.token,
                     userId = response.user.id,
@@ -361,7 +365,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     userAvatar = effectiveAvatar,
                     googleEmail = null,
                     authProvider = "PHONE",
-                    requiresProfileSetup = response.requiresProfileSetup ?: false
+                    requiresProfileSetup = response.requiresProfileSetup ?: false,
+                    accountType = resolvedAccountType
                 )
 
                 currentUserPhone.value = cleanPhone
@@ -409,6 +414,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 val finalName = response.user.name ?: name
                 val finalAbout = response.user.about ?: "⚡ Connected with Google"
                 val finalAvatar = response.user.avatarUrl?.takeIf { it.isNotBlank() } ?: portableAvatar ?: ""
+                val resolvedAccountType = response.user.accountType ?: "BUSINESS"
+                currentUserAccountType.value = resolvedAccountType
 
                 isNewUser.value = response.isNewUser
                 requiresProfileSetup.value = response.requiresProfileSetup
@@ -426,7 +433,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     userAvatar = finalAvatar,
                     googleEmail = email,
                     authProvider = "GOOGLE",
-                    requiresProfileSetup = response.requiresProfileSetup ?: false
+                    requiresProfileSetup = response.requiresProfileSetup ?: false,
+                    accountType = resolvedAccountType
                 )
                 
                 currentUserPhone.value = finalPhone
@@ -1116,17 +1124,11 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 onComplete(chatId)
             } catch (e: Exception) {
                 e.printStackTrace()
-                val fallbackId = "chat_${contact.id}"
-                val localChat = ChatEntity(
-                    id = fallbackId,
-                    contactId = contact.id,
-                    contactName = contact.name.ifBlank { contact.phoneNumber },
-                    contactAvatar = contact.avatarUrl,
-                    lastMessage = "",
-                    lastMessageTime = System.currentTimeMillis()
-                )
-                repository.addLocalChat(localChat)
-                onComplete(fallbackId)
+                android.widget.Toast.makeText(
+                    getApplication(),
+                    "${contact.name.ifBlank { contact.phoneNumber }} is not registered on VIBEZ. Invite them via SMS to connect!",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
@@ -1811,11 +1813,15 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             )
         )
         if (response?.success == true) {
+            authManager.setAccountType("BUSINESS")
+            currentUserAccountType.value = "BUSINESS"
             authManager.updateProfile(
                 userName = businessName,
                 userAbout = description,
                 userAvatar = authManager.getUserAvatar()
             )
+            loadBusinessProfile()
+            loadCatalog()
             return true
         }
         return false
@@ -1857,11 +1863,28 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     ) {
         viewModelScope.launch {
             val token = authManager.getAuthToken() ?: ""
+            var finalImageUrl = imageUrl
+            if (!imageUrl.isNullOrBlank() && (imageUrl.startsWith("content://") || imageUrl.startsWith("file://") || imageUrl.startsWith("/"))) {
+                try {
+                    val app = getApplication<android.app.Application>()
+                    val uploaded = repository.uploadFile(
+                        token = token,
+                        uriString = imageUrl,
+                        type = "IMAGE",
+                        contentResolver = app.contentResolver
+                    )
+                    if (!uploaded.isNullOrBlank()) {
+                        finalImageUrl = uploaded
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
             val request = com.example.data.network.AddCatalogItemRequest(
                 title = title,
                 price = price,
                 description = description.takeIf { it.isNotBlank() },
-                imageUrl = imageUrl?.takeIf { it.isNotBlank() },
+                imageUrl = finalImageUrl?.takeIf { it.isNotBlank() },
                 link = link.takeIf { it.isNotBlank() }
             )
             val added = repository.addCatalogItem(token, request)
@@ -1888,6 +1911,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         category: String,
         description: String,
         coverUrl: String?,
+        avatarUrl: String? = null,
         address: String,
         hours: String,
         website: String,
@@ -1895,21 +1919,163 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     ) {
         viewModelScope.launch {
             val token = authManager.getAuthToken() ?: ""
+            var finalCoverUrl = coverUrl
+            if (!coverUrl.isNullOrBlank() && (coverUrl.startsWith("content://") || coverUrl.startsWith("file://") || coverUrl.startsWith("/"))) {
+                try {
+                    val app = getApplication<android.app.Application>()
+                    val uploaded = repository.uploadFile(
+                        token = token,
+                        uriString = coverUrl,
+                        type = "AVATAR",
+                        contentResolver = app.contentResolver
+                    )
+                    if (!uploaded.isNullOrBlank()) {
+                        finalCoverUrl = uploaded
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            var finalAvatarUrl = avatarUrl
+            if (!avatarUrl.isNullOrBlank() && (avatarUrl.startsWith("content://") || avatarUrl.startsWith("file://") || avatarUrl.startsWith("/"))) {
+                try {
+                    val app = getApplication<android.app.Application>()
+                    val uploaded = repository.uploadFile(
+                        token = token,
+                        uriString = avatarUrl,
+                        type = "AVATAR",
+                        contentResolver = app.contentResolver
+                    )
+                    if (!uploaded.isNullOrBlank()) {
+                        finalAvatarUrl = uploaded
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
             repository.updateBusinessProfile(
                 token = token,
                 request = com.example.data.network.UpdateBusinessProfileRequest(
                     businessName = name,
                     category = category,
                     description = description,
-                    coverImageUrl = coverUrl,
+                    coverImageUrl = finalCoverUrl,
                     address = address,
                     businessHours = hours,
                     website = website,
                     email = email
                 )
             )
-            authManager.updateProfile(userName = name, userAbout = description, userAvatar = authManager.getUserAvatar())
+            authManager.updateProfile(
+                userName = name,
+                userAbout = description,
+                userAvatar = finalAvatarUrl ?: authManager.getUserAvatar()
+            )
             loadBusinessProfile()
+        }
+    }
+
+    val quickReplies = MutableStateFlow<List<com.example.data.network.QuickReplyDto>>(emptyList())
+    val automatedMessages = MutableStateFlow<List<com.example.data.network.AutomatedMessageDto>>(emptyList())
+    val chatLabels = MutableStateFlow<List<com.example.data.network.ChatLabelDto>>(emptyList())
+
+    fun loadQuickReplies() {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            quickReplies.value = repository.getQuickReplies(token)
+        }
+    }
+
+    fun addQuickReply(shortcut: String, message: String) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val added = repository.addQuickReply(token, shortcut, message)
+            if (added != null) {
+                quickReplies.value = listOf(added) + quickReplies.value.filter { it.id != added.id }
+            } else {
+                loadQuickReplies()
+            }
+        }
+    }
+
+    fun deleteQuickReply(id: String) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val success = repository.deleteQuickReply(token, id)
+            if (success) {
+                quickReplies.value = quickReplies.value.filter { it.id != id }
+            }
+        }
+    }
+
+    fun loadAutomatedMessages() {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            automatedMessages.value = repository.getAutomatedMessages(token)
+        }
+    }
+
+    fun saveAutomatedMessages(
+        greetingEnabled: Boolean,
+        greetingText: String,
+        awayEnabled: Boolean,
+        awayText: String,
+        schedule: String
+    ) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            repository.updateAutomatedMessage(
+                token,
+                com.example.data.network.UpdateAutomatedMessageRequest(
+                    type = "GREETING",
+                    isEnabled = greetingEnabled,
+                    content = greetingText,
+                    schedule = null
+                )
+            )
+            repository.updateAutomatedMessage(
+                token,
+                com.example.data.network.UpdateAutomatedMessageRequest(
+                    type = "AWAY",
+                    isEnabled = awayEnabled,
+                    content = awayText,
+                    schedule = schedule
+                )
+            )
+            loadAutomatedMessages()
+        }
+    }
+
+    fun loadChatLabels() {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            chatLabels.value = repository.getChatLabels(token)
+        }
+    }
+
+    fun addChatLabel(name: String, colorHex: String) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val added = repository.addChatLabel(token, name, colorHex)
+            if (added != null) {
+                chatLabels.value = listOf(added) + chatLabels.value.filter { it.id != added.id }
+            } else {
+                loadChatLabels()
+            }
+        }
+    }
+
+    fun toggleChatLabel(labelId: String, chatId: String) {
+        viewModelScope.launch {
+            val token = authManager.getAuthToken() ?: ""
+            val updated = repository.toggleChatLabel(token, labelId, chatId)
+            if (updated != null) {
+                chatLabels.value = chatLabels.value.map { if (it.id == updated.id) updated else it }
+            } else {
+                loadChatLabels()
+            }
         }
     }
 }

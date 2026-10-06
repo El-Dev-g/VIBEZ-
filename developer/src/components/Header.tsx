@@ -1,12 +1,9 @@
-'use client';
-
 import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import { useDeveloperAuth } from '../context/DeveloperAuthContext';
 
 export const Header: React.FC = () => {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const { user, logout } = useDeveloperAuth();
 
   // Hide home page header on dashboard and docs
@@ -19,7 +16,7 @@ export const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link to="/" className="flex items-center gap-3 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
               ⚡
             </div>
@@ -38,7 +35,7 @@ export const Header: React.FC = () => {
             {user ? (
               <div className="flex items-center gap-3">
                 <Link
-                  href="/dashboard"
+                  to="/dashboard"
                   className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs font-mono hover:border-emerald-500/40 transition-all"
                 >
                   <div className="w-5 h-5 rounded-md overflow-hidden shrink-0">
@@ -61,13 +58,13 @@ export const Header: React.FC = () => {
             ) : (
               <div className="flex items-center gap-2">
                 <Link
-                  href="/login"
+                  to="/login"
                   className="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold text-slate-300 hover:text-white transition-all"
                 >
                   Sign In
                 </Link>
                 <Link
-                  href="/register"
+                  to="/register"
                   className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-black uppercase tracking-wider hover:bg-emerald-400 shadow-md shadow-emerald-500/20 transition-all"
                 >
                   Sign Up

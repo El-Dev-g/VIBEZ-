@@ -1,11 +1,8 @@
-'use client';
-
 import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 
 export const Footer: React.FC = () => {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
 
   // Hide footer on dashboard pages
   if (pathname?.startsWith('/dashboard')) {
@@ -31,18 +28,18 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-200 mb-3">API Resources</h4>
             <ul className="space-y-2 text-xs">
-              <li><Link href="/docs" className="hover:text-emerald-400 transition-colors">REST API Reference</Link></li>
-              <li><Link href="/sdks" className="hover:text-emerald-400 transition-colors">SDKs & Client Libraries</Link></li>
+              <li><Link to="/docs" className="hover:text-emerald-400 transition-colors">REST API Reference</Link></li>
+              <li><Link to="/sdks" className="hover:text-emerald-400 transition-colors">SDKs & Client Libraries</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-200 mb-3">SDKs & Guides</h4>
             <ul className="space-y-2 text-xs">
-              <li><Link href="/sdks" className="hover:text-emerald-400 transition-colors">Android & Kotlin SDK</Link></li>
-              <li><Link href="/sdks" className="hover:text-emerald-400 transition-colors">TypeScript / Node.js</Link></li>
-              <li><Link href="/sdks" className="hover:text-emerald-400 transition-colors">Python Client</Link></li>
-              <li><Link href="/sdks" className="hover:text-emerald-400 transition-colors">Go Library</Link></li>
+              <li><Link to="/sdks" className="hover:text-emerald-400 transition-colors">Android & Kotlin SDK</Link></li>
+              <li><Link to="/sdks" className="hover:text-emerald-400 transition-colors">TypeScript / Node.js</Link></li>
+              <li><Link to="/sdks" className="hover:text-emerald-400 transition-colors">Python Client</Link></li>
+              <li><Link to="/sdks" className="hover:text-emerald-400 transition-colors">Go Library</Link></li>
             </ul>
           </div>
 
@@ -65,4 +62,3 @@ export const Footer: React.FC = () => {
     </footer>
   );
 };
-

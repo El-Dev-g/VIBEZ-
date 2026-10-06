@@ -42,12 +42,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
+import com.example.ui.theme.WhatsAppEmerald
 import androidx.core.app.NotificationCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -393,6 +399,65 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 }
             }
 
+            var showBusinessToConsumerDialog by remember { mutableStateOf(false) }
+            var pendingTargetDestination by remember { mutableStateOf<String?>("permissions_onboarding") }
+
+            if (showBusinessToConsumerDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        viewModel.logoutUser()
+                        showBusinessToConsumerDialog = false
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = null,
+                            tint = WhatsAppEmerald,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "Switch to VIBEZ Consumer",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "This phone number is currently registered as a VIBEZ Business account. Logging in to VIBEZ Consumer will log you out of VIBEZ Business.\n\nAre you willing to log out and transfer your data to a Consumer account?",
+                            fontSize = 14.sp
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.downgradeToConsumerAndSyncChats {
+                                    showBusinessToConsumerDialog = false
+                                    val dest = pendingTargetDestination ?: "permissions_onboarding"
+                                    navController.navigate(dest) {
+                                        popUpTo("auth") { inclusive = true }
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald)
+                        ) {
+                            Text("Transfer & Log In", fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.logoutUser()
+                                showBusinessToConsumerDialog = false
+                            }
+                        ) {
+                            Text("Cancel", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                )
+            }
+
             NavHost(
                 navController = navController,
                 startDestination = startDestination
@@ -417,17 +482,20 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     viewModel.loginWithPhone(phone, name, about, avatarUrl = null, firebaseIdToken = firebaseIdToken) { success, errMsg ->
                         if (success) {
                             val reqProfileSetup = viewModel.requiresProfileSetup.value ?: false
-                            
-                            if (reqProfileSetup) {
+                            val nextDest = if (reqProfileSetup) {
                                 val encodedPhone = java.net.URLEncoder.encode(phone, "UTF-8")
                                 val encodedToken = if (firebaseIdToken != null) java.net.URLEncoder.encode(firebaseIdToken, "UTF-8") else ""
-                                navController.navigate("phone_identity_setup?phone=$encodedPhone&idToken=$encodedToken&isPhoneAuth=true") {
-                                    popUpTo("auth") { inclusive = true }
-                                }
-                                onComplete(true, null)
+                                "phone_identity_setup?phone=$encodedPhone&idToken=$encodedToken&isPhoneAuth=true"
                             } else {
-                                onComplete(true, null)
-                                navController.navigate("permissions_onboarding") {
+                                "permissions_onboarding"
+                            }
+                            
+                            onComplete(true, null)
+                            if (viewModel.currentUserAccountType.value == "BUSINESS") {
+                                pendingTargetDestination = nextDest
+                                showBusinessToConsumerDialog = true
+                            } else {
+                                navController.navigate(nextDest) {
                                     popUpTo("auth") { inclusive = true }
                                 }
                             }
@@ -440,24 +508,27 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     viewModel.loginWithGoogle(email, name, avatarUrl, phone, idToken) { success, errMsg ->
                         if (success) {
                             val reqProfileSetup = viewModel.requiresProfileSetup.value ?: false
-                            if (reqProfileSetup) {
-                                // Account setup/phone linking required!
+                            val nextDest = if (reqProfileSetup) {
                                 viewModel.logoutUser()
                                 val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
                                 val encodedName = java.net.URLEncoder.encode(name, "UTF-8")
                                 val encodedAvatar = if (avatarUrl != null) java.net.URLEncoder.encode(avatarUrl, "UTF-8") else ""
                                 val encodedToken = if (idToken != null) java.net.URLEncoder.encode(idToken, "UTF-8") else ""
-                                navController.navigate("phone_identity_setup?email=$encodedEmail&name=$encodedName&avatar=$encodedAvatar&idToken=$encodedToken")
-                                onComplete(true, null)
+                                "phone_identity_setup?email=$encodedEmail&name=$encodedName&avatar=$encodedAvatar&idToken=$encodedToken"
                             } else {
-                                // Fully setup existing user!
-                                onComplete(true, null)
-                                navController.navigate("permissions_onboarding") {
+                                "permissions_onboarding"
+                            }
+
+                            onComplete(true, null)
+                            if (viewModel.currentUserAccountType.value == "BUSINESS" && !reqProfileSetup) {
+                                pendingTargetDestination = nextDest
+                                showBusinessToConsumerDialog = true
+                            } else {
+                                navController.navigate(nextDest) {
                                     popUpTo("auth") { inclusive = true }
                                 }
                             }
                         } else {
-                            // If direct login fails (e.g. phone required), redirect to setup
                             val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
                             val encodedName = java.net.URLEncoder.encode(name, "UTF-8")
                             val encodedAvatar = if (avatarUrl != null) java.net.URLEncoder.encode(avatarUrl, "UTF-8") else ""

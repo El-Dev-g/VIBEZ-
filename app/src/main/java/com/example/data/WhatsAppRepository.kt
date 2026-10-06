@@ -156,6 +156,17 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 }
             }
 
+            onMessageDeliveredReceived = { chatId, messageId, senderId ->
+                repositoryScope.launch {
+                    if (!messageId.isNullOrBlank()) {
+                        dao.updateMessageStatus(messageId, "DELIVERED")
+                    } else {
+                        dao.markSentMessagesAsDelivered(chatId, userId)
+                    }
+                    readReceiptEvent.emit(chatId)
+                }
+            }
+
             onMessageReadReceived = { chatId, senderId ->
                 repositoryScope.launch {
                     dao.markSentMessagesAsRead(chatId, userId)
@@ -957,8 +968,9 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
 
         // 1. Try backend API first if token is present to obtain the real Chat UUID
         var backendChatId: String? = null
+        var targetUserId: String? = null
         if (!token.isNullOrBlank()) {
-            val targetUserId = if (!remoteId.isNullOrBlank() && !remoteId.startsWith("contact_")) {
+            targetUserId = if (!remoteId.isNullOrBlank() && !remoteId.startsWith("contact_")) {
                 remoteId
             } else if (!contactId.startsWith("contact_") && contactId.length > 15) {
                 contactId
@@ -1046,7 +1058,12 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             return existingChat.id
         }
 
-        // 3. Guaranteed local fallback chat in Room
+        // 3. User is not registered on VIBEZ and has no existing chat -> Do not open empty dummy chat!
+        if (targetUserId.isNullOrBlank() && (remoteId.isNullOrBlank() || remoteId.startsWith("contact_"))) {
+            throw IllegalStateException("${contact.name.ifBlank { contact.phoneNumber }} is not registered on VIBEZ")
+        }
+
+        // 4. Guaranteed chat for confirmed user
         val fallbackChatId = backendChatId ?: "chat_${contactId}"
         val localChat = ChatEntity(
             id = fallbackChatId,

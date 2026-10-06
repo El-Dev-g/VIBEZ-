@@ -795,6 +795,101 @@ io.on('connection', (socket) => {
     socket.to(roomName).emit('user_typing', { ...data, chatId: extractPureChatId(data.chatId) });
   });
 
+  socket.on('message_read', async (data) => {
+    try {
+      if (!data || !data.chatId) return;
+      const rawChatId = String(data.chatId);
+      const pureChatId = extractPureChatId(rawChatId);
+      const readerId = socket.data.userId || userId;
+
+      await prisma.message.updateMany({
+        where: {
+          chatId: pureChatId,
+          senderId: { not: readerId || undefined },
+          status: { not: 'READ' }
+        },
+        data: {
+          status: 'READ'
+        }
+      });
+
+      const payload = {
+        chatId: pureChatId,
+        readerId: readerId,
+        messageId: data.messageId,
+        status: 'READ'
+      };
+
+      const roomName = getChatRoomName(pureChatId);
+      io.to(roomName).emit('message_read', payload);
+      if (rawChatId !== pureChatId) {
+        io.to(getChatRoomName(rawChatId)).emit('message_read', payload);
+        io.to(`chat_${rawChatId}`).emit('message_read', payload);
+      }
+
+      if (data.senderId) {
+        const cleanSenderId = extractPureChatId(data.senderId);
+        io.to(`user_${cleanSenderId}`).emit('message_read', payload);
+        io.to(`user_${data.senderId}`).emit('message_read', payload);
+      }
+    } catch (err) {
+      console.error('[Socket.IO] Error handling message_read:', err);
+    }
+  });
+
+  socket.on('message_delivered', async (data) => {
+    try {
+      if (!data || !data.chatId) return;
+      const rawChatId = String(data.chatId);
+      const pureChatId = extractPureChatId(rawChatId);
+      const receiverId = socket.data.userId || userId;
+
+      if (data.messageId) {
+        await prisma.message.updateMany({
+          where: {
+            id: data.messageId,
+            status: 'SENT'
+          },
+          data: {
+            status: 'DELIVERED'
+          }
+        });
+      } else {
+        await prisma.message.updateMany({
+          where: {
+            chatId: pureChatId,
+            senderId: { not: receiverId || undefined },
+            status: 'SENT'
+          },
+          data: {
+            status: 'DELIVERED'
+          }
+        });
+      }
+
+      const payload = {
+        chatId: pureChatId,
+        messageId: data.messageId,
+        receiverId: receiverId,
+        status: 'DELIVERED'
+      };
+
+      const roomName = getChatRoomName(pureChatId);
+      io.to(roomName).emit('message_delivered', payload);
+      if (rawChatId !== pureChatId) {
+        io.to(getChatRoomName(rawChatId)).emit('message_delivered', payload);
+      }
+
+      if (data.senderId) {
+        const cleanSenderId = extractPureChatId(data.senderId);
+        io.to(`user_${cleanSenderId}`).emit('message_delivered', payload);
+        io.to(`user_${data.senderId}`).emit('message_delivered', payload);
+      }
+    } catch (err) {
+      console.error('[Socket.IO] Error handling message_delivered:', err);
+    }
+  });
+
   // WebRTC Call Signaling
   socket.on('call_offer', async (data) => {
     // data: { targetUserId, sdp, isVideo }

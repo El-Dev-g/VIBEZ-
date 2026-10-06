@@ -1,9 +1,6 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import { 
-  Zap, 
   Download, 
   Menu, 
   X
@@ -39,7 +36,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link to="/" className="flex items-center gap-2.5">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#008069] to-[#25d366] p-0.5 shadow-lg shadow-[#008069]/15 overflow-hidden">
               <img 
                 src="/logo.jpg" 
@@ -54,19 +51,19 @@ export default function Header() {
 
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link href="/features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.features')}</Link>
-            <Link href="/faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.faq')}</Link>
-            <Link href="/security" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.security')}</Link>
-            <Link href="/download" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.download')}</Link>
-            <Link href="/about" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.about')}</Link>
-            <Link href="/contact" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.contact')}</Link>
+            <Link to="/features" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.features')}</Link>
+            <Link to="/faq" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.faq')}</Link>
+            <Link to="/security" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.security')}</Link>
+            <Link to="/download" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.download')}</Link>
+            <Link to="/about" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.about')}</Link>
+            <Link to="/contact" className="text-[#8696a0] hover:text-[#00a884] transition-colors">{t('nav.contact')}</Link>
           </div>
 
           {/* Call to Action Button & Language Selector */}
           <div className="hidden md:flex items-center gap-3">
             <LanguageSelector />
             <Link 
-              href="/download"
+              to="/download"
               className="btn-download-pulse flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-[#00a884] text-white transition-all shadow-lg shadow-[#00a884]/20 active:scale-95"
             >
               <Download className="h-4 w-4" />
@@ -91,15 +88,15 @@ export default function Header() {
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#111b21] border-b border-[#202c33] py-4 px-4 space-y-2 animate-fade-in">
-          <Link href="/features" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.features')}</Link>
-          <Link href="/faq" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.faq')}</Link>
-          <Link href="/security" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.security')}</Link>
-          <Link href="/download" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.download')}</Link>
-          <Link href="/about" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.about')}</Link>
-          <Link href="/contact" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.contact')}</Link>
+          <Link to="/features" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.features')}</Link>
+          <Link to="/faq" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.faq')}</Link>
+          <Link to="/security" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.security')}</Link>
+          <Link to="/download" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.download')}</Link>
+          <Link to="/about" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.about')}</Link>
+          <Link to="/contact" className="block py-2 text-[#8696a0] hover:text-[#00a884] transition-colors" onClick={() => setMobileMenuOpen(false)}>{t('nav.contact')}</Link>
           <div className="pt-2 border-t border-[#202c33]">
             <Link 
-              href="/download"
+              to="/download"
               className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-[#00a884] text-white font-bold transition-all shadow-lg shadow-[#00a884]/20"
               onClick={() => setMobileMenuOpen(false)}
             >

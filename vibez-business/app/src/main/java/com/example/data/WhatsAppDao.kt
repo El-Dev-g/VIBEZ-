@@ -73,11 +73,17 @@ interface WhatsAppDao {
     @Query("UPDATE chats SET unreadCount = 0 WHERE id = :chatId")
     suspend fun resetChatUnreadCount(chatId: String)
 
-    @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND senderId != :currentUserId")
+    @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND (senderId != :currentUserId AND senderId != 'ME')")
     suspend fun markMessagesAsRead(chatId: String, currentUserId: String)
 
-    @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND senderId = :currentUserId")
+    @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND (senderId = :currentUserId OR senderId = 'ME')")
     suspend fun markSentMessagesAsRead(chatId: String, currentUserId: String)
+
+    @Query("UPDATE messages SET status = 'DELIVERED' WHERE chatId = :chatId AND (senderId = :currentUserId OR senderId = 'ME') AND status = 'SENT'")
+    suspend fun markSentMessagesAsDelivered(chatId: String, currentUserId: String)
+
+    @Query("UPDATE messages SET status = :status WHERE id = :messageId OR remoteId = :messageId")
+    suspend fun updateMessageStatus(messageId: String, status: String)
 
     @Query("DELETE FROM chats WHERE id = :chatId")
     suspend fun deleteChat(chatId: String)

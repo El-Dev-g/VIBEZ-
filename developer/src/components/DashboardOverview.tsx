@@ -1,7 +1,5 @@
-'use client';
-
 import React from 'react';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import {
   Activity,
   Key,
@@ -118,7 +116,7 @@ export const DashboardOverview: React.FC<{ onNavigateTab?: (tab: string) => void
           </button>
 
           <Link
-            href="/docs"
+            to="/docs"
             className="p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-left transition-all group"
           >
             <div className="flex items-center justify-between mb-2">

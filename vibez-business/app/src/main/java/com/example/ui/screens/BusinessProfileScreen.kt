@@ -57,11 +57,12 @@ fun BusinessProfileScreen(
         cat: String,
         desc: String,
         cover: String?,
+        avatar: String?,
         addr: String,
         hrs: String,
         web: String,
         mail: String
-    ) -> Unit = { _, _, _, _, _, _, _, _ -> }
+    ) -> Unit = { _, _, _, _, _, _, _, _, _ -> }
 ) {
     val context = LocalContext.current
     var businessName by remember { mutableStateOf(initialName) }
@@ -132,14 +133,24 @@ fun BusinessProfileScreen(
                     }
                 },
                 actions = {
-                    TextButton(
+                    Button(
                         onClick = {
-                            onSaveProfile(businessName, category, description, coverUrl, address, hours, website, email)
+                            onSaveProfile(businessName, category, description, coverUrl, avatarUrl, address, hours, website, email)
                             isSavedSnackbar = true
                         },
-                        modifier = Modifier.testTag("save_business_profile_btn")
+                        colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(end = 8.dp).testTag("save_business_profile_btn")
                     ) {
-                        Text("SAVE", fontWeight = FontWeight.Bold, color = WhatsAppEmerald)
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("SAVE", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
                     }
                 }
             )
@@ -524,18 +535,19 @@ fun BusinessProfileScreen(
 
                 Button(
                     onClick = {
-                        onSaveProfile(businessName, category, description, coverUrl, address, hours, website, email)
+                        onSaveProfile(businessName, category, description, coverUrl, avatarUrl, address, hours, website, email)
                         isSavedSnackbar = true
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(52.dp)
                         .testTag("submit_save_profile_button"),
-                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppMinimalPrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null)
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Save Storefront Changes", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Save Storefront Changes", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }

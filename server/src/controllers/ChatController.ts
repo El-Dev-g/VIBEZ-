@@ -122,6 +122,18 @@ export class ChatController {
       const { targetUserId } = req.body;
       const currentUserId = req.user?.id as string;
 
+      if (!targetUserId) {
+        return res.status(400).json({ error: 'Target user ID is required' });
+      }
+
+      const targetUser = await prisma.user.findUnique({
+        where: { id: targetUserId }
+      });
+
+      if (!targetUser) {
+        return res.status(404).json({ error: 'User does not exist on VIBEZ' });
+      }
+
       // Find existing private chat
       const existingChat = await prisma.chat.findFirst({
         where: {
@@ -511,6 +523,30 @@ export class ChatController {
     } catch (error) {
       console.error('Error updating message:', error);
       res.status(500).json({ error: 'Failed to update message' });
+    }
+  }
+
+  async markChatMessagesAsRead(req: AuthRequest, res: Response) {
+    try {
+      const { chatId } = req.params;
+      const currentUserId = req.user?.id as string;
+      if (!chatId) return res.status(400).json({ error: 'Chat ID is required' });
+
+      await prisma.message.updateMany({
+        where: {
+          chatId,
+          senderId: { not: currentUserId },
+          status: { not: 'READ' }
+        },
+        data: {
+          status: 'READ'
+        }
+      });
+
+      res.json({ success: true, chatId, status: 'READ' });
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      res.status(500).json({ error: 'Failed to mark messages as read' });
     }
   }
 }

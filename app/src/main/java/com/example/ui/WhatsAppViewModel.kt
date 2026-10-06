@@ -119,6 +119,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val currentUserAvatar = MutableStateFlow(authManager.getUserAvatar() ?: "")
     val currentGoogleEmail = MutableStateFlow(authManager.getGoogleEmail())
     val currentAuthProvider = MutableStateFlow(authManager.getAuthProvider())
+    val currentUserAccountType = MutableStateFlow(authManager.getAccountType())
     val isNewUser = MutableStateFlow<Boolean?>(null)
     val requiresProfileSetup = MutableStateFlow<Boolean?>(if (authManager.isLoggedIn()) authManager.getRequiresProfileSetup() else null)
     val typingChatId = MutableStateFlow<String?>(null)
@@ -351,6 +352,9 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     android.util.Log.d("VibezAuth", "[loginWithPhone] Resolved User ID: ${response.user.id}, name: $effectiveName, isNewUser: ${response.isNewUser}, requiresProfileSetup: ${response.requiresProfileSetup}")
                 }
 
+                val resolvedAccountType = response.user.accountType ?: "CONSUMER"
+                currentUserAccountType.value = resolvedAccountType
+
                 authManager.saveAuthData(
                     token = response.token,
                     userId = response.user.id,
@@ -360,7 +364,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     userAvatar = effectiveAvatar,
                     googleEmail = null,
                     authProvider = "PHONE",
-                    requiresProfileSetup = response.requiresProfileSetup ?: false
+                    requiresProfileSetup = response.requiresProfileSetup ?: false,
+                    accountType = resolvedAccountType
                 )
 
                 currentUserPhone.value = cleanPhone
@@ -408,6 +413,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 val finalName = response.user.name ?: name
                 val finalAbout = response.user.about ?: "⚡ Connected with Google"
                 val finalAvatar = response.user.avatarUrl?.takeIf { it.isNotBlank() } ?: portableAvatar ?: ""
+                val resolvedAccountType = response.user.accountType ?: "CONSUMER"
+                currentUserAccountType.value = resolvedAccountType
 
                 isNewUser.value = response.isNewUser
                 requiresProfileSetup.value = response.requiresProfileSetup
@@ -425,7 +432,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     userAvatar = finalAvatar,
                     googleEmail = email,
                     authProvider = "GOOGLE",
-                    requiresProfileSetup = response.requiresProfileSetup ?: false
+                    requiresProfileSetup = response.requiresProfileSetup ?: false,
+                    accountType = resolvedAccountType
                 )
                 
                 currentUserPhone.value = finalPhone
@@ -1115,17 +1123,11 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 onComplete(chatId)
             } catch (e: Exception) {
                 e.printStackTrace()
-                val fallbackId = "chat_${contact.id}"
-                val localChat = ChatEntity(
-                    id = fallbackId,
-                    contactId = contact.id,
-                    contactName = contact.name.ifBlank { contact.phoneNumber },
-                    contactAvatar = contact.avatarUrl,
-                    lastMessage = "",
-                    lastMessageTime = System.currentTimeMillis()
-                )
-                repository.addLocalChat(localChat)
-                onComplete(fallbackId)
+                android.widget.Toast.makeText(
+                    getApplication(),
+                    "${contact.name.ifBlank { contact.phoneNumber }} is not registered on VIBEZ. Invite them via SMS to connect!",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
             }
         }
     }

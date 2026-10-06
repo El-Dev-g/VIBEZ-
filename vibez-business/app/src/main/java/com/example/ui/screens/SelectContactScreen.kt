@@ -698,14 +698,7 @@ fun SelectContactScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        val contactEntity = ContactEntity(
-                                            id = "contact_${rawContact.normalizedPhone.replace(Regex("[^0-9]"), "")}",
-                                            remoteId = "contact_${rawContact.normalizedPhone.replace(Regex("[^0-9]"), "")}",
-                                            name = rawContact.name,
-                                            phoneNumber = rawContact.rawPhone,
-                                            aboutStatus = "Hey there! I am using VIBEZ."
-                                        )
-                                        onContactSelect(contactEntity)
+                                        sendInvite(rawContact.rawPhone, rawContact.name)
                                     }
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically

@@ -1,8 +1,5 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '../lib/LanguageContext';
 import { fetchPublicAppConfig, PublicAppConfig } from '../lib/api';
 
@@ -44,11 +41,11 @@ export default function Footer() {
           </div>
 
           <div className="flex flex-wrap justify-center items-center gap-6 text-xs font-medium">
-            <Link href="/features" className="hover:text-white transition-colors">{t('footer.features')}</Link>
+            <Link to="/features" className="hover:text-white transition-colors">{t('footer.features')}</Link>
             <a href="https://faq.whatsapp.com" className="hover:text-white transition-colors" target="_blank" rel="noopener noreferrer">Help Center</a>
             <a href="mailto:support@vibez.chat" className="hover:text-white transition-colors">Contact Support</a>
-            <Link href="/privacy" className="hover:text-white transition-colors">{t('footer.privacy')}</Link>
-            <Link href="/terms" className="hover:text-white transition-colors">{t('footer.terms')}</Link>
+            <Link to="/privacy" className="hover:text-white transition-colors">{t('footer.privacy')}</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">{t('footer.terms')}</Link>
           </div>
         </div>
 

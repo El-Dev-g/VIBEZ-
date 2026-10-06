@@ -433,8 +433,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                                 onComplete(true, null)
                             } else {
                                 onComplete(true, null)
-                                navController.navigate("permissions_onboarding") {
-                                    popUpTo("auth") { inclusive = true }
+                                if (viewModel.currentUserAccountType.value == "CONSUMER") {
+                                    navController.navigate("account_migration") {
+                                        popUpTo("auth") { inclusive = true }
+                                    }
+                                } else {
+                                    navController.navigate("permissions_onboarding") {
+                                        popUpTo("auth") { inclusive = true }
+                                    }
                                 }
                             }
                         } else {
@@ -458,8 +464,14 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                             } else {
                                 // Fully setup existing user!
                                 onComplete(true, null)
-                                navController.navigate("permissions_onboarding") {
-                                    popUpTo("auth") { inclusive = true }
+                                if (viewModel.currentUserAccountType.value == "CONSUMER") {
+                                    navController.navigate("account_migration") {
+                                        popUpTo("auth") { inclusive = true }
+                                    }
+                                } else {
+                                    navController.navigate("permissions_onboarding") {
+                                        popUpTo("auth") { inclusive = true }
+                                    }
                                 }
                             }
                         } else {
@@ -1035,7 +1047,16 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
             AccountMigrationScreen(
                 currentPhoneNumber = currentUserPhone,
                 currentName = currentUserName,
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    if (viewModel.currentUserAccountType.value != "BUSINESS") {
+                        viewModel.logoutUser()
+                        navController.navigate("auth") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
                 onMigrationSuccess = {
                     navController.navigate("main") {
                         popUpTo(0) { inclusive = true }
@@ -1067,8 +1088,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 initialEmail = businessProfile?.email ?: "sales@vibez.app",
                 catalogItems = catalogItems,
                 onBackClick = { navController.popBackStack() },
-                onSaveProfile = { name, cat, desc, cover, addr, hrs, web, mail ->
-                    viewModel.saveBusinessProfile(name, cat, desc, cover, addr, hrs, web, mail)
+                onSaveProfile = { name, cat, desc, cover, avatar, addr, hrs, web, mail ->
+                    viewModel.saveBusinessProfile(name, cat, desc, cover, avatar, addr, hrs, web, mail)
                 }
             )
         }
@@ -1096,20 +1117,56 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         }
 
         composable("quick_replies") {
+            val quickReplies by viewModel.quickReplies.collectAsState()
+            LaunchedEffect(Unit) {
+                viewModel.loadQuickReplies()
+            }
             QuickRepliesScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                replies = quickReplies,
+                onAddReply = { shortcut, msg ->
+                    viewModel.addQuickReply(shortcut, msg)
+                },
+                onDeleteReply = { id ->
+                    viewModel.deleteQuickReply(id)
+                }
             )
         }
 
         composable("automated_messages") {
+            val automatedMessages by viewModel.automatedMessages.collectAsState()
+            LaunchedEffect(Unit) {
+                viewModel.loadAutomatedMessages()
+            }
+            val greeting = automatedMessages.firstOrNull { it.type == "GREETING" }
+            val away = automatedMessages.firstOrNull { it.type == "AWAY" }
             AutomatedMessagesScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                initialGreetingEnabled = greeting?.isEnabled ?: true,
+                initialGreetingText = greeting?.content ?: "Thank you for contacting us! How can we help you today?",
+                initialAwayEnabled = away?.isEnabled ?: true,
+                initialAwayText = away?.content ?: "Thank you for reaching out! We are currently outside of business hours and will reply to your message first thing tomorrow morning.",
+                initialSchedule = away?.schedule ?: "Outside of business hours",
+                onSaveAutomatedMessages = { greetingOn, greetingText, awayOn, awayText, sched ->
+                    viewModel.saveAutomatedMessages(greetingOn, greetingText, awayOn, awayText, sched)
+                }
             )
         }
 
         composable("chat_labels") {
+            val chatLabels by viewModel.chatLabels.collectAsState()
+            LaunchedEffect(Unit) {
+                viewModel.loadChatLabels()
+            }
             ChatLabelsScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                labels = chatLabels,
+                onAddLabel = { name, color ->
+                    viewModel.addChatLabel(name, color)
+                },
+                onLabelClick = { label ->
+                    // Filter or view chats for this label
+                }
             )
         }
 

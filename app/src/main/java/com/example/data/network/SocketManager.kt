@@ -17,6 +17,7 @@ class SocketManager(private val userId: String, private val authToken: String? =
     var onCallEndedReceived: ((JSONObject) -> Unit)? = null
     var onTypingReceived: ((String, String, Boolean) -> Unit)? = null
     var onMessageReadReceived: ((String, String) -> Unit)? = null
+    var onMessageDeliveredReceived: ((String, String?, String?) -> Unit)? = null
 
     fun connect(onMessageReceived: (JSONObject) -> Unit) {
         try {
@@ -49,6 +50,18 @@ class SocketManager(private val userId: String, private val authToken: String? =
                     onTypingReceived?.invoke(chatId, senderId, isTyping)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error handling typing event", e)
+                }
+            }
+
+            socket?.on("message_delivered") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val chatId = data.optString("chatId", "")
+                    val messageId = data.optString("messageId", "").takeIf { it.isNotBlank() }
+                    val senderId = data.optString("senderId", "").takeIf { it.isNotBlank() }
+                    onMessageDeliveredReceived?.invoke(chatId, messageId, senderId)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error handling message_delivered event", e)
                 }
             }
 
@@ -141,6 +154,17 @@ class SocketManager(private val userId: String, private val authToken: String? =
             put("senderId", senderId)
         }
         socket?.emit("message_read", data)
+    }
+
+    fun emitMessageDelivered(chatId: String, senderId: String, messageId: String? = null) {
+        val data = JSONObject().apply {
+            put("chatId", chatId)
+            put("senderId", senderId)
+            if (!messageId.isNullOrBlank()) {
+                put("messageId", messageId)
+            }
+        }
+        socket?.emit("message_delivered", data)
     }
 
     fun sendCallOffer(targetUserId: String, sdp: String, isVideo: Boolean = true) {
