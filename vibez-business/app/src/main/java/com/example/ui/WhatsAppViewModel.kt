@@ -1949,14 +1949,30 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     val uploaded = repository.uploadFile(
                         token = token,
                         uriString = coverUrl,
-                        type = "AVATAR",
+                        type = "COVER",
                         contentResolver = app.contentResolver
                     )
                     if (!uploaded.isNullOrBlank()) {
                         finalCoverUrl = uploaded
+                    } else {
+                        val bytes = com.example.util.ImageUtils.compressImageBytes(app.contentResolver, coverUrl, maxDimension = 1080, quality = 80)
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val base64Str = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                            finalCoverUrl = "data:image/jpeg;base64,$base64Str"
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
+                    try {
+                        val app = getApplication<android.app.Application>()
+                        val bytes = com.example.util.ImageUtils.compressImageBytes(app.contentResolver, coverUrl, maxDimension = 1080, quality = 80)
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val base64Str = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                            finalCoverUrl = "data:image/jpeg;base64,$base64Str"
+                        }
+                    } catch (t: Throwable) {
+                        t.printStackTrace()
+                    }
                 }
             }
 
@@ -1972,15 +1988,49 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     )
                     if (!uploaded.isNullOrBlank()) {
                         finalAvatarUrl = uploaded
+                    } else {
+                        val bytes = com.example.util.ImageUtils.compressImageBytes(app.contentResolver, avatarUrl, maxDimension = 1080, quality = 80)
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val base64Str = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                            finalAvatarUrl = "data:image/jpeg;base64,$base64Str"
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
 
-            repository.updateBusinessProfile(
-                token = token,
-                request = com.example.data.network.UpdateBusinessProfileRequest(
+            try {
+                val updatedDto = repository.updateBusinessProfile(
+                    token = token,
+                    request = com.example.data.network.UpdateBusinessProfileRequest(
+                        businessName = name,
+                        category = category,
+                        description = description,
+                        coverImageUrl = finalCoverUrl,
+                        address = address,
+                        businessHours = hours,
+                        website = website,
+                        email = email
+                    )
+                )
+                if (updatedDto != null) {
+                    selectedBusinessProfile.value = updatedDto
+                } else {
+                    selectedBusinessProfile.value = selectedBusinessProfile.value?.copy(
+                        businessName = name,
+                        category = category,
+                        description = description,
+                        coverImageUrl = finalCoverUrl,
+                        address = address,
+                        businessHours = hours,
+                        website = website,
+                        email = email
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                selectedBusinessProfile.value = selectedBusinessProfile.value?.copy(
                     businessName = name,
                     category = category,
                     description = description,
@@ -1990,7 +2040,8 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                     website = website,
                     email = email
                 )
-            )
+            }
+
             authManager.updateProfile(
                 userName = name,
                 userAbout = description,

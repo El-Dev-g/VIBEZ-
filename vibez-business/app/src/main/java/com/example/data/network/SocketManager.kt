@@ -15,6 +15,9 @@ class SocketManager(private val userId: String, private val authToken: String? =
     var onCallAnswerReceived: ((JSONObject) -> Unit)? = null
     var onIceCandidateReceived: ((JSONObject) -> Unit)? = null
     var onCallEndedReceived: ((JSONObject) -> Unit)? = null
+    var onCallRingingReceived: ((JSONObject) -> Unit)? = null
+    var onCallBusyReceived: ((JSONObject) -> Unit)? = null
+    var onCallRejectedReceived: ((JSONObject) -> Unit)? = null
     var onTypingReceived: ((String, String, Boolean) -> Unit)? = null
     var onMessageReadReceived: ((String, String) -> Unit)? = null
     var onMessageDeliveredReceived: ((String, String?, String?) -> Unit)? = null
@@ -104,6 +107,21 @@ class SocketManager(private val userId: String, private val authToken: String? =
             socket?.on("end_call") { args ->
                 val data = if (args.isNotEmpty() && args[0] is JSONObject) args[0] as JSONObject else JSONObject()
                 onCallEndedReceived?.invoke(data)
+            }
+
+            socket?.on("call_ringing") { args ->
+                val data = if (args.isNotEmpty() && args[0] is JSONObject) args[0] as JSONObject else JSONObject()
+                onCallRingingReceived?.invoke(data)
+            }
+
+            socket?.on("call_busy") { args ->
+                val data = if (args.isNotEmpty() && args[0] is JSONObject) args[0] as JSONObject else JSONObject()
+                onCallBusyReceived?.invoke(data)
+            }
+
+            socket?.on("call_rejected") { args ->
+                val data = if (args.isNotEmpty() && args[0] is JSONObject) args[0] as JSONObject else JSONObject()
+                onCallRejectedReceived?.invoke(data)
             }
 
             socket?.on("new_message_notification") { args ->
@@ -199,6 +217,27 @@ class SocketManager(private val userId: String, private val authToken: String? =
             put("targetUserId", targetUserId)
         }
         socket?.emit("end_call", data)
+    }
+
+    fun sendCallRinging(targetUserId: String) {
+        val data = JSONObject().apply {
+            put("targetUserId", targetUserId)
+        }
+        socket?.emit("call_ringing", data)
+    }
+
+    fun sendCallBusy(targetUserId: String) {
+        val data = JSONObject().apply {
+            put("targetUserId", targetUserId)
+        }
+        socket?.emit("call_busy", data)
+    }
+
+    fun sendCallRejected(targetUserId: String) {
+        val data = JSONObject().apply {
+            put("targetUserId", targetUserId)
+        }
+        socket?.emit("call_rejected", data)
     }
 
     fun disconnect() {

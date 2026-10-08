@@ -893,14 +893,22 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onVoiceCallClick = {
                     if (chat != null) {
-                        viewModel.logCall(chat.contactId, chat.contactName, "VOICE", false, false)
-                        navController.navigate("call/${chat.contactId}/false")
+                        val targetContact = contacts.firstOrNull { it.id == chat.contactId || it.remoteId == chat.contactId }
+                        val resolvedId = targetContact?.remoteId?.takeIf { it.isNotBlank() }
+                            ?: targetContact?.phoneNumber?.takeIf { it.isNotBlank() }
+                            ?: chat.contactId
+                        viewModel.logCall(resolvedId, chat.contactName, "VOICE", false, false)
+                        navController.navigate("call/$resolvedId/false")
                     }
                 },
                 onVideoCallClick = {
                     if (chat != null) {
-                        viewModel.logCall(chat.contactId, chat.contactName, "VIDEO", false, false)
-                        navController.navigate("call/${chat.contactId}/true")
+                        val targetContact = contacts.firstOrNull { it.id == chat.contactId || it.remoteId == chat.contactId }
+                        val resolvedId = targetContact?.remoteId?.takeIf { it.isNotBlank() }
+                            ?: targetContact?.phoneNumber?.takeIf { it.isNotBlank() }
+                            ?: chat.contactId
+                        viewModel.logCall(resolvedId, chat.contactName, "VIDEO", false, false)
+                        navController.navigate("call/$resolvedId/true")
                     }
                 },
                 onSendMessage = { text, type, mediaUrl, duration, replyToMessageId ->
@@ -1414,9 +1422,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
             val currentOffer = videoCallViewModel.incomingCallOffer.value?.sdp
 
-            LaunchedEffect(contactId) {
+            val resolvedTargetId = contact.remoteId?.takeIf { it.isNotBlank() }
+                ?: contact.phoneNumber.takeIf { it.isNotBlank() }
+                ?: contactId
+
+            LaunchedEffect(contactId, resolvedTargetId) {
                 viewModel.repository.socketManager?.let {
-                    videoCallViewModel.setupSignaling(it, contactId)
+                    videoCallViewModel.setupSignaling(it, resolvedTargetId)
                 }
             }
 
@@ -1847,12 +1859,18 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     }
                 },
                 onVoiceCallClick = {
-                    viewModel.logCall(contactId, effectiveContactName, "VOICE", false, false)
-                    navController.navigate("call/$contactId/false")
+                    val resolvedId = contact?.remoteId?.takeIf { it.isNotBlank() }
+                        ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
+                        ?: contactId
+                    viewModel.logCall(resolvedId, effectiveContactName, "VOICE", false, false)
+                    navController.navigate("call/$resolvedId/false")
                 },
                 onVideoCallClick = {
-                    viewModel.logCall(contactId, effectiveContactName, "VIDEO", false, false)
-                    navController.navigate("call/$contactId/true")
+                    val resolvedId = contact?.remoteId?.takeIf { it.isNotBlank() }
+                        ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
+                        ?: contactId
+                    viewModel.logCall(resolvedId, effectiveContactName, "VIDEO", false, false)
+                    navController.navigate("call/$resolvedId/true")
                 },
                 onQrScanClick = {
                     navController.navigate("qr_scanner")
@@ -1865,14 +1883,12 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                         navController.navigate("shared_media/NONE")
                     }
                 },
-                onBusinessStorefrontClick = if (isBusinessUser) {
-                    {
-                        navController.navigate("business_storefront/$resolvedUserId")
-                    }
-                } else null,
+                onBusinessStorefrontClick = {
+                    navController.navigate("business_storefront/$resolvedUserId")
+                },
                 isBusiness = isBusinessUser,
-                businessProfile = if (isBusinessUser) selectedBizProfile else null,
-                businessCatalog = if (isBusinessUser) selectedBizCatalog else emptyList()
+                businessProfile = selectedBizProfile,
+                businessCatalog = selectedBizCatalog ?: emptyList()
             )
         }
 
@@ -1900,6 +1916,22 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onBackClick = { navController.popBackStack() },
                 onOrderSent = {
                     navController.popBackStack()
+                },
+                onVoiceCallClick = {
+                    val targetContact = contacts.firstOrNull { it.id == businessUserId || it.remoteId == businessUserId }
+                    val resolvedId = targetContact?.remoteId?.takeIf { it.isNotBlank() }
+                        ?: targetContact?.phoneNumber?.takeIf { it.isNotBlank() }
+                        ?: businessUserId
+                    viewModel.logCall(resolvedId, targetContact?.name ?: "Business", "VOICE", false, false)
+                    navController.navigate("call/$resolvedId/false")
+                },
+                onVideoCallClick = {
+                    val targetContact = contacts.firstOrNull { it.id == businessUserId || it.remoteId == businessUserId }
+                    val resolvedId = targetContact?.remoteId?.takeIf { it.isNotBlank() }
+                        ?: targetContact?.phoneNumber?.takeIf { it.isNotBlank() }
+                        ?: businessUserId
+                    viewModel.logCall(resolvedId, targetContact?.name ?: "Business", "VIDEO", false, false)
+                    navController.navigate("call/$resolvedId/true")
                 }
             )
         }

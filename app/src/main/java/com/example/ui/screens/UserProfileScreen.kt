@@ -348,8 +348,8 @@ fun UserProfileScreen(
                                     ProfileActionButton(icon = Icons.AutoMirrored.Filled.Chat, label = "Chat Now", onClick = { onMessageClick?.invoke() })
                                     ProfileActionButton(icon = Icons.Default.Call, label = "Voice Call", onClick = { onVoiceCallClick?.invoke() })
                                     ProfileActionButton(icon = Icons.Default.Videocam, label = "Video Call", onClick = { onVideoCallClick?.invoke() })
-                                    if (isBusiness && onBusinessStorefrontClick != null) {
-                                        ProfileActionButton(icon = Icons.Default.ShoppingBag, label = "Catalog", onClick = { onBusinessStorefrontClick.invoke() })
+                                    if (isBusiness || onBusinessStorefrontClick != null) {
+                                        ProfileActionButton(icon = Icons.Default.ShoppingBag, label = "Catalog", onClick = { onBusinessStorefrontClick?.invoke() })
                                     }
                                 }
                             }
@@ -524,59 +524,6 @@ fun UserProfileScreen(
                         }
                     }
 
-                    if (onBusinessStorefrontClick != null) {
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                                    .clickable { onBusinessStorefrontClick.invoke() },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(WhatsAppEmerald.copy(alpha = 0.15f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Storefront,
-                                            contentDescription = null,
-                                            tint = WhatsAppEmerald,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Official Store & Catalog",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "Browse products, pricing, and place direct cart orders",
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
                 } else {
                     // REGULAR CONSUMER CONTACT VIEW
                     item {

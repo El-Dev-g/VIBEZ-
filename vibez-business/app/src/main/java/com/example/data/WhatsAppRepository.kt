@@ -1467,6 +1467,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
 
         val isImage = type.equals("IMAGE", ignoreCase = true) || 
                       type.equals("AVATAR", ignoreCase = true) || 
+                      type.equals("COVER", ignoreCase = true) || 
                       type.equals("PHOTO", ignoreCase = true) || 
                       type.equals("STATUS", ignoreCase = true) ||
                       type.equals("STATUS_PHOTO", ignoreCase = true)

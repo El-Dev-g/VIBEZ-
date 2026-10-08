@@ -93,4 +93,66 @@ export class CallController {
       res.status(500).json({ error: 'Failed to clear call logs' });
     }
   }
+
+  async getTurnCredentials(req: AuthRequest, res: Response) {
+    try {
+      const { CallingGateway } = await import('../services/CallingGateway');
+      const iceServers = CallingGateway.getInstance().getIceServers();
+      res.json({ iceServers });
+    } catch (error) {
+      console.error('Error getting TURN credentials:', error);
+      res.status(500).json({ error: 'Failed to get ICE servers' });
+    }
+  }
+
+  async getGatewayStatus(req: AuthRequest, res: Response) {
+    try {
+      const { targetId } = req.params;
+      const callerUserId = req.user?.id;
+      const { CallingGateway } = await import('../services/CallingGateway');
+      const status = await CallingGateway.getInstance().getTargetAvailability(targetId, callerUserId);
+      res.json(status);
+    } catch (error) {
+      console.error('Error fetching gateway status:', error);
+      res.status(500).json({ error: 'Failed to fetch gateway status' });
+    }
+  }
+
+  async initiateCall(req: AuthRequest, res: Response) {
+    try {
+      const { targetId, isVideo } = req.body;
+      const callerUserId = req.user?.id as string;
+      const { CallingGateway } = await import('../services/CallingGateway');
+      const recipient = await CallingGateway.getInstance().resolveRecipient(targetId, callerUserId);
+
+      if (!recipient) {
+        return res.status(404).json({ error: 'Recipient could not be found' });
+      }
+
+      // Log the initiated call
+      const call = await prisma.call.create({
+        data: {
+          callerId: callerUserId,
+          receiverId: recipient.userId,
+          type: isVideo ? 'VIDEO' : 'VOICE',
+          status: 'INITIATED',
+          duration: 0
+        }
+      });
+
+      res.json({
+        callId: call.id,
+        recipient: {
+          userId: recipient.userId,
+          name: recipient.name,
+          accountType: recipient.accountType,
+          businessProfileId: recipient.businessProfileId,
+          isOnline: recipient.socketIds.length > 0
+        }
+      });
+    } catch (error) {
+      console.error('Error initiating gateway call:', error);
+      res.status(500).json({ error: 'Failed to initiate gateway call' });
+    }
+  }
 }

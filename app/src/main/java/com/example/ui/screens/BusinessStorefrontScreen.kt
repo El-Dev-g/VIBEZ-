@@ -38,8 +38,13 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -51,6 +56,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -97,7 +103,9 @@ fun BusinessStorefrontScreen(
     chatId: String,
     viewModel: WhatsAppViewModel,
     onBackClick: () -> Unit,
-    onOrderSent: () -> Unit
+    onOrderSent: () -> Unit,
+    onVoiceCallClick: (() -> Unit)? = null,
+    onVideoCallClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -107,6 +115,7 @@ fun BusinessStorefrontScreen(
     val isLoading by viewModel.isStorefrontLoading.collectAsState()
 
     var showCartSheet by remember { mutableStateOf(false) }
+    var selectedProductForDetail by remember { mutableStateOf<CatalogItemDto?>(null) }
     var orderNote by remember { mutableStateOf("") }
     var isSubmittingOrder by remember { mutableStateOf(false) }
 
@@ -149,6 +158,24 @@ fun BusinessStorefrontScreen(
                     }
                 },
                 actions = {
+                    if (onVoiceCallClick != null) {
+                        IconButton(onClick = onVoiceCallClick, modifier = Modifier.testTag("storefront_call_btn")) {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = "Call Business",
+                                tint = WhatsAppEmerald
+                            )
+                        }
+                    }
+                    if (onVideoCallClick != null) {
+                        IconButton(onClick = onVideoCallClick, modifier = Modifier.testTag("storefront_videocall_btn")) {
+                            Icon(
+                                imageVector = Icons.Default.Videocam,
+                                contentDescription = "Video Call Business",
+                                tint = WhatsAppEmerald
+                            )
+                        }
+                    }
                     if (totalItemsCount > 0) {
                         Box(modifier = Modifier.padding(end = 8.dp)) {
                             IconButton(onClick = { showCartSheet = true }) {
@@ -238,11 +265,15 @@ fun BusinessStorefrontScreen(
             ) {
                 CircularProgressIndicator(color = WhatsAppEmerald)
             }
-        } else if (profile == null || profile?.user?.accountType == "CONSUMER") {
-            LaunchedEffect(Unit) {
-                onBackClick()
-            }
         } else {
+            val effProfile = profile ?: com.example.data.network.BusinessProfileDto(
+                id = businessUserId,
+                userId = businessUserId,
+                businessName = "Official Storefront",
+                category = "Shopping & Retail",
+                description = "Welcome to our business storefront! Browse products and place orders directly.",
+                isVerified = true
+            )
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -433,6 +464,50 @@ fun BusinessStorefrontScreen(
                                     )
                                 }
                             }
+
+                            if (onVoiceCallClick != null || onVideoCallClick != null) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (onVoiceCallClick != null) {
+                                        OutlinedButton(
+                                            onClick = onVoiceCallClick,
+                                            modifier = Modifier.weight(1f).testTag("storefront_quick_audio_btn"),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Call,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = WhatsAppEmerald
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Audio Call", fontSize = 12.sp, color = WhatsAppEmerald)
+                                        }
+                                    }
+                                    if (onVideoCallClick != null) {
+                                        OutlinedButton(
+                                            onClick = onVideoCallClick,
+                                            modifier = Modifier.weight(1f).testTag("storefront_quick_video_btn"),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Videocam,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = WhatsAppEmerald
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Video Call", fontSize = 12.sp, color = WhatsAppEmerald)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -511,7 +586,8 @@ fun BusinessStorefrontScreen(
                             quantityInCart = qty,
                             onAddToCart = { viewModel.addToCart(item) },
                             onIncrement = { viewModel.updateCartQuantity(item.id, qty + 1) },
-                            onDecrement = { viewModel.updateCartQuantity(item.id, qty - 1) }
+                            onDecrement = { viewModel.updateCartQuantity(item.id, qty - 1) },
+                            onItemClick = { selectedProductForDetail = item }
                         )
                     }
                 }
@@ -695,6 +771,187 @@ fun BusinessStorefrontScreen(
             }
         }
     }
+
+    if (selectedProductForDetail != null) {
+        val detailItem = selectedProductForDetail!!
+        val qty = cartItems[detailItem.id] ?: 0
+        ProductDetailSheet(
+            item = detailItem,
+            quantityInCart = qty,
+            onAddToCart = { viewModel.addToCart(detailItem) },
+            onIncrement = { viewModel.updateCartQuantity(detailItem.id, qty + 1) },
+            onDecrement = { viewModel.updateCartQuantity(detailItem.id, qty - 1) },
+            onDismiss = { selectedProductForDetail = null }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProductDetailSheet(
+    item: CatalogItemDto,
+    quantityInCart: Int,
+    onAddToCart: () -> Unit,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            if (!item.imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = item.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(WhatsAppEmerald.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ShoppingBag,
+                        contentDescription = null,
+                        tint = WhatsAppEmerald,
+                        modifier = Modifier.size(56.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = item.title,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = String.format(Locale.US, "$%.2f %s", item.price, item.currency),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = WhatsAppMinimalPrimary
+            )
+
+            if (!item.description.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Description",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = item.description!!,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            if (!item.link.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(item.link))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Could not open link", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
+                    Icon(Icons.Default.Language, contentDescription = null, tint = WhatsAppEmerald, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = item.link!!, color = WhatsAppEmerald, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val shareText = "🛍️ *${item.title}*\nPrice: $${String.format(Locale.US, "%.2f", item.price)} ${item.currency}\n${item.description ?: ""}\n${item.link ?: ""}".trim()
+                        val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                            type = "text/plain"
+                        }
+                        context.startActivity(android.content.Intent.createChooser(sendIntent, "Share Product"))
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Share")
+                }
+
+                if (quantityInCart == 0) {
+                    Button(
+                        onClick = onAddToCart,
+                        colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.5f)
+                    ) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Add to Cart", fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = WhatsAppEmerald.copy(alpha = 0.15f),
+                        modifier = Modifier.weight(1.5f)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            IconButton(onClick = onDecrement) {
+                                Icon(
+                                    imageVector = if (quantityInCart == 1) Icons.Default.Delete else Icons.Default.Remove,
+                                    contentDescription = null,
+                                    tint = if (quantityInCart == 1) Color.Red else WhatsAppEmerald
+                                )
+                            }
+                            Text("$quantityInCart in Cart", fontWeight = FontWeight.Bold, color = WhatsAppEmerald, fontSize = 14.sp)
+                            IconButton(onClick = onIncrement) {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = WhatsAppEmerald)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -703,12 +960,14 @@ fun ConsumerCatalogItemCard(
     quantityInCart: Int,
     onAddToCart: () -> Unit,
     onIncrement: () -> Unit,
-    onDecrement: () -> Unit
+    onDecrement: () -> Unit,
+    onItemClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clickable { onItemClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {

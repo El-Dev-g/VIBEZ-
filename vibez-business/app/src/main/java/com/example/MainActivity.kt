@@ -851,14 +851,22 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onVoiceCallClick = {
                     if (chat != null) {
-                        viewModel.logCall(chat.contactId, chat.contactName, "VOICE", false, false)
-                        navController.navigate("call/${chat.contactId}/false")
+                        val targetContact = contacts.firstOrNull { it.id == chat.contactId || it.remoteId == chat.contactId }
+                        val resolvedId = targetContact?.remoteId?.takeIf { it.isNotBlank() }
+                            ?: targetContact?.phoneNumber?.takeIf { it.isNotBlank() }
+                            ?: chat.contactId
+                        viewModel.logCall(resolvedId, chat.contactName, "VOICE", false, false)
+                        navController.navigate("call/$resolvedId/false")
                     }
                 },
                 onVideoCallClick = {
                     if (chat != null) {
-                        viewModel.logCall(chat.contactId, chat.contactName, "VIDEO", false, false)
-                        navController.navigate("call/${chat.contactId}/true")
+                        val targetContact = contacts.firstOrNull { it.id == chat.contactId || it.remoteId == chat.contactId }
+                        val resolvedId = targetContact?.remoteId?.takeIf { it.isNotBlank() }
+                            ?: targetContact?.phoneNumber?.takeIf { it.isNotBlank() }
+                            ?: chat.contactId
+                        viewModel.logCall(resolvedId, chat.contactName, "VIDEO", false, false)
+                        navController.navigate("call/$resolvedId/true")
                     }
                 },
                 onSendMessage = { text, type, mediaUrl, duration, replyToMessageId ->
@@ -1099,6 +1107,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         }
 
         composable("business_catalog") {
+            val context = androidx.compose.ui.platform.LocalContext.current
             val catalogItems by viewModel.businessCatalogItems.collectAsState()
             val userAccountType by viewModel.currentUserAccountType.collectAsState()
             val isBiz = userAccountType == "BUSINESS"
@@ -1120,8 +1129,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onDeleteItem = { id ->
                     viewModel.deleteCatalogItem(id)
                 },
-                onShareItemToChat = {
-                    navController.popBackStack()
+                onShareItemToChat = { item ->
+                    val shareText = "🛍️ *${item.title}*\nPrice: $${String.format(java.util.Locale.US, "%.2f", item.price)} ${item.currency}\n${item.description ?: ""}\n${item.link ?: ""}".trim()
+                    val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                        type = "text/plain"
+                    }
+                    context.startActivity(android.content.Intent.createChooser(sendIntent, "Send Product to Customer"))
                 }
             )
         }
@@ -1521,9 +1535,13 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
             val currentOffer = videoCallViewModel.incomingCallOffer.value?.sdp
 
-            LaunchedEffect(contactId) {
+            val resolvedTargetId = contact.remoteId?.takeIf { it.isNotBlank() }
+                ?: contact.phoneNumber.takeIf { it.isNotBlank() }
+                ?: contactId
+
+            LaunchedEffect(contactId, resolvedTargetId) {
                 viewModel.repository.socketManager?.let {
-                    videoCallViewModel.setupSignaling(it, contactId)
+                    videoCallViewModel.setupSignaling(it, resolvedTargetId)
                 }
             }
 
@@ -1943,12 +1961,18 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     }
                 },
                 onVoiceCallClick = {
-                    viewModel.logCall(contactId, effectiveContactName, "VOICE", false, false)
-                    navController.navigate("call/$contactId/false")
+                    val resolvedId = contact?.remoteId?.takeIf { it.isNotBlank() }
+                        ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
+                        ?: contactId
+                    viewModel.logCall(resolvedId, effectiveContactName, "VOICE", false, false)
+                    navController.navigate("call/$resolvedId/false")
                 },
                 onVideoCallClick = {
-                    viewModel.logCall(contactId, effectiveContactName, "VIDEO", false, false)
-                    navController.navigate("call/$contactId/true")
+                    val resolvedId = contact?.remoteId?.takeIf { it.isNotBlank() }
+                        ?: contact?.phoneNumber?.takeIf { it.isNotBlank() }
+                        ?: contactId
+                    viewModel.logCall(resolvedId, effectiveContactName, "VIDEO", false, false)
+                    navController.navigate("call/$resolvedId/true")
                 },
                 onQrScanClick = {
                     navController.navigate("qr_scanner")

@@ -25,6 +25,7 @@ import { checkMaintenanceMode } from './middleware/maintenance';
 import { securityHeaders, sanitizeInputs, checkSecretEntropy } from './middleware/security';
 import { authRateLimiter, adminRateLimiter } from './middleware/rateLimiter';
 import { getChatRoomName, extractPureChatId } from './utils/socketHelpers';
+import { CallingGateway } from './services/CallingGateway';
 import path from 'path';
 import fs from 'fs';
 
@@ -221,6 +222,9 @@ app.get('/api/calls', authenticate, (req, res) => call.getCallLogs(req, res));
 app.post('/api/calls', authenticate, (req, res) => call.createCallLog(req, res));
 app.delete('/api/calls/:callId', authenticate, (req, res) => call.deleteCallLog(req, res));
 app.delete('/api/calls', authenticate, (req, res) => call.clearCallLogs(req, res));
+app.get('/api/calls/turn-credentials', authenticate, (req, res) => call.getTurnCredentials(req, res));
+app.get('/api/calls/gateway/status/:targetId', authenticate, (req, res) => call.getGatewayStatus(req, res));
+app.post('/api/calls/gateway/initiate', authenticate, (req, res) => call.initiateCall(req, res));
 
 // Payment / Verification Badge Routes
 app.get('/api/payments/badge-price', authenticateAdmin, (req, res) => payment.getBadgePrice(req, res));
@@ -540,6 +544,9 @@ io.on('connection', (socket) => {
     socket.join(`user_${rawUserId}`);
     socket.join(userId);
     console.log(`[Socket.IO] User ${userId} connected with socket ID ${socket.id} (Authenticated: ${!!socket.data.authenticated})`);
+  }
+  if (rawUserId) {
+    CallingGateway.getInstance().registerSocket(io, socket, rawUserId);
   }
 
   // Helper to emit call signaling events explicitly to specific target user socket IDs and personal rooms
@@ -904,86 +911,60 @@ io.on('connection', (socket) => {
     }
   });
 
-  // WebRTC Call Signaling
+  // WebRTC Call Signaling via Cross-Platform Calling Gateway
   socket.on('call_offer', async (data) => {
     // data: { targetUserId, sdp, isVideo }
     if (data && data.targetUserId) {
-      let callerName = 'User';
-      if (userId) {
-        try {
-          const user = await prisma.user.findUnique({ where: { id: userId } });
-          if (user?.name) callerName = user.name;
-        } catch (e) {}
-      }
-
-      const offerPayload = {
-        callerId: userId,
-        callerName,
-        sdp: data.sdp,
-        isVideo: data.isVideo ?? true,
-        type: (data.isVideo ?? true) ? 'VIDEO' : 'VOICE',
-        targetUserId: data.targetUserId
-      };
-
-      // Emit explicitly to specific target user socket IDs and personal rooms
-      emitCallEventToUser(data.targetUserId, 'call_offer', offerPayload);
-      emitCallEventToUser(data.targetUserId, 'incoming_call', offerPayload);
+      await CallingGateway.getInstance().routeCallSignaling(io, socket, 'call_offer', data);
     }
   });
 
   socket.on('incoming_call', async (data) => {
-    // Alias for call_offer
     if (data && data.targetUserId) {
-      let callerName = 'User';
-      if (userId) {
-        try {
-          const user = await prisma.user.findUnique({ where: { id: userId } });
-          if (user?.name) callerName = user.name;
-        } catch (e) {}
-      }
-
-      const offerPayload = {
-        callerId: userId,
-        callerName,
-        sdp: data.sdp,
-        isVideo: data.isVideo ?? true,
-        type: (data.isVideo ?? true) ? 'VIDEO' : 'VOICE',
-        targetUserId: data.targetUserId
-      };
-
-      emitCallEventToUser(data.targetUserId, 'call_offer', offerPayload);
-      emitCallEventToUser(data.targetUserId, 'incoming_call', offerPayload);
+      await CallingGateway.getInstance().routeCallSignaling(io, socket, 'incoming_call', data);
     }
   });
 
-  socket.on('call_answer', (data) => {
+  socket.on('call_answer', async (data) => {
     // data: { targetUserId, sdp }
     if (data && data.targetUserId) {
-      const answerPayload = {
-        callerId: userId,
-        sdp: data.sdp,
-        targetUserId: data.targetUserId
-      };
-      emitCallEventToUser(data.targetUserId, 'call_answer', answerPayload);
+      await CallingGateway.getInstance().routeCallSignaling(io, socket, 'call_answer', data);
     }
   });
 
-  socket.on('ice_candidate', (data) => {
+  socket.on('ice_candidate', async (data) => {
     // data: { targetUserId, sdpMid, sdpMLineIndex, candidate }
     if (data && data.targetUserId) {
-      emitCallEventToUser(data.targetUserId, 'ice_candidate', data);
+      await CallingGateway.getInstance().routeCallSignaling(io, socket, 'ice_candidate', data);
     }
   });
 
-  socket.on('end_call', (data) => {
+  socket.on('end_call', async (data) => {
     if (data && data.targetUserId) {
-      const endPayload = { callerId: userId, targetUserId: data.targetUserId };
-      emitCallEventToUser(data.targetUserId, 'call_ended', endPayload);
-      emitCallEventToUser(data.targetUserId, 'end_call', endPayload);
+      await CallingGateway.getInstance().routeCallSignaling(io, socket, 'end_call', data);
+    }
+  });
+
+  socket.on('call_ringing', async (data) => {
+    if (data && data.targetUserId) {
+      await CallingGateway.getInstance().routeCallSignaling(io, socket, 'call_ringing', data);
+    }
+  });
+
+  socket.on('call_busy', async (data) => {
+    if (data && data.targetUserId) {
+      await CallingGateway.getInstance().routeCallSignaling(io, socket, 'call_busy', data);
+    }
+  });
+
+  socket.on('call_rejected', async (data) => {
+    if (data && data.targetUserId) {
+      await CallingGateway.getInstance().routeCallSignaling(io, socket, 'call_rejected', data);
     }
   });
 
   socket.on('disconnect', async () => {
+    CallingGateway.getInstance().unregisterSocket(socket.id);
     if (userId) {
       try {
         await prisma.user.update({
