@@ -21,6 +21,7 @@ class SocketManager(private val userId: String, private val authToken: String? =
     var onTypingReceived: ((String, String, Boolean) -> Unit)? = null
     var onMessageReadReceived: ((String, String) -> Unit)? = null
     var onMessageDeliveredReceived: ((String, String?, String?) -> Unit)? = null
+    var onOrderStatusUpdatedReceived: ((String, String?, String?, String) -> Unit)? = null
 
     fun connect(onMessageReceived: (JSONObject) -> Unit) {
         try {
@@ -76,6 +77,19 @@ class SocketManager(private val userId: String, private val authToken: String? =
                     onMessageReadReceived?.invoke(chatId, senderId)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error handling message_read event", e)
+                }
+            }
+
+            socket?.on("order_status_updated") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val chatId = data.optString("chatId", "")
+                    val messageId = data.optString("messageId", "").takeIf { it.isNotBlank() }
+                    val orderId = data.optString("orderId", "").takeIf { it.isNotBlank() }
+                    val status = data.optString("status", "")
+                    onOrderStatusUpdatedReceived?.invoke(chatId, messageId, orderId, status)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error handling order_status_updated event", e)
                 }
             }
 
@@ -238,6 +252,20 @@ class SocketManager(private val userId: String, private val authToken: String? =
             put("targetUserId", targetUserId)
         }
         socket?.emit("call_rejected", data)
+    }
+
+    fun emitUpdateOrderStatus(chatId: String, messageId: String?, orderId: String?, status: String) {
+        try {
+            val data = JSONObject().apply {
+                put("chatId", chatId)
+                if (!messageId.isNullOrBlank()) put("messageId", messageId)
+                if (!orderId.isNullOrBlank()) put("orderId", orderId)
+                put("status", status)
+            }
+            socket?.emit("update_order_status", data)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error emitting update_order_status", e)
+        }
     }
 
     fun disconnect() {

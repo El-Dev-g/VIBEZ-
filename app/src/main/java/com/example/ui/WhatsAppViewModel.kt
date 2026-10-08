@@ -1899,4 +1899,12 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             onResult(success)
         }
     }
+
+    fun updateOrderStatus(chatId: String, messageId: String, orderId: String, newStatus: String, onComplete: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            val success = repository.updateOrderStatus(chatId, messageId, orderId, newStatus)
+            onComplete?.invoke(success)
+        }
+    }
 }
+

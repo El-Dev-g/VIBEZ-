@@ -951,6 +951,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onBusinessStorefrontClick = { businessUserId ->
                     navController.navigate("business_storefront/$businessUserId?chatId=$chatId")
+                },
+                onUpdateOrderStatus = { msg, orderId, newStatus ->
+                    viewModel.updateOrderStatus(chatId, msg.id, orderId, newStatus)
                 }
             )
         }

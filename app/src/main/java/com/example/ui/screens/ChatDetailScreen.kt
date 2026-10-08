@@ -160,7 +160,8 @@ fun ChatDetailScreen(
     transcriptionsMap: Map<String, String> = emptyMap(),
     onTranscribeVoice: (MessageEntity) -> Unit = {},
     onVotePoll: (messageId: String, optionIndex: Int) -> Unit = { _, _ -> },
-    onBusinessStorefrontClick: (String) -> Unit = {}
+    onBusinessStorefrontClick: (String) -> Unit = {},
+    onUpdateOrderStatus: (message: MessageEntity, orderId: String, newStatus: String) -> Unit = { _, _, _ -> }
 ) {
     if (chat == null) return
 
@@ -975,7 +976,8 @@ fun ChatDetailScreen(
                                         listState.animateScrollToItem(targetIndex + 1)
                                     }
                                 }
-                            }
+                            },
+                            onUpdateOrderStatus = onUpdateOrderStatus
                         )
                     }
                 }

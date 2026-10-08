@@ -331,10 +331,148 @@ app.get('/api/business/labels', authenticate, (req, res) => business.getLabels(r
 app.post('/api/business/labels', authenticate, (req, res) => business.addLabel(req as any, res as any));
 app.post('/api/business/labels/toggle', authenticate, (req, res) => business.toggleChatLabel(req as any, res as any));
 
+// Helper to process and broadcast order status updates
+const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: string; orderId?: string; status: string }, updaterUserId?: string) => {
+  if (!data || !data.status) {
+    return { success: false, error: 'Status is required' };
+  }
+
+  const rawStatus = String(data.status).trim();
+  let normalizedStatus = rawStatus.toUpperCase().replace(/ /g, '_');
+
+  const orderId = data.orderId ? String(data.orderId).trim() : null;
+  let chatId = data.chatId ? extractPureChatId(String(data.chatId)) : null;
+  let targetMessage: any = null;
+
+  // 1. Update Order record in database if orderId exists
+  let updatedOrderRecord: any = null;
+  if (orderId) {
+    try {
+      updatedOrderRecord = await prisma.order.update({
+        where: { id: orderId },
+        data: { status: normalizedStatus }
+      });
+    } catch (_) {
+      try {
+        await prisma.order.updateMany({
+          where: { id: orderId },
+          data: { status: normalizedStatus }
+        });
+      } catch (err) {
+        console.warn('Error updating order table:', err);
+      }
+    }
+  }
+
+  // 2. Find and update the corresponding Message in chat
+  if (data.messageId) {
+    targetMessage = await prisma.message.findUnique({
+      where: { id: data.messageId }
+    });
+  }
+
+  if (!targetMessage && orderId) {
+    // Find message by orderId inside mediaUrl
+    targetMessage = await prisma.message.findFirst({
+      where: {
+        mediaUrl: {
+          contains: orderId
+        }
+      }
+    });
+  }
+
+  if (targetMessage) {
+    chatId = chatId || targetMessage.chatId;
+    try {
+      let payload: any = {};
+      if (targetMessage.mediaUrl) {
+        try {
+          payload = JSON.parse(targetMessage.mediaUrl);
+        } catch (_) {
+          payload = {};
+        }
+      }
+      payload.status = normalizedStatus;
+      payload.updatedAt = Date.now();
+      if (orderId) payload.orderId = orderId;
+
+      const updatedMediaUrl = JSON.stringify(payload);
+      targetMessage = await prisma.message.update({
+        where: { id: targetMessage.id },
+        data: { mediaUrl: updatedMediaUrl }
+      });
+    } catch (err) {
+      console.error('Error updating message mediaUrl:', err);
+    }
+  }
+
+  const effectiveChatId = chatId || targetMessage?.chatId;
+  const updatePayload = {
+    chatId: effectiveChatId,
+    messageId: targetMessage?.id || data.messageId,
+    orderId: orderId,
+    status: normalizedStatus,
+    updatedAt: Date.now()
+  };
+
+  console.log(`[Order Status] Successfully updated order status to ${normalizedStatus} (orderId: ${orderId}, messageId: ${targetMessage?.id})`);
+
+  // 3. Broadcast real-time update to chat rooms and connected users
+  if (effectiveChatId) {
+    const roomName = getChatRoomName(effectiveChatId);
+    io.to(roomName).emit('order_status_updated', updatePayload);
+    io.to(`chat_${effectiveChatId}`).emit('order_status_updated', updatePayload);
+    if (roomName !== `chat_${effectiveChatId}`) {
+      io.to(getChatRoomName(`chat_${effectiveChatId}`)).emit('order_status_updated', updatePayload);
+    }
+
+    try {
+      const chat = await prisma.chat.findUnique({
+        where: { id: effectiveChatId },
+        include: { members: true }
+      });
+      if (chat) {
+        for (const member of chat.members) {
+          io.to(`user_${member.userId}`).emit('order_status_updated', updatePayload);
+        }
+      }
+    } catch (_) {}
+  }
+
+  return { success: true, order: updatedOrderRecord, ...updatePayload };
+};
+
 // Business Orders Routes
 app.post('/api/business/orders', authenticateOptional, (req, res) => business.createOrder(req as any, res as any));
 app.get('/api/business/orders', authenticateOptional, (req, res) => business.getOrders(req as any, res as any));
-app.put('/api/business/orders/:id/status', authenticate, (req, res) => business.updateOrderStatus(req as any, res as any));
+app.put('/api/business/orders/:id/status', authenticate, async (req, res) => {
+  const result = await handleOrderStatusUpdate({
+    orderId: req.params.id,
+    status: req.body.status,
+    messageId: req.body.messageId,
+    chatId: req.body.chatId
+  }, (req as any).user?.id);
+  res.json(result);
+});
+app.patch('/api/chats/:chatId/messages/:messageId/order-status', authenticate, async (req, res) => {
+  const result = await handleOrderStatusUpdate({
+    chatId: req.params.chatId,
+    messageId: req.params.messageId,
+    orderId: req.body.orderId,
+    status: req.body.status
+  }, (req as any).user?.id);
+  res.json(result);
+});
+app.post('/api/business/orders/update-status', authenticate, async (req, res) => {
+  const result = await handleOrderStatusUpdate({
+    chatId: req.body.chatId,
+    messageId: req.body.messageId,
+    orderId: req.body.orderId,
+    status: req.body.status
+  }, (req as any).user?.id);
+  res.json(result);
+});
 
 // Broadcast & Announcements Routes
 app.get('/api/broadcasts', (req, res) => admin.getPublicBroadcasts(req, res));
@@ -908,6 +1046,18 @@ io.on('connection', (socket) => {
       }
     } catch (err) {
       console.error('[Socket.IO] Error handling message_delivered:', err);
+    }
+  });
+
+  // Order Status Updates from in-chat card
+  socket.on('update_order_status', async (data: any) => {
+    // data: { chatId, messageId, orderId, status }
+    try {
+      const result = await handleOrderStatusUpdate(data, socket.data?.userId || userId);
+      socket.emit('order_status_update_result', result);
+    } catch (err) {
+      console.error('[Socket.IO] Error handling update_order_status:', err);
+      socket.emit('error', { message: 'Failed to update order status' });
     }
   });
 

@@ -906,6 +906,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 },
                 onVotePoll = { msgId, optionIdx ->
                     viewModel.voteOnPoll(chatId, msgId, optionIdx)
+                },
+                onUpdateOrderStatus = { msg, orderId, newStatus ->
+                    viewModel.updateOrderStatus(chatId, msg.id, orderId, newStatus)
                 }
             )
         }

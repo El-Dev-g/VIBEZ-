@@ -792,16 +792,62 @@ export class BusinessController {
     try {
       const userId = req.user?.id;
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, messageId, chatId } = req.body;
 
       if (!userId || !status) return res.status(400).json({ error: 'Order ID and status required' });
 
-      const order = await prisma.order.update({
-        where: { id },
-        data: { status }
-      });
+      let normalizedStatus = String(status).trim().toUpperCase();
+      if (normalizedStatus === 'OUT FOR DELIVERY') normalizedStatus = 'OUT_FOR_DELIVERY';
 
-      res.json(order);
+      let order: any = null;
+      try {
+        order = await prisma.order.update({
+          where: { id },
+          data: { status: normalizedStatus }
+        });
+      } catch (err) {
+        // If not found by primary key id, try updating by id matching orderId
+        try {
+          await prisma.order.updateMany({
+            where: { id },
+            data: { status: normalizedStatus }
+          });
+        } catch (_) {}
+      }
+
+      // Also sync associated in-chat message if messageId or id is present
+      let msg: any = null;
+      if (messageId) {
+        msg = await prisma.message.findUnique({ where: { id: messageId } });
+      }
+      if (!msg && id) {
+        msg = await prisma.message.findFirst({
+          where: { mediaUrl: { contains: id } }
+        });
+      }
+
+      if (msg) {
+        try {
+          const payload = msg.mediaUrl ? JSON.parse(msg.mediaUrl) : {};
+          payload.status = normalizedStatus;
+          payload.updatedAt = Date.now();
+          msg = await prisma.message.update({
+            where: { id: msg.id },
+            data: { mediaUrl: JSON.stringify(payload) }
+          });
+        } catch (msgErr) {
+          console.warn('Error parsing or updating message mediaUrl:', msgErr);
+        }
+      }
+
+      res.json({
+        success: true,
+        order,
+        status: normalizedStatus,
+        orderId: id,
+        messageId: msg?.id || messageId,
+        chatId: chatId || msg?.chatId
+      });
     } catch (error) {
       console.error('Error updating order status:', error);
       res.status(500).json({ error: 'Failed to update order status' });

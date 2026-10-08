@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -87,7 +89,8 @@ fun MessageBubble(
     onMediaClick: (MessageEntity) -> Unit = {},
     onVotePoll: (Int) -> Unit = {},
     onTranscribeVoice: () -> Unit = {},
-    transcriptionText: String? = null
+    transcriptionText: String? = null,
+    onUpdateOrderStatus: ((MessageEntity, String, String) -> Unit)? = null
 ) {
     if (message.messageType == "SYSTEM") {
         Box(
@@ -688,6 +691,43 @@ fun MessageBubble(
                     }
                 }
                 "ORDER" -> {
+                    val orderDetails = remember(message.mediaUrl, message.content) {
+                        try {
+                            if (message.mediaUrl.isNotBlank()) {
+                                val json = org.json.JSONObject(message.mediaUrl)
+                                Triple(
+                                    json.optString("orderId", message.id.takeLast(6)),
+                                    json.optString("status", "PENDING").uppercase(),
+                                    json
+                                )
+                            } else {
+                                Triple(message.id.takeLast(6), "PENDING", null)
+                            }
+                        } catch (e: Exception) {
+                            Triple(message.id.takeLast(6), "PENDING", null)
+                        }
+                    }
+                    val orderId = orderDetails.first
+                    val currentStatus = orderDetails.second
+
+                    val (statusLabel, statusBg, statusColor) = when (currentStatus) {
+                        "CONFIRMED" -> Triple("Confirmed", Color(0xFFE0F2FE), Color(0xFF0284C7))
+                        "PREPARING" -> Triple("Preparing", Color(0xFFEDE9FE), Color(0xFF6D28D9))
+                        "OUT_FOR_DELIVERY" -> Triple("Out for Delivery", Color(0xFFDBEAFE), Color(0xFF2563EB))
+                        "COMPLETED" -> Triple("Completed ✓", Color(0xFFDCFCE7), Color(0xFF15803D))
+                        "CANCELLED" -> Triple("Cancelled ✕", Color(0xFFFEE2E2), Color(0xFFDC2626))
+                        else -> Triple("Pending", Color(0xFFFEF3C7), Color(0xFFD97706))
+                    }
+
+                    val activeStepIndex = when (currentStatus) {
+                        "PENDING" -> 0
+                        "CONFIRMED" -> 1
+                        "PREPARING" -> 2
+                        "OUT_FOR_DELIVERY" -> 3
+                        "COMPLETED" -> 4
+                        else -> -1
+                    }
+
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = if (isDarkMode) Color(0xFF1F2C33) else Color(0xFFFFFFFF),
@@ -698,6 +738,7 @@ fun MessageBubble(
                             .clip(RoundedCornerShape(12.dp))
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
+                            // Header: Title, Order ID, and Dynamic Status Badge
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -706,37 +747,128 @@ fun MessageBubble(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(34.dp)
                                             .clip(CircleShape)
-                                            .background(WhatsAppEmerald.copy(alpha = 0.15f)),
+                                            .background(statusColor.copy(alpha = 0.15f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.ShoppingCart,
                                             contentDescription = null,
-                                            tint = WhatsAppEmerald,
+                                            tint = statusColor,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Order Inquiry",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Column {
+                                        Text(
+                                            text = "Order Inquiry",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "#${orderId.takeLast(8)}",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
+
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = WhatsAppEmerald.copy(alpha = 0.15f)
+                                    color = statusBg
                                 ) {
                                     Text(
-                                        text = "Pending",
+                                        text = statusLabel,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = WhatsAppEmerald,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        color = statusColor,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                     )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // 5-Point Milestone Tracker or Cancellation Alert
+                            if (currentStatus == "CANCELLED") {
+                                Surface(
+                                    color = Color(0xFFFEE2E2),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Order has been cancelled by merchant",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFFDC2626)
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Milestone tracker
+                                val milestones = listOf("Placed", "Confirmed", "Preparing", "On Way", "Delivered")
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    milestones.forEachIndexed { index, stepName ->
+                                        val isCompletedOrCurrent = activeStepIndex >= index
+                                        val isCurrent = activeStepIndex == index
+
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (isCurrent) statusColor
+                                                        else if (isCompletedOrCurrent) WhatsAppEmerald
+                                                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (activeStepIndex > index) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(12.dp)
+                                                    )
+                                                } else {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(6.dp)
+                                                            .clip(CircleShape)
+                                                            .background(Color.White)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = stepName,
+                                                fontSize = 9.sp,
+                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isCurrent) statusColor
+                                                else if (isCompletedOrCurrent) MaterialTheme.colorScheme.onSurface
+                                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
                                 }
                             }
 
@@ -745,6 +877,7 @@ fun MessageBubble(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
 
+                            // Order Content / Summary
                             Text(
                                 text = message.content,
                                 fontSize = 13.sp,

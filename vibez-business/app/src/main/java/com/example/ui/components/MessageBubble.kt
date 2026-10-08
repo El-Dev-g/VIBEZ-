@@ -32,6 +32,15 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,8 +48,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,7 +99,8 @@ fun MessageBubble(
     onMediaClick: (MessageEntity) -> Unit = {},
     onVotePoll: (Int) -> Unit = {},
     onTranscribeVoice: () -> Unit = {},
-    transcriptionText: String? = null
+    transcriptionText: String? = null,
+    onUpdateOrderStatus: ((MessageEntity, String, String) -> Unit)? = null
 ) {
     if (message.messageType == "SYSTEM") {
         Box(
@@ -688,6 +701,35 @@ fun MessageBubble(
                     }
                 }
                 "ORDER" -> {
+                    val orderDetails = remember(message.mediaUrl, message.content) {
+                        try {
+                            if (message.mediaUrl.isNotBlank()) {
+                                val json = org.json.JSONObject(message.mediaUrl)
+                                Triple(
+                                    json.optString("orderId", message.id.takeLast(6)),
+                                    json.optString("status", "PENDING").uppercase(),
+                                    json
+                                )
+                            } else {
+                                Triple(message.id.takeLast(6), "PENDING", null)
+                            }
+                        } catch (e: Exception) {
+                            Triple(message.id.takeLast(6), "PENDING", null)
+                        }
+                    }
+                    val orderId = orderDetails.first
+                    val currentStatus = orderDetails.second
+                    var showStatusMenu by remember { mutableStateOf(false) }
+
+                    val (statusLabel, statusBg, statusColor) = when (currentStatus) {
+                        "CONFIRMED" -> Triple("Confirmed", Color(0xFFE0F2FE), Color(0xFF0284C7))
+                        "PREPARING" -> Triple("Preparing", Color(0xFFEDE9FE), Color(0xFF6D28D9))
+                        "OUT_FOR_DELIVERY" -> Triple("Out for Delivery", Color(0xFFDBEAFE), Color(0xFF2563EB))
+                        "COMPLETED" -> Triple("Completed ✓", Color(0xFFDCFCE7), Color(0xFF15803D))
+                        "CANCELLED" -> Triple("Cancelled ✕", Color(0xFFFEE2E2), Color(0xFFDC2626))
+                        else -> Triple("Pending", Color(0xFFFEF3C7), Color(0xFFD97706))
+                    }
+
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = if (isDarkMode) Color(0xFF1F2C33) else Color(0xFFFFFFFF),
@@ -698,6 +740,7 @@ fun MessageBubble(
                             .clip(RoundedCornerShape(12.dp))
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
+                            // Header Row with Title, Status Badge, and Overflow Menu
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -706,37 +749,88 @@ fun MessageBubble(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(34.dp)
                                             .clip(CircleShape)
-                                            .background(WhatsAppEmerald.copy(alpha = 0.15f)),
+                                            .background(statusColor.copy(alpha = 0.15f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.ShoppingCart,
                                             contentDescription = null,
-                                            tint = WhatsAppEmerald,
+                                            tint = statusColor,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Customer Order",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Column {
+                                        Text(
+                                            text = "Customer Order",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "#${orderId.takeLast(8)}",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = WhatsAppEmerald.copy(alpha = 0.15f)
-                                ) {
-                                    Text(
-                                        text = "New Order",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = WhatsAppEmerald,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                    )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = statusBg
+                                    ) {
+                                        Text(
+                                            text = statusLabel,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = statusColor,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+
+                                    Box {
+                                        IconButton(
+                                            onClick = { showStatusMenu = true },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.MoreVert,
+                                                contentDescription = "Change Status",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showStatusMenu,
+                                            onDismissRequest = { showStatusMenu = false }
+                                        ) {
+                                            listOf(
+                                                "PENDING" to "Pending",
+                                                "CONFIRMED" to "Confirmed",
+                                                "PREPARING" to "Preparing",
+                                                "OUT_FOR_DELIVERY" to "Out for Delivery",
+                                                "COMPLETED" to "Completed",
+                                                "CANCELLED" to "Cancelled"
+                                            ).forEach { (statusKey, label) ->
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(
+                                                            text = label,
+                                                            fontWeight = if (currentStatus == statusKey) FontWeight.Bold else FontWeight.Normal,
+                                                            color = if (currentStatus == statusKey) WhatsAppEmerald else MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        showStatusMenu = false
+                                                        onUpdateOrderStatus?.invoke(message, orderId, statusKey)
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -745,12 +839,133 @@ fun MessageBubble(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
 
+                            // Order Content / Summary
                             Text(
                                 text = message.content,
                                 fontSize = 13.sp,
                                 lineHeight = 18.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Action Buttons based on status progression:
+                            // Pending -> Confirmed -> Preparing -> Out for Delivery -> Completed / Cancelled
+                            when (currentStatus) {
+                                "PENDING" -> {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "CONFIRMED") },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Confirm Order", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        OutlinedButton(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "CANCELLED") },
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.Close, contentDescription = null, tint = Color.Red, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Cancel", fontSize = 12.sp, color = Color.Red, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+                                "CONFIRMED" -> {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "PREPARING") },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6D28D9)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text("Start Preparing", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        OutlinedButton(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "CANCELLED") },
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text("Cancel", fontSize = 12.sp, color = Color.Red, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+                                "PREPARING" -> {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "OUT_FOR_DELIVERY") },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text("Out for Delivery", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        OutlinedButton(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "CANCELLED") },
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text("Cancel", fontSize = 12.sp, color = Color.Red, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+                                "OUT_FOR_DELIVERY" -> {
+                                    Button(
+                                        onClick = { onUpdateOrderStatus?.invoke(message, orderId, "COMPLETED") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Icon(Icons.Default.DoneAll, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Mark as Completed", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                "COMPLETED" -> {
+                                    Surface(
+                                        color = Color(0xFFDCFCE7),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF15803D), modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Order Fulfilled & Completed", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                                        }
+                                    }
+                                }
+                                "CANCELLED" -> {
+                                    Surface(
+                                        color = Color(0xFFFEE2E2),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Order Cancelled", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

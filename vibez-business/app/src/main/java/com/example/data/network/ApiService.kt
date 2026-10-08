@@ -327,4 +327,12 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: ToggleChatLabelRequest
     ): ChatLabelDto
+
+    @PUT("api/business/orders/{id}/status")
+    suspend fun updateOrderStatus(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body body: Map<String, String>
+    ): Map<String, Any?>
 }
+

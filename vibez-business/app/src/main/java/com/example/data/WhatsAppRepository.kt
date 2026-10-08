@@ -172,6 +172,12 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
                 }
             }
 
+            onOrderStatusUpdatedReceived = { chatId, messageId, orderId, status ->
+                repositoryScope.launch {
+                    updateLocalOrderStatus(chatId, messageId, orderId, status)
+                }
+            }
+
             onCallOfferReceived = { data ->
                 _incomingCall.value = data
             }
@@ -2211,4 +2217,73 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             null
         }
     }
+
+    suspend fun updateLocalOrderStatus(chatId: String, messageId: String?, orderId: String?, status: String) {
+        try {
+            var msg: MessageEntity? = null
+            if (!messageId.isNullOrBlank()) {
+                msg = dao.getMessageById(messageId) ?: dao.getMessageByRemoteId(messageId)
+            }
+            if (msg == null && !orderId.isNullOrBlank()) {
+                val chatMessages = dao.getMessagesForChatOneShot(chatId)
+                msg = chatMessages.firstOrNull { it.mediaUrl.contains(orderId) || it.content.contains(orderId) }
+            }
+            if (msg == null) {
+                val chatMessages = dao.getMessagesForChatOneShot(chatId)
+                msg = chatMessages.filter { it.messageType == "ORDER" }.maxByOrNull { it.timestamp }
+            }
+
+            if (msg != null) {
+                val updatedMediaUrl = try {
+                    val json = if (msg.mediaUrl.isNotBlank()) org.json.JSONObject(msg.mediaUrl) else org.json.JSONObject()
+                    json.put("status", status)
+                    if (!orderId.isNullOrBlank() && !json.has("orderId")) {
+                        json.put("orderId", orderId)
+                    }
+                    json.put("updatedAt", System.currentTimeMillis())
+                    json.toString()
+                } catch (e: Exception) {
+                    msg.mediaUrl
+                }
+                dao.updateMessage(msg.copy(mediaUrl = updatedMediaUrl))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("WhatsAppRepository", "Error updating local order status", e)
+        }
+    }
+
+    suspend fun updateOrderStatus(chatId: String, messageId: String, orderId: String, newStatus: String): Boolean {
+        return try {
+            // 1. Instantly update local database for zero-latency UI update
+            updateLocalOrderStatus(chatId, messageId, orderId, newStatus)
+
+            // 2. Emit WebSocket update to notify all parties in real-time
+            socketManager?.emitUpdateOrderStatus(chatId, messageId, orderId, newStatus)
+
+            // 3. Make REST API call
+            val token = context?.let { AuthManager(it).getAuthToken() }
+            if (!token.isNullOrBlank()) {
+                try {
+                    val body = mapOf(
+                        "status" to newStatus,
+                        "chatId" to chatId,
+                        "messageId" to messageId,
+                        "orderId" to orderId
+                    )
+                    NetworkClient.apiService.updateOrderStatus(
+                        "Bearer $token",
+                        if (orderId.isNotBlank()) orderId else messageId,
+                        body
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w("WhatsAppRepository", "REST order status update fallback", e)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("WhatsAppRepository", "Failed to update order status", e)
+            false
+        }
+    }
 }
+

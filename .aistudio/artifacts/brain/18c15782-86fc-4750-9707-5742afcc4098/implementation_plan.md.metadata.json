@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan for Automatic Chat History Migration and Business Data Archiving when switching or logging into the Consumer app with an existing Business account number.",
-  "updatedAt":  "2026-10-04T21:23:01.681663430Z",
+  "summary":  "Complete implementation plan for in-chat order status updates directly from merchant action buttons, syncing across VIBEZ Business, VIBEZ Consumer, and the Node/Socket backend in real-time.",
+  "updatedAt":  "2026-10-08T13:16:14.592127172Z",
   "requestFeedback":  true,
   "userFacing":  true
 }
