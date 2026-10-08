@@ -1032,6 +1032,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
         // VIBEZ BUSINESS ROUTES
         // ==============================
         composable("business_tools") {
+            val userAccountType by viewModel.currentUserAccountType.collectAsState()
+            val isBiz = userAccountType == "BUSINESS"
             BusinessToolsScreen(
                 onBackClick = { navController.popBackStack() },
                 onNavigateToProfile = { navController.navigate("business_profile") },
@@ -1039,7 +1041,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onNavigateToGreetingMessage = { navController.navigate("automated_messages") },
                 onNavigateToAwayMessage = { navController.navigate("automated_messages") },
                 onNavigateToQuickReplies = { navController.navigate("quick_replies") },
-                onNavigateToLabels = { navController.navigate("chat_labels") }
+                onNavigateToLabels = { navController.navigate("chat_labels") },
+                isBusiness = isBiz,
+                onNavigateToMigration = { navController.navigate("account_migration") }
             )
         }
 
@@ -1096,13 +1100,19 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
 
         composable("business_catalog") {
             val catalogItems by viewModel.businessCatalogItems.collectAsState()
+            val userAccountType by viewModel.currentUserAccountType.collectAsState()
+            val isBiz = userAccountType == "BUSINESS"
 
             LaunchedEffect(Unit) {
-                viewModel.loadCatalog()
+                if (isBiz) {
+                    viewModel.loadCatalog()
+                }
             }
 
             BusinessCatalogScreen(
-                items = catalogItems,
+                items = if (isBiz) catalogItems else emptyList(),
+                isBusiness = isBiz,
+                onNavigateToMigration = { navController.navigate("account_migration") },
                 onBackClick = { navController.popBackStack() },
                 onAddItem = { title, price, description, imageUrl, link ->
                     viewModel.addCatalogItem(title, price, description, imageUrl, link)

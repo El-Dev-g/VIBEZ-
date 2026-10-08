@@ -14,19 +14,23 @@ export interface PublicAppConfig {
 }
 
 export const getBackendUrl = (): string => {
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+    if (import.meta.env.VITE_SERVER_URL) return import.meta.env.VITE_SERVER_URL.replace(/\/+$/, '');
+    if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, '');
   }
-  if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '');
+    if (process.env.NEXT_PUBLIC_SERVER_URL) return process.env.NEXT_PUBLIC_SERVER_URL.replace(/\/+$/, '');
   }
-  return '';
+  // Robust production fallback to server host
+  return 'https://vibez-server.onrender.com';
 };
 
 export const fetchPublicAppConfig = async (): Promise<PublicAppConfig> => {
   try {
     const base = getBackendUrl();
-    const url = base ? `${base}/api/config/public` : '/api/config/public';
+    const url = `${base}/api/config/public`;
     const res = await fetch(url, { cache: 'no-store' });
     if (res.ok) {
       const text = await res.text();
@@ -56,7 +60,7 @@ export const fetchPublicAppConfig = async (): Promise<PublicAppConfig> => {
 
 export const submitContactForm = async (data: { name: string; email: string; subject: string; message: string }) => {
   const base = getBackendUrl();
-  const url = base ? `${base}/api/contact` : '/api/contact';
+  const url = `${base}/api/contact`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

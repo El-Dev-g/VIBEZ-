@@ -37,6 +37,8 @@ import com.example.ui.theme.WhatsAppMinimalPrimary
 fun BusinessCatalogScreen(
     onBackClick: () -> Unit,
     items: List<CatalogItemDto> = emptyList(),
+    isBusiness: Boolean = true,
+    onNavigateToMigration: () -> Unit = {},
     onAddItem: (title: String, price: Double, description: String, imageUrl: String?, link: String) -> Unit = { _, _, _, _, _ -> },
     onDeleteItem: (id: String) -> Unit = {},
     onShareItemToChat: (item: CatalogItemDto) -> Unit = {}
@@ -103,7 +105,37 @@ fun BusinessCatalogScreen(
                 )
             }
 
-            if (catalogList.isEmpty()) {
+            if (!isBusiness) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.Storefront, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(56.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Catalog Unavailable", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Product catalogs are exclusively available for official Business Accounts. Convert your account to showcase products and pricing.",
+                                fontSize = 13.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = onNavigateToMigration, colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald)) {
+                                Text("Convert to Business Account", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            } else if (catalogList.isEmpty()) {
                 item {
                     Column(
                         modifier = Modifier

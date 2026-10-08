@@ -40,17 +40,40 @@ export class BusinessController {
         }
       });
 
-      if (!profile && req.user?.id === targetUserId) {
-        // Create initial default business profile
-        const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+      const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+      if (!user || user.accountType !== 'BUSINESS') {
+        return res.status(404).json({ error: 'User is not a business account', isBusiness: false });
+      }
+
+      let profile = await prisma.businessProfile.findUnique({
+        where: { userId: targetUserId },
+        include: {
+          catalogItems: {
+            where: { isAvailable: true },
+            orderBy: { createdAt: 'desc' }
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phoneNumber: true,
+              avatarUrl: true,
+              accountType: true
+            }
+          }
+        }
+      });
+
+      if (!profile) {
+        // Create initial default business profile if user is a business account
         profile = await prisma.businessProfile.create({
           data: {
             userId: targetUserId,
-            businessName: user?.name ? `${user.name} Business` : 'My Business',
+            businessName: user.name ? `${user.name} Business` : 'My Business',
             category: 'Retail & Shopping',
             description: 'Welcome to our official Vibez Business page!',
             businessHours: 'Mon - Fri: 9:00 AM - 6:00 PM',
-            email: user?.phoneNumber ? `${user.phoneNumber}@vibez.app` : 'business@vibez.app'
+            email: user.phoneNumber ? `${user.phoneNumber}@vibez.app` : 'business@vibez.app'
           },
           include: {
             catalogItems: true,
@@ -243,8 +266,10 @@ export class BusinessController {
   // Catalog Item Management
   async getCatalog(req: AuthRequest, res: Response) {
     try {
-      const businessUserId = (req.query.userId as string) || req.user?.id;
-      if (!businessUserId) return res.status(400).json({ error: 'User ID required' });
+      const user = await prisma.user.findUnique({ where: { id: businessUserId } });
+      if (!user || user.accountType !== 'BUSINESS') {
+        return res.json([]);
+      }
 
       const profile = await prisma.businessProfile.findUnique({
         where: { userId: businessUserId }

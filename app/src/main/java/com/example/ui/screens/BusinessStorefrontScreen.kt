@@ -238,6 +238,55 @@ fun BusinessStorefrontScreen(
             ) {
                 CircularProgressIndicator(color = WhatsAppEmerald)
             }
+        } else if (profile == null || profile?.user?.accountType == "CONSUMER") {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Store,
+                            contentDescription = null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Personal Account",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "This contact is using a personal account. Product catalogs and business information are only available for official Business Accounts.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = onBackClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Back to Chat", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         } else {
             LazyColumn(
                 modifier = Modifier

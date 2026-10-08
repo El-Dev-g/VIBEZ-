@@ -34,7 +34,9 @@ fun BusinessToolsScreen(
     onNavigateToGreetingMessage: () -> Unit,
     onNavigateToAwayMessage: () -> Unit,
     onNavigateToQuickReplies: () -> Unit,
-    onNavigateToLabels: () -> Unit
+    onNavigateToLabels: () -> Unit,
+    isBusiness: Boolean = true,
+    onNavigateToMigration: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -69,6 +71,48 @@ fun BusinessToolsScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
+            if (!isBusiness) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .clickable { onNavigateToMigration() },
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Personal Account Active",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "You are currently using a personal account. Upgrade to a Vibez Business Account to create catalogs, set operating hours, and automate customer chats.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = onNavigateToMigration,
+                            colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Convert to Business Account", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             // Header Banner
             Surface(
                 color = WhatsAppMinimalPrimary.copy(alpha = 0.08f),
