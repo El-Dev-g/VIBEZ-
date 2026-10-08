@@ -10,6 +10,7 @@ export interface AuthRequest extends Request {
     role?: string;
     isAdmin?: boolean;
     firebaseVerified?: boolean;
+    googleEmail?: string;
   };
   admin?: {
     id: string;
