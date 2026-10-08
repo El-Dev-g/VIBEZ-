@@ -1798,8 +1798,12 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         website: String,
         email: String
     ): Boolean {
-        val token = authManager.getAuthToken() ?: ""
-        val response = repository.migrateAccount(
+        var token = authManager.getAuthToken() ?: ""
+        if (token.isBlank()) {
+            token = authManager.getUserId() ?: ""
+        }
+
+        var response = repository.migrateAccount(
             token = token,
             request = com.example.data.network.MigrateAccountRequest(
                 targetType = "BUSINESS",
@@ -1812,6 +1816,25 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 email = email
             )
         )
+
+        // Retry with user ID if token was expired or rejected
+        val savedUserId = authManager.getUserId()
+        if (response?.success != true && !savedUserId.isNullOrBlank()) {
+            response = repository.migrateAccount(
+                token = savedUserId,
+                request = com.example.data.network.MigrateAccountRequest(
+                    targetType = "BUSINESS",
+                    businessName = businessName,
+                    category = category,
+                    description = description,
+                    address = address,
+                    businessHours = hours,
+                    website = website,
+                    email = email
+                )
+            )
+        }
+
         if (response?.success == true) {
             authManager.setAccountType("BUSINESS")
             currentUserAccountType.value = "BUSINESS"

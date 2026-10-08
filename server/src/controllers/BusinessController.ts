@@ -81,8 +81,13 @@ export class BusinessController {
   // Migrate Account between CONSUMER and BUSINESS
   async migrateAccount(req: AuthRequest, res: Response) {
     try {
-      const userId = req.user?.id;
-      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const authUserId = req.user?.id;
+      const reqPhone = req.user?.phoneNumber;
+      const reqEmail = req.user?.email || req.user?.googleEmail;
+
+      if (!authUserId && !reqPhone && !reqEmail) {
+        return res.status(401).json({ error: 'Unauthorized: No user credentials found' });
+      }
 
       const {
         targetType = 'BUSINESS',
@@ -94,39 +99,68 @@ export class BusinessController {
         businessHours,
         website,
         email
-      } = req.body;
+      } = req.body || {};
 
       const validTargetType = targetType === 'CONSUMER' ? 'CONSUMER' : 'BUSINESS';
 
-      const user = await prisma.user.update({
-        where: { id: userId },
-        data: { accountType: validTargetType }
-      });
+      // 1. Resolve target user record in database
+      let user = authUserId ? await prisma.user.findUnique({ where: { id: authUserId } }) : null;
+      if (!user && reqPhone) {
+        user = await prisma.user.findFirst({ where: { phoneNumber: reqPhone } });
+      }
+      if (!user && reqEmail) {
+        user = await prisma.user.findFirst({ where: { googleEmail: reqEmail } });
+      }
+
+      // If user still doesn't exist, create initial record
+      if (!user) {
+        const phoneToUse = reqPhone || (reqEmail ? `g_${reqEmail}` : `u_${Date.now()}`);
+        user = await prisma.user.create({
+          data: {
+            id: authUserId || undefined,
+            phoneNumber: phoneToUse,
+            googleEmail: reqEmail || null,
+            name: businessName || 'User',
+            accountType: validTargetType
+          }
+        });
+      } else {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { accountType: validTargetType }
+        });
+      }
 
       let profile = null;
       if (validTargetType === 'BUSINESS') {
+        const cleanBizName = (businessName && businessName.trim()) || user.name || 'My Business';
+        const cleanCategory = (category && category.trim()) || 'Shopping & Retail';
+        const cleanDesc = (description && description.trim()) || 'Welcome to our official Vibez Business page!';
+        const cleanHours = (businessHours && businessHours.trim()) || 'Mon - Fri: 9:00 AM - 6:00 PM';
+        const cleanEmail = (email && email.trim()) || user.googleEmail || (user.phoneNumber ? `${user.phoneNumber.replace(/[^\d+]/g, '')}@vibez.app` : 'business@vibez.app');
+
         profile = await prisma.businessProfile.upsert({
-          where: { userId },
+          where: { userId: user.id },
           update: {
-            businessName: businessName || user.name || 'My Business',
-            category: category || 'Shopping & Retail',
-            description,
-            coverImageUrl,
-            address,
-            businessHours: businessHours || 'Mon - Fri: 9:00 AM - 6:00 PM',
-            website,
-            email: email || (user.phoneNumber ? `${user.phoneNumber}@vibez.app` : 'business@vibez.app')
+            businessName: cleanBizName,
+            category: cleanCategory,
+            description: cleanDesc,
+            coverImageUrl: coverImageUrl || null,
+            address: address || null,
+            businessHours: cleanHours,
+            website: website || null,
+            email: cleanEmail
           },
           create: {
-            userId,
-            businessName: businessName || user.name || 'My Business',
-            category: category || 'Shopping & Retail',
-            description,
-            coverImageUrl,
-            address,
-            businessHours: businessHours || 'Mon - Fri: 9:00 AM - 6:00 PM',
-            website,
-            email: email || (user.phoneNumber ? `${user.phoneNumber}@vibez.app` : 'business@vibez.app')
+            userId: user.id,
+            businessName: cleanBizName,
+            category: cleanCategory,
+            description: cleanDesc,
+            coverImageUrl: coverImageUrl || null,
+            address: address || null,
+            businessHours: cleanHours,
+            website: website || null,
+            email: cleanEmail
           },
           include: {
             catalogItems: true,
@@ -143,7 +177,7 @@ export class BusinessController {
         });
       } else {
         profile = await prisma.businessProfile.findUnique({
-          where: { userId },
+          where: { userId: user.id },
           include: {
             catalogItems: true,
             user: {
@@ -159,7 +193,7 @@ export class BusinessController {
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         accountType: validTargetType,
         profile,
@@ -171,9 +205,9 @@ export class BusinessController {
           accountType: user.accountType
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error migrating account:', error);
-      res.status(500).json({ error: 'Failed to migrate account' });
+      return res.status(500).json({ error: 'Failed to migrate account', details: error?.message || 'Server error' });
     }
   }
 
