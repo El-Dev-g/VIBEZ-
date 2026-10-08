@@ -21,31 +21,12 @@ export class BusinessController {
         return res.status(401).json({ error: 'User ID is required' });
       }
 
-      let profile = await prisma.businessProfile.findUnique({
-        where: { userId: targetUserId },
-        include: {
-          catalogItems: {
-            where: { isAvailable: true },
-            orderBy: { createdAt: 'desc' }
-          },
-          user: {
-            select: {
-              id: true,
-              name: true,
-              phoneNumber: true,
-              avatarUrl: true,
-              accountType: true
-            }
-          }
-        }
-      });
-
       const user = await prisma.user.findUnique({ where: { id: targetUserId } });
       if (!user || user.accountType !== 'BUSINESS') {
         return res.status(404).json({ error: 'User is not a business account', isBusiness: false });
       }
 
-      let profile = await prisma.businessProfile.findUnique({
+      let businessProfile = await prisma.businessProfile.findUnique({
         where: { userId: targetUserId },
         include: {
           catalogItems: {
@@ -64,9 +45,9 @@ export class BusinessController {
         }
       });
 
-      if (!profile) {
+      if (!businessProfile) {
         // Create initial default business profile if user is a business account
-        profile = await prisma.businessProfile.create({
+        businessProfile = await prisma.businessProfile.create({
           data: {
             userId: targetUserId,
             businessName: user.name ? `${user.name} Business` : 'My Business',
@@ -90,10 +71,10 @@ export class BusinessController {
         });
       }
 
-      res.json(profile);
+      return res.json(businessProfile);
     } catch (error) {
       console.error('Error fetching business profile:', error);
-      res.status(500).json({ error: 'Failed to fetch business profile' });
+      return res.status(500).json({ error: 'Failed to fetch business profile' });
     }
   }
 
@@ -266,26 +247,31 @@ export class BusinessController {
   // Catalog Item Management
   async getCatalog(req: AuthRequest, res: Response) {
     try {
+      const businessUserId = (req.query.userId as string) || (req.params.userId as string) || req.user?.id;
+      if (!businessUserId) {
+        return res.json([]);
+      }
+
       const user = await prisma.user.findUnique({ where: { id: businessUserId } });
       if (!user || user.accountType !== 'BUSINESS') {
         return res.json([]);
       }
 
-      const profile = await prisma.businessProfile.findUnique({
+      const businessProfile = await prisma.businessProfile.findUnique({
         where: { userId: businessUserId }
       });
 
-      if (!profile) return res.json([]);
+      if (!businessProfile) return res.json([]);
 
       const items = await prisma.catalogItem.findMany({
-        where: { businessId: profile.id },
+        where: { businessId: businessProfile.id },
         orderBy: { createdAt: 'desc' }
       });
 
-      res.json(items);
+      return res.json(items);
     } catch (error) {
       console.error('Error fetching catalog:', error);
-      res.status(500).json({ error: 'Failed to fetch catalog' });
+      return res.status(500).json({ error: 'Failed to fetch catalog' });
     }
   }
 
@@ -294,12 +280,12 @@ export class BusinessController {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-      let profile = await prisma.businessProfile.findUnique({
+      let businessProfile = await prisma.businessProfile.findUnique({
         where: { userId }
       });
 
-      if (!profile) {
-        profile = await prisma.businessProfile.create({
+      if (!businessProfile) {
+        businessProfile = await prisma.businessProfile.create({
           data: {
             userId,
             businessName: 'My Business'
@@ -312,7 +298,7 @@ export class BusinessController {
 
       const item = await prisma.catalogItem.create({
         data: {
-          businessId: profile.id,
+          businessId: businessProfile.id,
           title,
           description,
           price: parseFloat(price) || 0.0,
@@ -323,10 +309,10 @@ export class BusinessController {
         }
       });
 
-      res.json(item);
+      return res.json(item);
     } catch (error) {
       console.error('Error adding catalog item:', error);
-      res.status(500).json({ error: 'Failed to add catalog item' });
+      return res.status(500).json({ error: 'Failed to add catalog item' });
     }
   }
 
@@ -367,9 +353,9 @@ export class BusinessController {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-      let profile = await prisma.businessProfile.findUnique({ where: { userId } });
-      if (!profile) {
-        profile = await prisma.businessProfile.create({
+      let businessProfile = await prisma.businessProfile.findUnique({ where: { userId } });
+      if (!businessProfile) {
+        businessProfile = await prisma.businessProfile.create({
           data: { userId, businessName: 'My Business' }
         });
       }
@@ -384,7 +370,7 @@ export class BusinessController {
         if (!raw.title) continue;
         const created = await prisma.catalogItem.create({
           data: {
-            businessId: profile.id,
+            businessId: businessProfile.id,
             title: String(raw.title),
             description: raw.description ? String(raw.description) : null,
             price: parseFloat(raw.price) || 0.0,
@@ -397,10 +383,10 @@ export class BusinessController {
         createdItems.push(created);
       }
 
-      res.json({ success: true, count: createdItems.length, items: createdItems });
+      return res.json({ success: true, count: createdItems.length, items: createdItems });
     } catch (error) {
       console.error('Error importing catalog items:', error);
-      res.status(500).json({ error: 'Failed to import catalog items' });
+      return res.status(500).json({ error: 'Failed to import catalog items' });
     }
   }
 

@@ -348,7 +348,7 @@ fun UserProfileScreen(
                                     ProfileActionButton(icon = Icons.AutoMirrored.Filled.Chat, label = "Chat Now", onClick = { onMessageClick?.invoke() })
                                     ProfileActionButton(icon = Icons.Default.Call, label = "Voice Call", onClick = { onVoiceCallClick?.invoke() })
                                     ProfileActionButton(icon = Icons.Default.Videocam, label = "Video Call", onClick = { onVideoCallClick?.invoke() })
-                                    if (onBusinessStorefrontClick != null) {
+                                    if (isBusiness && onBusinessStorefrontClick != null) {
                                         ProfileActionButton(icon = Icons.Default.ShoppingBag, label = "Catalog", onClick = { onBusinessStorefrontClick.invoke() })
                                     }
                                 }
@@ -626,7 +626,7 @@ fun UserProfileScreen(
                                 ProfileActionButton(icon = Icons.AutoMirrored.Filled.Chat, label = "Message", onClick = { onMessageClick?.invoke() })
                                 ProfileActionButton(icon = Icons.Default.Call, label = "Audio", onClick = { onVoiceCallClick?.invoke() })
                                 ProfileActionButton(icon = Icons.Default.Videocam, label = "Video", onClick = { onVideoCallClick?.invoke() })
-                                if (onBusinessStorefrontClick != null) {
+                                if (isBusiness && onBusinessStorefrontClick != null) {
                                     ProfileActionButton(icon = Icons.Default.Storefront, label = "Store", onClick = { onBusinessStorefrontClick.invoke() })
                                 }
                             }

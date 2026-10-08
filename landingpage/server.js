@@ -1,4 +1,5 @@
 import http from 'http';
+import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,6 +9,7 @@ const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 3001;
 const DIST_DIR = path.join(__dirname, 'dist');
+const BACKEND_URL = process.env.VITE_BACKEND_URL || process.env.VITE_API_URL || process.env.BACKEND_URL || 'https://vibez-server.onrender.com';
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=UTF-8',
@@ -27,7 +29,51 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   let reqUrl = req.url.split('?')[0];
+
+  // Proxy API requests to backend server directly
+  if (reqUrl.startsWith('/api/')) {
+    try {
+      const cleanBackend = BACKEND_URL.replace(/\/+$/, '').replace(/\/api$/, '');
+      const targetUrl = new URL(req.url, cleanBackend);
+      const clientReq = (targetUrl.protocol === 'https:' ? https : http).request(
+        targetUrl,
+        {
+          method: req.method,
+          headers: {
+            ...req.headers,
+            host: targetUrl.host,
+          },
+        },
+        (backendRes) => {
+          res.writeHead(backendRes.statusCode, backendRes.headers);
+          backendRes.pipe(res);
+        }
+      );
+
+      clientReq.on('error', (err) => {
+        console.error('Landing Page API Proxy Error:', err.message);
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Backend server unreachable', details: err.message }));
+      });
+
+      req.pipe(clientReq);
+      return;
+    } catch (err) {
+      console.error('Landing Page API Proxy Parse Error:', err.message);
+    }
+  }
 
   let filePath = path.join(DIST_DIR, reqUrl);
 

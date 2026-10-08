@@ -14,17 +14,19 @@ export interface PublicAppConfig {
 }
 
 export const getBackendUrl = (): string => {
+  let envUrl = '';
   if (typeof import.meta !== 'undefined' && import.meta.env) {
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
-    if (import.meta.env.VITE_SERVER_URL) return import.meta.env.VITE_SERVER_URL.replace(/\/+$/, '');
-    if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, '');
+    envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_BACKEND_URL || '';
   }
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '');
-    if (process.env.NEXT_PUBLIC_SERVER_URL) return process.env.NEXT_PUBLIC_SERVER_URL.replace(/\/+$/, '');
+  if (!envUrl && typeof process !== 'undefined' && process.env) {
+    envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SERVER_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
   }
-  // Robust production fallback to server host
-  return 'https://vibez-server.onrender.com';
+
+  let clean = (envUrl || 'https://vibez-server.onrender.com').trim().replace(/\/+$/, '');
+  if (clean.endsWith('/api')) {
+    clean = clean.substring(0, clean.length - 4);
+  }
+  return clean || 'https://vibez-server.onrender.com';
 };
 
 export const fetchPublicAppConfig = async (): Promise<PublicAppConfig> => {
@@ -35,7 +37,11 @@ export const fetchPublicAppConfig = async (): Promise<PublicAppConfig> => {
     if (res.ok) {
       const text = await res.text();
       if (text && text.trim().length > 0) {
-        return JSON.parse(text);
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          console.warn('Failed to parse public app config JSON:', e);
+        }
       }
     }
   } catch (error) {
@@ -72,11 +78,11 @@ export const submitContactForm = async (data: { name: string; email: string; sub
     try {
       parsed = JSON.parse(text);
     } catch {
-      parsed = { error: 'Invalid response from server' };
+      parsed = { error: `Server returned non-JSON response (HTTP ${res.status})` };
     }
   }
   if (!res.ok) {
-    throw new Error(parsed.error || parsed.message || 'Failed to submit contact message');
+    throw new Error(parsed.error || parsed.message || `Failed to submit contact message (HTTP ${res.status})`);
   }
   return parsed;
 };

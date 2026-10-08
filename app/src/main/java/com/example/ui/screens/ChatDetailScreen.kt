@@ -697,7 +697,7 @@ fun ChatDetailScreen(
                                 expanded = showOptionsMenu,
                                 onDismissRequest = { showOptionsMenu = false }
                             ) {
-                                if (!isChannel && !chat.isGroup) {
+                                if (!isChannel && !chat.isGroup && (contact?.accountType == "BUSINESS" || contact?.accountType.equals("BUSINESS", ignoreCase = true))) {
                                     val targetBizUserId = chat.contactId.takeIf { it.isNotBlank() && it != "ME" && it != currentUserId }
                                         ?: contact?.remoteId?.takeIf { it.isNotBlank() }
                                         ?: contact?.id?.takeIf { it.isNotBlank() }
@@ -904,7 +904,7 @@ fun ChatDetailScreen(
                         }
                     }
 
-                    if (!chat.isGroup) {
+                    if (!chat.isGroup && (contact?.accountType == "BUSINESS" || contact?.accountType.equals("BUSINESS", ignoreCase = true))) {
                         val targetBizUserId = chat.contactId.takeIf { it.isNotBlank() && it != "ME" && it != currentUserId }
                             ?: contact?.remoteId?.takeIf { it.isNotBlank() }
                             ?: contact?.id?.takeIf { it.isNotBlank() }
