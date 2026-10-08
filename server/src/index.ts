@@ -424,6 +424,20 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use('/uploads', express.static(uploadsDir, { acceptRanges: true, maxAge: '1d' }));
 
+// Static landing/status page serving for root / and /index.html
+const vibezLandingDir = path.resolve(__dirname, '../../vibez');
+if (fs.existsSync(vibezLandingDir)) {
+  app.use('/status-assets', express.static(vibezLandingDir));
+  app.get(['/', '/index.html', '/status.html'], (req, res) => {
+    const statusFile = path.join(vibezLandingDir, 'index.html');
+    if (fs.existsSync(statusFile)) {
+      res.sendFile(statusFile);
+    } else {
+      res.json({ status: 'online', appName: 'VIBEZ Server API Gateway', version: '1.0.0' });
+    }
+  });
+}
+
 // Media Routes
 app.post('/api/media/upload-url', authenticateOptional, async (req: any, res) => {
   try {

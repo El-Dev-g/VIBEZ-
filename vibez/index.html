@@ -512,7 +512,9 @@
 
   <!-- Telemetry & Health Checks -->
   <script>
-    const BACKEND_URL = 'https://vibez-n5h1.onrender.com';
+    const BACKEND_URL = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null' && !window.location.origin.includes('file://'))
+      ? window.location.origin
+      : 'https://vibez-n5h1.onrender.com';
 
     // Generate 90 status bars for each component
     function generateUptimeBars() {

@@ -21,12 +21,15 @@ export const getBackendUrl = (): string => {
   if (!envUrl && typeof process !== 'undefined' && process.env) {
     envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SERVER_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
   }
+  if (!envUrl && typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null' && !window.location.origin.includes('file://')) {
+    envUrl = window.location.origin;
+  }
 
-  let clean = (envUrl || 'https://vibez-server.onrender.com').trim().replace(/\/+$/, '');
+  let clean = (envUrl || 'https://vibez-2.onrender.com').trim().replace(/\/+$/, '');
   if (clean.endsWith('/api')) {
     clean = clean.substring(0, clean.length - 4);
   }
-  return clean || 'https://vibez-server.onrender.com';
+  return clean || 'https://vibez-2.onrender.com';
 };
 
 export const fetchPublicAppConfig = async (): Promise<PublicAppConfig> => {

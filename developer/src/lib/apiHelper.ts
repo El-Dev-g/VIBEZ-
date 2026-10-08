@@ -14,8 +14,13 @@ export function getApiBaseUrl(): string {
     return clean.endsWith('/api') ? clean : `${clean}/api`;
   }
 
+  if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null' && !window.location.origin.includes('file://')) {
+    const clean = window.location.origin.replace(/\/+$/, '');
+    return clean.endsWith('/api') ? clean : `${clean}/api`;
+  }
+
   // Fallback to production server endpoint
-  return 'https://vibez-server.onrender.com/api';
+  return 'https://vibez-2.onrender.com/api';
 }
 
 export async function safeFetchJson(endpointPath: string, options?: RequestInit) {
