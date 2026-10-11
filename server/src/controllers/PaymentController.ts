@@ -734,11 +734,23 @@ export class PaymentController {
   // Webhook: Update payment status from provider with secret validation & idempotency
   async updatePaymentStatus(req: Request, res: Response) {
     try {
-      // Validate webhook secret in production
       const webhookSecret = (req.headers['x-webhook-secret'] as string) || (req.query.secret as string);
-      const expectedSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-      if (process.env.NODE_ENV === 'production' && expectedSecret) {
-        if (webhookSecret !== expectedSecret) {
+      const expectedSecret = process.env.PAYMENT_WEBHOOK_SECRET?.trim();
+      const isProduction = process.env.NODE_ENV === 'production';
+
+      // 1. Fail closed: In production, webhook secret must be configured and strictly matched
+      if (isProduction) {
+        if (!expectedSecret) {
+          console.error('[Payment Webhook] Security Alert: PAYMENT_WEBHOOK_SECRET is not configured on production server.');
+          return res.status(503).json({ error: 'Webhook processing unavailable: Webhook security credentials unconfigured.' });
+        }
+        if (!webhookSecret || webhookSecret !== expectedSecret) {
+          console.warn('[Payment Webhook] Security Alert: Invalid or missing webhook secret header.');
+          return res.status(401).json({ error: 'Invalid or missing webhook secret' });
+        }
+      } else if (expectedSecret) {
+        // In non-production, if secret is set, it must match
+        if (!webhookSecret || webhookSecret !== expectedSecret) {
           return res.status(401).json({ error: 'Invalid webhook secret' });
         }
       }

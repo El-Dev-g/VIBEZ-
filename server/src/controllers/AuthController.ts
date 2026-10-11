@@ -143,19 +143,18 @@ export class AuthController {
 
   async googleLogin(req: AuthRequest, res: Response) {
     try {
-      const { email, name, avatarUrl, phoneNumber, idToken } = req.body;
+      const { idToken, phoneNumber } = req.body;
+      const isProduction = process.env.NODE_ENV === 'production';
+      const allowInsecure = process.env.ALLOW_INSECURE_AUTH === 'true' && !isProduction;
 
-      let verifiedEmail = email?.trim();
-      let verifiedName = name?.trim();
-      let verifiedAvatar = avatarUrl;
-      const cleanPhone = (phoneNumber || '').trim();
-
-      // If email is dummy or user@vibez.app and phone is provided, redirect to phone auth flow
-      if ((!verifiedEmail || verifiedEmail.endsWith('@vibez.app')) && cleanPhone) {
-        return this.phoneLogin(req, res);
+      if (!idToken && !allowInsecure) {
+        return res.status(401).json({ error: 'Valid Google ID Token is required for Google authentication.' });
       }
 
-      // Verify the idToken if provided
+      let verifiedEmail: string | null = null;
+      let verifiedName: string | null = null;
+      let verifiedAvatar: string | null = null;
+
       if (idToken) {
         try {
           const ticket = await client.verifyIdToken({
@@ -163,40 +162,39 @@ export class AuthController {
             audience: process.env.GOOGLE_CLIENT_ID,
           });
           const payload = ticket.getPayload();
-          if (payload) {
-            // Strictly use verified Google claims rather than unverified client values
-            verifiedEmail = payload.email || verifiedEmail;
-            verifiedName = payload.name || verifiedName;
-            verifiedAvatar = payload.picture || verifiedAvatar;
+          if (!payload) {
+            return res.status(401).json({ error: 'Invalid Google ID Token payload.' });
           }
+
+          if (!payload.email_verified) {
+            return res.status(401).json({ error: 'Google account email must be verified by Google.' });
+          }
+
+          verifiedEmail = payload.email || null;
+          verifiedName = payload.name || null;
+          verifiedAvatar = payload.picture || null;
         } catch (verificationError) {
-          console.error('ID Token verification failed:', verificationError);
-          return res.status(401).json({ error: 'Invalid Google ID Token' });
+          console.error('Google ID Token verification failed:', verificationError);
+          return res.status(401).json({ error: 'Invalid or expired Google ID Token.' });
         }
-      } else if (process.env.NODE_ENV === 'production' && !cleanPhone) {
-        return res.status(400).json({ error: 'ID Token is required in production' });
+      } else if (allowInsecure) {
+        // Non-production local test fallback only when explicitly permitted
+        verifiedEmail = req.body.email ? String(req.body.email).trim() : null;
+        verifiedName = req.body.name ? String(req.body.name).trim() : null;
+        verifiedAvatar = req.body.avatarUrl || null;
       }
 
-      if (!verifiedEmail && !cleanPhone) {
-        return res.status(400).json({ error: 'Email or phone number is required' });
+      if (!verifiedEmail) {
+        return res.status(400).json({ error: 'Verified email claim is required for Google authentication.' });
       }
 
       let user = null;
       let isNewUser = false;
 
-      // 1. Search by verified Google email if present
-      if (verifiedEmail) {
-        user = await prisma.user.findFirst({
-          where: { googleEmail: verifiedEmail }
-        });
-      }
-
-      // 2. If not found by email but phone provided, search by phone number
-      if (!user && cleanPhone) {
-        user = await prisma.user.findFirst({
-          where: { phoneNumber: cleanPhone }
-        });
-      }
+      // 1. Search exclusively by verified Google email
+      user = await prisma.user.findFirst({
+        where: { googleEmail: verifiedEmail }
+      });
 
       if (!user) {
         isNewUser = true;
@@ -205,17 +203,15 @@ export class AuthController {
           return res.status(403).json({ error: 'New user registrations are currently disabled by system administrator.' });
         }
 
-        const finalPhone = cleanPhone && cleanPhone.length > 0
-          ? cleanPhone
-          : `g_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+        const generatedPhone = `g_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
 
         user = await prisma.user.create({
           data: {
-            googleEmail: verifiedEmail || null,
+            googleEmail: verifiedEmail,
             name: verifiedName || 'New User',
             avatarUrl: verifiedAvatar,
-            phoneNumber: finalPhone,
-            authProvider: verifiedEmail ? 'GOOGLE' : 'PHONE'
+            phoneNumber: generatedPhone,
+            authProvider: 'GOOGLE'
           }
         });
       } else {
@@ -223,18 +219,13 @@ export class AuthController {
           return res.status(403).json({ error: 'Your account has been suspended by system administrator.' });
         }
 
-        const updateData: any = {
-          lastSeen: new Date()
-        };
-
-        if (verifiedEmail && !user.googleEmail) {
-          updateData.googleEmail = verifiedEmail;
-          updateData.authProvider = 'GOOGLE';
-        }
-
         user = await prisma.user.update({
           where: { id: user.id },
-          data: updateData
+          data: {
+            lastSeen: new Date(),
+            avatarUrl: verifiedAvatar || user.avatarUrl,
+            name: user.name && user.name !== 'New User' ? user.name : (verifiedName || user.name)
+          }
         });
       }
 

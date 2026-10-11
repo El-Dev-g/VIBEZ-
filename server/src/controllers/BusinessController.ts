@@ -775,14 +775,17 @@ export class BusinessController {
 
   async getOrders(req: AuthRequest, res: Response) {
     try {
-      const userId = req.user?.id || (req.query.userId as string);
-      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const authenticatedUserId = req.user?.id;
+      if (!authenticatedUserId) {
+        return res.status(401).json({ error: 'Unauthorized: Authentication required to view orders' });
+      }
 
+      // Check whether authenticated user is merchant or buyer
       const orders = await prisma.order.findMany({
         where: {
           OR: [
-            { businessId: userId },
-            { buyerId: userId }
+            { businessId: authenticatedUserId },
+            { buyerId: authenticatedUserId }
           ]
         },
         orderBy: { createdAt: 'desc' }
@@ -812,17 +815,39 @@ export class BusinessController {
 
       if (!userId || !status) return res.status(400).json({ error: 'Order ID and status required' });
 
-      let normalizedStatus = String(status).trim().toUpperCase();
+      let normalizedStatus = String(status).trim().toUpperCase().replace(/ /g, '_');
       if (normalizedStatus === 'OUT FOR DELIVERY') normalizedStatus = 'OUT_FOR_DELIVERY';
+
+      const ALLOWED_ORDER_STATUSES = new Set(['PENDING', 'CONFIRMED', 'PREPARING', 'PENDING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED']);
+      if (!ALLOWED_ORDER_STATUSES.has(normalizedStatus)) {
+        return res.status(400).json({ error: `Invalid order status: ${normalizedStatus}` });
+      }
+
+      // Verify order exists and authenticated user is authorized to manage it
+      const existingOrder = await prisma.order.findFirst({
+        where: {
+          OR: [
+            { id },
+            { id: { contains: id } }
+          ]
+        }
+      });
+
+      if (existingOrder) {
+        const isMerchant = existingOrder.businessId === userId;
+        const isBuyerCancelling = existingOrder.buyerId === userId && normalizedStatus === 'CANCELLED';
+        if (!isMerchant && !isBuyerCancelling) {
+          return res.status(403).json({ error: 'Forbidden: You do not have permission to manage this order' });
+        }
+      }
 
       let order: any = null;
       try {
         order = await prisma.order.update({
-          where: { id },
+          where: { id: existingOrder ? existingOrder.id : id },
           data: { status: normalizedStatus }
         });
       } catch (err) {
-        // If not found by primary key id, try updating by id matching orderId
         try {
           await prisma.order.updateMany({
             where: { id },

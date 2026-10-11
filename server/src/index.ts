@@ -40,17 +40,6 @@ checkSecretEntropy();
 const app = express();
 const httpServer = createServer(app);
 
-// Configure CORS for WebSocket
-const io = new Server(httpServer, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  },
-  maxHttpBufferSize: 1e7,
-  pingTimeout: 60000,
-  pingInterval: 25000
-});
-
 // Configure CORS for HTTP REST APIs with Security Rules
 const allowedOrigins = [
   process.env.ADMIN_FRONTEND_URL,
@@ -63,18 +52,54 @@ const allowedOrigins = [
   'https://render.com'
 ].filter(Boolean) as string[];
 
+const normalizeOrigin = (o: string): string => {
+  try {
+    const u = new URL(o);
+    return `${u.protocol}//${u.host}`.toLowerCase();
+  } catch (_) {
+    return o.trim().toLowerCase();
+  }
+};
+
+const normalizedAllowedOrigins = new Set(allowedOrigins.map(normalizeOrigin));
+
+const isOriginAllowed = (origin: string | undefined): boolean => {
+  if (!origin) return true; // Allow non-browser requests (mobile native apps, cURL, server-to-server)
+  const norm = normalizeOrigin(origin);
+  if (normalizedAllowedOrigins.has(norm)) return true;
+  if (process.env.NODE_ENV !== 'production') return true;
+  return false;
+};
+
+// Configure CORS for WebSocket with origin validation
+const io = new Server(httpServer, {
+  cors: {
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS origin not allowed by policy'));
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  maxHttpBufferSize: 1e7,
+  pingTimeout: 60000,
+  pingInterval: 25000
+});
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow non-browser requests (mobile apps, postman, server-to-server) or allowed web origins
-    if (!origin || allowedOrigins.some(o => origin.startsWith(o)) || process.env.NODE_ENV !== 'production') {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(null, true); // Permissive in dev/staging preview
+      callback(new Error('Not allowed by CORS policy'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'X-Client', 'X-Client-Platform', 'Accept', 'X-Client-Version', 'Origin']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'X-Client', 'X-Client-Platform', 'Accept', 'X-Client-Version', 'Origin', 'X-Webhook-Secret']
 }));
 
 app.options('*', cors());
@@ -359,25 +384,99 @@ app.post('/api/business/labels/toggle', authenticate, async (req: any, res: any)
   }
 });
 
-// Helper to process and broadcast order status updates
+// Helper to process and broadcast order status updates with strict authorization & transition checks
 const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: string; orderId?: string; status: string }, updaterUserId?: string) => {
   if (!data || !data.status) {
     return { success: false, error: 'Status is required' };
   }
 
+  if (!updaterUserId) {
+    return { success: false, error: 'Unauthorized: Authenticated user required to update order status' };
+  }
+
   const rawStatus = String(data.status).trim();
   let normalizedStatus = rawStatus.toUpperCase().replace(/ /g, '_');
+  if (normalizedStatus === 'OUT FOR DELIVERY') normalizedStatus = 'OUT_FOR_DELIVERY';
+
+  const ALLOWED_ORDER_STATUSES = new Set(['PENDING', 'CONFIRMED', 'PREPARING', 'PENDING_PAYMENT', 'PAID', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED']);
+  if (!ALLOWED_ORDER_STATUSES.has(normalizedStatus)) {
+    return { success: false, error: `Invalid order status: ${normalizedStatus}` };
+  }
 
   const orderId = data.orderId ? String(data.orderId).trim() : null;
   let chatId = data.chatId ? extractPureChatId(String(data.chatId)) : null;
   let targetMessage: any = null;
 
-  // 1. Update Order record in database if orderId exists
+  // 1. Authorize order updater against the target order & business
+  let existingOrder: any = null;
+  if (orderId) {
+    existingOrder = await prisma.order.findFirst({
+      where: {
+        OR: [
+          { id: orderId },
+          { id: { contains: orderId } }
+        ]
+      }
+    });
+  }
+
+  if (data.messageId) {
+    targetMessage = await prisma.message.findUnique({
+      where: { id: data.messageId }
+    });
+  }
+
+  if (!targetMessage && orderId) {
+    targetMessage = await prisma.message.findFirst({
+      where: { mediaUrl: { contains: orderId } }
+    });
+  }
+
+  // Verify permission: Updater must be the merchant (businessId), or buyer (for cancellation), or a member of the chat
+  let isAuthorized = false;
+  if (existingOrder) {
+    if (existingOrder.businessId === updaterUserId) {
+      isAuthorized = true;
+    } else if (existingOrder.buyerId === updaterUserId && normalizedStatus === 'CANCELLED') {
+      isAuthorized = true; // Buyers can cancel pending orders
+    }
+  }
+
+  const checkChatId = chatId || targetMessage?.chatId || existingOrder?.chatId;
+  if (!isAuthorized && checkChatId) {
+    const chatMembership = await prisma.chatMember.findFirst({
+      where: {
+        chatId: checkChatId,
+        userId: updaterUserId
+      }
+    });
+    if (chatMembership) {
+      isAuthorized = true;
+    }
+  }
+
+  // Check admin role as backup
+  if (!isAuthorized) {
+    const userRecord = await prisma.user.findUnique({ where: { id: updaterUserId } });
+    if (userRecord?.accountType === 'BUSINESS') {
+      // Check if business profile belongs to user
+      const bizProfile = await prisma.businessProfile.findUnique({ where: { userId: updaterUserId } });
+      if (bizProfile && existingOrder && existingOrder.businessId === bizProfile.id) {
+        isAuthorized = true;
+      }
+    }
+  }
+
+  if (!isAuthorized && existingOrder) {
+    return { success: false, error: 'Forbidden: You do not have permission to manage this order.' };
+  }
+
+  // 2. Update Order record in database if orderId exists
   let updatedOrderRecord: any = null;
   if (orderId) {
     try {
       updatedOrderRecord = await prisma.order.update({
-        where: { id: orderId },
+        where: { id: existingOrder ? existingOrder.id : orderId },
         data: { status: normalizedStatus }
       });
     } catch (_) {
@@ -390,24 +489,6 @@ const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: stri
         console.warn('Error updating order table:', err);
       }
     }
-  }
-
-  // 2. Find and update the corresponding Message in chat
-  if (data.messageId) {
-    targetMessage = await prisma.message.findUnique({
-      where: { id: data.messageId }
-    });
-  }
-
-  if (!targetMessage && orderId) {
-    // Find message by orderId inside mediaUrl
-    targetMessage = await prisma.message.findFirst({
-      where: {
-        mediaUrl: {
-          contains: orderId
-        }
-      }
-    });
   }
 
   if (targetMessage) {
@@ -525,7 +606,7 @@ const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: stri
 
 // Business Orders Routes
 app.post('/api/business/orders', authenticateOptional, (req, res) => business.createOrder(req as any, res as any));
-app.get('/api/business/orders', authenticateOptional, (req, res) => business.getOrders(req as any, res as any));
+app.get('/api/business/orders', authenticate, (req, res) => business.getOrders(req as any, res as any));
 app.put('/api/business/orders/:id/status', authenticate, async (req, res) => {
   const result = await handleOrderStatusUpdate({
     orderId: req.params.id,
@@ -729,40 +810,35 @@ io.use((socket, next) => {
   const token = (socket.handshake.auth?.token as string) ||
                 (socket.handshake.headers?.authorization?.replace(/^Bearer\s+/i, '') as string) ||
                 (socket.handshake.query?.token as string);
-  const queryUserId = socket.handshake.query?.userId as string;
 
-  if (token) {
-    try {
-      const decoded = verifyUserToken(token);
-      socket.data.userId = decoded.id;
-      socket.data.phoneNumber = decoded.phoneNumber;
-      socket.data.authenticated = true;
-      return next();
-    } catch (err: any) {
-      console.warn(`[Socket.IO] Authentication rejected: ${err.message}`);
-      return next(new Error('Authentication failed: Invalid or expired token'));
-    }
+  if (!token) {
+    return next(new Error('Authentication required: Valid session token must be provided to establish real-time connection.'));
   }
 
-  // Support transitional / fallback query userId while requiring valid identity in database
-  if (queryUserId) {
-    socket.data.userId = queryUserId;
-    socket.data.authenticated = false;
+  try {
+    const decoded = verifyUserToken(token);
+    socket.data.userId = decoded.id;
+    socket.data.phoneNumber = decoded.phoneNumber;
+    socket.data.authenticated = true;
     return next();
+  } catch (err: any) {
+    console.warn(`[Socket.IO] Authentication rejected: ${err.message}`);
+    return next(new Error('Authentication failed: Invalid or expired token'));
   }
-
-  return next(new Error('Authentication required: Token or userId missing'));
 });
 
 io.on('connection', (socket) => {
-  const rawUserId = socket.data.userId || (socket.handshake.query.userId as string);
-  const userId = rawUserId ? extractPureChatId(rawUserId) : null;
+  // Identity derived exclusively from cryptographically verified token
+  const userId = socket.data.userId ? extractPureChatId(socket.data.userId) : null;
+  const rawUserId = socket.data.userId;
+
   if (userId) {
     socket.join(`user_${userId}`);
     socket.join(`user_${rawUserId}`);
     socket.join(userId);
-    console.log(`[Socket.IO] User ${userId} connected with socket ID ${socket.id} (Authenticated: ${!!socket.data.authenticated})`);
+    console.log(`[Socket.IO] Verified user ${userId} connected with socket ID ${socket.id}`);
   }
+
   if (rawUserId) {
     CallingGateway.getInstance().registerSocket(io, socket, rawUserId);
   }
@@ -799,7 +875,7 @@ io.on('connection', (socket) => {
     let effectiveChatId = pureChatId;
     let roomName = getChatRoomName(pureChatId);
 
-    // If a userId is associated with this socket connection, verify or resolve chat existence & membership
+    // Verify or resolve chat existence & membership
     if (userId) {
       try {
         let chat = await prisma.chat.findUnique({
@@ -844,10 +920,22 @@ io.on('connection', (socket) => {
           roomName = getChatRoomName(chat.id);
           const isMember = chat.members.some(m => m.userId === userId);
           if (!isMember) {
-            await prisma.chatMember.create({
-              data: { chatId: chat.id, userId }
-            }).catch(() => {});
+            if (chat.isGroup) {
+              // Group chats require explicit invitation / join before joining socket room
+              return socket.emit('error', {
+                message: 'Forbidden: You are not a member of this group chat.',
+                chatId: pureChatId
+              });
+            } else {
+              // Non-group private chat between users
+              return socket.emit('error', {
+                message: 'Forbidden: You are not a participant in this conversation.',
+                chatId: pureChatId
+              });
+            }
           }
+        } else if (pureChatId !== 'vibez_ai_chat' && pureChatId !== 'vibez_ai') {
+          return socket.emit('error', { message: 'Chat does not exist.', chatId: pureChatId });
         }
       } catch (err) {
         console.error('[Socket.IO] Error validating join_chat:', err);
@@ -952,19 +1040,18 @@ io.on('connection', (socket) => {
       const effectiveChatId = chat.id;
       const roomName = getChatRoomName(effectiveChatId);
 
-      // Verify sender exists and is authorized
-      if (senderId) {
-        const isMember = chat.members.some(m => m.userId === senderId);
-        if (!isMember) {
-          const senderUser = await prisma.user.findUnique({ where: { id: senderId } });
-          if (senderUser) {
-            try {
-              await prisma.chatMember.create({
-                data: { chatId: effectiveChatId, userId: senderId }
-              });
-            } catch (memberErr) {}
-          }
+      // Strictly verify sender identity matches authenticated socket
+      if (senderId !== socket.data.userId) {
+        return socket.emit('error', { message: 'Security violation: Cannot impersonate another sender.' });
+      }
+
+      // Verify sender exists and is an authorized participant
+      const isMember = chat.members.some(m => m.userId === senderId);
+      if (!isMember) {
+        if (chat.isGroup) {
+          return socket.emit('error', { message: 'Forbidden: You are not a member of this group chat.' });
         }
+        return socket.emit('error', { message: 'Forbidden: You are not a participant in this conversation.' });
       }
 
       const message = await prisma.message.create({
@@ -1031,7 +1118,7 @@ io.on('connection', (socket) => {
   socket.on('typing', (data) => {
     if (!data?.chatId) return;
     const roomName = getChatRoomName(data.chatId);
-    socket.to(roomName).emit('user_typing', { ...data, chatId: extractPureChatId(data.chatId) });
+    socket.to(roomName).emit('user_typing', { ...data, chatId: extractPureChatId(data.chatId), userId: socket.data.userId });
   });
 
   socket.on('message_read', async (data) => {
@@ -1039,12 +1126,22 @@ io.on('connection', (socket) => {
       if (!data || !data.chatId) return;
       const rawChatId = String(data.chatId);
       const pureChatId = extractPureChatId(rawChatId);
-      const readerId = socket.data.userId || userId;
+      const readerId = socket.data.userId;
+      if (!readerId) return;
+
+      // Check chat membership before processing read receipts
+      const chat = await prisma.chat.findUnique({
+        where: { id: pureChatId },
+        include: { members: true }
+      });
+      if (chat && !chat.members.some(m => m.userId === readerId)) {
+        return; // Reject unauthorized read receipt updates
+      }
 
       await prisma.message.updateMany({
         where: {
           chatId: pureChatId,
-          senderId: { not: readerId || undefined },
+          senderId: { not: readerId },
           status: { not: 'READ' }
         },
         data: {
@@ -1081,7 +1178,17 @@ io.on('connection', (socket) => {
       if (!data || !data.chatId) return;
       const rawChatId = String(data.chatId);
       const pureChatId = extractPureChatId(rawChatId);
-      const receiverId = socket.data.userId || userId;
+      const receiverId = socket.data.userId;
+      if (!receiverId) return;
+
+      // Check chat membership before processing delivery receipts
+      const chat = await prisma.chat.findUnique({
+        where: { id: pureChatId },
+        include: { members: true }
+      });
+      if (chat && !chat.members.some(m => m.userId === receiverId)) {
+        return; // Reject unauthorized delivery receipt updates
+      }
 
       if (data.messageId) {
         await prisma.message.updateMany({
@@ -1097,7 +1204,7 @@ io.on('connection', (socket) => {
         await prisma.message.updateMany({
           where: {
             chatId: pureChatId,
-            senderId: { not: receiverId || undefined },
+            senderId: { not: receiverId },
             status: 'SENT'
           },
           data: {
@@ -1133,7 +1240,7 @@ io.on('connection', (socket) => {
   socket.on('update_order_status', async (data: any) => {
     // data: { chatId, messageId, orderId, status }
     try {
-      const result = await handleOrderStatusUpdate(data, socket.data?.userId || userId);
+      const result = await handleOrderStatusUpdate(data, socket.data?.userId);
       socket.emit('order_status_update_result', result);
     } catch (err) {
       console.error('[Socket.IO] Error handling update_order_status:', err);
