@@ -264,148 +264,141 @@ fun BusinessCatalogScreen(
         }
     }
 
-    // Add Item Dialog
+    // Add Item Sheet
     if (showAddDialog) {
-        AlertDialog(
+        ModalBottomSheet(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Add product or service") },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Image Picker Section
-                    Text(
-                        text = "Product Image",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Add product or service", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                
+                // Image Picker Section
+                Text(
+                    text = "Product Image",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                    if (itemImageUrl.isNotBlank()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            AsyncImage(
-                                model = itemImageUrl,
-                                contentDescription = "Selected product image",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                OutlinedButton(
-                                    onClick = {
-                                        photoPickerLauncher.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
-                                    },
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.height(36.dp)
-                                ) {
-                                    Text("Change Photo", fontSize = 12.sp)
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                TextButton(
-                                    onClick = { itemImageUrl = "" },
-                                    modifier = Modifier.height(32.dp)
-                                ) {
-                                    Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-                                }
-                            }
-                        }
-                    } else {
-                        Surface(
+                if (itemImageUrl.isNotBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = itemImageUrl,
+                            contentDescription = "Selected product image",
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp)
+                                .size(72.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable {
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            OutlinedButton(
+                                onClick = {
                                     photoPickerLauncher.launch(
                                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                     )
                                 },
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(36.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.AddPhotoAlternate,
-                                    contentDescription = "Add Photo",
-                                    tint = WhatsAppMinimalPrimary,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Choose product photo",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = WhatsAppMinimalPrimary
-                                )
+                                Text("Change Photo", fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            TextButton(
+                                onClick = { itemImageUrl = "" },
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                             }
                         }
                     }
-
-                    OutlinedTextField(
-                        value = itemImageUrl,
-                        onValueChange = { itemImageUrl = it },
-                        label = { Text("Image URL (optional)") },
-                        singleLine = true,
+                } else {
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("input_item_image_url")
-                    )
-
-                    OutlinedTextField(
-                        value = itemTitle,
-                        onValueChange = { itemTitle = it },
-                        label = { Text("Item title *") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("input_item_title")
-                    )
-
-                    OutlinedTextField(
-                        value = itemPrice,
-                        onValueChange = { itemPrice = it },
-                        label = { Text("Price (USD) *") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("input_item_price")
-                    )
-
-                    OutlinedTextField(
-                        value = itemDescription,
-                        onValueChange = { itemDescription = it },
-                        label = { Text("Description") },
-                        minLines = 2,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("input_item_desc")
-                    )
-
-                    OutlinedTextField(
-                        value = itemLink,
-                        onValueChange = { itemLink = it },
-                        label = { Text("Website or payment link") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("input_item_link")
-                    )
+                            .height(80.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddPhotoAlternate,
+                                contentDescription = "Add Photo",
+                                tint = WhatsAppMinimalPrimary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Choose product photo",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = WhatsAppMinimalPrimary
+                            )
+                        }
+                    }
                 }
-            },
-            confirmButton = {
+
+                OutlinedTextField(
+                    value = itemImageUrl,
+                    onValueChange = { itemImageUrl = it },
+                    label = { Text("Image URL (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("input_item_image_url")
+                )
+
+                OutlinedTextField(
+                    value = itemTitle,
+                    onValueChange = { itemTitle = it },
+                    label = { Text("Item title *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("input_item_title")
+                )
+
+                OutlinedTextField(
+                    value = itemPrice,
+                    onValueChange = { itemPrice = it },
+                    label = { Text("Price (USD) *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("input_item_price")
+                )
+
+                OutlinedTextField(
+                    value = itemDescription,
+                    onValueChange = { itemDescription = it },
+                    label = { Text("Description") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth().testTag("input_item_desc")
+                )
+
+                OutlinedTextField(
+                    value = itemLink,
+                    onValueChange = { itemLink = it },
+                    label = { Text("Website or payment link") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("input_item_link")
+                )
+                
                 Button(
                     onClick = {
                         val parsedPrice = itemPrice.toDoubleOrNull() ?: 0.0
@@ -425,16 +418,11 @@ fun BusinessCatalogScreen(
                             showAddDialog = false
                         }
                     },
-                    modifier = Modifier.testTag("confirm_add_catalog_item_btn")
+                    modifier = Modifier.fillMaxWidth().testTag("confirm_add_catalog_item_btn")
                 ) {
                     Text("Add Item")
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("Cancel")
-                }
             }
-        )
+        }
     }
 }

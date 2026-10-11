@@ -377,7 +377,12 @@ export class CallingGateway {
     }
 
     const callerSocketData = this.activeSockets.get(socket.id);
-    const callerUserId = callerSocketData?.userId || (socket.data?.userId as string) || (socket.handshake?.query?.userId as string);
+    const callerUserId = callerSocketData?.userId || (socket.data?.userId as string);
+
+    if (!callerUserId) {
+      console.warn(`[CallingGateway] Cannot route event '${event}': unauthenticated socket ${socket.id}`);
+      return false;
+    }
 
     // Resolve target recipient across Consumer and Business apps
     const recipient = await this.resolveRecipient(data.targetUserId, callerUserId);

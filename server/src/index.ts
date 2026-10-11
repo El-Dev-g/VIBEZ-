@@ -37,6 +37,12 @@ if (fs.existsSync(rootEnvPath)) {
 }
 checkSecretEntropy();
 
+if (process.env.NODE_ENV === 'production' && !process.env.PAYMENT_WEBHOOK_SECRET) {
+  console.error('CRITICAL: PAYMENT_WEBHOOK_SECRET must be configured in production!');
+  process.exit(1);
+}
+
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -857,7 +863,7 @@ io.on('connection', (socket) => {
     let directSocketCount = 0;
     const sockets = io.sockets.sockets;
     for (const [sId, s] of sockets.entries()) {
-      const sRawUserId = s.data?.userId || (s.handshake?.query?.userId as string);
+      const sRawUserId = s.data?.userId;
       const sUserId = sRawUserId ? extractPureChatId(sRawUserId) : null;
       if (sUserId === cleanId || sRawUserId === targetUserId) {
         console.log(`[Socket.IO Call] Emitting event '${event}' directly to socket ID: ${sId} (User: ${targetUserId})`);
