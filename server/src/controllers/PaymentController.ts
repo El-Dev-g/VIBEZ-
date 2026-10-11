@@ -31,7 +31,7 @@ export class PaymentController {
     }
   }
 
-  // Process $3.00 Green Verification Badge Payment
+  // Process $3.00 Green Verification Badge Payment with Server-side Verification
   async processVerificationPayment(req: AuthRequest, res: Response) {
     try {
       const userId = req.user?.id;
@@ -39,35 +39,98 @@ export class PaymentController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const { paymentProvider, transactionId, rawReceipt } = req.body;
+      const { paymentProvider, transactionId, providerRef, rawReceipt } = req.body;
+      const txLookup = transactionId || providerRef;
 
-      const txId = transactionId || `TX_VBZ_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      const provider = paymentProvider || 'IN_APP_PAYMENT';
-
-      // Check if transaction ID already exists
-      const existingPayment = await prisma.badgePayment.findUnique({
-        where: { transactionId: txId }
-      });
-
-      if (existingPayment) {
-        return res.status(400).json({ error: 'Transaction ID already processed' });
-      }
-
-      // Fetch dynamic badge price configured by admin
+      // Fetch dynamic badge price configured by admin from trusted system settings
       const setting = await prisma.systemSetting.findFirst();
       const price = setting?.verificationBadgePrice ?? 3.00;
 
-      // Record badge payment & update user status
-      const payment = await prisma.$transaction(async (tx) => {
-        const badgePayment = await tx.badgePayment.create({
+      if (!txLookup) {
+        return res.status(400).json({
+          error: 'Transaction ID or payment provider reference is required for payment verification.'
+        });
+      }
+
+      // Check if transaction ID has already been redeemed
+      const existingPayment = await prisma.badgePayment.findFirst({
+        where: {
+          OR: [
+            { transactionId: txLookup },
+            { rawReceipt: { contains: txLookup } }
+          ]
+        }
+      });
+
+      if (existingPayment) {
+        return res.status(400).json({ error: 'This payment transaction has already been used for verification.' });
+      }
+
+      // Look up trusted server-side payment transaction
+      let verifiedTransaction = await prisma.paymentTransaction.findFirst({
+        where: {
+          OR: [
+            { id: txLookup },
+            { providerRef: txLookup }
+          ]
+        }
+      });
+
+      const isProduction = process.env.NODE_ENV === 'production';
+      const allowSimulated = process.env.ALLOW_SIMULATED_PAYMENTS === 'true' && !isProduction;
+
+      if (!verifiedTransaction) {
+        if (!allowSimulated) {
+          return res.status(400).json({
+            error: 'No matching payment session found. Please complete checkout through an active payment provider.'
+          });
+        }
+
+        // In non-production testing sandbox only: create an audited sandbox transaction
+        console.warn(`[Payment Sandbox] Creating simulated test transaction for user ${userId}`);
+        verifiedTransaction = await prisma.paymentTransaction.create({
           data: {
             userId,
             amount: price,
             currency: 'USD',
+            provider: paymentProvider || 'SANDBOX_TEST',
+            providerRef: txLookup,
             status: 'COMPLETED',
-            paymentProvider: provider,
-            transactionId: txId,
-            rawReceipt: rawReceipt || `VERIFICATION_PAYMENT_PROOF_USD${price}_${Date.now()}`
+            metadata: { purpose: 'VERIFICATION_BADGE', isSandboxTest: true }
+          }
+        });
+      }
+
+      // Verify that transaction belongs to this authenticated user
+      if (verifiedTransaction.userId !== userId) {
+        return res.status(403).json({ error: 'Security Violation: Payment transaction belongs to a different account.' });
+      }
+
+      // Verify transaction status is COMPLETED by provider webhook/API
+      if (verifiedTransaction.status !== 'COMPLETED') {
+        return res.status(400).json({
+          error: `Payment transaction has not been confirmed yet (Current status: ${verifiedTransaction.status}). Please await provider confirmation.`
+        });
+      }
+
+      // Verify payment amount matches badge price
+      if (verifiedTransaction.amount < price) {
+        return res.status(400).json({
+          error: `Insufficient payment amount: received $${verifiedTransaction.amount}, required $${price}.`
+        });
+      }
+
+      // Record badge payment & update user status transactionally
+      const payment = await prisma.$transaction(async (tx) => {
+        const badgePayment = await tx.badgePayment.create({
+          data: {
+            userId,
+            amount: verifiedTransaction.amount,
+            currency: verifiedTransaction.currency || 'USD',
+            status: 'COMPLETED',
+            paymentProvider: verifiedTransaction.provider,
+            transactionId: verifiedTransaction.providerRef || verifiedTransaction.id,
+            rawReceipt: rawReceipt || `VERIFIED_PROVIDER_PAYMENT_${verifiedTransaction.id}_${Date.now()}`
           }
         });
 
@@ -76,6 +139,15 @@ export class PaymentController {
           data: {
             isVerified: true,
             verifiedAt: new Date()
+          }
+        });
+
+        await tx.auditLog.create({
+          data: {
+            adminEmail: 'system:payment-processor',
+            action: 'VERIFY_USER_BADGE_PAYMENT',
+            target: userId,
+            details: `Badge activated via verified ${verifiedTransaction.provider} transaction ${verifiedTransaction.id}`
           }
         });
 
@@ -95,12 +167,12 @@ export class PaymentController {
 
       return res.json({
         success: true,
-        message: 'Green verification badge activated successfully!',
+        message: 'Green verification badge activated successfully via verified payment!',
         payment,
         user: updatedUser
       });
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('Payment verification error:', error);
       return res.status(500).json({ error: 'Payment processing failed' });
     }
   }
@@ -616,17 +688,32 @@ export class PaymentController {
         return res.status(400).json({ error: 'Payment provider not available' });
       }
 
-      const providerRef = `SIM_${provider}_${Date.now()}`;
+      // Server-side amount enforcement: never trust client-provided amount for sensitive operations like verification badge
+      let effectiveAmount = Number(amount) || 0;
+      if (metadata && (metadata.purpose === 'VERIFICATION_BADGE' || metadata.type === 'BADGE')) {
+        const setting = await prisma.systemSetting.findFirst();
+        effectiveAmount = setting?.verificationBadgePrice ?? 3.00;
+      }
+
+      if (effectiveAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid payment amount' });
+      }
+
+      const providerRef = `PAY_${provider}_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
       const transaction = await prisma.paymentTransaction.create({
         data: {
           userId,
-          amount,
+          amount: effectiveAmount,
           currency,
           provider,
           providerRef,
           status: 'PENDING',
-          metadata
+          metadata: {
+            ...(typeof metadata === 'object' ? metadata : {}),
+            serverEnforcedAmount: effectiveAmount,
+            initiatedAt: new Date().toISOString()
+          }
         }
       });
 
@@ -634,31 +721,88 @@ export class PaymentController {
         success: true,
         transactionId: transaction.id,
         providerRef,
+        amount: effectiveAmount,
+        currency,
         message: `Secure ${provider} payment session initiated.`
       });
     } catch (error) {
+      console.error('Error initiating payment:', error);
       return res.status(500).json({ error: 'Failed to initiate payment' });
     }
   }
 
-  // Webhook: Update payment status from provider
+  // Webhook: Update payment status from provider with secret validation & idempotency
   async updatePaymentStatus(req: Request, res: Response) {
     try {
-      const { providerRef, status } = req.body;
-      const transaction = await prisma.paymentTransaction.update({
-        where: { providerRef },
-        data: { status }
-      });
-
-      if (status === 'COMPLETED' && transaction.metadata && (transaction.metadata as any).purpose === 'VERIFICATION_BADGE') {
-         await prisma.user.update({
-           where: { id: transaction.userId },
-           data: { isVerified: true, verifiedAt: new Date() }
-         });
+      // Validate webhook secret in production
+      const webhookSecret = (req.headers['x-webhook-secret'] as string) || (req.query.secret as string);
+      const expectedSecret = process.env.PAYMENT_WEBHOOK_SECRET;
+      if (process.env.NODE_ENV === 'production' && expectedSecret) {
+        if (webhookSecret !== expectedSecret) {
+          return res.status(401).json({ error: 'Invalid webhook secret' });
+        }
       }
 
-      return res.json({ success: true });
+      const { providerRef, status } = req.body;
+      if (!providerRef || !status) {
+        return res.status(400).json({ error: 'providerRef and status are required' });
+      }
+
+      const validStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'];
+      const normalizedStatus = String(status).toUpperCase();
+      if (!validStatuses.includes(normalizedStatus)) {
+        return res.status(400).json({ error: 'Invalid transaction status' });
+      }
+
+      const existingTransaction = await prisma.paymentTransaction.findUnique({
+        where: { providerRef }
+      });
+
+      if (!existingTransaction) {
+        return res.status(404).json({ error: 'Payment transaction not found' });
+      }
+
+      // Idempotency: skip re-processing if already completed or failed
+      if (existingTransaction.status === 'COMPLETED' || existingTransaction.status === 'FAILED') {
+        return res.json({ success: true, message: `Transaction already marked as ${existingTransaction.status}` });
+      }
+
+      const transaction = await prisma.paymentTransaction.update({
+        where: { providerRef },
+        data: { status: normalizedStatus }
+      });
+
+      if (normalizedStatus === 'COMPLETED' && transaction.metadata && (transaction.metadata as any).purpose === 'VERIFICATION_BADGE') {
+        await prisma.$transaction(async (tx) => {
+          // Check if badge payment already created
+          const existingBadge = await tx.badgePayment.findUnique({
+            where: { transactionId: transaction.providerRef }
+          });
+
+          if (!existingBadge) {
+            await tx.badgePayment.create({
+              data: {
+                userId: transaction.userId,
+                amount: transaction.amount,
+                currency: transaction.currency || 'USD',
+                status: 'COMPLETED',
+                paymentProvider: transaction.provider,
+                transactionId: transaction.providerRef,
+                rawReceipt: `WEBHOOK_CONFIRMED_${transaction.provider}_${Date.now()}`
+              }
+            });
+          }
+
+          await tx.user.update({
+            where: { id: transaction.userId },
+            data: { isVerified: true, verifiedAt: new Date() }
+          });
+        });
+      }
+
+      return res.json({ success: true, status: normalizedStatus });
     } catch (error) {
+      console.error('Webhook processing error:', error);
       return res.status(500).json({ error: 'Failed to update payment status' });
     }
   }

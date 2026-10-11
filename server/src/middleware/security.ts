@@ -55,8 +55,18 @@ export const sanitizeInputs = (req: Request, res: Response, next: NextFunction) 
 
 // Enforce JWT Secret Entropy Check
 export const checkSecretEntropy = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret === 'secret' || secret === 'default_secret' || secret.length < 16) {
-    console.warn('\x1b[33m%s\x1b[0m', '⚠️  SECURITY WARNING: JWT_SECRET is weak or default! In production, ensure JWT_SECRET is a randomly generated high-entropy string (32+ characters).');
+  const secret = process.env.JWT_SECRET?.trim();
+  const isProduction = process.env.NODE_ENV === 'production';
+  const weakSecrets = ['secret', 'default_secret', 'vibez_secret_jwt_key_2026_production_safe', 'password', '12345678'];
+
+  if (!secret || weakSecrets.includes(secret) || secret.length < 32) {
+    if (isProduction) {
+      throw new Error(
+        'FATAL: JWT_SECRET is missing, weak, or uses an insecure default in production. ' +
+        'Production requires a high-entropy string of at least 32 characters.'
+      );
+    } else {
+      console.warn('\x1b[33m%s\x1b[0m', '⚠️  SECURITY WARNING: JWT_SECRET is weak or default! In production, ensure JWT_SECRET is a randomly generated high-entropy string (32+ characters).');
+    }
   }
 };

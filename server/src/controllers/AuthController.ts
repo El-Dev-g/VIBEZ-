@@ -14,11 +14,22 @@ export class AuthController {
       // 1. Normalize the incoming phone number consistently before database lookup.
       const cleanPhone = (phoneNumber || '').trim().replace(/[^\d+]/g, '');
 
-      if (!cleanPhone) {
-        return res.status(400).json({ error: 'Phone number is required' });
+      if (!cleanPhone || cleanPhone.length < 8) {
+        return res.status(400).json({ error: 'Valid phone number is required (E.164 format recommended)' });
       }
 
+      const isProduction = process.env.NODE_ENV === 'production';
+      const requireFirebase = process.env.REQUIRE_FIREBASE_VERIFICATION === 'true' || 
+        (isProduction && process.env.ALLOW_INSECURE_AUTH !== 'true');
+
       let isFirebaseVerified = false;
+
+      // 1. In production or when REQUIRE_FIREBASE_VERIFICATION is enabled: strictly require Firebase ID token
+      if (requireFirebase && (!firebaseIdToken || typeof firebaseIdToken !== 'string')) {
+        return res.status(401).json({
+          error: 'Firebase phone verification token is required to authenticate phone number.'
+        });
+      }
 
       // 2. Cryptographically verify Firebase ID token if provided
       if (firebaseIdToken && typeof firebaseIdToken === 'string') {
@@ -37,19 +48,23 @@ export class AuthController {
           });
 
           const payload = ticket?.getPayload();
-          if (payload) {
-            const tokenPhone = (payload as any).phone_number ? (payload as any).phone_number.replace(/[^\d+]/g, '') : '';
-            if (tokenPhone && tokenPhone !== cleanPhone) {
-              return res.status(401).json({ error: 'Phone number in verification token does not match provided phone number' });
-            }
-            isFirebaseVerified = true;
+          if (!payload) {
+            return res.status(401).json({ error: 'Invalid verification token payload' });
           }
-        } catch (tokenErr) {
-          console.warn('[PhoneLogin] Firebase token verification note:', (tokenErr as any)?.message || tokenErr);
-          // In strict production mode with Firebase enabled, require successful cryptographic verification
-          if (process.env.REQUIRE_FIREBASE_VERIFICATION === 'true') {
-            return res.status(401).json({ error: 'Firebase phone verification token is invalid or expired.' });
+
+          const tokenPhone = (payload as any).phone_number ? (payload as any).phone_number.replace(/[^\d+]/g, '') : '';
+          if (!tokenPhone) {
+            return res.status(401).json({ error: 'Verification token does not contain a verified phone number claim' });
           }
+
+          if (tokenPhone !== cleanPhone) {
+            return res.status(401).json({ error: 'Phone number in verification token does not match provided phone number' });
+          }
+
+          isFirebaseVerified = true;
+        } catch (tokenErr: any) {
+          console.warn('[PhoneLogin] Firebase token verification failed:', tokenErr?.message || tokenErr);
+          return res.status(401).json({ error: 'Firebase phone verification token is invalid or expired.' });
         }
       }
 
