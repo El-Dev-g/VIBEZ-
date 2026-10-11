@@ -117,6 +117,9 @@ fun MainTabScreen(
     onIncomingCallSimulate: () -> Unit = {},
     onBusinessToolsClick: () -> Unit = {},
     onLabelsClick: () -> Unit = {},
+    chatLabels: List<com.example.data.network.ChatLabelDto> = emptyList(),
+    orderMessages: List<com.example.data.MessageEntity> = emptyList(),
+    onToggleChatLabel: (String, String) -> Unit = { _, _ -> },
     onNavigateToProfile: () -> Unit = onBusinessToolsClick,
     onNavigateToCatalog: () -> Unit = onBusinessToolsClick,
     onNavigateToGreetingMessage: () -> Unit = onBusinessToolsClick,
@@ -469,7 +472,10 @@ fun MainTabScreen(
                     onMarkReadChatsBulk = onMarkReadChatsBulk,
                     onBroadcastMessage = onBroadcastMessage,
                     onBusinessToolsClick = onBusinessToolsClick,
-                    onLabelsClick = onLabelsClick
+                    onLabelsClick = onLabelsClick,
+                    chatLabels = chatLabels,
+                    orderMessages = orderMessages,
+                    onToggleChatLabel = onToggleChatLabel
                 )
                 1 -> StatusListScreen(
                     statuses = statuses,

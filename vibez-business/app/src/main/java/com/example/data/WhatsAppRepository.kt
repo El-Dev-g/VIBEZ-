@@ -52,9 +52,11 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
     val allStatuses: Flow<List<StatusEntity>> = dao.getAllStatuses()
     val allCallLogs: Flow<List<CallLogEntity>> = dao.getAllCallLogs()
     val starredMessages: Flow<List<MessageEntity>> = dao.getStarredMessages()
+    val allOrderMessages: Flow<List<MessageEntity>> = dao.getAllOrderMessages()
 
     val typingEvent = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, Boolean>>()
     val readReceiptEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>()
+    val chatLabelUpdatedEvent = kotlinx.coroutines.flow.MutableSharedFlow<com.example.data.network.ChatLabelDto>()
 
     init {
         repositoryScope.launch {
@@ -175,6 +177,28 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             onOrderStatusUpdatedReceived = { chatId, messageId, orderId, status ->
                 repositoryScope.launch {
                     updateLocalOrderStatus(chatId, messageId, orderId, status)
+                }
+            }
+
+            onChatLabelUpdatedReceived = { data ->
+                repositoryScope.launch {
+                    try {
+                        val id = data.optString("id", "")
+                        val name = data.optString("name", "")
+                        val colorHex = data.optString("colorHex", "#00A884")
+                        val chatIdsArr = data.optJSONArray("chatIds")
+                        val chatIds = mutableListOf<String>()
+                        if (chatIdsArr != null) {
+                            for (i in 0 until chatIdsArr.length()) {
+                                chatIds.add(chatIdsArr.getString(i))
+                            }
+                        }
+                        if (id.isNotBlank()) {
+                            chatLabelUpdatedEvent.emit(com.example.data.network.ChatLabelDto(id = id, name = name, colorHex = colorHex, chatIds = chatIds))
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("WhatsAppRepository", "Error processing chat_label_updated", e)
+                    }
                 }
             }
 

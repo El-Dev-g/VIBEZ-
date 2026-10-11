@@ -750,6 +750,22 @@ export class BusinessController {
         }
       });
 
+      if (chatId) {
+        try {
+          const newOrderLabel = await prisma.chatLabel.findFirst({
+            where: { userId: businessUserId, name: 'New order' }
+          });
+          if (newOrderLabel && !newOrderLabel.chatIds.includes(chatId)) {
+            await prisma.chatLabel.update({
+              where: { id: newOrderLabel.id },
+              data: { chatIds: [...newOrderLabel.chatIds, chatId] }
+            });
+          }
+        } catch (lblErr) {
+          console.warn('Error associating chat with New order label:', lblErr);
+        }
+      }
+
       res.json({ success: true, order });
     } catch (error) {
       console.error('Error creating order:', error);

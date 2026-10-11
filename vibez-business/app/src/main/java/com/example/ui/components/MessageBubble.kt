@@ -877,11 +877,21 @@ fun MessageBubble(
                                         }
                                     }
                                 }
-                                "CONFIRMED" -> {
+                                "CONFIRMED", "PENDING_PAYMENT" -> {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
+                                        Button(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "PAID") },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Mark as Paid", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
                                         Button(
                                             onClick = { onUpdateOrderStatus?.invoke(message, orderId, "PREPARING") },
                                             modifier = Modifier.weight(1f),
@@ -894,7 +904,32 @@ fun MessageBubble(
                                             onClick = { onUpdateOrderStatus?.invoke(message, orderId, "CANCELLED") },
                                             shape = RoundedCornerShape(8.dp)
                                         ) {
-                                            Text("Cancel", fontSize = 12.sp, color = Color.Red, fontWeight = FontWeight.SemiBold)
+                                            Icon(Icons.Default.Close, contentDescription = null, tint = Color.Red, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                                "PAID" -> {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "OUT_FOR_DELIVERY") },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text("Out for Delivery", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        Button(
+                                            onClick = { onUpdateOrderStatus?.invoke(message, orderId, "COMPLETED") },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = WhatsAppEmerald),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.DoneAll, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Complete", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }

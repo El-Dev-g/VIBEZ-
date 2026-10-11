@@ -203,6 +203,8 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     val communities by viewModel.communities.collectAsState()
     val callLogs by viewModel.callLogs.collectAsState()
     val starredMessages by viewModel.starredMessages.collectAsState()
+    val chatLabels by viewModel.chatLabels.collectAsState()
+    val orderMessages by viewModel.orderMessages.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
 
@@ -642,6 +644,11 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 onNavigateToQuickReplies = { navController.navigate("quick_replies") },
                 onLabelsClick = {
                     navController.navigate("chat_labels")
+                },
+                chatLabels = chatLabels,
+                orderMessages = orderMessages,
+                onToggleChatLabel = { labelId, chatId ->
+                    viewModel.toggleChatLabel(labelId, chatId)
                 },
                 onStarredMessagesClick = {
                     navController.navigate("starred_messages")

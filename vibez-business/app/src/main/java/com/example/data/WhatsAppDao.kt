@@ -113,6 +113,12 @@ interface WhatsAppDao {
     @Query("SELECT * FROM messages WHERE content LIKE '%' || :query || '%' ORDER BY timestamp DESC")
     fun searchMessages(query: String): Flow<List<MessageEntity>>
 
+    @Query("SELECT * FROM messages WHERE UPPER(messageType) = 'ORDER' OR content LIKE '%🛒%' OR content LIKE '%#ORD-%' ORDER BY timestamp DESC")
+    fun getAllOrderMessages(): Flow<List<MessageEntity>>
+
+    @Query("SELECT * FROM messages WHERE UPPER(messageType) = 'ORDER' OR content LIKE '%🛒%' OR content LIKE '%#ORD-%' ORDER BY timestamp DESC")
+    suspend fun getAllOrderMessagesOneShot(): List<MessageEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 

@@ -177,6 +177,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     val statuses: StateFlow<List<StatusEntity>>
     val callLogs: StateFlow<List<CallLogEntity>>
     val starredMessages: StateFlow<List<MessageEntity>>
+    val orderMessages: StateFlow<List<MessageEntity>>
 
     val searchQuery = MutableStateFlow("")
     val isDarkMode = MutableStateFlow(false)
@@ -220,6 +221,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             repository.deleteExpiredStatuses()
             refreshBadgeStatus()
             checkSystemStatus()
+            loadChatLabels()
             
             // If logged in, init socket and sync data
             val token = authManager.getAuthToken()
@@ -281,6 +283,12 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             initialValue = emptyList()
         )
 
+        orderMessages = repository.allOrderMessages.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
         filteredChats = combine(chats, searchQuery) { chatList, query ->
             if (query.isBlank()) {
                 chatList
@@ -295,6 +303,18 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+        viewModelScope.launch {
+            repository.chatLabelUpdatedEvent.collect { updated ->
+                val current = chatLabels.value
+                val exists = current.any { it.id == updated.id }
+                if (exists) {
+                    chatLabels.value = current.map { if (it.id == updated.id) updated else it }
+                } else {
+                    chatLabels.value = current + updated
+                }
+            }
+        }
     }
 
     fun getAuthToken(): String? = authManager.getAuthToken()
@@ -320,6 +340,7 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
                 authManager.setSettingBoolean("biometric_lock", settings.biometricLock)
             }
             loadBusinessProfile()
+            loadChatLabels()
         }
     }
 
@@ -2125,7 +2146,18 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     fun loadChatLabels() {
         viewModelScope.launch {
             val token = authManager.getAuthToken() ?: ""
-            chatLabels.value = repository.getChatLabels(token)
+            val remoteLabels = repository.getChatLabels(token)
+            if (remoteLabels.isNotEmpty()) {
+                chatLabels.value = remoteLabels
+            } else if (chatLabels.value.isEmpty()) {
+                chatLabels.value = listOf(
+                    com.example.data.network.ChatLabelDto(id = "l1", name = "New customer", colorHex = "#00A884"),
+                    com.example.data.network.ChatLabelDto(id = "l2", name = "New order", colorHex = "#F59E0B"),
+                    com.example.data.network.ChatLabelDto(id = "l3", name = "Pending payment", colorHex = "#EF4444"),
+                    com.example.data.network.ChatLabelDto(id = "l4", name = "Paid", colorHex = "#10B981"),
+                    com.example.data.network.ChatLabelDto(id = "l5", name = "Order complete", colorHex = "#3B82F6")
+                )
+            }
         }
     }
 
@@ -2136,19 +2168,27 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
             if (added != null) {
                 chatLabels.value = listOf(added) + chatLabels.value.filter { it.id != added.id }
             } else {
-                loadChatLabels()
+                val localId = "label_${System.currentTimeMillis()}"
+                val localLabel = com.example.data.network.ChatLabelDto(id = localId, name = name, colorHex = colorHex)
+                chatLabels.value = listOf(localLabel) + chatLabels.value
             }
         }
     }
 
     fun toggleChatLabel(labelId: String, chatId: String) {
+        val currentLabels = chatLabels.value
+        val target = currentLabels.firstOrNull { it.id == labelId }
+        if (target != null) {
+            val exists = target.chatIds.contains(chatId)
+            val newChatIds = if (exists) target.chatIds.filter { it != chatId } else target.chatIds + chatId
+            val updatedTarget = target.copy(chatIds = newChatIds)
+            chatLabels.value = currentLabels.map { if (it.id == labelId) updatedTarget else it }
+        }
         viewModelScope.launch {
             val token = authManager.getAuthToken() ?: ""
             val updated = repository.toggleChatLabel(token, labelId, chatId)
             if (updated != null) {
                 chatLabels.value = chatLabels.value.map { if (it.id == updated.id) updated else it }
-            } else {
-                loadChatLabels()
             }
         }
     }
@@ -2156,6 +2196,28 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
     fun updateOrderStatus(chatId: String, messageId: String, orderId: String, newStatus: String, onComplete: ((Boolean) -> Unit)? = null) {
         viewModelScope.launch {
             val success = repository.updateOrderStatus(chatId, messageId, orderId, newStatus)
+            val targetLabelName = when (newStatus.uppercase()) {
+                "PENDING" -> "New order"
+                "CONFIRMED", "PREPARING", "PENDING_PAYMENT" -> "Pending payment"
+                "PAID", "OUT_FOR_DELIVERY" -> "Paid"
+                "COMPLETED" -> "Order complete"
+                else -> null
+            }
+            if (targetLabelName != null) {
+                val orderLabelNames = setOf("New order", "Pending payment", "Paid", "Order complete")
+                val current = chatLabels.value
+                val updated = current.map { label ->
+                    if (label.name.equals(targetLabelName, ignoreCase = true)) {
+                        val newChatIds = if (label.chatIds.contains(chatId)) label.chatIds else label.chatIds + chatId
+                        label.copy(chatIds = newChatIds)
+                    } else if (orderLabelNames.any { it.equals(label.name, ignoreCase = true) }) {
+                        label.copy(chatIds = label.chatIds.filter { it != chatId })
+                    } else {
+                        label
+                    }
+                }
+                chatLabels.value = updated
+            }
             onComplete?.invoke(success)
         }
     }

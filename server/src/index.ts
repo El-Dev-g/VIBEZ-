@@ -329,7 +329,35 @@ app.get('/api/business/automated-messages', authenticate, (req, res) => business
 app.post('/api/business/automated-messages', authenticate, (req, res) => business.updateAutomatedMessage(req as any, res as any));
 app.get('/api/business/labels', authenticate, (req, res) => business.getLabels(req as any, res as any));
 app.post('/api/business/labels', authenticate, (req, res) => business.addLabel(req as any, res as any));
-app.post('/api/business/labels/toggle', authenticate, (req, res) => business.toggleChatLabel(req as any, res as any));
+app.post('/api/business/labels/toggle', authenticate, async (req: any, res: any) => {
+  try {
+    const userId = req.user?.id;
+    const { labelId, chatId } = req.body;
+    if (!userId || !labelId || !chatId) return res.status(400).json({ error: 'Missing parameters' });
+
+    const label = await prisma.chatLabel.findFirst({
+      where: { id: labelId, userId }
+    });
+
+    if (!label) return res.status(404).json({ error: 'Label not found' });
+
+    const exists = label.chatIds.includes(chatId);
+    const newChatIds = exists
+      ? label.chatIds.filter(id => id !== chatId)
+      : [...label.chatIds, chatId];
+
+    const updated = await prisma.chatLabel.update({
+      where: { id: labelId },
+      data: { chatIds: newChatIds }
+    });
+
+    io.to(`user_${userId}`).emit('chat_label_updated', updated);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error toggling chat label:', error);
+    res.status(500).json({ error: 'Failed to toggle chat label' });
+  }
+});
 
 // Helper to process and broadcast order status updates
 const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: string; orderId?: string; status: string }, updaterUserId?: string) => {
@@ -438,6 +466,58 @@ const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: stri
         }
       }
     } catch (_) {}
+  }
+
+  // 4. Automatically sync business chat labels for effectiveChatId
+  if (effectiveChatId) {
+    try {
+      const bizUserId = updatedOrderRecord?.businessId || userId;
+      if (bizUserId) {
+        let targetLabelName: string | null = null;
+        if (normalizedStatus === 'PENDING') {
+          targetLabelName = 'New order';
+        } else if (['CONFIRMED', 'PREPARING', 'PENDING_PAYMENT'].includes(normalizedStatus)) {
+          targetLabelName = 'Pending payment';
+        } else if (['PAID', 'OUT_FOR_DELIVERY'].includes(normalizedStatus)) {
+          targetLabelName = 'Paid';
+        } else if (normalizedStatus === 'COMPLETED') {
+          targetLabelName = 'Order complete';
+        }
+
+        if (targetLabelName) {
+          const orderLabelNames = ['New order', 'Pending payment', 'Paid', 'Order complete'];
+          const userLabels = await prisma.chatLabel.findMany({
+            where: { userId: bizUserId }
+          });
+
+          for (const lbl of userLabels) {
+            let changed = false;
+            let currentIds = [...lbl.chatIds];
+            if (lbl.name.toLowerCase() === targetLabelName.toLowerCase()) {
+              if (!currentIds.includes(effectiveChatId)) {
+                currentIds.push(effectiveChatId);
+                changed = true;
+              }
+            } else if (orderLabelNames.some(o => o.toLowerCase() === lbl.name.toLowerCase())) {
+              if (currentIds.includes(effectiveChatId)) {
+                currentIds = currentIds.filter(id => id !== effectiveChatId);
+                changed = true;
+              }
+            }
+
+            if (changed) {
+              const updatedLbl = await prisma.chatLabel.update({
+                where: { id: lbl.id },
+                data: { chatIds: currentIds }
+              });
+              io.to(`user_${bizUserId}`).emit('chat_label_updated', updatedLbl);
+            }
+          }
+        }
+      }
+    } catch (lblErr) {
+      console.warn('Error auto-syncing chat labels on order status update:', lblErr);
+    }
   }
 
   return { success: true, order: updatedOrderRecord, ...updatePayload };
@@ -1058,6 +1138,30 @@ io.on('connection', (socket) => {
     } catch (err) {
       console.error('[Socket.IO] Error handling update_order_status:', err);
       socket.emit('error', { message: 'Failed to update order status' });
+    }
+  });
+
+  // Toggle Chat Label via WebSocket
+  socket.on('toggle_chat_label', async (data: any) => {
+    try {
+      const activeUserId = socket.data?.userId || userId;
+      if (!activeUserId || !data?.labelId || !data?.chatId) return;
+      const label = await prisma.chatLabel.findFirst({
+        where: { id: data.labelId, userId: activeUserId }
+      });
+      if (!label) return;
+      const exists = label.chatIds.includes(data.chatId);
+      const newChatIds = exists
+        ? label.chatIds.filter(id => id !== data.chatId)
+        : [...label.chatIds, data.chatId];
+
+      const updated = await prisma.chatLabel.update({
+        where: { id: data.labelId },
+        data: { chatIds: newChatIds }
+      });
+      io.to(`user_${activeUserId}`).emit('chat_label_updated', updated);
+    } catch (err) {
+      console.error('[Socket.IO] Error handling toggle_chat_label:', err);
     }
   });
 

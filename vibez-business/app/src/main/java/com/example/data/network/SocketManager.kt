@@ -22,6 +22,7 @@ class SocketManager(private val userId: String, private val authToken: String? =
     var onMessageReadReceived: ((String, String) -> Unit)? = null
     var onMessageDeliveredReceived: ((String, String?, String?) -> Unit)? = null
     var onOrderStatusUpdatedReceived: ((String, String?, String?, String) -> Unit)? = null
+    var onChatLabelUpdatedReceived: ((JSONObject) -> Unit)? = null
 
     fun connect(onMessageReceived: (JSONObject) -> Unit) {
         try {
@@ -90,6 +91,15 @@ class SocketManager(private val userId: String, private val authToken: String? =
                     onOrderStatusUpdatedReceived?.invoke(chatId, messageId, orderId, status)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error handling order_status_updated event", e)
+                }
+            }
+
+            socket?.on("chat_label_updated") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    onChatLabelUpdatedReceived?.invoke(data)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error handling chat_label_updated event", e)
                 }
             }
 

@@ -112,6 +112,9 @@ fun ChatsListScreen(
     onBroadcastMessage: (List<String>, String) -> Unit = { _, _ -> },
     onBusinessToolsClick: () -> Unit = {},
     onLabelsClick: () -> Unit = {},
+    chatLabels: List<com.example.data.network.ChatLabelDto> = emptyList(),
+    orderMessages: List<com.example.data.MessageEntity> = emptyList(),
+    onToggleChatLabel: (String, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
@@ -123,6 +126,9 @@ fun ChatsListScreen(
 
     // Bulk Delete Dialog State
     var showBulkDeleteDialog by remember { mutableStateOf(false) }
+
+    // Label Selected Chats Dialog State
+    var showLabelDialog by remember { mutableStateOf(false) }
 
     // Broadcast Message Dialog State
     var showBroadcastDialog by remember { mutableStateOf(false) }
@@ -273,31 +279,212 @@ fun ChatsListScreen(
         )
     }
 
-    val categories = listOf("All", "Unread", "New customer", "New order", "Pending payment", "Paid", "Order complete", "Groups", "Pinned")
+    if (showLabelDialog && isSelectionMode) {
+        val availableLabels = remember(chatLabels) {
+            if (chatLabels.isNotEmpty()) chatLabels else listOf(
+                com.example.data.network.ChatLabelDto(id = "l1", name = "New customer", colorHex = "#00A884"),
+                com.example.data.network.ChatLabelDto(id = "l2", name = "New order", colorHex = "#F59E0B"),
+                com.example.data.network.ChatLabelDto(id = "l3", name = "Pending payment", colorHex = "#EF4444"),
+                com.example.data.network.ChatLabelDto(id = "l4", name = "Paid", colorHex = "#10B981"),
+                com.example.data.network.ChatLabelDto(id = "l5", name = "Order complete", colorHex = "#3B82F6")
+            )
+        }
+        AlertDialog(
+            onDismissRequest = { showLabelDialog = false },
+            title = {
+                Text(
+                    text = "Label ${selectedChatIds.size} Chat${if (selectedChatIds.size > 1) "s" else ""}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(availableLabels) { label ->
+                        val isAllSelected = selectedChatIds.all { label.chatIds.contains(it) }
+                        val labelColor = remember(label.colorHex) {
+                            try { Color(android.graphics.Color.parseColor(label.colorHex)) } catch (_: Exception) { Color(0xFF00A884) }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isAllSelected) labelColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedChatIds.forEach { chatId ->
+                                        onToggleChatLabel(label.id, chatId)
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clip(CircleShape)
+                                        .background(labelColor)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = label.name,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Checkbox(
+                                    checked = isAllSelected,
+                                    onCheckedChange = {
+                                        selectedChatIds.forEach { chatId ->
+                                            onToggleChatLabel(label.id, chatId)
+                                        }
+                                    },
+                                    colors = CheckboxDefaults.colors(checkedColor = labelColor)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLabelDialog = false
+                        selectedChatIds = emptySet()
+                    }
+                ) {
+                    Text("Done", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLabelDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
-    val filteredChats = remember(chats, groups, selectedCategory, searchQuery) {
+    val defaultCategories = listOf("All", "New order", "Pending payment", "Paid", "Order complete", "Unread", "New customer", "Groups", "Pinned")
+    val customCategories = remember(chatLabels) {
+        chatLabels.map { it.name }.filter { name -> defaultCategories.none { it.equals(name, ignoreCase = true) } }
+    }
+    val categories = remember(customCategories) {
+        defaultCategories + customCategories
+    }
+
+    fun chatMatchesLabel(chat: ChatEntity, labelName: String): Boolean {
+        return chatLabels.any { 
+            it.name.equals(labelName, ignoreCase = true) && 
+            (it.chatIds.contains(chat.id) || 
+             (chat.remoteId != null && it.chatIds.contains(chat.remoteId)) ||
+             (chat.contactId.isNotBlank() && it.chatIds.contains(chat.contactId)))
+        }
+    }
+
+    fun getChatOrderStatus(chat: ChatEntity): String? {
+        val orderMsg = orderMessages.firstOrNull { 
+            it.chatId == chat.id || 
+            (chat.remoteId != null && it.chatId == chat.remoteId) ||
+            (chat.contactId.isNotBlank() && (it.chatId == chat.contactId || it.senderId == chat.contactId))
+        }
+        if (orderMsg != null) {
+            try {
+                if (orderMsg.mediaUrl.isNotBlank()) {
+                    val json = org.json.JSONObject(orderMsg.mediaUrl)
+                    val st = json.optString("status", "").uppercase().replace(" ", "_")
+                    if (st.isNotBlank()) return st
+                }
+            } catch (_: Exception) {}
+            val mc = orderMsg.content
+            val contentStatus = when {
+                mc.contains("Status: Completed", ignoreCase = true) || mc.contains("Order Fulfilled", ignoreCase = true) -> "COMPLETED"
+                mc.contains("Status: Paid", ignoreCase = true) -> "PAID"
+                mc.contains("Status: Out for Delivery", ignoreCase = true) -> "OUT_FOR_DELIVERY"
+                mc.contains("Status: Preparing", ignoreCase = true) -> "PREPARING"
+                mc.contains("Status: Confirmed", ignoreCase = true) -> "CONFIRMED"
+                mc.contains("Status: Pending Payment", ignoreCase = true) -> "PENDING_PAYMENT"
+                mc.contains("Status: Cancelled", ignoreCase = true) -> "CANCELLED"
+                else -> null
+            }
+            if (contentStatus != null) return contentStatus
+        }
+        val lm = chat.lastMessage
+        val lastMsgStatus = when {
+            lm.contains("Order complete", ignoreCase = true) || lm.contains("Order Fulfilled", ignoreCase = true) || lm.contains("Completed", ignoreCase = true) -> "COMPLETED"
+            lm.contains("Paid", ignoreCase = true) -> "PAID"
+            lm.contains("Out for Delivery", ignoreCase = true) || lm.contains("OUT_FOR_DELIVERY", ignoreCase = true) -> "OUT_FOR_DELIVERY"
+            lm.contains("Preparing", ignoreCase = true) -> "PREPARING"
+            lm.contains("Confirmed", ignoreCase = true) -> "CONFIRMED"
+            lm.contains("Pending Payment", ignoreCase = true) || lm.contains("PENDING_PAYMENT", ignoreCase = true) -> "PENDING_PAYMENT"
+            lm.contains("Order Inquiry", ignoreCase = true) || lm.startsWith("🛒") || lm.contains("#ORD-") -> "PENDING"
+            else -> null
+        }
+        if (lastMsgStatus != null) return lastMsgStatus
+
+        return when {
+            chatMatchesLabel(chat, "Order complete") -> "COMPLETED"
+            chatMatchesLabel(chat, "Paid") -> "PAID"
+            chatMatchesLabel(chat, "Pending payment") -> "PENDING_PAYMENT"
+            chatMatchesLabel(chat, "New order") -> "PENDING"
+            else -> null
+        }
+    }
+
+    val allDisplayChats = remember(chats, groups) {
+        chats + groups.map { it.toChatEntity() }
+    }
+
+    fun isChatMatchingCategory(chat: ChatEntity, category: String): Boolean {
+        return when (category) {
+            "All" -> true
+            "Unread" -> chat.unreadCount > 0
+            "Pinned" -> chat.isPinned
+            "Groups" -> chat.isGroup
+            "New order" -> {
+                val status = getChatOrderStatus(chat)
+                chatMatchesLabel(chat, "New order") || status == "PENDING"
+            }
+            "Pending payment" -> {
+                val status = getChatOrderStatus(chat)
+                chatMatchesLabel(chat, "Pending payment") || status in listOf("CONFIRMED", "PREPARING", "PENDING_PAYMENT")
+            }
+            "Paid" -> {
+                val status = getChatOrderStatus(chat)
+                chatMatchesLabel(chat, "Paid") || status in listOf("PAID", "OUT_FOR_DELIVERY")
+            }
+            "Order complete" -> {
+                val status = getChatOrderStatus(chat)
+                chatMatchesLabel(chat, "Order complete") || status == "COMPLETED"
+            }
+            "New customer" -> {
+                val isRecent = !chat.isGroup && (System.currentTimeMillis() - chat.lastMessageTime < 14 * 86400000L)
+                chatMatchesLabel(chat, "New customer") || isRecent
+            }
+            else -> chatMatchesLabel(chat, category)
+        }
+    }
+
+    val categoryCounts = remember(allDisplayChats, categories, chatLabels, orderMessages) {
+        categories.associateWith { cat ->
+            if (cat == "All") allDisplayChats.size
+            else allDisplayChats.count { isChatMatchingCategory(it, cat) }
+        }
+    }
+
+    val filteredChats = remember(allDisplayChats, selectedCategory, searchQuery, chatLabels, orderMessages) {
         val baseChats = when (selectedCategory) {
             "Groups" -> groups.map { it.toChatEntity() }
-            else -> chats + groups.map { it.toChatEntity() }
+            else -> allDisplayChats
         }
 
         baseChats.filter { chat ->
-            val matchesCategory = when (selectedCategory) {
-                "Unread" -> chat.unreadCount > 0
-                "Pinned" -> chat.isPinned
-                "Groups" -> chat.isGroup
-                "New customer", "New order", "Pending payment", "Paid", "Order complete" -> {
-                    // Match chat name/contact hash or content to the selected business label filter
-                    (chat.id.hashCode() % 5) == when (selectedCategory) {
-                        "New customer" -> 0
-                        "New order" -> 1
-                        "Pending payment" -> 2
-                        "Paid" -> 3
-                        else -> 4
-                    }
-                }
-                else -> true
-            }
+            val matchesCategory = isChatMatchingCategory(chat, selectedCategory)
             val matchesQuery = if (searchQuery.isBlank()) true else {
                 chat.contactName.contains(searchQuery, ignoreCase = true) ||
                         chat.lastMessage.contains(searchQuery, ignoreCase = true)
@@ -472,6 +659,19 @@ fun ChatsListScreen(
                                 )
                             }
 
+                            // Label Selected Chats
+                            IconButton(
+                                onClick = {
+                                    showLabelDialog = true
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Label,
+                                    contentDescription = "Label Selected Chats",
+                                    tint = Color.White
+                                )
+                            }
+
                             // Delete
                             IconButton(
                                 onClick = {
@@ -554,13 +754,19 @@ fun ChatsListScreen(
                         ) {
                             items(categories) { category ->
                                 val isSelected = (selectedCategory == category)
+                                val count = categoryCounts[category] ?: 0
                                 val chipColor = when (category) {
                                     "New customer" -> Color(0xFF00A884)
                                     "New order" -> Color(0xFFF59E0B)
                                     "Pending payment" -> Color(0xFFEF4444)
                                     "Paid" -> Color(0xFF10B981)
                                     "Order complete" -> Color(0xFF3B82F6)
-                                    else -> WhatsAppMinimalPrimary
+                                    else -> {
+                                        val custom = chatLabels.firstOrNull { it.name.equals(category, ignoreCase = true) }
+                                        if (custom != null) {
+                                            try { Color(android.graphics.Color.parseColor(custom.colorHex)) } catch (_: Exception) { WhatsAppMinimalPrimary }
+                                        } else WhatsAppMinimalPrimary
+                                    }
                                 }
                                 Surface(
                                     shape = RoundedCornerShape(20.dp),
@@ -572,7 +778,9 @@ fun ChatsListScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                                     ) {
-                                        if (category in listOf("New customer", "New order", "Pending payment", "Paid", "Order complete")) {
+                                        val hasColorDot = category in listOf("New customer", "New order", "Pending payment", "Paid", "Order complete") ||
+                                                chatLabels.any { it.name.equals(category, ignoreCase = true) }
+                                        if (hasColorDot) {
                                             Box(
                                                 modifier = Modifier
                                                     .size(8.dp)
@@ -586,6 +794,21 @@ fun ChatsListScreen(
                                             fontSize = 13.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                         )
+                                        if (count > 0 && category != "All") {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = if (isSelected) Color.White.copy(alpha = 0.25f) else chipColor.copy(alpha = 0.15f),
+                                                contentColor = if (isSelected) Color.White else chipColor
+                                            ) {
+                                                Text(
+                                                    text = count.toString(),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -602,18 +825,76 @@ fun ChatsListScreen(
                                 .height(280.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            ) {
+                                val (emptyIcon, emptyTitle, emptySubtitle) = when (selectedCategory) {
+                                    "New order" -> Triple(
+                                        Icons.Default.ShoppingBag,
+                                        "No New Orders",
+                                        "Incoming order inquiries from customers will appear here."
+                                    )
+                                    "Pending payment" -> Triple(
+                                        Icons.Default.FilterList,
+                                        "No Orders Pending Payment",
+                                        "Orders awaiting customer payment will appear here."
+                                    )
+                                    "Paid" -> Triple(
+                                        Icons.Default.Check,
+                                        "No Paid Orders",
+                                        "Orders with confirmed payments will appear here."
+                                    )
+                                    "Order complete" -> Triple(
+                                        Icons.Default.DoneAll,
+                                        "No Completed Orders",
+                                        "Fulfilled and completed orders will appear here."
+                                    )
+                                    "New customer" -> Triple(
+                                        Icons.Default.Storefront,
+                                        "No New Customers",
+                                        "Conversations from new customer inquiries will appear here."
+                                    )
+                                    "Unread" -> Triple(
+                                        Icons.AutoMirrored.Filled.Chat,
+                                        "No Unread Chats",
+                                        "All customer conversations are caught up."
+                                    )
+                                    "Groups" -> Triple(
+                                        Icons.AutoMirrored.Filled.Chat,
+                                        "No Group Chats",
+                                        "Groups will appear here."
+                                    )
+                                    "Pinned" -> Triple(
+                                        Icons.Default.PushPin,
+                                        "No Pinned Chats",
+                                        "Long-press a conversation and tap Pin to keep it at the top."
+                                    )
+                                    else -> Triple(
+                                        Icons.AutoMirrored.Filled.Chat,
+                                        if (searchQuery.isBlank()) "No $selectedCategory conversations" else "No matches found",
+                                        if (searchQuery.isBlank()) "Conversations labeled \"$selectedCategory\" will appear here." else "No chats matching \"$searchQuery\"."
+                                    )
+                                }
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Chat,
-                                    contentDescription = "No chats",
+                                    imageVector = emptyIcon,
+                                    contentDescription = emptyTitle,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(54.dp)
+                                    modifier = Modifier.size(52.dp)
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = if (searchQuery.isBlank()) "No $selectedCategory conversations" else "No matches for \"$searchQuery\"",
-                                    fontSize = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = emptyTitle,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = emptySubtitle,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         }
@@ -627,6 +908,8 @@ fun ChatsListScreen(
                             typingChatId = typingChatId,
                             isSelected = isSelected,
                             isSelectionMode = isSelectionMode,
+                            chatLabels = chatLabels,
+                            orderStatus = getChatOrderStatus(chat),
                             onClick = {
                                 if (isSelectionMode) {
                                     selectedChatIds = if (isSelected) {
@@ -660,6 +943,8 @@ fun VibezChatItemCard(
     typingChatId: String? = null,
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
+    chatLabels: List<com.example.data.network.ChatLabelDto> = emptyList(),
+    orderStatus: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     onAvatarClick: () -> Unit = {}
@@ -823,6 +1108,89 @@ fun VibezChatItemCard(
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                 )
+                            }
+                        }
+                    }
+                }
+
+                // Order Status & Label Badges Row
+                val assignedLabels = remember(chatLabels, chat.id) {
+                    chatLabels.filter { it.chatIds.contains(chat.id) || (chat.remoteId != null && it.chatIds.contains(chat.remoteId)) }
+                }
+                if (orderStatus != null || assignedLabels.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Order Status Pill
+                        if (orderStatus != null) {
+                            val (badgeText, badgeBg, badgeTextColor) = when (orderStatus) {
+                                "PENDING" -> Triple("New order", Color(0xFFFEF3C7), Color(0xFFD97706))
+                                "CONFIRMED" -> Triple("Confirmed", Color(0xFFE0F2FE), Color(0xFF0284C7))
+                                "PREPARING" -> Triple("Preparing", Color(0xFFEDE9FE), Color(0xFF6D28D9))
+                                "PENDING_PAYMENT" -> Triple("Pending payment", Color(0xFFFEE2E2), Color(0xFFEF4444))
+                                "OUT_FOR_DELIVERY" -> Triple("Out for Delivery", Color(0xFFDBEAFE), Color(0xFF2563EB))
+                                "COMPLETED" -> Triple("Order complete", Color(0xFFDCFCE7), Color(0xFF15803D))
+                                "CANCELLED" -> Triple("Cancelled", Color(0xFFFEE2E2), Color(0xFFDC2626))
+                                "PAID" -> Triple("Paid", Color(0xFFDCFCE7), Color(0xFF10B981))
+                                else -> Triple(orderStatus, Color(0xFFFEF3C7), Color(0xFFD97706))
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = badgeBg,
+                                contentColor = badgeTextColor
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(badgeTextColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = badgeText,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = badgeTextColor
+                                    )
+                                }
+                            }
+                        }
+
+                        // Label Chips
+                        assignedLabels.take(3).forEach { label ->
+                            val labelColor = remember(label.colorHex) {
+                                try { Color(android.graphics.Color.parseColor(label.colorHex)) } catch (_: Exception) { Color(0xFF00A884) }
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = labelColor.copy(alpha = 0.15f),
+                                contentColor = labelColor
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(labelColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = label.name,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = labelColor
+                                    )
+                                }
                             }
                         }
                     }
