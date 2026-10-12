@@ -786,4 +786,15 @@ export class DeveloperController {
       return res.status(500).json({ success: false, error: error.message });
     }
   }
+
+  /**
+   * Developer Logout
+   */
+  async developerLogout(req: DeveloperRequest, res: Response) {
+    try {
+      return res.json({ success: true, message: 'Logged out successfully.' });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
 }

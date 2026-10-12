@@ -145,6 +145,7 @@ app.head('/api/developer/health', (req, res) => developer.getDeveloperHealth(req
 app.get('/api/developer/metrics', (req, res) => developer.getApiMetrics(req, res));
 app.post('/api/developer/auth/login', (req, res) => developer.developerLogin(req, res));
 app.post('/api/developer/auth/register', (req, res) => developer.developerRegister(req, res));
+app.post('/api/developer/auth/logout', authenticateDeveloper, (req, res) => developer.developerLogout(req, res));
 app.get('/api/developer/auth/me', authenticateDeveloper, (req, res) => developer.getDeveloperProfile(req, res));
 app.get('/api/developer/keys', authenticateDeveloper, (req, res) => developer.getDeveloperProfile(req, res));
 app.post('/api/developer/keys', authenticateDeveloper, (req, res) => developer.createApiKey(req, res));

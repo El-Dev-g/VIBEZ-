@@ -116,6 +116,10 @@ function DashboardContent() {
   }, [searchParams]);
 
   const handleTabChange = (newTab: DashboardTab) => {
+    if (!user && newTab !== 'overview') {
+      navigate('/login');
+      return;
+    }
     setActiveTab(newTab);
     setMobileSidebarOpen(false);
     setSearchParams({ tab: newTab }, { replace: true });
@@ -287,7 +291,10 @@ function DashboardContent() {
                 </div>
               </div>
               <button
-                onClick={logout}
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                }}
                 title="Logout"
                 className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
               >
@@ -325,6 +332,7 @@ function DashboardContent() {
                       {group.items.map((item) => {
                         const Icon = item.icon;
                         const isActive = activeTab === item.id;
+                        const isProtected = !user && item.id !== 'overview';
                         return (
                           <button
                             key={item.id}
@@ -339,17 +347,20 @@ function DashboardContent() {
                               <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-400' : 'text-slate-500'}`} />
                               <span>{item.label}</span>
                             </div>
-                            {item.badge && (
-                              <span
-                                className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
-                                  isActive
-                                    ? 'bg-emerald-400 text-slate-950 font-black'
-                                    : 'bg-slate-800 text-slate-400'
-                                }`}
-                              >
-                                {item.badge}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {isProtected && <Lock className="w-3 h-3 text-amber-400/80" />}
+                              {item.badge && !isProtected && (
+                                <span
+                                  className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                                    isActive
+                                      ? 'bg-emerald-400 text-slate-950 font-black'
+                                      : 'bg-slate-800 text-slate-400'
+                                  }`}
+                                >
+                                  {item.badge}
+                                </span>
+                              )}
+                            </div>
                           </button>
                         );
                       })}
