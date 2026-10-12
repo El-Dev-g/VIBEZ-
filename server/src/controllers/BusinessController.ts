@@ -731,29 +731,83 @@ export class BusinessController {
   async createOrder(req: AuthRequest, res: Response) {
     try {
       const buyerUserId = req.user?.id;
-      const { businessUserId, chatId, items, totalAmount, currency, note } = req.body;
+      const { businessUserId, chatId, items, currency, note } = req.body;
 
-      if (!businessUserId || !items || !Array.isArray(items)) {
-        return res.status(400).json({ error: 'businessUserId and items array required' });
+      if (!businessUserId || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'businessUserId and non-empty items array required' });
       }
+
+      // Verify business profile exists
+      const businessProfile = await prisma.businessProfile.findFirst({
+        where: {
+          OR: [
+            { userId: businessUserId },
+            { id: businessUserId }
+          ]
+        },
+        include: { catalogItems: true }
+      });
+
+      if (!businessProfile) {
+        return res.status(404).json({ error: 'Business profile not found or ineligible for orders' });
+      }
+
+      // Validate items against merchant's catalog and calculate server-side total
+      let calculatedTotal = 0;
+      const validatedItems = [];
+
+      for (const clientItem of items) {
+        const catalogMatch = businessProfile.catalogItems.find(
+          (ci: any) => ci.id === clientItem.id || ci.title.toLowerCase() === (clientItem.title || '').toLowerCase()
+        );
+
+        if (!catalogMatch) {
+          return res.status(400).json({ error: `Product item '${clientItem.title || clientItem.id}' not found in merchant catalog` });
+        }
+
+        if (!catalogMatch.isAvailable) {
+          return res.status(400).json({ error: `Product item '${catalogMatch.title}' is currently unavailable` });
+        }
+
+        const quantity = parseInt(clientItem.quantity, 10) || 1;
+        if (quantity <= 0 || quantity > 100) {
+          return res.status(400).json({ error: `Invalid quantity for item '${catalogMatch.title}'` });
+        }
+
+        const itemPrice = catalogMatch.price;
+        calculatedTotal += itemPrice * quantity;
+
+        validatedItems.push({
+          id: catalogMatch.id,
+          title: catalogMatch.title,
+          price: itemPrice,
+          quantity,
+          imageUrl: catalogMatch.imageUrl
+        });
+      }
+
+      const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'GHS', 'NGN', 'KES', 'ZAR', 'INR']);
+      const sanitizedCurrency = currency && supportedCurrencies.has(String(currency).toUpperCase()) ? String(currency).toUpperCase() : (businessProfile.catalogItems[0]?.currency || 'USD');
+
+      const sanitizedNote = note ? String(note).trim().substring(0, 500) : null;
 
       const order = await prisma.order.create({
         data: {
-          businessId: businessUserId,
+          businessId: businessProfile.userId,
           buyerId: buyerUserId || 'ANONYMOUS_BUYER',
           chatId: chatId || null,
-          items: JSON.stringify(items),
-          totalAmount: parseFloat(totalAmount) || 0.0,
-          currency: currency || 'USD',
+          items: JSON.stringify(validatedItems),
+          totalAmount: calculatedTotal,
+          currency: sanitizedCurrency,
           status: 'PENDING',
-          note: note || null
+          note: sanitizedNote
         }
       });
 
       if (chatId) {
         try {
           const newOrderLabel = await prisma.chatLabel.findFirst({
-            where: { userId: businessUserId, name: 'New order' }
+            where: { userId: businessProfile.userId, name: 'New order' }
           });
           if (newOrderLabel && !newOrderLabel.chatIds.includes(chatId)) {
             await prisma.chatLabel.update({
@@ -813,7 +867,9 @@ export class BusinessController {
       const { id } = req.params;
       const { status, messageId, chatId } = req.body;
 
-      if (!userId || !status) return res.status(400).json({ error: 'Order ID and status required' });
+      if (!userId || !status || !id) {
+        return res.status(400).json({ error: 'Order ID, status and authentication required' });
+      }
 
       let normalizedStatus = String(status).trim().toUpperCase().replace(/ /g, '_');
       if (normalizedStatus === 'OUT FOR DELIVERY') normalizedStatus = 'OUT_FOR_DELIVERY';
@@ -823,38 +879,27 @@ export class BusinessController {
         return res.status(400).json({ error: `Invalid order status: ${normalizedStatus}` });
       }
 
-      // Verify order exists and authenticated user is authorized to manage it
-      const existingOrder = await prisma.order.findFirst({
-        where: {
-          OR: [
-            { id },
-            { id: { contains: id } }
-          ]
-        }
+      // Enforce exact order ID lookup only (no partial matches)
+      const existingOrder = await prisma.order.findUnique({
+        where: { id }
       });
 
-      if (existingOrder) {
-        const isMerchant = existingOrder.businessId === userId;
-        const isBuyerCancelling = existingOrder.buyerId === userId && normalizedStatus === 'CANCELLED';
-        if (!isMerchant && !isBuyerCancelling) {
-          return res.status(403).json({ error: 'Forbidden: You do not have permission to manage this order' });
-        }
+      if (!existingOrder) {
+        return res.status(404).json({ error: 'Order not found' });
       }
 
-      let order: any = null;
-      try {
-        order = await prisma.order.update({
-          where: { id: existingOrder ? existingOrder.id : id },
-          data: { status: normalizedStatus }
-        });
-      } catch (err) {
-        try {
-          await prisma.order.updateMany({
-            where: { id },
-            data: { status: normalizedStatus }
-          });
-        } catch (_) {}
+      const isMerchant = existingOrder.businessId === userId;
+      const isBuyer = existingOrder.buyerId === userId;
+      const isBuyerCancelling = isBuyer && normalizedStatus === 'CANCELLED' && ['PENDING', 'PENDING_PAYMENT', 'CONFIRMED'].includes(existingOrder.status);
+
+      if (!isMerchant && !isBuyerCancelling) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to manage this order or invalid cancellation state' });
       }
+
+      const order = await prisma.order.update({
+        where: { id },
+        data: { status: normalizedStatus }
+      });
 
       // Also sync associated in-chat message if messageId or id is present
       let msg: any = null;
