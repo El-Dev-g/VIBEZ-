@@ -34,8 +34,39 @@ export class StorageController {
     }
   }
 
+  private static readonly ALLOWED_EXTENSIONS = new Set([
+    'jpg', 'jpeg', 'png', 'webp', 'gif',
+    'mp4', 'webm', 'mov',
+    'mp3', 'ogg', 'wav', 'm4a',
+    'pdf', 'doc', 'docx', 'txt'
+  ]);
+
+  private static readonly ALLOWED_MIME_TYPES = new Set([
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    'video/mp4', 'video/webm', 'video/quicktime',
+    'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/mp4', 'audio/x-m4a',
+    'application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain'
+  ]);
+
+  private validateFileType(fileName: string, contentType: string): string {
+    const rawExt = (fileName.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!rawExt || !StorageController.ALLOWED_EXTENSIONS.has(rawExt)) {
+      throw new Error(`Disallowed file extension: .${rawExt || 'unknown'}. Allowed extensions: images, videos, audio, PDF, and documents.`);
+    }
+
+    const normMime = (contentType || '').toLowerCase().split(';')[0].trim();
+    if (!normMime || !StorageController.ALLOWED_MIME_TYPES.has(normMime)) {
+      throw new Error(`Disallowed MIME type: ${normMime}. Only verified media and document MIME types are permitted.`);
+    }
+
+    return rawExt;
+  }
+
   async getPresignedUploadUrl(fileName: string, contentType: string, uploaderId?: string, purpose: string = 'GENERAL') {
-    const fileExtension = fileName.split('.').pop() || 'mp4';
+    const fileExtension = this.validateFileType(fileName, contentType);
+    const safeOriginalName = path.basename(fileName).replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 255);
     const fileKey = `${uuidv4()}.${fileExtension}`;
     
     if (this.s3Client && this.bucketName && process.env.CLOUDFLARE_R2_PUBLIC_DOMAIN) {
@@ -54,7 +85,7 @@ export class StorageController {
       await prisma.storageAsset.create({
         data: {
           fileKey,
-          fileName,
+          fileName: safeOriginalName,
           contentType,
           publicUrl,
           uploaderId,
@@ -72,13 +103,13 @@ export class StorageController {
 
     // Local file fallback when S3 / Cloudflare R2 is unconfigured
     const localPublicUrl = `/uploads/${fileKey}`;
-    const directUploadUrl = `/api/media/upload-direct?fileName=${encodeURIComponent(fileName)}&purpose=${encodeURIComponent(purpose)}`;
+    const directUploadUrl = `/api/media/upload-direct?fileName=${encodeURIComponent(safeOriginalName)}&purpose=${encodeURIComponent(purpose)}`;
 
     try {
       await prisma.storageAsset.create({
         data: {
           fileKey,
-          fileName,
+          fileName: safeOriginalName,
           contentType,
           publicUrl: localPublicUrl,
           uploaderId,
@@ -98,7 +129,12 @@ export class StorageController {
   }
 
   async saveLocalFile(fileName: string, contentType: string, buffer: Buffer, uploaderId?: string, purpose: string = 'STATUS') {
-    const fileExtension = fileName.split('.').pop() || 'mp4';
+    if (buffer.length > 100 * 1024 * 1024) {
+      throw new Error('Payload exceeds maximum allowable file size of 100MB.');
+    }
+
+    const fileExtension = this.validateFileType(fileName, contentType);
+    const safeOriginalName = path.basename(fileName).replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 255);
     const fileKey = `${uuidv4()}.${fileExtension}`;
     const targetPath = path.join(this.uploadsDir, fileKey);
 
@@ -110,7 +146,7 @@ export class StorageController {
       await prisma.storageAsset.create({
         data: {
           fileKey,
-          fileName,
+          fileName: safeOriginalName,
           contentType,
           publicUrl,
           uploaderId,
@@ -133,7 +169,7 @@ export class StorageController {
     const safeFilename = path.basename(filename);
     const filePath = path.join(this.uploadsDir, safeFilename);
 
-    if (!fs.existsSync(filePath)) {
+    if (!safeFilename || safeFilename.includes('..') || !fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Video not found' });
     }
 

@@ -4,9 +4,12 @@
   "description": "Backend for Vibez WhatsApp Clone",
   "main": "dist/index.js",
   "scripts": {
-    "start": "node -e \"if (require('fs').existsSync('./prisma/migrations')) { require('child_process').execSync('npx prisma migrate deploy', {stdio: 'inherit'}); } else { require('child_process').execSync('npx prisma db push', {stdio: 'inherit'}); }\" && node dist/index.js",
+    "start": "node -e \"if (process.env.NODE_ENV === 'production' || require('fs').existsSync('./prisma/migrations')) { require('child_process').execSync('npx prisma migrate deploy', {stdio: 'inherit'}); } else { require('child_process').execSync('npx prisma db push --accept-data-loss=false', {stdio: 'inherit'}); }\" && node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "migrate:dev": "prisma migrate dev",
     "seed": "npx ts-node prisma/seed.ts"
   },
   "prisma": {

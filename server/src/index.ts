@@ -391,6 +391,7 @@ app.post('/api/business/labels/toggle', authenticate, async (req: any, res: any)
 });
 
 // Helper to process and broadcast order status updates with strict authorization & transition checks
+// Helper to process and broadcast order status updates with strict authorization & transition checks
 const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: string; orderId?: string; status: string }, updaterUserId?: string) => {
   if (!data || !data.status) {
     return { success: false, error: 'Status is required' };
@@ -413,17 +414,15 @@ const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: stri
   let chatId = data.chatId ? extractPureChatId(String(data.chatId)) : null;
   let targetMessage: any = null;
 
-  // 1. Authorize order updater against the target order & business
+  // 1. Authorize order updater against the target order & business using exact ID lookup only
   let existingOrder: any = null;
   if (orderId) {
-    existingOrder = await prisma.order.findFirst({
-      where: {
-        OR: [
-          { id: orderId },
-          { id: { contains: orderId } }
-        ]
-      }
+    existingOrder = await prisma.order.findUnique({
+      where: { id: orderId }
     });
+    if (!existingOrder) {
+      return { success: false, error: 'Order not found' };
+    }
   }
 
   if (data.messageId) {
@@ -438,88 +437,75 @@ const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: stri
     });
   }
 
-  // Verify permission: Updater must be the merchant (businessId), or buyer (for cancellation), or a member of the chat
+  if (!existingOrder && !targetMessage) {
+    return { success: false, error: 'Order not found' };
+  }
+
+  // 2. Strict authorization: Only the merchant or the buyer (for valid cancellation) can update
+  // Note: Chat membership is explicitly REMOVED as an authorization mechanism.
   let isAuthorized = false;
   if (existingOrder) {
-    if (existingOrder.businessId === updaterUserId) {
-      isAuthorized = true;
-    } else if (existingOrder.buyerId === updaterUserId && normalizedStatus === 'CANCELLED') {
-      isAuthorized = true; // Buyers can cancel pending orders
-    }
-  }
+    const bizProfile = await prisma.businessProfile.findUnique({ where: { userId: updaterUserId } });
+    const isMerchant = existingOrder.businessId === updaterUserId || (bizProfile && existingOrder.businessId === bizProfile.id);
+    const isBuyer = existingOrder.buyerId === updaterUserId;
+    const isBuyerCancelling = isBuyer && normalizedStatus === 'CANCELLED' && ['PENDING', 'PENDING_PAYMENT', 'CONFIRMED'].includes(existingOrder.status);
 
-  const checkChatId = chatId || targetMessage?.chatId || existingOrder?.chatId;
-  if (!isAuthorized && checkChatId) {
-    const chatMembership = await prisma.chatMember.findFirst({
-      where: {
-        chatId: checkChatId,
-        userId: updaterUserId
+    if (isMerchant) {
+      // Validate terminal status transitions: completed or cancelled orders cannot be modified
+      if ((existingOrder.status === 'CANCELLED' || existingOrder.status === 'COMPLETED') && normalizedStatus !== existingOrder.status) {
+        return { success: false, error: `Cannot modify an order that is already ${existingOrder.status}.` };
       }
-    });
-    if (chatMembership) {
+      isAuthorized = true;
+    } else if (isBuyerCancelling) {
+      isAuthorized = true;
+    } else if (isBuyer) {
+      return { success: false, error: 'Forbidden: Buyers can only cancel orders in PENDING or PENDING_PAYMENT status.' };
+    }
+  } else if (targetMessage) {
+    // For legacy standalone message cards without separate order record, updater must be the message sender
+    if (targetMessage.senderId === updaterUserId) {
       isAuthorized = true;
     }
   }
 
-  // Check admin role as backup
   if (!isAuthorized) {
-    const userRecord = await prisma.user.findUnique({ where: { id: updaterUserId } });
-    if (userRecord?.accountType === 'BUSINESS') {
-      // Check if business profile belongs to user
-      const bizProfile = await prisma.businessProfile.findUnique({ where: { userId: updaterUserId } });
-      if (bizProfile && existingOrder && existingOrder.businessId === bizProfile.id) {
-        isAuthorized = true;
-      }
-    }
-  }
-
-  if (!isAuthorized && existingOrder) {
     return { success: false, error: 'Forbidden: You do not have permission to manage this order.' };
   }
 
-  // 2. Update Order record in database if orderId exists
+  // 3. Atomically update Order record and associated Message in database using a transaction
   let updatedOrderRecord: any = null;
-  if (orderId) {
-    try {
-      updatedOrderRecord = await prisma.order.update({
-        where: { id: existingOrder ? existingOrder.id : orderId },
-        data: { status: normalizedStatus }
-      });
-    } catch (_) {
-      try {
-        await prisma.order.updateMany({
-          where: { id: orderId },
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (existingOrder) {
+        updatedOrderRecord = await tx.order.update({
+          where: { id: existingOrder.id },
           data: { status: normalizedStatus }
         });
-      } catch (err) {
-        console.warn('Error updating order table:', err);
       }
-    }
-  }
 
-  if (targetMessage) {
-    chatId = chatId || targetMessage.chatId;
-    try {
-      let payload: any = {};
-      if (targetMessage.mediaUrl) {
-        try {
-          payload = JSON.parse(targetMessage.mediaUrl);
-        } catch (_) {
-          payload = {};
+      if (targetMessage) {
+        let payload: any = {};
+        if (targetMessage.mediaUrl) {
+          try {
+            payload = JSON.parse(targetMessage.mediaUrl);
+          } catch (_) {
+            payload = {};
+          }
         }
-      }
-      payload.status = normalizedStatus;
-      payload.updatedAt = Date.now();
-      if (orderId) payload.orderId = orderId;
+        payload.status = normalizedStatus;
+        payload.updatedAt = Date.now();
+        if (orderId) payload.orderId = orderId;
 
-      const updatedMediaUrl = JSON.stringify(payload);
-      targetMessage = await prisma.message.update({
-        where: { id: targetMessage.id },
-        data: { mediaUrl: updatedMediaUrl }
-      });
-    } catch (err) {
-      console.error('Error updating message mediaUrl:', err);
-    }
+        const updatedMediaUrl = JSON.stringify(payload);
+        targetMessage = await tx.message.update({
+          where: { id: targetMessage.id },
+          data: { mediaUrl: updatedMediaUrl }
+        });
+      }
+    });
+  } catch (txErr: any) {
+    console.error('Error updating order/message in transaction:', txErr);
+    return { success: false, error: 'Failed to update order due to database error' };
   }
 
   const effectiveChatId = chatId || targetMessage?.chatId;
@@ -620,6 +606,12 @@ app.put('/api/business/orders/:id/status', authenticate, async (req, res) => {
     messageId: req.body.messageId,
     chatId: req.body.chatId
   }, (req as any).user?.id);
+  if (!result.success) {
+    const code = result.error?.includes('not found') ? 404 :
+                 result.error?.includes('Forbidden') ? 403 :
+                 result.error?.includes('Unauthorized') ? 401 : 400;
+    return res.status(code).json(result);
+  }
   res.json(result);
 });
 app.patch('/api/chats/:chatId/messages/:messageId/order-status', authenticate, async (req, res) => {
@@ -629,6 +621,12 @@ app.patch('/api/chats/:chatId/messages/:messageId/order-status', authenticate, a
     orderId: req.body.orderId,
     status: req.body.status
   }, (req as any).user?.id);
+  if (!result.success) {
+    const code = result.error?.includes('not found') ? 404 :
+                 result.error?.includes('Forbidden') ? 403 :
+                 result.error?.includes('Unauthorized') ? 401 : 400;
+    return res.status(code).json(result);
+  }
   res.json(result);
 });
 app.post('/api/business/orders/update-status', authenticate, async (req, res) => {
@@ -638,6 +636,12 @@ app.post('/api/business/orders/update-status', authenticate, async (req, res) =>
     orderId: req.body.orderId,
     status: req.body.status
   }, (req as any).user?.id);
+  if (!result.success) {
+    const code = result.error?.includes('not found') ? 404 :
+                 result.error?.includes('Forbidden') ? 403 :
+                 result.error?.includes('Unauthorized') ? 401 : 400;
+    return res.status(code).json(result);
+  }
   res.json(result);
 });
 

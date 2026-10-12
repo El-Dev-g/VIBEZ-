@@ -888,7 +888,8 @@ export class BusinessController {
         return res.status(404).json({ error: 'Order not found' });
       }
 
-      const isMerchant = existingOrder.businessId === userId;
+      const bizProfile = await prisma.businessProfile.findUnique({ where: { userId } });
+      const isMerchant = existingOrder.businessId === userId || (bizProfile && existingOrder.businessId === bizProfile.id);
       const isBuyer = existingOrder.buyerId === userId;
       const isBuyerCancelling = isBuyer && normalizedStatus === 'CANCELLED' && ['PENDING', 'PENDING_PAYMENT', 'CONFIRMED'].includes(existingOrder.status);
 
@@ -896,13 +897,14 @@ export class BusinessController {
         return res.status(403).json({ error: 'Forbidden: You do not have permission to manage this order or invalid cancellation state' });
       }
 
-      const order = await prisma.order.update({
-        where: { id },
-        data: { status: normalizedStatus }
-      });
+      if (isMerchant && (existingOrder.status === 'CANCELLED' || existingOrder.status === 'COMPLETED') && normalizedStatus !== existingOrder.status) {
+        return res.status(400).json({ error: `Cannot modify an order that is already ${existingOrder.status}.` });
+      }
 
-      // Also sync associated in-chat message if messageId or id is present
+      let order = existingOrder;
       let msg: any = null;
+
+      // Locate associated in-chat message if messageId or id is present
       if (messageId) {
         msg = await prisma.message.findUnique({ where: { id: messageId } });
       }
@@ -912,19 +914,27 @@ export class BusinessController {
         });
       }
 
-      if (msg) {
-        try {
-          const payload = msg.mediaUrl ? JSON.parse(msg.mediaUrl) : {};
-          payload.status = normalizedStatus;
-          payload.updatedAt = Date.now();
-          msg = await prisma.message.update({
-            where: { id: msg.id },
-            data: { mediaUrl: JSON.stringify(payload) }
-          });
-        } catch (msgErr) {
-          console.warn('Error parsing or updating message mediaUrl:', msgErr);
+      // Execute order update and message sync in an atomic database transaction
+      await prisma.$transaction(async (tx) => {
+        order = await tx.order.update({
+          where: { id },
+          data: { status: normalizedStatus }
+        });
+
+        if (msg) {
+          try {
+            const payload = msg.mediaUrl ? JSON.parse(msg.mediaUrl) : {};
+            payload.status = normalizedStatus;
+            payload.updatedAt = Date.now();
+            msg = await tx.message.update({
+              where: { id: msg.id },
+              data: { mediaUrl: JSON.stringify(payload) }
+            });
+          } catch (msgErr) {
+            console.warn('Error parsing or updating message mediaUrl:', msgErr);
+          }
         }
-      }
+      });
 
       res.json({
         success: true,

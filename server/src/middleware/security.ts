@@ -23,31 +23,65 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
   next();
 };
 
-// Sanitize string inputs to prevent XSS and script injection attacks
+// Sensitive keys that must never be altered or corrupted during sanitization
+const SENSITIVE_KEYS = new Set([
+  'password', 'newpassword', 'oldpassword', 'confirmpassword',
+  'token', 'idtoken', 'firebaseidtoken', 'refreshtoken', 'accesstoken',
+  'secret', 'webhooksecret', 'signature', 'rawreceipt', 'apikey', 'key',
+  'hash', 'privatekey', 'certificate'
+]);
+
+// Production-grade string sanitizer that eliminates XSS and dangerous script schemes
 function sanitizeString(value: string): string {
   if (typeof value !== 'string') return value;
-  // Remove dangerous script tags and inline event handlers
-  return value
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/on\w+="[^"]*"/gi, '')
-    .replace(/on\w+='[^']*'/gi, '');
+  
+  // Neutralize script tags (including malformed or case-variant tags)
+  let clean = value.replace(/<\s*script\b[^>]*>([\s\S]*?)<\s*\/\s*script\s*>/gi, '');
+  clean = clean.replace(/<\s*script\b[^>]*>/gi, '');
+  
+  // Neutralize dangerous inline event handlers (onerror=, onclick=, onload=, etc.)
+  clean = clean.replace(/\bon\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
+  
+  // Neutralize pseudo-protocol injections (javascript:, vbscript:, data:text/html)
+  clean = clean.replace(/(?:javascript|vbscript|data\s*:\s*text\/html)\s*:[^"'\s]*/gi, '');
+
+  return clean;
+}
+
+function sanitizeDeep(obj: any, keyName?: string): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Buffer.isBuffer(obj)) return obj;
+
+  if (keyName && SENSITIVE_KEYS.has(keyName.toLowerCase())) {
+    return obj; // Leave sensitive cryptographic and auth credentials pristine
+  }
+
+  if (typeof obj === 'string') {
+    return sanitizeString(obj);
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeDeep(item, keyName));
+  }
+
+  if (typeof obj === 'object') {
+    const sanitizedObj: Record<string, any> = {};
+    for (const key of Object.keys(obj)) {
+      sanitizedObj[key] = sanitizeDeep(obj[key], key);
+    }
+    return sanitizedObj;
+  }
+
+  return obj;
 }
 
 export const sanitizeInputs = (req: Request, res: Response, next: NextFunction) => {
   if (req.body && typeof req.body === 'object') {
-    Object.keys(req.body).forEach(key => {
-      if (typeof req.body[key] === 'string') {
-        req.body[key] = sanitizeString(req.body[key]);
-      }
-    });
+    req.body = sanitizeDeep(req.body);
   }
 
   if (req.query && typeof req.query === 'object') {
-    Object.keys(req.query).forEach(key => {
-      if (typeof req.query[key] === 'string') {
-        req.query[key] = sanitizeString(req.query[key] as string);
-      }
-    });
+    req.query = sanitizeDeep(req.query) as any;
   }
 
   next();

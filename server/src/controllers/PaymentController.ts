@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 
@@ -730,31 +731,74 @@ export class PaymentController {
     }
   }
 
-  // Webhook: Update payment status from provider with secret validation & idempotency
+  // Webhook: Update payment status from provider with cryptographic verification & idempotency
   async updatePaymentStatus(req: Request, res: Response) {
     try {
-      const webhookSecret = (req.headers['x-webhook-secret'] as string) || (req.query.secret as string);
+      // 1. Strictly header-only authentication: reject secrets in query parameters to prevent log leakage
+      const webhookSecret = (req.headers['x-webhook-secret'] as string) || (req.headers['x-api-key'] as string);
+      const paystackSignature = req.headers['x-paystack-signature'] as string;
+      const flwSignature = req.headers['verif-hash'] as string;
+      const hmacSignature = (req.headers['x-webhook-signature'] as string) || (req.headers['x-signature'] as string);
+
       const expectedSecret = process.env.PAYMENT_WEBHOOK_SECRET?.trim();
       const isProduction = process.env.NODE_ENV === 'production';
 
-      // 1. Fail closed: In production, webhook secret must be configured and strictly matched
-      if (isProduction) {
-        if (!expectedSecret) {
-          console.error('[Payment Webhook] Security Alert: PAYMENT_WEBHOOK_SECRET is not configured on production server.');
-          return res.status(503).json({ error: 'Webhook processing unavailable: Webhook security credentials unconfigured.' });
-        }
-        if (!webhookSecret || webhookSecret !== expectedSecret) {
-          console.warn('[Payment Webhook] Security Alert: Invalid or missing webhook secret header.');
-          return res.status(401).json({ error: 'Invalid or missing webhook secret' });
-        }
-      } else if (expectedSecret) {
-        // In non-production, if secret is set, it must match
-        if (!webhookSecret || webhookSecret !== expectedSecret) {
-          return res.status(401).json({ error: 'Invalid webhook secret' });
+      const timingSafeCompare = (a?: string, b?: string): boolean => {
+        if (!a || !b) return false;
+        const bufA = Buffer.from(a);
+        const bufB = Buffer.from(b);
+        if (bufA.length !== bufB.length) return false;
+        return crypto.timingSafeEqual(bufA, bufB);
+      };
+
+      // 2. Cryptographic signature and secret verification
+      let isAuthenticated = false;
+
+      // Check Paystack HMAC SHA512 signature if header present
+      if (paystackSignature && process.env.PAYSTACK_SECRET_KEY) {
+        try {
+          const bodyString = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+          const computedHash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY).update(bodyString).digest('hex');
+          if (timingSafeCompare(paystackSignature, computedHash)) {
+            isAuthenticated = true;
+          }
+        } catch (_) {}
+      }
+
+      // Check Flutterwave secret hash if header present
+      if (!isAuthenticated && flwSignature && process.env.FLW_SECRET_HASH) {
+        if (timingSafeCompare(flwSignature, process.env.FLW_SECRET_HASH)) {
+          isAuthenticated = true;
         }
       }
 
-      const { providerRef, status } = req.body;
+      // Check standard HMAC SHA256 signature if header present
+      if (!isAuthenticated && hmacSignature && expectedSecret) {
+        try {
+          const bodyString = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+          const computedHash = crypto.createHmac('sha256', expectedSecret).update(bodyString).digest('hex');
+          if (timingSafeCompare(hmacSignature, computedHash)) {
+            isAuthenticated = true;
+          }
+        } catch (_) {}
+      }
+
+      // Check shared secret header if present
+      if (!isAuthenticated && webhookSecret && expectedSecret) {
+        if (timingSafeCompare(webhookSecret, expectedSecret)) {
+          isAuthenticated = true;
+        }
+      }
+
+      // Fail closed: in production, valid cryptographic credentials are required
+      if (isProduction && !isAuthenticated) {
+        console.warn('[Payment Webhook] Security Alert: Invalid or missing webhook credentials in production.');
+        return res.status(401).json({ error: 'Unauthorized: Invalid or missing webhook signature' });
+      } else if (!isProduction && expectedSecret && !isAuthenticated) {
+        return res.status(401).json({ error: 'Unauthorized: Webhook signature verification failed' });
+      }
+
+      const { providerRef, status, amount, currency } = req.body;
       if (!providerRef || !status) {
         return res.status(400).json({ error: 'providerRef and status are required' });
       }
@@ -773,43 +817,64 @@ export class PaymentController {
         return res.status(404).json({ error: 'Payment transaction not found' });
       }
 
-      // Idempotency: skip re-processing if already completed or failed
+      // Idempotency: skip re-processing if already settled
       if (existingTransaction.status === 'COMPLETED' || existingTransaction.status === 'FAILED') {
         return res.json({ success: true, message: `Transaction already marked as ${existingTransaction.status}` });
       }
 
-      const transaction = await prisma.paymentTransaction.update({
-        where: { providerRef },
-        data: { status: normalizedStatus }
-      });
+      // Disallow moving from terminal to non-terminal
+      if (existingTransaction.status === 'CANCELLED' && normalizedStatus !== 'CANCELLED') {
+        return res.status(400).json({ error: 'Cannot transition cancelled transaction' });
+      }
 
-      if (normalizedStatus === 'COMPLETED' && transaction.metadata && (transaction.metadata as any).purpose === 'VERIFICATION_BADGE') {
-        await prisma.$transaction(async (tx) => {
+      // Verify amount & currency consistency if provided in webhook payload
+      if (amount !== undefined && existingTransaction.amount) {
+        const payloadAmount = Number(amount);
+        if (!isNaN(payloadAmount) && Math.abs(payloadAmount - existingTransaction.amount) > 0.01) {
+          console.warn(`[Payment Webhook] Security warning: Amount mismatch. Expected ${existingTransaction.amount}, received ${payloadAmount}`);
+          return res.status(400).json({ error: 'Transaction amount mismatch with recorded session' });
+        }
+      }
+
+      if (currency && existingTransaction.currency) {
+        if (String(currency).toUpperCase() !== existingTransaction.currency.toUpperCase()) {
+          console.warn(`[Payment Webhook] Security warning: Currency mismatch. Expected ${existingTransaction.currency}, received ${currency}`);
+          return res.status(400).json({ error: 'Transaction currency mismatch' });
+        }
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.paymentTransaction.update({
+          where: { providerRef },
+          data: { status: normalizedStatus }
+        });
+
+        if (normalizedStatus === 'COMPLETED' && existingTransaction.metadata && (existingTransaction.metadata as any).purpose === 'VERIFICATION_BADGE') {
           // Check if badge payment already created
           const existingBadge = await tx.badgePayment.findUnique({
-            where: { transactionId: transaction.providerRef || transaction.id }
+            where: { transactionId: existingTransaction.providerRef || existingTransaction.id }
           });
 
           if (!existingBadge) {
             await tx.badgePayment.create({
               data: {
-                userId: transaction.userId,
-                amount: transaction.amount,
-                currency: transaction.currency || 'USD',
+                userId: existingTransaction.userId,
+                amount: existingTransaction.amount,
+                currency: existingTransaction.currency || 'USD',
                 status: 'COMPLETED',
-                paymentProvider: transaction.provider,
-                transactionId: transaction.providerRef || transaction.id,
-                rawReceipt: `WEBHOOK_CONFIRMED_${transaction.provider}_${Date.now()}`
+                paymentProvider: existingTransaction.provider,
+                transactionId: existingTransaction.providerRef || existingTransaction.id,
+                rawReceipt: `WEBHOOK_CONFIRMED_${existingTransaction.provider}_${Date.now()}`
               }
             });
           }
 
           await tx.user.update({
-            where: { id: transaction.userId },
+            where: { id: existingTransaction.userId },
             data: { isVerified: true, verifiedAt: new Date() }
           });
-        });
-      }
+        }
+      });
 
       return res.json({ success: true, status: normalizedStatus });
     } catch (error) {

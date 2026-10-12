@@ -19,39 +19,44 @@ export class AuthController {
       }
 
       const isProduction = process.env.NODE_ENV === 'production';
-      const requireFirebase = process.env.REQUIRE_FIREBASE_VERIFICATION === 'true' || 
-        (isProduction && process.env.ALLOW_INSECURE_AUTH !== 'true');
+      const firebaseProjectId = process.env.FIREBASE_PROJECT_ID?.trim() || process.env.GOOGLE_CLIENT_ID?.trim();
 
       let isFirebaseVerified = false;
 
-      // 1. In production or when REQUIRE_FIREBASE_VERIFICATION is enabled: strictly require Firebase ID token
-      if (requireFirebase && (!firebaseIdToken || typeof firebaseIdToken !== 'string')) {
-        return res.status(401).json({
-          error: 'Firebase phone verification token is required to authenticate phone number.'
-        });
-      }
+      // 1. Strictly require Firebase ID token: do not allow unauthenticated login fallbacks
+      if (!firebaseIdToken || typeof firebaseIdToken !== 'string') {
+        // Only allow designated local test phone numbers in non-production development environments
+        const isAllowedDevMock = !isProduction && 
+          process.env.ALLOW_DEV_TEST_ACCOUNTS === 'true' && 
+          (cleanPhone.startsWith('+1000') || cleanPhone.startsWith('+1123'));
 
-      // 2. Cryptographically verify Firebase ID token if provided
-      if (firebaseIdToken && typeof firebaseIdToken === 'string') {
+        if (!isAllowedDevMock) {
+          return res.status(401).json({
+            error: 'Firebase phone verification token is required to authenticate phone number.'
+          });
+        }
+      } else {
+        // 2. Cryptographically verify Firebase ID token
         try {
+          // Verify with Google Auth Client using project audience and issuer
           const ticket = await client.verifyIdToken({
             idToken: firebaseIdToken,
-            audience: process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLIENT_ID,
-          }).catch(async () => {
-            // Also attempt un-audienced token payload verification
-            const loginTicket = await client.verifySignedJwtWithCertsAsync(
-              firebaseIdToken,
-              {},
-              ['https://securetoken.google.com/' + (process.env.FIREBASE_PROJECT_ID || '')]
-            );
-            return loginTicket;
+            audience: firebaseProjectId ? [firebaseProjectId] : undefined,
           });
 
-          const payload = ticket?.getPayload();
+          const payload = ticket.getPayload();
           if (!payload) {
             return res.status(401).json({ error: 'Invalid verification token payload' });
           }
 
+          // Verify issuer is Google / Firebase Secure Token service
+          const issuer = payload.iss;
+          const expectedIssuerPrefix = 'https://securetoken.google.com/';
+          if (firebaseProjectId && issuer && issuer !== `${expectedIssuerPrefix}${firebaseProjectId}`) {
+            console.warn(`[PhoneLogin] Token issuer ${issuer} does not match project ${firebaseProjectId}`);
+          }
+
+          // Verify phone number claim
           const tokenPhone = (payload as any).phone_number ? (payload as any).phone_number.replace(/[^\d+]/g, '') : '';
           if (!tokenPhone) {
             return res.status(401).json({ error: 'Verification token does not contain a verified phone number claim' });
