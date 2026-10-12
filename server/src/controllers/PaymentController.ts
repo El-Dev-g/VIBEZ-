@@ -146,8 +146,7 @@ export class PaymentController {
           data: {
             adminEmail: 'system:payment-processor',
             action: 'VERIFY_USER_BADGE_PAYMENT',
-            target: userId,
-            details: `Badge activated via verified ${verifiedTransaction.provider} transaction ${verifiedTransaction.id}`
+            target: userId
           }
         });
 
@@ -788,7 +787,7 @@ export class PaymentController {
         await prisma.$transaction(async (tx) => {
           // Check if badge payment already created
           const existingBadge = await tx.badgePayment.findUnique({
-            where: { transactionId: transaction.providerRef }
+            where: { transactionId: transaction.providerRef || transaction.id }
           });
 
           if (!existingBadge) {
@@ -799,7 +798,7 @@ export class PaymentController {
                 currency: transaction.currency || 'USD',
                 status: 'COMPLETED',
                 paymentProvider: transaction.provider,
-                transactionId: transaction.providerRef,
+                transactionId: transaction.providerRef || transaction.id,
                 rawReceipt: `WEBHOOK_CONFIRMED_${transaction.provider}_${Date.now()}`
               }
             });

@@ -558,7 +558,7 @@ const handleOrderStatusUpdate = async (data: { chatId?: string; messageId?: stri
   // 4. Automatically sync business chat labels for effectiveChatId
   if (effectiveChatId) {
     try {
-      const bizUserId = updatedOrderRecord?.businessId || userId;
+      const bizUserId = updatedOrderRecord?.businessId || updaterUserId;
       if (bizUserId) {
         let targetLabelName: string | null = null;
         if (normalizedStatus === 'PENDING') {
