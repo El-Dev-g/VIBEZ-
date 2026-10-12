@@ -304,11 +304,25 @@ export const DeveloperAuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const logout = useCallback(() => {
+    try {
+      if (token) {
+        safeFetchJson('/api/developer/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
     setUser(null);
     setToken(null);
     localStorage.removeItem('vibez_dev_token');
     localStorage.removeItem('vibez_dev_user');
-  }, []);
+    localStorage.removeItem('vibez_active_dashboard_tab');
+  }, [token]);
 
   const completeOnboarding = useCallback(async (
     org: string,
