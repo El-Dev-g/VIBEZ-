@@ -438,6 +438,7 @@ model WebhookDelivery {
   endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
 }
 
+
 model ServerApplication {
   id                  String   @id @default(uuid())
   developerId         String
@@ -451,7 +452,75 @@ model ServerApplication {
   updatedAt           DateTime @updatedAt
 
   developer DeveloperAccount @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  appProducts AppProduct[]
+  platforms   AppPlatform[]
+  permissions AppPermission[]
+  tokens      AccessToken[]
 }
+
+model Product {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  description String
+  enabled     Boolean       @default(true)
+  appProducts AppProduct[]
+  permissions Permission[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model AppProduct {
+  id          String   @id @default(uuid())
+  appId       String
+  productId   String
+  status      String   @default("DEVELOPMENT") // DEVELOPMENT, LIVE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  app         ServerApplication @relation(fields: [appId], references: [id], onDelete: Cascade)
+  product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, productId])
+}
+
+model AppPlatform {
+  id        String   @id @default(uuid())
+  appId     String
+  platform  String   // WEBSITE, ANDROID, IOS, SERVER
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  app       ServerApplication @relation(fields: [appId], references: [id], onDelete: Cascade)
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model AppPermission {
+  id          String   @id @default(uuid())
+  appId       String
+  permissionId String
+  status      String   @default("AVAILABLE") // AVAILABLE, REQUESTED, APPROVED, RESTRICTED, REVOKED
+  app         ServerApplication @relation(fields: [appId], references: [id], onDelete: Cascade)
+  permission  Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+}
+
+model AccessToken {
+  id        String   @id @default(uuid())
+  appId     String
+  tokenHash String   @unique
+  scopes    String[]
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  app       ServerApplication @relation(fields: [appId], references: [id], onDelete: Cascade)
+}
+
 
 model DeveloperLog {
   id             String   @id @default(uuid())

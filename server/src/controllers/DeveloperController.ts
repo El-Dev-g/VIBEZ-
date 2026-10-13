@@ -797,4 +797,118 @@ export class DeveloperController {
       return res.status(500).json({ success: false, error: error.message });
     }
   }
+
+  /**
+   * Create New Server Application
+   */
+  async createApp(req: DeveloperRequest, res: Response) {
+    try {
+      const devAccountId = req.developerAccount?.id;
+      if (!devAccountId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+      const { appName, description, appType, contactEmail, websiteUrl, privacyPolicyUrl, termsOfServiceUrl, platforms } = req.body;
+
+      if (!appName || !contactEmail) return res.status(400).json({ success: false, error: 'Missing required fields' });
+
+      const clientId = `vibez_client_${crypto.randomBytes(8).toString('hex')}`;
+      const clientSecret = crypto.randomBytes(32).toString('hex');
+      const clientSecretHash = crypto.createHash('sha256').update(clientSecret).digest('hex');
+
+      const app = await prisma.serverApplication.create({
+        data: {
+          developerId: devAccountId,
+          appName,
+          description,
+          clientId,
+          clientSecretHash,
+        }
+      });
+
+      return res.json({ success: true, data: { ...app, clientSecret } });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * Get All Developer Applications
+   */
+  async getApps(req: DeveloperRequest, res: Response) {
+    try {
+      const devAccountId = req.developerAccount?.id;
+      if (!devAccountId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+      const apps = await prisma.serverApplication.findMany({
+        where: { developerId: devAccountId }
+      });
+
+      return res.json({ success: true, data: apps });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * Get Application Details
+   */
+  async getApp(req: DeveloperRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const devAccountId = req.developerAccount?.id;
+      if (!devAccountId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+      const app = await prisma.serverApplication.findFirst({
+        where: { id, developerId: devAccountId }
+      });
+
+      if (!app) return res.status(404).json({ success: false, error: 'App not found' });
+
+      return res.json({ success: true, data: app });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * Update Application
+   */
+  async updateApp(req: DeveloperRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const devAccountId = req.developerAccount?.id;
+      if (!devAccountId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+      const app = await prisma.serverApplication.updateMany({
+        where: { id, developerId: devAccountId },
+        data: req.body
+      });
+
+      if (app.count === 0) return res.status(404).json({ success: false, error: 'App not found' });
+
+      return res.json({ success: true, message: 'App updated' });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * Delete Application
+   */
+  async deleteApp(req: DeveloperRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const devAccountId = req.developerAccount?.id;
+      if (!devAccountId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+      const app = await prisma.serverApplication.deleteMany({
+        where: { id, developerId: devAccountId }
+      });
+
+      if (app.count === 0) return res.status(404).json({ success: false, error: 'App not found' });
+
+      return res.json({ success: true, message: 'App deleted' });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
 }
