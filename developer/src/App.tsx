@@ -26,7 +26,9 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/apps" element={<Navigate to="/dashboard?tab=apps" replace />} />
               <Route path="/keys" element={<KeysPage />} />
+
               <Route path="/explorer" element={<ExplorerPage />} />
               <Route path="/docs" element={<DocsPage />} />
               <Route path="/sdks" element={<SdksPage />} />

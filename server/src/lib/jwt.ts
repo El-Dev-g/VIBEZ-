@@ -90,7 +90,10 @@ export interface DeveloperTokenPayload {
   tier?: string;
   sub?: string;
   scope?: string;
+  appId?: string;
+  tokenId?: string;
 }
+
 
 const JWT_ISSUER = 'vibez-api';
 const JWT_AUDIENCE = 'vibez-client';

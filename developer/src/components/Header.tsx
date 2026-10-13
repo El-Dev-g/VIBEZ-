@@ -32,12 +32,19 @@ export const Header: React.FC = () => {
 
           {/* Auth Actions */}
           <div className="flex items-center gap-3">
+            <Link
+              to="/dashboard?tab=apps"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold hover:bg-emerald-500/20 transition-all"
+            >
+              <span>My Apps</span>
+            </Link>
             {user ? (
               <div className="flex items-center gap-3">
                 <Link
-                  to="/dashboard"
+                  to="/dashboard?tab=apps"
                   className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs font-mono hover:border-emerald-500/40 transition-all"
                 >
+
                   <div className="w-5 h-5 rounded-md overflow-hidden shrink-0">
                     <img
                       src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&auto=format&fit=crop&q=80'}

@@ -156,6 +156,19 @@ app.post('/api/developer/messages/send', authenticateDeveloperOrApiKey, (req, re
 app.post('/api/developer/rtc/token', authenticateDeveloperOrApiKey, (req, res) => developer.generateRtcToken(req, res));
 app.post('/api/developer/oauth/token', (req, res) => developer.issueOAuthToken(req, res));
 
+// Developer Applications CRUD
+app.get('/api/developer/apps', authenticateDeveloper, (req, res) => developer.getApps(req, res));
+app.post('/api/developer/apps', authenticateDeveloper, (req, res) => developer.createApp(req, res));
+app.get('/api/developer/apps/:id', authenticateDeveloper, (req, res) => developer.getApp(req, res));
+app.put('/api/developer/apps/:id', authenticateDeveloper, (req, res) => developer.updateApp(req, res));
+app.delete('/api/developer/apps/:id', authenticateDeveloper, (req, res) => developer.deleteApp(req, res));
+app.get('/api/developer/products', (req, res) => developer.getProducts(req, res));
+app.get('/api/developer/permissions', (req, res) => developer.getPermissions(req, res));
+app.post('/api/developer/apps/:id/tokens', authenticateDeveloper, (req, res) => developer.generateAppTestToken(req, res));
+app.post('/api/developer/webhooks/test-dispatch', authenticateDeveloper, (req, res) => developer.dispatchTestWebhook(req, res));
+
+
+
 // Direct Developer Bridge Routes
 app.get('/api/developer/server/health-check', (req, res) => developer.getDeveloperHealth(req, res));
 app.post('/api/developer/server/health-check', (req, res) => developer.getDeveloperHealth(req, res));

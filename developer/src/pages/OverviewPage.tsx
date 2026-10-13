@@ -75,12 +75,13 @@ print("Response:", res.json())`
 
           <div className="mt-8 flex flex-wrap gap-3 items-center">
             <Link
-              to="/dashboard"
+              to="/dashboard?tab=apps"
               className="px-5 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
             >
               <Zap className="w-4 h-4 fill-current" />
-              <span>Launch Console</span>
+              <span>Launch Developer Console</span>
             </Link>
+
 
             <Link
               to="/explorer"

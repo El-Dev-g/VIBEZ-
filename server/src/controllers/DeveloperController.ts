@@ -911,4 +911,405 @@ export class DeveloperController {
       return res.status(500).json({ success: false, error: error.message });
     }
   }
+
+  /**
+   * Centralized Platform Product Catalogue
+   */
+  async getProducts(req: Request, res: Response) {
+    const defaultProducts = [
+      {
+        id: 'prod_messaging',
+        name: 'Messaging API',
+        category: 'Core Communication',
+        description: 'Send and receive real-time direct messages, group chats, attachments, and delivery receipts.',
+        icon: 'MessageSquare',
+        version: 'v2.4',
+        status: 'GA',
+        endpoints: ['POST /api/developer/messages/send', 'GET /api/chats', 'POST /api/chats/group'],
+        requiredPermissions: ['messages.read', 'messages.send'],
+        webhookEvents: ['message.sent', 'message.delivered', 'message.read'],
+      },
+      {
+        id: 'prod_auth',
+        name: 'Authentication API',
+        category: 'Identity & Access',
+        description: 'Phone OTP verification, OAuth2 authorization, OpenID Connect identity tokens, and biometrics.',
+        icon: 'KeyRound',
+        version: 'v2.0',
+        status: 'GA',
+        endpoints: ['POST /api/auth/phone/otp', 'POST /api/auth/phone/verify', 'POST /api/developer/oauth/token'],
+        requiredPermissions: ['openid', 'profile.read'],
+        webhookEvents: ['user.registered', 'user.authenticated'],
+      },
+      {
+        id: 'prod_profile',
+        name: 'User Profile API',
+        category: 'Identity & Access',
+        description: 'Access authenticated user profile data, verification badges, presence status, and contact cards.',
+        icon: 'User',
+        version: 'v1.8',
+        status: 'GA',
+        endpoints: ['GET /api/users/profile', 'PUT /api/users/settings', 'GET /api/developer/auth/me'],
+        requiredPermissions: ['profile.read', 'profile.update'],
+        webhookEvents: ['user.presence', 'profile.updated'],
+      },
+      {
+        id: 'prod_webrtc',
+        name: 'WebRTC Voice & Video API',
+        category: 'Real-Time Calling',
+        description: 'Ultra-low-latency 1-on-1 and group voice/video calling signaling, ICE/STUN server provisioning, and session tokens.',
+        icon: 'PhoneCall',
+        version: 'v3.1',
+        status: 'GA',
+        endpoints: ['POST /api/developer/rtc/token', 'POST /api/calls/initiate', 'POST /api/calls/end'],
+        requiredPermissions: ['rtc:signaling'],
+        webhookEvents: ['call.initiated', 'call.answered', 'call.ended'],
+      },
+      {
+        id: 'prod_commerce',
+        name: 'Commerce & Catalog API',
+        category: 'Business & Commerce',
+        description: 'Publish product catalogs, inventory item listings, prices, and automated storefronts.',
+        icon: 'ShoppingBag',
+        version: 'v2.1',
+        status: 'GA',
+        endpoints: ['GET /api/business/catalog', 'POST /api/business/catalog', 'PUT /api/business/catalog/:id'],
+        requiredPermissions: ['products.read', 'products.write'],
+        webhookEvents: ['product.created', 'product.updated'],
+      },
+      {
+        id: 'prod_orders',
+        name: 'Orders & Checkout API',
+        category: 'Business & Commerce',
+        description: 'Manage in-chat orders, payment transaction verification, and status updates.',
+        icon: 'Receipt',
+        version: 'v1.5',
+        status: 'GA',
+        endpoints: ['POST /api/orders', 'GET /api/orders/:id', 'PATCH /api/orders/:id/status'],
+        requiredPermissions: ['orders.read', 'orders.write'],
+        webhookEvents: ['order.created', 'order.paid', 'order.cancelled'],
+      },
+      {
+        id: 'prod_payments',
+        name: 'Payments & Verification Badges',
+        category: 'Fintech & Monetization',
+        description: 'Process subscriber verification badge purchases, Stripe/PayPal webhooks, and receipts.',
+        icon: 'CreditCard',
+        version: 'v2.0',
+        status: 'GA',
+        endpoints: ['POST /api/payments/create-intent', 'POST /api/payments/verify-badge'],
+        requiredPermissions: ['orders.read', 'orders.write'],
+        webhookEvents: ['payment.completed', 'badge.issued'],
+      },
+      {
+        id: 'prod_webhooks',
+        name: 'Webhooks & Event Stream',
+        category: 'Developer Infrastructure',
+        description: 'Subscribe external servers to real-time asynchronous platform events signed with HMAC-SHA256.',
+        icon: 'Webhook',
+        version: 'v2.0',
+        status: 'GA',
+        endpoints: ['POST /api/developer/webhooks/verify', 'GET /api/developer/webhooks'],
+        requiredPermissions: ['webhooks.manage'],
+        webhookEvents: ['*'],
+      },
+      {
+        id: 'prod_ai',
+        name: 'AI & Gemini Engine API',
+        category: 'Artificial Intelligence',
+        description: 'Smart messaging replies, synthetic schema generation, multi-language translation, and conversation summaries.',
+        icon: 'Sparkles',
+        version: 'v3.0',
+        status: 'BETA',
+        endpoints: ['POST /api/ai/generate', 'POST /api/ai/summarize'],
+        requiredPermissions: ['ai.generate'],
+        webhookEvents: ['ai.task_completed'],
+      },
+      {
+        id: 'prod_media',
+        name: 'Media & Storage API',
+        category: 'Cloud Storage',
+        description: 'Secure pre-signed uploads for images, video snippets, documents, and voice memos with CDN acceleration.',
+        icon: 'HardDrive',
+        version: 'v1.9',
+        status: 'GA',
+        endpoints: ['POST /api/storage/upload', 'GET /api/storage/asset/:id'],
+        requiredPermissions: ['messages.send'],
+        webhookEvents: ['media.processed'],
+      },
+      {
+        id: 'prod_analytics',
+        name: 'Analytics & Traffic Telemetry',
+        category: 'Observability',
+        description: 'Query operational request volume, error distributions, user growth, and quota consumption rates.',
+        icon: 'Activity',
+        version: 'v1.4',
+        status: 'GA',
+        endpoints: ['GET /api/developer/metrics', 'GET /api/developer/health'],
+        requiredPermissions: ['profile.read'],
+        webhookEvents: ['quota.warning', 'quota.exceeded'],
+      },
+    ];
+
+    return res.json({ success: true, data: defaultProducts });
+  }
+
+  /**
+   * Centralized Permissions Catalogue
+   */
+  async getPermissions(req: Request, res: Response) {
+    const permissions = [
+      {
+        id: 'profile.read',
+        name: 'profile.read',
+        category: 'User Identity',
+        product: 'User Profile API',
+        description: 'Allows reading basic user identity information (name, avatar, user ID, about).',
+        requiresApproval: false,
+        defaultState: 'APPROVED',
+      },
+      {
+        id: 'profile.update',
+        name: 'profile.update',
+        category: 'User Identity',
+        product: 'User Profile API',
+        description: 'Allows updating user status and profile settings on behalf of the user.',
+        requiresApproval: true,
+        defaultState: 'AVAILABLE',
+      },
+      {
+        id: 'messages.read',
+        name: 'messages.read',
+        category: 'Messaging',
+        product: 'Messaging API',
+        description: 'Read inbound messages and conversation thread history.',
+        requiresApproval: true,
+        defaultState: 'AVAILABLE',
+      },
+      {
+        id: 'messages.send',
+        name: 'messages.send',
+        category: 'Messaging',
+        product: 'Messaging API',
+        description: 'Send chat messages and media files to users and group channels.',
+        requiresApproval: false,
+        defaultState: 'APPROVED',
+      },
+      {
+        id: 'business.read',
+        name: 'business.read',
+        category: 'Business',
+        product: 'Business API',
+        description: 'View verified business metadata, operating hours, and location info.',
+        requiresApproval: false,
+        defaultState: 'APPROVED',
+      },
+      {
+        id: 'business.write',
+        name: 'business.write',
+        category: 'Business',
+        product: 'Business API',
+        description: 'Configure automated greeting messages, away hours, and quick reply templates.',
+        requiresApproval: true,
+        defaultState: 'AVAILABLE',
+      },
+      {
+        id: 'products.read',
+        name: 'products.read',
+        category: 'Commerce',
+        product: 'Commerce & Catalog API',
+        description: 'Fetch store catalog item listings, pricing, and availability.',
+        requiresApproval: false,
+        defaultState: 'APPROVED',
+      },
+      {
+        id: 'products.write',
+        name: 'products.write',
+        category: 'Commerce',
+        product: 'Commerce & Catalog API',
+        description: 'Add, update, or remove items in store product catalogs.',
+        requiresApproval: true,
+        defaultState: 'AVAILABLE',
+      },
+      {
+        id: 'orders.read',
+        name: 'orders.read',
+        category: 'Commerce',
+        product: 'Orders & Checkout API',
+        description: 'Query customer purchase orders, order line items, and invoice history.',
+        requiresApproval: true,
+        defaultState: 'AVAILABLE',
+      },
+      {
+        id: 'orders.write',
+        name: 'orders.write',
+        category: 'Commerce',
+        product: 'Orders & Checkout API',
+        description: 'Update fulfillment status, mark orders fulfilled, or issue cancellations.',
+        requiresApproval: true,
+        defaultState: 'AVAILABLE',
+      },
+      {
+        id: 'webhooks.manage',
+        name: 'webhooks.manage',
+        category: 'Webhooks',
+        product: 'Webhooks & Event Stream',
+        description: 'Register and manage HTTPS webhook endpoints and event subscription filters.',
+        requiresApproval: false,
+        defaultState: 'APPROVED',
+      },
+      {
+        id: 'rtc:signaling',
+        name: 'rtc:signaling',
+        category: 'Calling',
+        product: 'WebRTC Voice & Video API',
+        description: 'Generate WebRTC signaling tokens and join live voice/video session rooms.',
+        requiresApproval: false,
+        defaultState: 'APPROVED',
+      },
+      {
+        id: 'ai.generate',
+        name: 'ai.generate',
+        category: 'AI Logic',
+        product: 'AI & Gemini Engine API',
+        description: 'Invoke Gemini AI model operations for context summarization and chat synthesis.',
+        requiresApproval: true,
+        defaultState: 'AVAILABLE',
+      },
+    ];
+
+    return res.json({ success: true, data: permissions });
+  }
+
+  /**
+   * Issue Scoped Test Token for an App
+   */
+  async generateAppTestToken(req: DeveloperRequest, res: Response) {
+    try {
+      const { id: appId } = req.params;
+      const { scopes = ['profile.read', 'messages.send'], ttlHours = 24, userId = 'test_user_dev' } = req.body;
+      const devAccountId = req.developerAccount?.id;
+
+      if (!devAccountId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized developer session' });
+      }
+
+      const expiresInSeconds = Math.min(Math.max(Number(ttlHours) || 24, 1), 168) * 3600;
+      const tokenId = `tok_${crypto.randomBytes(8).toString('hex')}`;
+      
+      const token = signDeveloperToken({
+        id: userId,
+        email: 'test-developer@prigid.com',
+        developerAccountId: devAccountId,
+        role: 'TestToken',
+        appId,
+        tokenId,
+        scope: Array.isArray(scopes) ? scopes.join(' ') : String(scopes),
+        tier: req.developerAccount?.tier || 'FREE',
+      }, `${expiresInSeconds}s`);
+
+      return res.json({
+        success: true,
+        data: {
+          tokenId,
+          token,
+          appId,
+          userId,
+          scopes: Array.isArray(scopes) ? scopes : [scopes],
+          tokenType: 'Bearer',
+          expiresIn: expiresInSeconds,
+          expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+          createdAt: new Date().toISOString(),
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message || 'Token generation failed' });
+    }
+  }
+
+  /**
+   * Dispatch Test Webhook Event with HMAC-SHA256 signature
+   */
+  async dispatchTestWebhook(req: DeveloperRequest, res: Response) {
+    try {
+      const { endpointUrl, secretKey, event = 'message.sent', payload } = req.body;
+
+      if (!endpointUrl) {
+        return res.status(400).json({ success: false, error: 'Endpoint URL is required' });
+      }
+
+      const testPayload = payload || {
+        event,
+        timestamp: Math.floor(Date.now() / 1000),
+        id: `evt_${crypto.randomBytes(8).toString('hex')}`,
+        data: {
+          messageId: `msg_${Date.now()}`,
+          sender: { id: 'usr_vibez_demo', name: 'Demo Sender' },
+          content: 'Hello from PRIGID Developer Console test webhook dispatcher!',
+          timestamp: new Date().toISOString(),
+        },
+        source: 'PRIGID_DEVELOPER_PLATFORM',
+      };
+
+      const payloadString = JSON.stringify(testPayload);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const secret = secretKey || 'whsec_demo_secret_key_889900';
+
+      const signature = crypto
+        .createHmac('sha256', secret)
+        .update(`${timestamp}.${payloadString}`)
+        .digest('hex');
+
+      const signatureHeader = `t=${timestamp},v1=${signature}`;
+      const startTime = Date.now();
+      let deliveryStatus = 'FAILED';
+      let statusCode = 0;
+      let responseBody = '';
+      let latencyMs = 0;
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const response = await fetch(endpointUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Vibez-Signature': signatureHeader,
+            'X-Vibez-Event': event,
+            'User-Agent': 'Vibez-Webhook-Dispatcher/2.0 (PRIGID GROUP)',
+          },
+          body: payloadString,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        latencyMs = Date.now() - startTime;
+        statusCode = response.status;
+        responseBody = await response.text().catch(() => '');
+        deliveryStatus = response.ok ? 'DELIVERED' : 'FAILED_HTTP_ERROR';
+      } catch (err: any) {
+        latencyMs = Date.now() - startTime;
+        deliveryStatus = 'NETWORK_ERROR';
+        responseBody = err.message || 'Connection timeout or network failure';
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          deliveryStatus,
+          statusCode,
+          latencyMs,
+          endpointUrl,
+          signatureHeader,
+          payload: testPayload,
+          responseSnippet: responseBody.slice(0, 300),
+          dispatchedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message || 'Webhook dispatch failed' });
+    }
+  }
 }
+

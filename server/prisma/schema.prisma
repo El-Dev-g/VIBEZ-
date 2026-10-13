@@ -495,11 +495,12 @@ model AppPlatform {
 }
 
 model Permission {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  description String
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id             String          @id @default(uuid())
+  name           String          @unique
+  description    String
+  productId      String
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  appPermissions AppPermission[]
 }
 
 model AppPermission {
