@@ -166,6 +166,9 @@ app.get('/api/developer/products', (req, res) => developer.getProducts(req, res)
 app.get('/api/developer/permissions', (req, res) => developer.getPermissions(req, res));
 app.post('/api/developer/apps/:id/tokens', authenticateDeveloper, (req, res) => developer.generateAppTestToken(req, res));
 app.post('/api/developer/webhooks/test-dispatch', authenticateDeveloper, (req, res) => developer.dispatchTestWebhook(req, res));
+app.get('/api/developer/apps/:id/products', authenticateDeveloper, (req, res) => developer.getAppProducts(req, res));
+app.put('/api/developer/apps/:id/products/:productId/config', authenticateDeveloper, (req, res) => developer.updateAppProductConfig(req, res));
+app.post('/api/developer/apps/:id/products/:productId/webhooks/test', authenticateDeveloper, (req, res) => developer.testProductWebhook(req, res));
 
 
 

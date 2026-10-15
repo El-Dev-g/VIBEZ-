@@ -474,6 +474,7 @@ model AppProduct {
   appId       String
   productId   String
   status      String   @default("DEVELOPMENT") // DEVELOPMENT, LIVE
+  config      Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

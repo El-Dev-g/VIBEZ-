@@ -913,7 +913,7 @@ export class DeveloperController {
   }
 
   /**
-   * Centralized Platform Product Catalogue
+   * Centralized Platform Product Catalogue with Modular Features, Sub-Features, and Webhooks
    */
   async getProducts(req: Request, res: Response) {
     const defaultProducts = [
@@ -927,7 +927,54 @@ export class DeveloperController {
         status: 'GA',
         endpoints: ['POST /api/developer/messages/send', 'GET /api/chats', 'POST /api/chats/group'],
         requiredPermissions: ['messages.read', 'messages.send'],
-        webhookEvents: ['message.sent', 'message.delivered', 'message.read'],
+        webhookEvents: ['message.sent', 'message.delivered', 'message.read', 'message.deleted'],
+        defaultConfig: {
+          environment: 'DEVELOPMENT',
+          rateLimitRps: 50,
+          maxAttachmentMb: 25,
+          retentionDays: 30,
+        },
+        features: [
+          {
+            id: 'feat_direct_messages',
+            name: 'Direct Messaging (1:1)',
+            description: 'Send and receive secure direct peer-to-peer messages with full receipt tracking.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_read_receipts', name: 'Delivery & Read Receipts', description: 'Real-time double tick delivered and blue tick read markers.', enabled: true },
+              { id: 'sub_typing_indicators', name: 'Live Typing Indicators', description: 'Ephemeral WebSocket typing broadcasts when compose is active.', enabled: true },
+              { id: 'sub_ephemeral_messages', name: 'Disappearing Messages', description: 'Self-deleting messages with configurable 24h, 7d, or 90d TTL.', enabled: false },
+            ],
+          },
+          {
+            id: 'feat_group_messaging',
+            name: 'Group Chat Channels',
+            description: 'Host interactive group channels with up to 1,024 members per conversation.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_admin_moderation', name: 'Admin Roles & Permissions', description: 'Promote admins, delete inappropriate messages, and mute members.', enabled: true },
+              { id: 'sub_announcement_only', name: 'Broadcast Channels', description: 'Restricted posting mode where only administrators can send messages.', enabled: false },
+              { id: 'sub_invite_links', name: 'Revocable Invite Links', description: 'Generate QR codes and secure HTTPS URLs to join groups.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_rich_attachments',
+            name: 'Multimedia Attachments',
+            description: 'Send photos, videos, audio memos, and documents with CDN caching.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_image_compression', name: 'WebP Image Compression', description: 'Automatically compress images to WebP before cloud distribution.', enabled: true },
+              { id: 'sub_voice_notes', name: 'Voice Audio Notes', description: 'Stream AAC/M4A voice messages with interactive waveform metadata.', enabled: true },
+              { id: 'sub_document_sharing', name: 'Document & PDF Attachments', description: 'Secure binary attachments with automated malware scanning.', enabled: true },
+            ],
+          },
+        ],
+        webhookCatalog: [
+          { event: 'message.sent', description: 'Fired whenever an outbound message is successfully dispatched.', payloadExample: { messageId: 'msg_9821a', senderId: 'usr_dev_1', recipientId: 'usr_dev_2', timestamp: 1728840000, contentSnippet: 'Hello world' } },
+          { event: 'message.delivered', description: 'Fired when the recipient device acknowledges packet delivery.', payloadExample: { messageId: 'msg_9821a', recipientId: 'usr_dev_2', deliveredAt: 1728840002 } },
+          { event: 'message.read', description: 'Fired when the recipient views the message in an active chat.', payloadExample: { messageId: 'msg_9821a', readAt: 1728840015 } },
+          { event: 'message.deleted', description: 'Fired when a sender revokes or deletes a message for everyone.', payloadExample: { messageId: 'msg_9821a', deletedAt: 1728840020 } },
+        ],
       },
       {
         id: 'prod_auth',
@@ -939,19 +986,137 @@ export class DeveloperController {
         status: 'GA',
         endpoints: ['POST /api/auth/phone/otp', 'POST /api/auth/phone/verify', 'POST /api/developer/oauth/token'],
         requiredPermissions: ['openid', 'profile.read'],
-        webhookEvents: ['user.registered', 'user.authenticated'],
+        webhookEvents: ['user.registered', 'user.authenticated', 'session.revoked'],
+        defaultConfig: {
+          environment: 'DEVELOPMENT',
+          otpTtlMinutes: 5,
+          maxOtpAttempts: 3,
+          sessionTtlHours: 72,
+        },
+        features: [
+          {
+            id: 'feat_phone_otp',
+            name: 'Phone OTP Verification',
+            description: 'SMS and WhatsApp one-time numeric passcode challenge verification.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_sms_fallback', name: 'SMS Delivery Fallback', description: 'Automatic fallback to Twilio/AWS SMS if data push fails.', enabled: true },
+              { id: 'sub_rate_limiting', name: 'Brute Force Shield', description: 'IP and MSISDN rate limits to prevent SMS toll fraud.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_oauth_sso',
+            name: 'OAuth2 & OpenID Connect SSO',
+            description: 'Standard RFC-6749 authorization code and client credentials token flows.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_pkce_flow', name: 'PKCE Authorization Code', description: 'Require SHA256 code challenge for public mobile/SPA clients.', enabled: true },
+              { id: 'sub_rotating_refresh', name: 'Rotating Refresh Tokens', description: 'Issue single-use refresh tokens with automated reuse detection.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_biometrics',
+            name: 'Biometric Passkeys (WebAuthn)',
+            description: 'Passwordless face, fingerprint, and hardware security key authentication.',
+            enabled: false,
+            subFeatures: [
+              { id: 'sub_face_touch_unlock', name: 'FaceID / TouchID Unlock', description: 'FIDO2 compliant biometric sign-in without password prompt.', enabled: false },
+            ],
+          },
+        ],
+        webhookCatalog: [
+          { event: 'user.registered', description: 'Fired when a new user completes initial phone authentication.', payloadExample: { userId: 'usr_new_901', phoneNumber: '+1234567890', createdAt: 1728840000 } },
+          { event: 'user.authenticated', description: 'Fired on every successful session token creation.', payloadExample: { userId: 'usr_new_901', loginMethod: 'PHONE_OTP', ipAddress: '198.51.100.4', timestamp: 1728840005 } },
+          { event: 'session.revoked', description: 'Fired when an existing user session or JWT token is terminated.', payloadExample: { userId: 'usr_new_901', reason: 'USER_LOGOUT', timestamp: 1728840090 } },
+        ],
       },
       {
-        id: 'prod_profile',
-        name: 'User Profile API',
-        category: 'Identity & Access',
-        description: 'Access authenticated user profile data, verification badges, presence status, and contact cards.',
-        icon: 'User',
-        version: 'v1.8',
+        id: 'prod_commerce',
+        name: 'Commerce & Catalog API',
+        category: 'Business & Commerce',
+        description: 'Publish product catalogs, inventory item listings, prices, and automated storefronts.',
+        icon: 'ShoppingBag',
+        version: 'v2.1',
         status: 'GA',
-        endpoints: ['GET /api/users/profile', 'PUT /api/users/settings', 'GET /api/developer/auth/me'],
-        requiredPermissions: ['profile.read', 'profile.update'],
-        webhookEvents: ['user.presence', 'profile.updated'],
+        endpoints: ['GET /api/business/catalog', 'POST /api/business/catalog', 'PUT /api/business/catalog/:id'],
+        requiredPermissions: ['products.read', 'products.write'],
+        webhookEvents: ['product.created', 'product.updated', 'product.stock_low'],
+        defaultConfig: {
+          environment: 'DEVELOPMENT',
+          defaultCurrency: 'USD',
+          taxCalculation: 'AUTOMATIC',
+          lowStockThreshold: 5,
+        },
+        features: [
+          {
+            id: 'feat_store_catalog',
+            name: 'Storefront Catalog & Listings',
+            description: 'Manage rich item titles, images, descriptions, categories, and tags.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_sku_variants', name: 'SKU Variant Matrix', description: 'Support multi-dimensional options (size, color, weight).', enabled: true },
+              { id: 'sub_inventory_sync', name: 'Real-Time Inventory Sync', description: 'Decrement stock counts atomically upon verified purchase.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_in_chat_checkout',
+            name: 'Conversational In-Chat Checkout',
+            description: 'Allow shoppers to view product cards and purchase directly inside chats.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_discount_coupons', name: 'Promotional Promo Codes', description: 'Configurable percentage or fixed dollar discount coupons.', enabled: true },
+              { id: 'sub_tiered_pricing', name: 'B2B Wholesale Tiers', description: 'Dynamic volume-based pricing brackets for enterprise accounts.', enabled: false },
+            ],
+          },
+        ],
+        webhookCatalog: [
+          { event: 'product.created', description: 'Fired when a new product is added to the business storefront.', payloadExample: { productId: 'prod_item_301', title: 'Summer Hoodie', price: 49.99, currency: 'USD' } },
+          { event: 'product.updated', description: 'Fired when price, description, or availability changes.', payloadExample: { productId: 'prod_item_301', updatedFields: ['price', 'inventory'] } },
+          { event: 'product.stock_low', description: 'Fired when remaining inventory drops below configured threshold.', payloadExample: { productId: 'prod_item_301', remainingUnits: 3 } },
+        ],
+      },
+      {
+        id: 'prod_orders',
+        name: 'Orders & Checkout API',
+        category: 'Business & Commerce',
+        description: 'Manage in-chat orders, payment transaction verification, and status updates.',
+        icon: 'Receipt',
+        version: 'v1.5',
+        status: 'GA',
+        endpoints: ['POST /api/orders', 'GET /api/orders/:id', 'PATCH /api/orders/:id/status'],
+        requiredPermissions: ['orders.read', 'orders.write'],
+        webhookEvents: ['order.created', 'order.paid', 'order.fulfilled', 'order.cancelled'],
+        defaultConfig: {
+          environment: 'DEVELOPMENT',
+          autoFulfillDigital: true,
+          receiptTemplate: 'STANDARD_INVOICE',
+        },
+        features: [
+          {
+            id: 'feat_order_tracking',
+            name: 'Order Lifecycle Tracking',
+            description: 'Capture orders, handle payments, and record shipping fulfillment states.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_shipping_sync', name: 'Carrier Tracking API Sync', description: 'Integrate with FedEx, DHL, and UPS for automatic transit updates.', enabled: true },
+              { id: 'sub_push_notifications', name: 'Instant Delivery Push Alerts', description: 'Send push messages to customer when order status transitions.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_invoicing',
+            name: 'Automated Commercial Invoicing',
+            description: 'Generate PDF tax receipts and compliant transaction records.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_tax_id_calc', name: 'VAT / Sales Tax Calculation', description: 'Automated geo-based tax rate application.', enabled: true },
+            ],
+          },
+        ],
+        webhookCatalog: [
+          { event: 'order.created', description: 'Fired when a buyer places an order through API or chat.', payloadExample: { orderId: 'ord_9182', totalAmount: 99.98, customerId: 'usr_c1' } },
+          { event: 'order.paid', description: 'Fired when payment processor confirms funds capture.', payloadExample: { orderId: 'ord_9182', transactionId: 'txn_stripe_821', status: 'PAID' } },
+          { event: 'order.fulfilled', description: 'Fired when order is marked shipped or delivered.', payloadExample: { orderId: 'ord_9182', trackingNumber: 'DHL-182910' } },
+        ],
       },
       {
         id: 'prod_webrtc',
@@ -964,42 +1129,39 @@ export class DeveloperController {
         endpoints: ['POST /api/developer/rtc/token', 'POST /api/calls/initiate', 'POST /api/calls/end'],
         requiredPermissions: ['rtc:signaling'],
         webhookEvents: ['call.initiated', 'call.answered', 'call.ended'],
-      },
-      {
-        id: 'prod_commerce',
-        name: 'Commerce & Catalog API',
-        category: 'Business & Commerce',
-        description: 'Publish product catalogs, inventory item listings, prices, and automated storefronts.',
-        icon: 'ShoppingBag',
-        version: 'v2.1',
-        status: 'GA',
-        endpoints: ['GET /api/business/catalog', 'POST /api/business/catalog', 'PUT /api/business/catalog/:id'],
-        requiredPermissions: ['products.read', 'products.write'],
-        webhookEvents: ['product.created', 'product.updated'],
-      },
-      {
-        id: 'prod_orders',
-        name: 'Orders & Checkout API',
-        category: 'Business & Commerce',
-        description: 'Manage in-chat orders, payment transaction verification, and status updates.',
-        icon: 'Receipt',
-        version: 'v1.5',
-        status: 'GA',
-        endpoints: ['POST /api/orders', 'GET /api/orders/:id', 'PATCH /api/orders/:id/status'],
-        requiredPermissions: ['orders.read', 'orders.write'],
-        webhookEvents: ['order.created', 'order.paid', 'order.cancelled'],
-      },
-      {
-        id: 'prod_payments',
-        name: 'Payments & Verification Badges',
-        category: 'Fintech & Monetization',
-        description: 'Process subscriber verification badge purchases, Stripe/PayPal webhooks, and receipts.',
-        icon: 'CreditCard',
-        version: 'v2.0',
-        status: 'GA',
-        endpoints: ['POST /api/payments/create-intent', 'POST /api/payments/verify-badge'],
-        requiredPermissions: ['orders.read', 'orders.write'],
-        webhookEvents: ['payment.completed', 'badge.issued'],
+        defaultConfig: {
+          environment: 'DEVELOPMENT',
+          codecPreference: 'OPUS_H264',
+          maxParticipants: 8,
+          iceRelayStrategy: 'AUTO_TURN',
+        },
+        features: [
+          {
+            id: 'feat_voice_calling',
+            name: 'High-Definition Voice Calling',
+            description: 'Opus wideband crystal-clear 1-on-1 and multi-party voice communication.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_noise_suppression', name: 'AI Noise Suppression', description: 'DeepFilter real-time background noise cancellation.', enabled: true },
+              { id: 'sub_echo_cancellation', name: 'Acoustic Echo Cancellation', description: 'Hardware-accelerated AEC to prevent feedback loops.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_video_calling',
+            name: '1080p Video Conferencing',
+            description: 'Adaptive resolution H.264/VP8 video streams with simulcast bandwidth management.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_screen_sharing', name: 'Screen & Window Sharing', description: 'Capture 60fps desktop presentation feeds.', enabled: true },
+              { id: 'sub_simulcast_layers', name: 'Simulcast Quality Layers', description: 'Send high/mid/low video streams for dynamic bandwidth fallback.', enabled: true },
+            ],
+          },
+        ],
+        webhookCatalog: [
+          { event: 'call.initiated', description: 'Fired when a user dials another peer or opens a room.', payloadExample: { callId: 'call_9918a', callerId: 'usr_c1', calleeId: 'usr_c2', mediaType: 'VIDEO' } },
+          { event: 'call.answered', description: 'Fired when callee accepts and completes ICE handshake.', payloadExample: { callId: 'call_9918a', answeredAt: 1728840003 } },
+          { event: 'call.ended', description: 'Fired when session hangs up with total duration and jitter.', payloadExample: { callId: 'call_9918a', durationSeconds: 245, disconnectReason: 'USER_HANGUP' } },
+        ],
       },
       {
         id: 'prod_webhooks',
@@ -1011,7 +1173,38 @@ export class DeveloperController {
         status: 'GA',
         endpoints: ['POST /api/developer/webhooks/verify', 'GET /api/developer/webhooks'],
         requiredPermissions: ['webhooks.manage'],
-        webhookEvents: ['*'],
+        webhookEvents: ['endpoint.health_failed', 'endpoint.disabled'],
+        defaultConfig: {
+          environment: 'DEVELOPMENT',
+          retryLimit: 5,
+          timeoutMs: 10000,
+          rateLimitPerSec: 100,
+        },
+        features: [
+          {
+            id: 'feat_event_dispatch',
+            name: 'Event Dispatch Engine',
+            description: 'Deliver signed HTTPS POST payloads with millisecond latency guarantees.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_hmac_signing', name: 'HMAC-SHA256 Signatures', description: 'Include X-Vibez-Signature header with timestamp and hash.', enabled: true },
+              { id: 'sub_exponential_backoff', name: 'Exponential Backoff Retries', description: 'Retry failed deliveries up to 5 times over 24 hours.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_delivery_inspector',
+            name: 'Delivery Audit Inspector',
+            description: 'Inspect full headers, response bodies, and latency telemetry.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_replay_studio', name: '1-Click Replay Studio', description: 'Resend past deliveries with custom modified headers.', enabled: true },
+            ],
+          },
+        ],
+        webhookCatalog: [
+          { event: 'endpoint.health_failed', description: 'Fired when a customer webhook endpoint returns 5xx consecutive errors.', payloadExample: { endpointUrl: 'https://api.example.com/wh', consecutiveFailures: 3 } },
+          { event: 'endpoint.disabled', description: 'Fired when an endpoint is deactivated due to persistent timeout.', payloadExample: { endpointUrl: 'https://api.example.com/wh', deactivatedAt: 1728840200 } },
+        ],
       },
       {
         id: 'prod_ai',
@@ -1024,30 +1217,76 @@ export class DeveloperController {
         endpoints: ['POST /api/ai/generate', 'POST /api/ai/summarize'],
         requiredPermissions: ['ai.generate'],
         webhookEvents: ['ai.task_completed'],
+        defaultConfig: {
+          environment: 'DEVELOPMENT',
+          model: 'gemini-1.5-flash',
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+        },
+        features: [
+          {
+            id: 'feat_smart_replies',
+            name: 'Contextual Smart Replies',
+            description: 'Generate 3 instant context-aware replies for incoming messages.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_sentiment_detection', name: 'Sentiment & Tone Analysis', description: 'Detect user mood (positive, neutral, frustrated) in real time.', enabled: true },
+              { id: 'sub_language_translation', name: 'Live 40+ Language Translation', description: 'Translate incoming and outgoing text on the fly.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_thread_summary',
+            name: 'Conversation Thread Summaries',
+            description: 'Synthesize 50+ message conversation threads into concise bullets.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_action_items', name: 'Action Items & Reminder Extraction', description: 'Automatically extract todos and due dates mentioned in chat.', enabled: true },
+            ],
+          },
+        ],
+        webhookCatalog: [
+          { event: 'ai.task_completed', description: 'Fired when background batch AI summarization or analysis finishes.', payloadExample: { taskId: 'ai_task_891', executionMs: 840, tokenCount: 412 } },
+        ],
       },
       {
-        id: 'prod_media',
-        name: 'Media & Storage API',
-        category: 'Cloud Storage',
-        description: 'Secure pre-signed uploads for images, video snippets, documents, and voice memos with CDN acceleration.',
-        icon: 'HardDrive',
-        version: 'v1.9',
+        id: 'prod_profile',
+        name: 'User Profile API',
+        category: 'Identity & Access',
+        description: 'Access authenticated user profile data, verification badges, presence status, and contact cards.',
+        icon: 'User',
+        version: 'v1.8',
         status: 'GA',
-        endpoints: ['POST /api/storage/upload', 'GET /api/storage/asset/:id'],
-        requiredPermissions: ['messages.send'],
-        webhookEvents: ['media.processed'],
-      },
-      {
-        id: 'prod_analytics',
-        name: 'Analytics & Traffic Telemetry',
-        category: 'Observability',
-        description: 'Query operational request volume, error distributions, user growth, and quota consumption rates.',
-        icon: 'Activity',
-        version: 'v1.4',
-        status: 'GA',
-        endpoints: ['GET /api/developer/metrics', 'GET /api/developer/health'],
-        requiredPermissions: ['profile.read'],
-        webhookEvents: ['quota.warning', 'quota.exceeded'],
+        endpoints: ['GET /api/users/profile', 'PUT /api/users/settings', 'GET /api/developer/auth/me'],
+        requiredPermissions: ['profile.read', 'profile.update'],
+        webhookEvents: ['user.presence', 'profile.updated'],
+        defaultConfig: {
+          environment: 'DEVELOPMENT',
+          cacheTtlSeconds: 300,
+        },
+        features: [
+          {
+            id: 'feat_identity_cards',
+            name: 'Public Identity Cards',
+            description: 'Query username, avatar photo, bio, and verification tick status.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_verification_badge', name: 'Verified Badge Flag', description: 'Expose verified subscriber status in identity payloads.', enabled: true },
+            ],
+          },
+          {
+            id: 'feat_presence_stream',
+            name: 'Real-Time Presence State',
+            description: 'Observe online, offline, and away presence state over WebSocket.',
+            enabled: true,
+            subFeatures: [
+              { id: 'sub_custom_status', name: 'Custom Status Message', description: 'Expose rich activity status and custom emoji badges.', enabled: true },
+            ],
+          },
+        ],
+        webhookCatalog: [
+          { event: 'profile.updated', description: 'Fired when a user changes their profile name, avatar, or bio.', payloadExample: { userId: 'usr_p10', updatedFields: ['name', 'avatar'] } },
+          { event: 'user.presence', description: 'Fired when presence state changes from online to offline.', payloadExample: { userId: 'usr_p10', status: 'OFFLINE', lastSeen: 1728840100 } },
+        ],
       },
     ];
 
@@ -1309,6 +1548,168 @@ export class DeveloperController {
       });
     } catch (error: any) {
       return res.status(500).json({ success: false, error: error.message || 'Webhook dispatch failed' });
+    }
+  }
+
+  /**
+   * Get Activated Products and Configurations for an App
+   */
+  async getAppProducts(req: DeveloperRequest, res: Response) {
+    try {
+      const { id: appId } = req.params;
+      const devAccountId = req.developerAccount?.id;
+      if (!devAccountId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+      const app = await prisma.serverApplication.findFirst({
+        where: { id: appId, developerId: devAccountId },
+        include: { appProducts: true },
+      });
+      if (!app) return res.status(404).json({ success: false, error: 'App not found' });
+
+      return res.json({ success: true, data: app.appProducts });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * Update Product Configuration, Features & Webhooks for an App
+   */
+  async updateAppProductConfig(req: DeveloperRequest, res: Response) {
+    try {
+      const { id: appId, productId } = req.params;
+      const { config, status } = req.body;
+      const devAccountId = req.developerAccount?.id;
+      if (!devAccountId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+      const app = await prisma.serverApplication.findFirst({
+        where: { id: appId, developerId: devAccountId },
+      });
+      if (!app) return res.status(404).json({ success: false, error: 'App not found' });
+
+      let product = await prisma.product.findUnique({ where: { id: productId } });
+      if (!product) {
+        product = await prisma.product.create({
+          data: {
+            id: productId,
+            name: productId,
+            description: `Product ${productId}`,
+          },
+        });
+      }
+
+      const appProduct = await prisma.appProduct.upsert({
+        where: {
+          appId_productId: {
+            appId,
+            productId,
+          },
+        },
+        update: {
+          config: config || undefined,
+          status: status || undefined,
+        },
+        create: {
+          appId,
+          productId,
+          config: config || {},
+          status: status || 'DEVELOPMENT',
+        },
+      });
+
+      return res.json({ success: true, data: appProduct });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * Test Webhook for a Specific Product
+   */
+  async testProductWebhook(req: DeveloperRequest, res: Response) {
+    try {
+      const { id: appId, productId } = req.params;
+      const { event, endpointUrl, secretKey, customPayload } = req.body;
+      const devAccountId = req.developerAccount?.id;
+      if (!devAccountId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+      if (!endpointUrl || !event) {
+        return res.status(400).json({ success: false, error: 'Missing endpointUrl or event' });
+      }
+
+      const testPayload = {
+        event,
+        productId,
+        appId,
+        id: `evt_prod_${crypto.randomBytes(8).toString('hex')}`,
+        timestamp: Math.floor(Date.now() / 1000),
+        data: customPayload || {
+          message: `Live test webhook dispatch for ${productId} event: ${event}`,
+          environment: 'DEVELOPMENT',
+          simulated: true,
+        },
+        source: 'PRIGID_PRODUCT_STUDIO',
+      };
+
+      const payloadString = JSON.stringify(testPayload);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const secret = secretKey || 'whsec_demo_secret_key_889900';
+
+      const signature = crypto
+        .createHmac('sha256', secret)
+        .update(`${timestamp}.${payloadString}`)
+        .digest('hex');
+
+      const signatureHeader = `t=${timestamp},v1=${signature}`;
+      const startTime = Date.now();
+      let deliveryStatus = 'FAILED';
+      let statusCode = 0;
+      let responseBody = '';
+      let latencyMs = 0;
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const response = await fetch(endpointUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Vibez-Signature': signatureHeader,
+            'X-Vibez-Event': event,
+            'X-Vibez-Product': productId,
+            'User-Agent': 'Vibez-Product-Webhook/2.4 (PRIGID GROUP)',
+          },
+          body: payloadString,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        latencyMs = Date.now() - startTime;
+        statusCode = response.status;
+        responseBody = await response.text().catch(() => '');
+        deliveryStatus = response.ok ? 'DELIVERED' : 'FAILED_HTTP_ERROR';
+      } catch (err: any) {
+        latencyMs = Date.now() - startTime;
+        deliveryStatus = 'NETWORK_ERROR';
+        responseBody = err.message || 'Connection timeout or network failure';
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          deliveryStatus,
+          statusCode,
+          latencyMs,
+          endpointUrl,
+          signatureHeader,
+          payload: testPayload,
+          responseSnippet: responseBody.slice(0, 300),
+          dispatchedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
     }
   }
 }

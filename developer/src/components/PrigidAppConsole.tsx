@@ -50,6 +50,13 @@ import {
 } from 'lucide-react';
 import { useDeveloperAuth } from '../context/DeveloperAuthContext';
 import { getApiBaseUrl, safeFetchJson } from '../lib/apiHelper';
+import {
+  ProductStudio,
+  ProductConfigData,
+  ProductFeature,
+  ProductSubFeature,
+  ProductWebhookEvent,
+} from './ProductStudio';
 
 export interface DeveloperApplication {
   id: string;
@@ -86,6 +93,9 @@ export interface ProductDefinition {
   endpoints: string[];
   requiredPermissions: string[];
   webhookEvents: string[];
+  defaultConfig?: Record<string, any>;
+  features?: ProductFeature[];
+  webhookCatalog?: ProductWebhookEvent[];
 }
 
 export interface PermissionDefinition {
@@ -190,6 +200,35 @@ const INITIAL_APPS: DeveloperApplication[] = [
   },
 ];
 
+function getProductIconComponent(iconName: string, className = 'w-4 h-4 text-emerald-400') {
+  switch (iconName) {
+    case 'MessageSquare':
+      return <MessageSquare className={className} />;
+    case 'KeyRound':
+      return <KeyRound className={className} />;
+    case 'ShoppingBag':
+      return <ShoppingBag className={className} />;
+    case 'PhoneCall':
+      return <PhoneCall className={className} />;
+    case 'Receipt':
+      return <Receipt className={className} />;
+    case 'CreditCard':
+      return <CreditCard className={className} />;
+    case 'Webhook':
+      return <Webhook className={className} />;
+    case 'Sparkles':
+      return <Sparkles className={className} />;
+    case 'HardDrive':
+      return <HardDrive className={className} />;
+    case 'Activity':
+      return <Activity className={className} />;
+    case 'User':
+      return <User className={className} />;
+    default:
+      return <Zap className={className} />;
+  }
+}
+
 export const PrigidAppConsole: React.FC = () => {
   const { user } = useDeveloperAuth();
   const [apps, setApps] = useState<DeveloperApplication[]>([]);
@@ -208,7 +247,11 @@ export const PrigidAppConsole: React.FC = () => {
     | 'analytics'
     | 'roles'
     | 'review'
+    | 'product_studio'
   >('overview');
+
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [productConfigs, setProductConfigs] = useState<Record<string, ProductConfigData>>({});
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -423,6 +466,51 @@ export const PrigidAppConsole: React.FC = () => {
     }
   }, [activeApp]);
 
+  // Load product configurations for activeApp
+  useEffect(() => {
+    if (!activeApp) return;
+
+    const storageKey = `prigid_app_product_configs_${activeApp.id}`;
+    const saved = localStorage.getItem(storageKey);
+    let loaded: Record<string, ProductConfigData> = {};
+    if (saved) {
+      try {
+        loaded = JSON.parse(saved);
+      } catch {}
+    }
+
+    safeFetchJson(`/developer/apps/${activeApp.id}/products`)
+      .then((res) => {
+        if (res.ok && Array.isArray(res.data?.data)) {
+          res.data.data.forEach((ap: any) => {
+            if (ap.productId && ap.config) {
+              loaded[ap.productId] = { ...loaded[ap.productId], ...ap.config };
+            }
+          });
+          setProductConfigs({ ...loaded });
+        }
+      })
+      .catch(() => {});
+
+    setProductConfigs(loaded);
+  }, [activeApp]);
+
+  function handleUpdateProductConfig(productId: string, newConfig: ProductConfigData) {
+    if (!activeApp) return;
+    const updated = {
+      ...productConfigs,
+      [productId]: newConfig,
+    };
+    setProductConfigs(updated);
+    localStorage.setItem(`prigid_app_product_configs_${activeApp.id}`, JSON.stringify(updated));
+
+    safeFetchJson(`/developer/apps/${activeApp.id}/products/${productId}/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: newConfig }),
+    }).catch(() => {});
+  }
+
   function saveAppsToStorage(updatedApps: DeveloperApplication[]) {
     localStorage.setItem(LOCAL_STORAGE_APPS_KEY, JSON.stringify(updatedApps));
   }
@@ -430,11 +518,13 @@ export const PrigidAppConsole: React.FC = () => {
   function handleSelectApp(app: DeveloperApplication) {
     setActiveApp(app);
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_APP_KEY, app.id);
+    setSelectedProductId(null);
     setActiveTab('overview');
   }
 
   function handleBackToApps() {
     setActiveApp(null);
+    setSelectedProductId(null);
     localStorage.removeItem(LOCAL_STORAGE_ACTIVE_APP_KEY);
   }
 
@@ -541,6 +631,14 @@ export const PrigidAppConsole: React.FC = () => {
     setActiveApp({ ...activeApp, enabledProducts: newProducts });
     saveAppsToStorage(updated);
     setSelectedProductForSetup(null);
+
+    if (!isInstalled) {
+      setSelectedProductId(productId);
+      setActiveTab('product_studio');
+    } else if (selectedProductId === productId) {
+      setSelectedProductId(null);
+      setActiveTab('overview');
+    }
   }
 
   // Update Permission status
@@ -856,49 +954,138 @@ export const PrigidAppConsole: React.FC = () => {
             </div>
           </div>
 
-          {/* Navigation Tabs Bar */}
-          <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-[#090d18] border border-slate-800/80 overflow-x-auto scrollbar-none">
-            {[
-              { id: 'overview', label: 'Overview', icon: Layers },
-              { id: 'settings', label: 'App Settings', icon: Settings },
-              { id: 'platforms', label: 'Platforms', icon: Globe },
-              { id: 'products', label: 'Products', icon: ShoppingBag, badge: activeApp.enabledProducts.length },
-              { id: 'permissions', label: 'Permissions', icon: ShieldCheck },
-              { id: 'credentials', label: 'Tokens & Keys', icon: KeyRound },
-              { id: 'webhooks', label: 'Webhooks', icon: Webhook, badge: webhooks.length },
-              { id: 'explorer', label: 'API Explorer', icon: Terminal },
-              { id: 'logs', label: 'Traffic Logs', icon: Activity },
-              { id: 'analytics', label: 'Analytics', icon: Sliders },
-              { id: 'roles', label: 'Roles', icon: Users },
-              { id: 'review', label: 'App Review', icon: CheckCircle2 },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-mono whitespace-nowrap transition-all ${
-                    isActive
-                      ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{tab.label}</span>
-                  {tab.badge !== undefined && (
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        isActive ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {tab.badge}
+          {/* App Workspace with Dedicated Left Navigation */}
+          <div className="flex flex-col lg:flex-row items-start gap-6">
+            {/* Dedicated Left-Navigation Sidebar */}
+            <aside className="w-full lg:w-64 shrink-0 space-y-4 lg:sticky lg:top-20">
+              <div className="p-3 rounded-2xl bg-[#090d18] border border-slate-800/80 space-y-4 shadow-xl">
+                {/* Application Core Navigation */}
+                <div className="space-y-1">
+                  <div className="px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                    Application Tools
+                  </div>
+                  {[
+                    { id: 'overview', label: 'Overview', icon: Layers },
+                    { id: 'settings', label: 'App Settings', icon: Settings },
+                    { id: 'platforms', label: 'Platforms', icon: Globe },
+                    { id: 'products', label: 'Product Catalog', icon: ShoppingBag, badge: productsCatalogue.length },
+                    { id: 'permissions', label: 'Permissions', icon: ShieldCheck },
+                    { id: 'credentials', label: 'Tokens & Keys', icon: KeyRound },
+                    { id: 'webhooks', label: 'Global Webhooks', icon: Webhook, badge: webhooks.length },
+                    { id: 'explorer', label: 'API Explorer', icon: Terminal },
+                    { id: 'logs', label: 'Traffic Logs', icon: Activity },
+                    { id: 'analytics', label: 'Analytics', icon: Sliders },
+                    { id: 'roles', label: 'Roles', icon: Users },
+                    { id: 'review', label: 'App Review', icon: CheckCircle2 },
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setSelectedProductId(null);
+                          setActiveTab(tab.id as any);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-mono transition-all ${
+                          isActive
+                            ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <Icon className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{tab.label}</span>
+                        </div>
+                        {tab.badge !== undefined && (
+                          <span
+                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0 ${
+                              isActive ? 'bg-slate-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {tab.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Dedicated Left-Navigation for Activated Products */}
+                <div className="pt-3 border-t border-slate-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between px-3 py-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                      Activated Products
                     </span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
+                      {activeApp.enabledProducts.length}
+                    </span>
+                  </div>
+
+                  {activeApp.enabledProducts.length === 0 ? (
+                    <div className="p-3 text-center rounded-xl bg-slate-950/60 border border-slate-800/40 text-[11px] font-mono text-slate-500">
+                      No products added yet.
+                    </div>
+                  ) : (
+                    activeApp.enabledProducts.map((prodId) => {
+                      const prod = productsCatalogue.find((p) => p.id === prodId) || {
+                        id: prodId,
+                        name: prodId.replace('prod_', '').toUpperCase(),
+                        category: 'API Product',
+                      };
+                      const isSelected = activeTab === 'product_studio' && selectedProductId === prodId;
+
+                      return (
+                        <button
+                          key={prodId}
+                          onClick={() => {
+                            setSelectedProductId(prodId);
+                            setActiveTab('product_studio');
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-mono transition-all group ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black shadow-lg shadow-emerald-500/25'
+                              : 'text-slate-300 hover:text-white hover:bg-slate-900/80 border border-transparent hover:border-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 truncate">
+                            <Zap
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isSelected ? 'text-slate-950' : 'text-emerald-400 group-hover:scale-110 transition-transform'
+                              }`}
+                            />
+                            <span className="truncate">{prod.name}</span>
+                          </div>
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase shrink-0 ${
+                              isSelected
+                                ? 'bg-slate-950/20 text-slate-950'
+                                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            }`}
+                          >
+                            Active
+                          </span>
+                        </button>
+                      );
+                    })
                   )}
-                </button>
-              );
-            })}
-          </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedProductId(null);
+                      setActiveTab('products');
+                    }}
+                    className="w-full mt-2 py-2 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-dashed border-slate-700/80 hover:border-emerald-500/40 text-slate-400 hover:text-emerald-400 text-xs font-mono flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add More Products</span>
+                  </button>
+                </div>
+              </div>
+            </aside>
+
+            {/* Main Content Area */}
+            <main className="flex-1 min-w-0 w-full space-y-6">
 
           {/* Tab Content 1: Overview */}
           {activeTab === 'overview' && (
@@ -1012,27 +1199,41 @@ export const PrigidAppConsole: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {activeApp.enabledProducts.map((prodId) => {
-                    const prod = productsCatalogue.find((p) => p.id === prodId) || {
-                      id: prodId,
-                      name: prodId.replace('prod_', '').toUpperCase() + ' API',
-                      category: 'Core Service',
-                      description: 'Installed platform service.',
-                    };
-                    return (
-                      <div key={prodId} className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-white">{prod.name}</span>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">
-                            Active
-                          </span>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {activeApp.enabledProducts.map((prodId) => {
+                      const prod = productsCatalogue.find((p) => p.id === prodId) || {
+                        id: prodId,
+                        name: prodId.replace('prod_', '').toUpperCase() + ' API',
+                        category: 'Core Service',
+                        description: 'Installed platform service.',
+                      };
+                      return (
+                        <div
+                          key={prodId}
+                          onClick={() => {
+                            setSelectedProductId(prodId);
+                            setActiveTab('product_studio');
+                          }}
+                          className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-emerald-500/40 space-y-2 cursor-pointer transition-all group shadow-sm hover:shadow-emerald-500/5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center gap-1.5">
+                              <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                              {prod.name}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">
+                              Active
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 line-clamp-2">{prod.description}</p>
+                          <div className="text-[10px] font-mono text-emerald-400/80 flex items-center gap-1 pt-1">
+                            <span>Configure Features & Webhooks</span>
+                            <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-400 line-clamp-2">{prod.description}</p>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
               </div>
             </div>
           )}
@@ -1221,18 +1422,32 @@ export const PrigidAppConsole: React.FC = () => {
 
                       <div className="pt-2">
                         {isInstalled ? (
-                          <button
-                            onClick={() => handleToggleProduct(product.id)}
-                            className="w-full py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-rose-500/40 hover:text-rose-400 text-slate-300 text-xs font-mono transition-all font-bold"
-                          >
-                            Remove Product
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedProductId(product.id);
+                                setActiveTab('product_studio');
+                              }}
+                              className="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-mono font-black transition-all shadow-md shadow-emerald-500/15 flex items-center justify-center gap-1.5"
+                            >
+                              <Sliders className="w-3.5 h-3.5" />
+                              <span>Configure</span>
+                            </button>
+                            <button
+                              onClick={() => handleToggleProduct(product.id)}
+                              className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-rose-500/40 hover:text-rose-400 text-slate-400 text-xs transition-all"
+                              title="Remove Product"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         ) : (
                           <button
                             onClick={() => handleToggleProduct(product.id)}
-                            className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-mono font-black transition-all shadow-md shadow-emerald-500/10"
+                            className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-mono font-black transition-all shadow-md shadow-emerald-500/10 flex items-center justify-center gap-1.5"
                           >
-                            Set Up & Add
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Set Up & Add</span>
                           </button>
                         )}
                       </div>
@@ -1767,6 +1982,47 @@ export const PrigidAppConsole: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Tab Content 13: Dedicated Product Studio (Configuration, Features, Sub-Features & Webhooks) */}
+          {activeTab === 'product_studio' && (() => {
+            const currentProd =
+              productsCatalogue.find((p) => p.id === selectedProductId) ||
+              productsCatalogue.find((p) => activeApp.enabledProducts.includes(p.id)) ||
+              productsCatalogue[0];
+
+            if (!currentProd) {
+              return (
+                <div className="p-12 rounded-3xl bg-[#090d18] border border-slate-800 text-center space-y-4">
+                  <Layers className="w-8 h-8 text-slate-500 mx-auto" />
+                  <p className="text-xs font-mono text-slate-400">Please select an activated product from the left navigation.</p>
+                  <button
+                    onClick={() => setActiveTab('products')}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-mono text-xs font-bold"
+                  >
+                    Browse Products Catalog
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <ProductStudio
+                key={currentProd.id}
+                product={currentProd}
+                app={activeApp}
+                config={productConfigs[currentProd.id] || {}}
+                onUpdateConfig={(updatedCfg) => handleUpdateProductConfig(currentProd.id, updatedCfg)}
+                onRemoveProduct={() => handleToggleProduct(currentProd.id)}
+                onNavigateToExplorer={(endpoint, method) => {
+                  setExplorerEndpoint(endpoint.split(' ')[1] || endpoint);
+                  setExplorerMethod((endpoint.split(' ')[0] || 'POST') as any);
+                  setActiveTab('explorer');
+                }}
+              />
+            );
+          })()}
+            </main>
+          </div>
         </div>
       ) : (
         /* View 2: "My Apps" Dashboard */
