@@ -178,6 +178,12 @@ interface WhatsAppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCallLog(callLog: CallLogEntity)
 
+    @Query("SELECT * FROM call_logs WHERE id = :id LIMIT 1")
+    suspend fun getCallLogById(id: String): CallLogEntity?
+
+    @Query("UPDATE call_logs SET isMissed = :isMissed, durationSeconds = :durationSeconds WHERE id = :id")
+    suspend fun updateCallLogStatus(id: String, isMissed: Boolean, durationSeconds: Int = 0)
+
     @Query("DELETE FROM call_logs")
     suspend fun clearCallLogs()
 

@@ -1372,10 +1372,24 @@ class WhatsAppViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean) {
+    fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean, callId: String? = null) {
         viewModelScope.launch {
             val token = authManager.getAuthToken()
-            repository.logCall(contactId, contactName, callType, isIncoming, isMissed, token)
+            repository.logCall(contactId, contactName, callType, isIncoming, isMissed, token, callId)
+        }
+    }
+
+    fun updateCallLogStatus(callId: String, isMissed: Boolean, durationSeconds: Int = 0) {
+        viewModelScope.launch {
+            repository.updateCallLogStatus(callId, isMissed, durationSeconds)
+        }
+    }
+
+    fun syncCallLogs() {
+        viewModelScope.launch {
+            authManager.getAuthToken()?.let { token ->
+                repository.syncCallLogs(token)
+            }
         }
     }
 

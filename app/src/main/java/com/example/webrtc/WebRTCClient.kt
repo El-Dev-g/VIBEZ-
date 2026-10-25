@@ -63,7 +63,22 @@ class WebRTCClient(
         view.setEnableHardwareScaler(true)
     }
 
+    fun startLocalAudio() {
+        if (localAudioTrack == null) {
+            try {
+                localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
+                localAudioTrack = peerConnectionFactory?.createAudioTrack("audio_track", localAudioSource)
+                localAudioTrack?.let { peerConnection?.addTrack(it, listOf("local_stream")) }
+                android.util.Log.d("WebRTCClient", "Local audio track created and attached to peer connection")
+            } catch (e: Exception) {
+                android.util.Log.e("WebRTCClient", "Error setting up local audio: ${e.message}", e)
+            }
+        }
+    }
+
     fun startLocalVideo(view: SurfaceViewRenderer? = null) {
+        startLocalAudio()
+
         if (localVideoTrack == null) {
             try {
                 val helper = SurfaceTextureHelper.create("CaptureThread", rootEglBase.eglBaseContext)
@@ -90,16 +105,6 @@ class WebRTCClient(
             }
         }
 
-        if (localAudioTrack == null) {
-            try {
-                localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
-                localAudioTrack = peerConnectionFactory?.createAudioTrack("audio_track", localAudioSource)
-                localAudioTrack?.let { peerConnection?.addTrack(it, listOf("local_stream")) }
-            } catch (e: Exception) {
-                android.util.Log.e("WebRTCClient", "Error setting up local audio: ${e.message}", e)
-            }
-        }
-
         if (view != null && localVideoTrack != null) {
             try {
                 localVideoTrack?.addSink(view)
@@ -110,6 +115,7 @@ class WebRTCClient(
     }
 
     fun getLocalVideoTrack(): VideoTrack? = localVideoTrack
+    fun getLocalAudioTrack(): AudioTrack? = localAudioTrack
 
     private fun createVideoCapturer(context: Context): VideoCapturer? {
         // Try Camera2 first if supported

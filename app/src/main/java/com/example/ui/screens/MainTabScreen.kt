@@ -114,7 +114,8 @@ fun MainTabScreen(
     onMyStatusListClick: () -> Unit = {},
     onClearCallLogs: () -> Unit = {},
     onIncomingCallSimulate: () -> Unit = {},
-    onBusinessToolsClick: () -> Unit = {}
+    onBusinessToolsClick: () -> Unit = {},
+    onRefreshCallLogs: () -> Unit = {}
 ) {
     var isSearchActive by remember { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }
@@ -459,7 +460,8 @@ fun MainTabScreen(
                     callLogs = callLogs,
                     onStartCallClick = onStartCallClick,
                     onNewCallFabClick = onNewChatClick,
-                    onAvatarClick = onAvatarClick
+                    onAvatarClick = onAvatarClick,
+                    onRefresh = onRefreshCallLogs
                 )
             }
         }

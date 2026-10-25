@@ -18,6 +18,7 @@ class SocketManager(private val userId: String, private val authToken: String? =
     var onCallRingingReceived: ((JSONObject) -> Unit)? = null
     var onCallBusyReceived: ((JSONObject) -> Unit)? = null
     var onCallRejectedReceived: ((JSONObject) -> Unit)? = null
+    var onCallLogUpdated: (() -> Unit)? = null
     var onTypingReceived: ((String, String, Boolean) -> Unit)? = null
     var onMessageReadReceived: ((String, String) -> Unit)? = null
     var onMessageDeliveredReceived: ((String, String?, String?) -> Unit)? = null
@@ -136,6 +137,11 @@ class SocketManager(private val userId: String, private val authToken: String? =
             socket?.on("call_rejected") { args ->
                 val data = if (args.isNotEmpty() && args[0] is JSONObject) args[0] as JSONObject else JSONObject()
                 onCallRejectedReceived?.invoke(data)
+            }
+
+            socket?.on("call_log_updated") {
+                Log.d(TAG, "Received call_log_updated socket event")
+                onCallLogUpdated?.invoke()
             }
 
             socket?.on("new_message_notification") { args ->

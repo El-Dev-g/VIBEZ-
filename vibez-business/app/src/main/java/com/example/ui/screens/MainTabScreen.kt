@@ -124,7 +124,8 @@ fun MainTabScreen(
     onNavigateToCatalog: () -> Unit = onBusinessToolsClick,
     onNavigateToGreetingMessage: () -> Unit = onBusinessToolsClick,
     onNavigateToAwayMessage: () -> Unit = onBusinessToolsClick,
-    onNavigateToQuickReplies: () -> Unit = onBusinessToolsClick
+    onNavigateToQuickReplies: () -> Unit = onBusinessToolsClick,
+    onRefreshCallLogs: () -> Unit = {}
 ) {
     var isSearchActive by remember { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }
@@ -503,7 +504,8 @@ fun MainTabScreen(
                     callLogs = callLogs,
                     onStartCallClick = onStartCallClick,
                     onNewCallFabClick = onNewChatClick,
-                    onAvatarClick = onAvatarClick
+                    onAvatarClick = onAvatarClick,
+                    onRefresh = onRefreshCallLogs
                 )
             }
         }

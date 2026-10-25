@@ -31,19 +31,29 @@ export class CallController {
       const { receiverId, type, status, duration } = req.body;
       const callerId = req.user?.id as string;
 
+      const { CallingGateway } = await import('../services/CallingGateway');
+      const recipient = await CallingGateway.getInstance().resolveRecipient(receiverId, callerId);
+      const effectiveReceiverId = recipient ? recipient.userId : receiverId;
+
       const call = await prisma.call.create({
         data: {
           callerId,
-          receiverId,
+          receiverId: effectiveReceiverId,
           type: type || 'VOICE',
           status: status || 'COMPLETED',
-          duration
+          duration: duration || 0
         },
         include: {
           caller: true,
           receiver: true
         }
       });
+
+      const io = CallingGateway.getInstance().getIo();
+      if (io) {
+        io.to(`user_${callerId}`).emit('call_log_updated', call);
+        io.to(`user_${effectiveReceiverId}`).emit('call_log_updated', call);
+      }
 
       res.json(call);
     } catch (error) {

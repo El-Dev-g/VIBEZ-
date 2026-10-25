@@ -104,6 +104,14 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun startLocalAudio() {
+        try {
+            rtcClient?.startLocalAudio()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting local audio: ${e.message}", e)
+        }
+    }
+
     fun startLocalVideo(view: SurfaceViewRenderer? = null) {
         try {
             rtcClient?.startLocalVideo(view)

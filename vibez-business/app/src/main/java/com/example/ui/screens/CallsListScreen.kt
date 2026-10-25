@@ -66,10 +66,16 @@ fun CallsListScreen(
     onStartCallClick: (ContactId: String, isVideo: Boolean) -> Unit,
     onNewCallFabClick: () -> Unit,
     onAvatarClick: (String) -> Unit = {},
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        onRefresh()
+    }
+
     var showCallLinkDialog by remember { mutableStateOf(false) }
     var callTypeIsVideo by remember { mutableStateOf(true) }
     val generatedCode = remember { "vibez-" + (100000..999999).random().toString() }

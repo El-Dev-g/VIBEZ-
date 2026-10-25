@@ -95,6 +95,9 @@ const io = new Server(httpServer, {
   pingInterval: 25000
 });
 
+CallingGateway.getInstance().setIo(io);
+export { io };
+
 app.use(cors({
   origin: (origin, callback) => {
     if (isOriginAllowed(origin)) {

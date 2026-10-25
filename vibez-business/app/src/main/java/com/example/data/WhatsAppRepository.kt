@@ -213,6 +213,21 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
             }
             onCallEndedReceived = { data ->
                 _callEnded.value = data
+                val token = context?.let { AuthManager(it).getAuthToken() }
+                if (!token.isNullOrBlank()) {
+                    repositoryScope.launch {
+                        kotlinx.coroutines.delay(500)
+                        syncCallLogs(token)
+                    }
+                }
+            }
+            onCallLogUpdated = {
+                val token = context?.let { AuthManager(it).getAuthToken() }
+                if (!token.isNullOrBlank()) {
+                    repositoryScope.launch {
+                        syncCallLogs(token)
+                    }
+                }
             }
         }
     }
@@ -1875,13 +1890,21 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         dao.deleteExpiredStatuses(twentyFourHoursAgo)
     }
 
-    suspend fun logCall(contactId: String, contactName: String, callType: String, isIncoming: Boolean, isMissed: Boolean, token: String? = null): String {
-        val effectiveName = if (contactName.isBlank() || contactName == "Contact" || contactName == "Unknown") {
+    suspend fun logCall(
+        contactId: String,
+        contactName: String,
+        callType: String,
+        isIncoming: Boolean,
+        isMissed: Boolean,
+        token: String? = null,
+        callId: String? = null
+    ): String {
+        val effectiveName = if (contactName.isBlank() || contactName == "Contact" || contactName == "Unknown" || contactName == "Caller") {
             val dbContact = dao.getContactById(contactId) ?: dao.getContactByRemoteId(contactId)
-            dbContact?.name ?: "Contact"
+            dbContact?.name ?: (if (isIncoming) "Incoming Call" else "Outgoing Call")
         } else contactName
 
-        val id = "call_${System.currentTimeMillis()}"
+        val id = callId ?: "call_${System.currentTimeMillis()}"
         val newLog = CallLogEntity(
             id = id,
             contactId = contactId,
@@ -1894,7 +1917,7 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         dao.insertCallLog(newLog)
 
         try {
-            if (!token.isNullOrBlank()) {
+            if (!token.isNullOrBlank() && !isIncoming) {
                 val statusStr = if (isMissed) "MISSED" else "COMPLETED"
                 logRemoteCall(contactId, callType, statusStr, 0, token)
             }
@@ -1905,18 +1928,42 @@ class WhatsAppRepository(private val dao: WhatsAppDao, private val context: andr
         return id
     }
 
+    suspend fun updateCallLogStatus(callId: String, isMissed: Boolean, durationSeconds: Int = 0) {
+        try {
+            dao.updateCallLogStatus(callId, isMissed, durationSeconds)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     suspend fun syncCallLogs(token: String) {
         try {
+            val myUserId = context?.let { AuthManager(it).getUserId() } ?: ""
             val dtos = NetworkClient.apiService.getCallLogs("Bearer $token")
             dtos.forEach { dto ->
+                val isMeCaller = (myUserId.isNotBlank() && (dto.callerId == myUserId || dto.callerId == "user_$myUserId")) || dto.callerId == "ME"
+                val isIncoming = !isMeCaller
+
+                val counterpartId = if (isMeCaller) dto.receiverId else dto.callerId
+                val counterpartName = if (isMeCaller) {
+                    dto.receiver?.name ?: dto.receiver?.phoneNumber ?: "Contact"
+                } else {
+                    dto.caller?.name ?: dto.caller?.phoneNumber ?: "Caller"
+                }
+
+                val localContact = if (counterpartId.isNotBlank()) {
+                    dao.getContactById(counterpartId) ?: dao.getContactByRemoteId(counterpartId)
+                } else null
+                val finalName = localContact?.name ?: counterpartName
+
                 dao.insertCallLog(CallLogEntity(
                     id = dto.id,
-                    contactId = if (dto.callerId == "ME") dto.receiverId else dto.callerId,
-                    contactName = (if (dto.callerId == "ME") dto.receiver?.name else dto.caller?.name) ?: "Unknown",
+                    contactId = counterpartId,
+                    contactName = finalName,
                     timestamp = parseDate(dto.createdAt),
                     callType = dto.type,
-                    isIncoming = dto.receiverId == "ME",
-                    isMissed = dto.status == "MISSED"
+                    isIncoming = isIncoming,
+                    isMissed = dto.status == "MISSED" || dto.status == "REJECTED"
                 ))
             }
         } catch (e: Exception) {

@@ -27,11 +27,26 @@ export interface ResolvedRecipient {
   socketIds: string[];
 }
 
+export interface ActiveCallRecord {
+  id: string;
+  callerId: string;
+  receiverId: string;
+  isVideo: boolean;
+  startedAt: number;
+  isAnswered: boolean;
+}
+
 export class CallingGateway {
   private static instance: CallingGateway;
 
   // Track active socket sessions: socketId -> UserSessionData
   private activeSockets = new Map<string, UserSessionData>();
+
+  // Track ongoing active calls: callId -> ActiveCallRecord
+  private activeCalls = new Map<string, ActiveCallRecord>();
+
+  // Global Socket.IO Server reference
+  private ioInstance: Server | null = null;
 
   // Multi-index maps for O(1) cross-platform lookups
   private userToSockets = new Map<string, Set<string>>();
@@ -45,6 +60,14 @@ export class CallingGateway {
       CallingGateway.instance = new CallingGateway();
     }
     return CallingGateway.instance;
+  }
+
+  public setIo(io: Server) {
+    this.ioInstance = io;
+  }
+
+  public getIo(): Server | null {
+    return this.ioInstance;
   }
 
   /**
@@ -219,6 +242,7 @@ export class CallingGateway {
     cleanTarget = extractPureChatId(cleanTarget);
 
     const normPhone = normalizePhone(cleanTarget);
+    const digitsPhone = extractDigits(cleanTarget);
 
     // 1. Check in-memory active sockets first
     if (this.userToSockets.has(cleanTarget)) {
@@ -278,15 +302,28 @@ export class CallingGateway {
     // 2. Query Prisma database to resolve cross-platform user
     try {
       // Check User ID directly
-      let user = await prisma.user.findUnique({
-        where: { id: cleanTarget },
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { id: cleanTarget },
+            { id: targetIdentifier },
+            { id: `user_${cleanTarget}` }
+          ]
+        },
         include: { businessProfile: true }
       });
 
-      // Check Business Profile ID
+      // Check Business Profile by ID or userId
       if (!user) {
-        const biz = await prisma.businessProfile.findUnique({
-          where: { id: cleanTarget },
+        const biz = await prisma.businessProfile.findFirst({
+          where: {
+            OR: [
+              { id: cleanTarget },
+              { id: targetIdentifier },
+              { userId: cleanTarget },
+              { userId: targetIdentifier }
+            ]
+          },
           include: { user: { include: { businessProfile: true } } }
         });
         if (biz && biz.user) {
@@ -294,16 +331,17 @@ export class CallingGateway {
         }
       }
 
-      // Check Phone Number
-      if (!user && normPhone) {
+      // Check Phone Number (exact or digit suffix)
+      if (!user && (normPhone || digitsPhone)) {
+        const phoneConditions: any[] = [];
+        if (normPhone) phoneConditions.push({ phoneNumber: normPhone });
+        if (cleanTarget) phoneConditions.push({ phoneNumber: cleanTarget });
+        if (digitsPhone && digitsPhone.length >= 7) {
+          phoneConditions.push({ phoneNumber: { contains: digitsPhone.slice(-9) } });
+        }
+
         user = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { phoneNumber: normPhone },
-              { phoneNumber: cleanTarget },
-              { phoneNumber: { contains: extractDigits(normPhone).slice(-10) } }
-            ]
-          },
+          where: { OR: phoneConditions },
           include: { businessProfile: true }
         });
       }
@@ -312,7 +350,7 @@ export class CallingGateway {
       if (!user && callerUserId) {
         const chatMember = await prisma.chatMember.findFirst({
           where: {
-            chatId: cleanTarget,
+            chatId: { in: [cleanTarget, targetIdentifier, `chat_${cleanTarget}`] },
             userId: { not: callerUserId }
           },
           include: {
@@ -342,6 +380,15 @@ export class CallingGateway {
           this.businessToSockets.get(businessProfileId)!.forEach(s => activeSocketSet.add(s));
         }
 
+        if (this.ioInstance) {
+          for (const [sId, s] of this.ioInstance.sockets.sockets.entries()) {
+            const sUid = s.data?.userId ? extractPureChatId(s.data.userId) : null;
+            if (sUid === user.id || s.data?.userId === user.id) {
+              activeSocketSet.add(sId);
+            }
+          }
+        }
+
         return {
           userId: user.id,
           phoneNumber: user.phoneNumber,
@@ -363,7 +410,7 @@ export class CallingGateway {
 
   /**
    * Cross-platform WebRTC call dispatch:
-   * Enriches payload, routes across rooms, and emits to all target sockets.
+   * Enriches payload, updates database call state, routes across rooms, and emits to all target sockets.
    */
   public async routeCallSignaling(
     io: Server,
@@ -375,6 +422,8 @@ export class CallingGateway {
       console.warn(`[CallingGateway] Cannot route event '${event}': missing data.targetUserId`);
       return false;
     }
+
+    this.setIo(io);
 
     const callerSocketData = this.activeSockets.get(socket.id);
     const callerUserId = callerSocketData?.userId || (socket.data?.userId as string);
@@ -410,10 +459,12 @@ export class CallingGateway {
 
     const isVideo = data.isVideo ?? true;
     const resolvedTargetUserId = recipient ? recipient.userId : extractPureChatId(data.targetUserId);
+    const callId = data.callId || `call_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     // Build standard cross-platform payload
     const payload: any = {
       ...data,
+      callId,
       callerId: callerUserId,
       callerName,
       callerAvatar,
@@ -427,8 +478,97 @@ export class CallingGateway {
 
     console.log(
       `[CallingGateway] Routing '${event}' from ${callerAccountType} '${callerName}' (${callerUserId}) ` +
-      `to ${recipient ? recipient.accountType : 'Recipient'} (${resolvedTargetUserId})`
+      `to ${recipient ? recipient.accountType : 'Recipient'} (${resolvedTargetUserId}) [Call ID: ${callId}]`
     );
+
+    // Track Call State & Persistence
+    if (event === 'call_offer' || event === 'incoming_call') {
+      try {
+        // Upsert call entry in database
+        await prisma.call.create({
+          data: {
+            id: callId,
+            callerId: callerUserId,
+            receiverId: resolvedTargetUserId,
+            type: isVideo ? 'VIDEO' : 'VOICE',
+            status: 'INITIATED',
+            duration: 0
+          }
+        });
+
+        this.activeCalls.set(callId, {
+          id: callId,
+          callerId: callerUserId,
+          receiverId: resolvedTargetUserId,
+          isVideo,
+          startedAt: Date.now(),
+          isAnswered: false
+        });
+      } catch (dbErr) {
+        console.warn('[CallingGateway] Could not record call offer in DB:', dbErr);
+      }
+    } else if (event === 'call_answer') {
+      const activeCall = this.activeCalls.get(callId) || Array.from(this.activeCalls.values()).find(
+        c => (c.callerId === resolvedTargetUserId && c.receiverId === callerUserId) ||
+             (c.callerId === callerUserId && c.receiverId === resolvedTargetUserId)
+      );
+      if (activeCall) {
+        activeCall.isAnswered = true;
+        try {
+          await prisma.call.update({
+            where: { id: activeCall.id },
+            data: { status: 'IN_PROGRESS' }
+          });
+        } catch (_) {}
+      }
+    } else if (event === 'end_call' || event === 'call_ended') {
+      const activeCall = this.activeCalls.get(callId) || Array.from(this.activeCalls.values()).find(
+        c => (c.callerId === resolvedTargetUserId && c.receiverId === callerUserId) ||
+             (c.callerId === callerUserId && c.receiverId === resolvedTargetUserId)
+      );
+
+      const isAnswered = activeCall ? activeCall.isAnswered : false;
+      const duration = activeCall && isAnswered ? Math.max(1, Math.round((Date.now() - activeCall.startedAt) / 1000)) : 0;
+      const finalStatus = isAnswered ? 'COMPLETED' : 'MISSED';
+
+      if (activeCall) {
+        this.activeCalls.delete(activeCall.id);
+        try {
+          await prisma.call.update({
+            where: { id: activeCall.id },
+            data: {
+              status: finalStatus,
+              duration
+            }
+          });
+        } catch (_) {}
+      }
+
+      // Notify clients to refresh call logs
+      io.to(`user_${callerUserId}`).emit('call_log_updated', { callId, status: finalStatus, duration });
+      io.to(`user_${resolvedTargetUserId}`).emit('call_log_updated', { callId, status: finalStatus, duration });
+    } else if (event === 'call_rejected' || event === 'call_busy') {
+      const activeCall = this.activeCalls.get(callId) || Array.from(this.activeCalls.values()).find(
+        c => (c.callerId === resolvedTargetUserId && c.receiverId === callerUserId) ||
+             (c.callerId === callerUserId && c.receiverId === resolvedTargetUserId)
+      );
+
+      if (activeCall) {
+        this.activeCalls.delete(activeCall.id);
+        try {
+          await prisma.call.update({
+            where: { id: activeCall.id },
+            data: {
+              status: event === 'call_rejected' ? 'REJECTED' : 'BUSY',
+              duration: 0
+            }
+          });
+        } catch (_) {}
+      }
+
+      io.to(`user_${callerUserId}`).emit('call_log_updated', { callId, status: 'REJECTED', duration: 0 });
+      io.to(`user_${resolvedTargetUserId}`).emit('call_log_updated', { callId, status: 'REJECTED', duration: 0 });
+    }
 
     // 1. Emit to room names
     io.to(`user_${resolvedTargetUserId}`).emit(event, payload);
@@ -455,22 +595,39 @@ export class CallingGateway {
       }
     });
 
-    // Also scan any connected sockets with matching userId just in case
+    // Also scan connected sockets matching userId with prefix normalization
     for (const [sId, s] of io.sockets.sockets.entries()) {
       if (s.id !== socket.id) {
-        const sUserId = s.data?.userId || (s.handshake?.query?.userId as string);
-        if (sUserId === resolvedTargetUserId || sUserId === data.targetUserId) {
+        const sRaw = s.data?.userId || (s.handshake?.query?.userId as string);
+        const sClean = sRaw ? extractPureChatId(sRaw) : null;
+        if (sClean === resolvedTargetUserId || sRaw === resolvedTargetUserId || sClean === extractPureChatId(data.targetUserId)) {
           s.emit(event, payload);
           directEmits++;
         }
       }
     }
 
-    // If it's a call offer, also emit the 'incoming_call' alias event so both client patterns receive it
+    // Bi-directional event aliasing for maximum compatibility:
+    // If it's a call offer, also emit 'incoming_call'
     if (event === 'call_offer') {
       io.to(`user_${resolvedTargetUserId}`).emit('incoming_call', payload);
       if (recipient?.businessProfileId) {
         io.to(`biz_${recipient.businessProfileId}`).emit('incoming_call', payload);
+      }
+    } else if (event === 'incoming_call') {
+      io.to(`user_${resolvedTargetUserId}`).emit('call_offer', payload);
+    }
+
+    // If it's end_call, also emit call_ended and vice-versa
+    if (event === 'end_call') {
+      io.to(`user_${resolvedTargetUserId}`).emit('call_ended', payload);
+      if (recipient?.businessProfileId) {
+        io.to(`biz_${recipient.businessProfileId}`).emit('call_ended', payload);
+      }
+    } else if (event === 'call_ended') {
+      io.to(`user_${resolvedTargetUserId}`).emit('end_call', payload);
+      if (recipient?.businessProfileId) {
+        io.to(`biz_${recipient.businessProfileId}`).emit('end_call', payload);
       }
     }
 

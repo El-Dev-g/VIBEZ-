@@ -215,17 +215,26 @@ fun CallScreen(
         }
     }
 
-    LaunchedEffect(hasCameraPermission, hasAudioPermission, isVideoCall) {
-        if (hasCameraPermission && hasAudioPermission) {
+    var hasHandledOffer by remember { mutableStateOf(false) }
+
+    val canProceed = if (isVideoCall) (hasCameraPermission && hasAudioPermission) else hasAudioPermission
+
+    LaunchedEffect(canProceed, isVideoCall, isIncoming, incomingSdp) {
+        if (canProceed) {
             viewModel.initWebRTC(observer)
+            viewModel.startLocalAudio()
             if (isVideoCall) {
                 viewModel.startLocalVideo()
             }
-            if (isIncoming && incomingSdp != null) {
-                viewModel.onRemoteOfferReceived(incomingSdp)
-                viewModel.setCallPickedUp(true)
-                viewModel.clearIncomingCall()
-            } else {
+            if (isIncoming) {
+                if (!hasHandledOffer && incomingSdp != null) {
+                    hasHandledOffer = true
+                    viewModel.onRemoteOfferReceived(incomingSdp)
+                    viewModel.setCallPickedUp(true)
+                    viewModel.clearIncomingCall()
+                }
+            } else if (!hasHandledOffer) {
+                hasHandledOffer = true
                 viewModel.createOffer(isVideo = isVideoCall)
             }
         }

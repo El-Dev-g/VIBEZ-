@@ -282,6 +282,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                 val callerName = json.optString("callerName", "Incoming Caller")
                 val isVideo = json.optBoolean("isVideo", true)
                 val sdp = json.optString("sdp")
+                val callId = json.optString("callId", "call_${System.currentTimeMillis()}")
                 if (sdp.isNotEmpty() && callerId.isNotEmpty()) {
                     val offer = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.OFFER, sdp)
                     videoCallViewModel.setIncomingCallOffer(
@@ -291,6 +292,15 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                             sdp = offer,
                             isVideo = isVideo
                         )
+                    )
+                    // Log incoming call immediately so it shows in Call Logs as ongoing/incoming
+                    viewModel.logCall(
+                        contactId = callerId,
+                        contactName = callerName,
+                        callType = if (isVideo) "VIDEO" else "VOICE",
+                        isIncoming = true,
+                        isMissed = false,
+                        callId = callId
                     )
                 }
             }
@@ -323,6 +333,21 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
     LaunchedEffect(Unit) {
         viewModel.repository.callEnded.collect { json ->
             if (json != null) {
+                val offer = videoCallViewModel.incomingCallOffer.value
+                val callId = json.optString("callId")
+                if (offer != null) {
+                    if (callId.isNotEmpty()) {
+                        viewModel.updateCallLogStatus(callId, isMissed = true)
+                    } else {
+                        viewModel.logCall(
+                            contactId = offer.callerId,
+                            contactName = offer.callerName,
+                            callType = if (offer.isVideo) "VIDEO" else "VOICE",
+                            isIncoming = true,
+                            isMissed = true
+                        )
+                    }
+                }
                 videoCallViewModel.endCall()
                 videoCallViewModel.clearIncomingCall()
                 viewModel.repository.clearCallSignals()
@@ -682,6 +707,9 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     navController.navigate("call/$contactId/$isVideo")
                 },
                 onIncomingCallSimulate = {},
+                onRefreshCallLogs = {
+                    viewModel.syncCallLogs()
+                },
                 onSettingsClick = {
                     navController.navigate("settings")
                 },
@@ -2039,6 +2067,7 @@ fun WhatsAppApp(viewModel: WhatsAppViewModel) {
                     val callerId = callData.callerId
                     val callerName = callData.callerName
                     viewModel.logCall(callerId, callerName, if (callData.isVideo) "VIDEO" else "VOICE", isIncoming = true, isMissed = true)
+                    viewModel.repository.socketManager?.sendCallRejected(callerId)
                     viewModel.repository.socketManager?.endCall(callerId)
                     videoCallViewModel.clearIncomingCall()
                     viewModel.repository.clearIncomingCall()
